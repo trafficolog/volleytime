@@ -35,6 +35,9 @@ const requiredEnv = {
 const dirs: string[] = []
 afterEach(() => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true })
+})
+
+describe('fallback deployment contract', () => {
   it('offers a manual local-build fallback while keeping GHCR as the default path', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
 
@@ -73,7 +76,6 @@ afterEach(() => {
     expect(runbook).toContain('rollback')
     expect(runbook).toContain('forward-compatible')
   })
-
 })
 
 describe('production env deployment contract', () => {
