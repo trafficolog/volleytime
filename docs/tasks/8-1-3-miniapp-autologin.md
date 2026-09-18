@@ -2,10 +2,10 @@
 id: '8.1.3'
 phase: '8'
 epic: '8.1'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-17
-status_note: 'Реализовано в v0.1.0; открытые находки ревью — эпик 8.8.'
+last_reviewed: 2026-09-18
+status_note: "Reconciled 2026-09-18: реализация v0.1.0 и hardening эпика 8.8 подтверждены кодом и review evidence; manual Telegram gate вынесен в 8.7.2/8.8.11."
 roles:
   - FE
 depends_on:
