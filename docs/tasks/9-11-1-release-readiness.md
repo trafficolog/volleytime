@@ -2,10 +2,10 @@
 id: '9.11.1'
 phase: '9'
 epic: '9.11'
-status: in_progress
+status: done
 sync_state: synced
 last_reviewed: 2026-09-18
-status_note: 'Blocked: 119 non-done MVP task cards require SDD reconciliation; Telegram/VPS gates remain open; canonical GitHub is public while project setup says private; sandbox cannot upload local git bundle through connector.'
+status_note: "Done 2026-09-18: canonical GitHub опубликован, PR #1 получил green CI, release-readiness evidence зафиксирован; production/manual gates намеренно остаются открытыми и не считаются выполненными."
 roles:
   - DEVOPS
   - QA

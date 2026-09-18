@@ -4,8 +4,8 @@ phase: '9'
 epic: '9.8'
 status: in_progress
 sync_state: synced
-last_reviewed: 2026-09-17
-status_note: 'Реализовано в v0.1.0; открытые находки ревью — эпик 9.9.'
+last_reviewed: 2026-09-18
+status_note: "Reconciled 2026-09-18: отдельная migrator-stage реализована, но workflow предполагает уже существующий /opt/volleytime/.env; production GitHub Secrets/VPS env не настроены и secret materialization из карточки не реализован."
 roles:
   - DEVOPS
   - BACK

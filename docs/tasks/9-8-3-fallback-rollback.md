@@ -4,8 +4,8 @@ phase: '9'
 epic: '9.8'
 status: in_progress
 sync_state: synced
-last_reviewed: 2026-09-17
-status_note: 'Реализовано в v0.1.0; открытые находки ревью — эпик 9.9.'
+last_reviewed: 2026-09-18
+status_note: "Reconciled 2026-09-18: compose поддерживает image/build и rollback path реализован; build-on-VPS fallback/runbook отсутствует, GHCR reachability и полный rollback/pipeline не проверены."
 roles:
   - DEVOPS
 depends_on:
