@@ -16,6 +16,7 @@
 - Deploy run 35346916965: pre-deploy tests — success;
 - Deploy run 35346916965: build/push web + migrator + bot — success;
 - Deploy to VPS — failure до SSH: `missing server host`, production secrets/VPS ещё не настроены.
+- Canonical formatting — Prettier 3.9.6 applied by one-shot GitHub runner; temporary formatter workflow self-removed from the final tree.
 
 ## Что было status drift
 
