@@ -59,6 +59,7 @@
 - **4.7.5** закрыта в PR #3: добавлены Mini App routes `/audit` и `/settings`, permission-aware dashboard links, owner-only save/archive flow и red→green tests для UI policy/labels.
 - Fresh CI PR #3: build, lint/format/typecheck и unit+integration tests — success.
 - Текущий snapshot после закрытия: **237 cards / 220 done / 17 non-done**.
+- **9.8.2 repository gap закрыт в PR #4:** production `.env` fail-closed рендерится на runner без вывода secret values, передаётся через SCP в mode-protected staging и устанавливается на VPS с `0600` до `pull → migrate → up`. Карточка остаётся `in_progress` только из-за внешнего gate фактических GitHub Secrets/VPS.
 
 ## Release consequence
 
