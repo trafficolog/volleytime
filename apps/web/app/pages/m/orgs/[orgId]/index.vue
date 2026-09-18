@@ -214,11 +214,7 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
                 <VtIcon name="users" :size="18" />
                 <div class="mt-1.5 text-xs font-semibold">Игроки</div>
               </NuxtLink>
-              <NuxtLink
-                v-if="canViewAudit"
-                :to="`${base}/audit`"
-                class="vt-card p-3 text-center"
-              >
+              <NuxtLink v-if="canViewAudit" :to="`${base}/audit`" class="vt-card p-3 text-center">
                 <VtIcon name="chart" :size="18" />
                 <div class="mt-1.5 text-xs font-semibold">Журнал</div>
               </NuxtLink>

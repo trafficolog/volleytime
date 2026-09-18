@@ -73,9 +73,7 @@ async function onSave() {
 async function onArchive() {
   if (!canManage.value || archiving.value) return
   if (
-    !(await confirm(
-      'Архивировать группу? Она исчезнет из активного списка, но данные сохранятся.',
-    ))
+    !(await confirm('Архивировать группу? Она исчезнет из активного списка, но данные сохранятся.'))
   )
     return
 

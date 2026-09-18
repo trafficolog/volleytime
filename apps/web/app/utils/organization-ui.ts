@@ -30,9 +30,7 @@ const AUDIT_ENTITY_LABELS: Record<string, string> = {
 }
 
 export function canViewOrgAuditUi(member: OrganizationUiMembership | null | undefined): boolean {
-  return (
-    member?.status === 'active' && (member.role === 'owner' || member.role === 'organizer')
-  )
+  return member?.status === 'active' && (member.role === 'owner' || member.role === 'organizer')
 }
 
 export function canManageOrgSettingsUi(

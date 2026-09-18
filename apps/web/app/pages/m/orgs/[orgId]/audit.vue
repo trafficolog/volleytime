@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import type { AuditLogEntry, OrganizationMember } from '@volley-time/db'
-import {
-  auditActionLabel,
-  auditEntityLabel,
-  canViewOrgAuditUi,
-} from '~/utils/organization-ui'
+import { auditActionLabel, auditEntityLabel, canViewOrgAuditUi } from '~/utils/organization-ui'
 
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
@@ -18,9 +14,7 @@ const {
   data: orgData,
   error: orgError,
   refresh: refreshOrg,
-} = await useFetch<{ myMember: OrganizationMember }>(
-  () => `/api/organizations/${orgId.value}`,
-)
+} = await useFetch<{ myMember: OrganizationMember }>(() => `/api/organizations/${orgId.value}`)
 const me = computed(() => orgData.value?.myMember ?? null)
 const canView = computed(() => canViewOrgAuditUi(me.value))
 
@@ -86,7 +80,11 @@ function detailsValue(value: unknown): string {
       />
       <template v-else>
         <SkeletonList v-if="loading && entries.length === 0" :count="4" />
-        <ErrorState v-else-if="loadError && entries.length === 0" :message="loadError" @retry="load(true)" />
+        <ErrorState
+          v-else-if="loadError && entries.length === 0"
+          :message="loadError"
+          @retry="load(true)"
+        />
         <EmptyState
           v-else-if="entries.length === 0"
           icon="chart"
@@ -110,7 +108,7 @@ function detailsValue(value: unknown): string {
                   <summary class="cursor-pointer font-semibold text-vt-flame">Подробнее</summary>
                   <pre
                     class="mt-2 p-2 rounded-lg bg-vt-bone-2 overflow-x-auto whitespace-pre-wrap break-words"
-                  >{{ detailsValue({ old: entry.oldValue, new: entry.newValue }) }}</pre>
+                    >{{ detailsValue({ old: entry.oldValue, new: entry.newValue }) }}</pre>
                 </details>
               </div>
               <time class="text-[11px] text-vt-mute-2 shrink-0" :datetime="entry.createdAt">
@@ -120,7 +118,11 @@ function detailsValue(value: unknown): string {
           </li>
         </ul>
 
-        <p v-if="loadError && entries.length > 0" class="mt-3 text-sm text-vt-rose-ink" role="alert">
+        <p
+          v-if="loadError && entries.length > 0"
+          class="mt-3 text-sm text-vt-rose-ink"
+          role="alert"
+        >
           {{ loadError }}
         </p>
         <button
