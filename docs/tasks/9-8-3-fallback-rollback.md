@@ -5,7 +5,7 @@ epic: '9.8'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-18
-status_note: 'Reconciled 2026-09-18: compose поддерживает image/build и rollback path реализован; build-on-VPS fallback/runbook отсутствует, GHCR reachability и полный rollback/pipeline не проверены.'
+status_note: 'Repository fallback implementation on PR #5: GHCR default + manual local-build + rollback runbook. Real VPS GHCR reachability, end-to-end deploy and rollback verification remain required.'
 roles:
   - DEVOPS
 depends_on:
