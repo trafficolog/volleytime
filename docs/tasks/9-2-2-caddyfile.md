@@ -4,8 +4,8 @@ phase: '9'
 epic: '9.2'
 status: in_progress
 sync_state: synced
-last_reviewed: 2026-09-17
-status_note: 'Реализовано в v0.1.0; открытые находки ревью — эпик 9.9.'
+last_reviewed: 2026-09-18
+status_note: "Reconciled 2026-09-18: Caddy config и webhook routing проверены локально на Caddy 2.11; live DNS/TLS/HTTPS volleytime.by ждут VPS/DNS."
 roles:
   - DEVOPS
 depends_on:
