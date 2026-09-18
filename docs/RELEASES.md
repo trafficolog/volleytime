@@ -144,9 +144,9 @@
 - реальный backup/restore и внешний monitoring;
 - неделю эксплуатации на реальной группе из R0 Definition of Done.
 
-**Статус 2026-09-18:** fresh GitHub CI зелёный; SDD reconciliation сократил исторические 119 non-done cards до 18 на reconciliation; после Task 4.7.5 — до 17. Repository gap 9.8.3 и external/manual gates должны быть закрыты либо явно descoped до утверждения полного R0 DoD.
+**Статус 2026-09-18:** canonical R0 scope — **ровно 139 исходных задач** из фаз 3.1-3.8, 4.1-4.8, 5.1-5.12, 6.1-6.7, 8.1-8.7 и 9.1-9.8. Текущий R0 snapshot после Task 4.7.5: **123 done / 16 in_progress**. Дополнительные 98 hardening/review/release-readiness cards не входят в знаменатель 139 и используются только как evidence исправлений.
 
-9.8.2 repository implementation закрыта: secrets materialization и migrate ordering имеют green CI; внешний secrets/VPS gate остаётся открытым.
+После PR #4 и PR #5 известных repository implementation gaps в R0 не остаётся: 9.8.2 имеет green CI для secrets materialization/migrate ordering; 9.8.3 имеет green CI для GHCR-default + manual build-on-VPS fallback + rollback runbook. Обе карточки остаются `in_progress`, потому что их live acceptance требует реальных GitHub Secrets/VPS/GHCR/deploy/rollback проверок. Остальные открытые R0 criteria также manual/external production gates.
 
 `v0.1.2` остаётся неизменным историческим тегом. `v0.1.3` создаётся только после успешного repository release-gate.
 

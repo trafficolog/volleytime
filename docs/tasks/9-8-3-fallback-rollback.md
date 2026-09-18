@@ -5,7 +5,7 @@ epic: '9.8'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-18
-status_note: 'Repository fallback implementation on PR #5: GHCR default + manual local-build + rollback runbook. Real VPS GHCR reachability, end-to-end deploy and rollback verification remain required.'
+status_note: 'Repository implementation verified green on PR #5: GHCR default, manual local-build fallback and rollback runbook/contract are ready. Task remains in_progress until real VPS GHCR reachability, end-to-end deploy and rollback are verified.'
 roles:
   - DEVOPS
 depends_on:
