@@ -81,9 +81,9 @@ SDD reconciliation выполнен в Task 9.11.2. Исходный drift **119
 
 Открытые cards теперь имеют конкретные причины:
 
-- repository gaps: **9.8.2**, **9.8.3**;
+- repository gap: **9.8.3**;
 - один manual Telegram gate, представленный двумя карточками: **8.7.2 + 8.8.11**;
-- Phase 9 production/runtime/ops validation: **9.1.1, 9.1.2, 9.2.2, 9.3.1, 9.3.2, 9.4.1, 9.5.1, 9.5.2, 9.6.1, 9.6.2, 9.7.1, 9.7.2, 9.8.1**.
+- Phase 9 production/runtime/ops validation: **9.1.1, 9.1.2, 9.2.2, 9.3.1, 9.3.2, 9.4.1, 9.5.1, 9.5.2, 9.6.1, 9.6.2, 9.7.1, 9.7.2, 9.8.1, 9.8.2**. Для 9.8.2 repository implementation уже готова; остаётся только external secrets/VPS verification.
 
 Свежий GitHub CI на PR #1 прошёл полностью: format/lint/typecheck, unit+integration tests и build. Автоматический Deploy run 35346916965 также успешно выполнил pre-deploy tests и build/push web+migrator+bot, но SSH deploy остановился до подключения с `missing server host`: `VPS_HOST`/SSH production configuration ещё не задана.
 
@@ -109,7 +109,7 @@ Claude Design export используется как reference интерфей�
 
 ## Следующие шаги
 
-1. Закрыть repository gaps 9.8.2 и 9.8.3.
+1. Закрыть repository gap 9.8.3.
 2. Выполнить реальный Telegram QA (8.7.2 / 8.8.11).
 3. Настроить VPS/DNS/secrets и выполнить первый production deploy + smoke/rollback.
 4. Проверить реальный backup/restore + внешний monitoring.

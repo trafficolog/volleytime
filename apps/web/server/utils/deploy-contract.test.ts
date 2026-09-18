@@ -1,0 +1,91 @@
+import { mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { spawnSync } from 'node:child_process'
+
+import { afterEach, describe, expect, it } from 'vitest'
+
+const workflowPath = fileURLToPath(
+  new URL('../../../../.github/workflows/deploy.yml', import.meta.url),
+)
+const rendererPath = fileURLToPath(
+  new URL('../../../../scripts/render-production-env.mjs', import.meta.url),
+)
+
+const requiredEnv = {
+  DOMAIN: 'volleytime.example',
+  DB_PASSWORD: 'db "secret" with spaces',
+  TELEGRAM_BOT_TOKEN: '123456:secret-token',
+  TELEGRAM_BOT_USERNAME: 'volleytime_bot',
+  WEBHOOK_SECRET_PATH: 'secret/path',
+  WEBHOOK_SECRET_TOKEN: 'webhook secret',
+  BETTER_AUTH_SECRET: 'better-auth-secret-at-least-32-chars',
+  BETTER_AUTH_URL: 'https://volleytime.example',
+  BOT_INTERNAL_SECRET: 'internal secret',
+  WEB_URL: 'https://volleytime.example',
+}
+
+const dirs: string[] = []
+afterEach(() => {
+  for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true })
+})
+
+describe('production env deployment contract', () => {
+  it('renders a mode-0600 dotenv file without printing secret values', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'volleytime-prod-env-'))
+    dirs.push(dir)
+    const output = join(dir, '.env.production')
+
+    const result = spawnSync(process.execPath, [rendererPath, output], {
+      env: { ...process.env, ...requiredEnv },
+      encoding: 'utf8',
+    })
+
+    expect(result.status, result.stderr).toBe(0)
+    const rendered = readFileSync(output, 'utf8')
+    expect(rendered).toContain('DOMAIN="volleytime.example"')
+    expect(rendered).toContain('DB_PASSWORD="db \\"secret\\" with spaces"')
+    expect(rendered).toContain('TRUSTED_PROXY="1"')
+    expect(statSync(output).mode & 0o777).toBe(0o600)
+
+    for (const value of Object.values(requiredEnv)) {
+      expect(result.stdout).not.toContain(value)
+      expect(result.stderr).not.toContain(value)
+    }
+  })
+
+  it('fails before writing when a required production value is missing', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'volleytime-prod-env-'))
+    dirs.push(dir)
+    const output = join(dir, '.env.production')
+    const env = { ...process.env, ...requiredEnv }
+    delete env.DB_PASSWORD
+
+    const result = spawnSync(process.execPath, [rendererPath, output], {
+      env,
+      encoding: 'utf8',
+    })
+
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toContain('DB_PASSWORD')
+    expect(result.stderr).not.toContain(requiredEnv.BOT_INTERNAL_SECRET)
+  })
+
+  it('installs secrets before pull, migrate and up in the deploy workflow', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const prepare = workflow.indexOf('Prepare production env')
+    const upload = workflow.indexOf('appleboy/scp-action@v1')
+    const install = workflow.indexOf('install -m 600')
+    const pull = workflow.indexOf('docker compose -f docker-compose.prod.yml')
+    const migrate = workflow.indexOf('run --rm migrate')
+    const up = workflow.indexOf('up -d')
+
+    expect(prepare).toBeGreaterThan(-1)
+    expect(upload).toBeGreaterThan(prepare)
+    expect(install).toBeGreaterThan(upload)
+    expect(pull).toBeGreaterThan(install)
+    expect(migrate).toBeGreaterThan(pull)
+    expect(up).toBeGreaterThan(migrate)
+  })
+})

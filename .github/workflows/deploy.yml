@@ -103,6 +103,46 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22' }
+      - name: Prepare production env
+        env:
+          DOMAIN: ${{ secrets.DOMAIN }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_BOT_USERNAME: ${{ secrets.TELEGRAM_BOT_USERNAME }}
+          WEBHOOK_SECRET_PATH: ${{ secrets.WEBHOOK_SECRET_PATH }}
+          WEBHOOK_SECRET_TOKEN: ${{ secrets.WEBHOOK_SECRET_TOKEN }}
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          BETTER_AUTH_URL: ${{ secrets.BETTER_AUTH_URL }}
+          BOT_INTERNAL_SECRET: ${{ secrets.BOT_INTERNAL_SECRET }}
+          WEB_URL: ${{ secrets.WEB_URL }}
+          SENTRY_DSN_WEB: ${{ secrets.SENTRY_DSN_WEB }}
+          SENTRY_DSN_BOT: ${{ secrets.SENTRY_DSN_BOT }}
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          SMOKE_TG_ID: ${{ secrets.SMOKE_TG_ID }}
+          BACKUP_AGE_RECIPIENT: ${{ secrets.BACKUP_AGE_RECIPIENT }}
+          HEALTHCHECK_URL: ${{ secrets.HEALTHCHECK_URL }}
+        run: node scripts/render-production-env.mjs .env.production
+      - name: Prepare remote secret staging
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: deploy
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            install -d -m 700 /opt/volleytime/.deploy
+            rm -f /opt/volleytime/.deploy/.env.production
+      - name: Upload production env
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: deploy
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: '.env.production'
+          target: '/opt/volleytime/.deploy'
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1
         with:
@@ -112,6 +152,9 @@ jobs:
           script: |
             set -euo pipefail
             cd /opt/volleytime
+            test -f .deploy/.env.production
+            install -m 600 .deploy/.env.production .env
+            rm -f .deploy/.env.production
             # ПЕРВЫМ делом сохраняем работающие сейчас образы — иначе «предыдущими»
             # окажутся новые и откат перезапустит сломанный релиз (Task 9.10.2)
             if [ -f .env.images ]; then cp -f .env.images .env.images.previous; fi
