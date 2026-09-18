@@ -77,20 +77,19 @@
 
 ### Repository gate
 
-Формальный SDD-аудит выявил status drift: среди task cards фаз 3/4/5/6/8/9 **119 карточек не имеют `status: done`**. Из них 110 помечены как «реализовано, открытые находки ревью», 7 старых `todo` ссылаются на fix-эпики, одна карточка — реальный Telegram QA, одна — текущий release-readiness task. По правилам `docs/DEVELOPMENT_PROCESS.md` это блокирует утверждение «все SDD задачи MVP закрыты», пока карточки не reconciled с кодом/ревью или явно не descoped.
+SDD reconciliation выполнен в Task 9.11.2. Исходный drift **119 non-done cards** разобран по evidence: **101 историческая карточка закрыта**, **18 реально открытых сохранены**. С учётом новой служебной карточки snapshot: **237 R0/review task cards, 219 done, 18 non-done**.
 
-Дополнительно канонический `trafficolog/volleytime` сейчас public, хотя `docs/GITHUB_SETUP.md` описывает private repository. Это policy/config drift, требующий осознанного решения перед полной публикацией.
+Открытые cards теперь имеют конкретные причины:
 
-До создания `v0.1.3` должны быть получены свежие доказательства:
+- repository gaps: **4.7.5**, **9.8.2**, **9.8.3**;
+- один manual Telegram gate, представленный двумя карточками: **8.7.2 + 8.8.11**;
+- Phase 9 production/runtime/ops validation: **9.1.1, 9.1.2, 9.2.2, 9.3.1, 9.3.2, 9.4.1, 9.5.1, 9.5.2, 9.6.1, 9.6.2, 9.7.1, 9.7.2, 9.8.1**.
 
-- [ ] форматирование (`pnpm format:check`);
-- [ ] lint (`pnpm lint`);
-- [ ] typecheck (`pnpm typecheck`);
-- [ ] unit + integration tests (`pnpm test` с PostgreSQL);
-- [ ] production build (`pnpm build`);
-- [ ] release-readiness review без открытого repository-level blocker.
+Свежий GitHub CI на PR #1 прошёл полностью: format/lint/typecheck, unit+integration tests и build. Автоматический Deploy run 35346916965 также успешно выполнил pre-deploy tests и build/push web+migrator+bot, но SSH deploy остановился до подключения с `missing server host`: `VPS_HOST`/SSH production configuration ещё не задана.
 
-Локальный sandbox не имеет доступа к npm registry, поэтому окончательным воспроизводимым gate служит GitHub Actions после публикации release-candidate branch.
+Канонический GitHub уже содержит release-candidate snapshot. Репозиторий остаётся public, тогда как `docs/GITHUB_SETUP.md` исторически описывает private repository; это отдельное policy/config decision, а не доказательство production readiness.
+
+Подробности: [SDD reconciliation](../reviews/2026-09-18-sdd-reconciliation.md).
 
 ### External / production gate
 
@@ -110,8 +109,8 @@ Claude Design export используется как reference интерфей�
 
 ## Следующие шаги
 
-1. Завершить Task 9.11.1 и получить зелёный GitHub CI.
-2. Выполнить реальный Telegram QA.
-3. Выполнить первый production deploy + smoke/rollback readiness.
-4. Обкатать продукт на одной реальной группе.
-5. После данных эксплуатации переходить к следующей фазе по `docs/RELEASES.md`, не расширяя текущий patch release.
+1. Закрыть или явно descoped repository gaps 4.7.5, 9.8.2 и 9.8.3.
+2. Выполнить реальный Telegram QA (8.7.2 / 8.8.11).
+3. Настроить VPS/DNS/secrets и выполнить первый production deploy + smoke/rollback.
+4. Проверить реальный backup/restore + внешний monitoring.
+5. Обкатать продукт на одной реальной группе и только после этого подтверждать production MVP.

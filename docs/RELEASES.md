@@ -144,6 +144,8 @@
 - реальный backup/restore и внешний monitoring;
 - неделю эксплуатации на реальной группе из R0 Definition of Done.
 
+**Статус 2026-09-18:** fresh GitHub CI зелёный; SDD reconciliation сократил исторические 119 non-done cards до 18 реально открытых. Repository gaps 4.7.5/9.8.2/9.8.3 и external/manual gates должны быть закрыты либо явно descoped до утверждения полного R0 DoD.
+
 `v0.1.2` остаётся неизменным историческим тегом. `v0.1.3` создаётся только после успешного repository release-gate.
 
 ---

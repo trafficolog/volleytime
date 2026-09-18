@@ -1,7 +1,7 @@
 ---
 id: '9.11'
 phase: '9'
-status: in_progress
+status: done
 release: 'v0.1.3'
 ---
 
@@ -22,3 +22,4 @@ release: 'v0.1.3'
 ## Задачи
 
 - [9.11.1 Release readiness и GitHub publication](../tasks/9-11-1-release-readiness.md)
+- [9.11.2 SDD reconciliation перед v0.1.3](../tasks/9-11-2-sdd-reconciliation.md)
