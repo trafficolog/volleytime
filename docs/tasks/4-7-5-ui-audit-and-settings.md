@@ -2,10 +2,10 @@
 id: '4.7.5'
 phase: '4'
 epic: '4.7'
-status: in_progress
+status: done
 sync_state: synced
 last_reviewed: 2026-09-18
-status_note: 'Implementation is present on PR #3; final CI verification is pending.'
+status_note: 'Done 2026-09-18: audit/settings Mini App UI implemented on PR #3 with red-green TDD and green CI.'
 roles:
   - FE
 depends_on:
