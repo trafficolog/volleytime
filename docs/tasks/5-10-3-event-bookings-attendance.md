@@ -2,10 +2,10 @@
 id: '5.10.3'
 phase: '5'
 epic: '5.10'
-status: todo
+status: done
 sync_state: synced
-last_reviewed: 2026-09-17
-status_note: 'Не реализовано в v0.1.0 (ревью 2026-09-16); закрывается фикс-эпиком 5.13.'
+last_reviewed: 2026-09-18
+status_note: 'Reconciled 2026-09-18: реализация v0.1.0 и hardening эпика 5.13 подтверждены кодом и review evidence; открытых repository-level находок по карточке нет.'
 roles:
   - FE
 depends_on:

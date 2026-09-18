@@ -2,10 +2,10 @@
 id: '6.6.1'
 phase: '6'
 epic: '6.6'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-17
-status_note: 'Реализовано в v0.1.0; открытые находки ревью — эпик 6.8.'
+last_reviewed: 2026-09-18
+status_note: 'Reconciled 2026-09-18: реализация v0.1.0 и hardening эпика 6.8 подтверждены кодом и review evidence; открытых repository-level находок по карточке нет.'
 roles:
   - FE
 depends_on:

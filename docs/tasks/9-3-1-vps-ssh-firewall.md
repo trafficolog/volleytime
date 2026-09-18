@@ -4,8 +4,8 @@ phase: '9'
 epic: '9.3'
 status: in_progress
 sync_state: synced
-last_reviewed: 2026-09-17
-status_note: 'Реализовано в v0.1.0; открытые находки ревью — эпик 9.9.'
+last_reviewed: 2026-09-18
+status_note: 'Reconciled 2026-09-18: external gate — реальный VPS, SSH hardening, firewall/fail2ban и timezone не provisioned/verified.'
 roles:
   - DEVOPS
 depends_on: []

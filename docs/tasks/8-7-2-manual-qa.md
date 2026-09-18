@@ -2,10 +2,10 @@
 id: '8.7.2'
 phase: '8'
 epic: '8.7'
-status: todo
+status: in_progress
 sync_state: synced
-last_reviewed: 2026-09-17
-status_note: 'Не реализовано в v0.1.0 (ревью 2026-09-16); закрывается фикс-эпиком 8.8.'
+last_reviewed: 2026-09-18
+status_note: 'Reconciled 2026-09-18: manual-QA checklist существует, но реальный Telegram-прогон iOS/Android/Desktop не выполнен. Тот же underlying gate детализирован в 8.8.11.'
 roles:
   - QA
 depends_on:

@@ -2,10 +2,10 @@
 id: '9.2.1'
 phase: '9'
 epic: '9.2'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-17
-status_note: 'Реализовано в v0.1.0; открытые находки ревью — эпик 9.9.'
+last_reviewed: 2026-09-18
+status_note: 'Reconciled 2026-09-18: production compose contract, networks, volumes, healthchecks and hardening 9.9 подтверждены репозиторием; external stack startup отслеживается отдельными Phase 9 cards.'
 roles:
   - DEVOPS
 depends_on:

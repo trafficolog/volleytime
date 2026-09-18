@@ -2,10 +2,10 @@
 id: '9.6.2'
 phase: '9'
 epic: '9.6'
-status: todo
+status: in_progress
 sync_state: synced
-last_reviewed: 2026-09-17
-status_note: 'Не реализовано в v0.1.0 (ревью 2026-09-16); закрывается фикс-эпиком 9.9.'
+last_reviewed: 2026-09-18
+status_note: 'Reconciled 2026-09-18: Sentry bot + bot.catch + healthz реализованы; UptimeRobot и реальные Sentry/alert tests не настроены и не проверены.'
 roles:
   - BACK
   - DEVOPS

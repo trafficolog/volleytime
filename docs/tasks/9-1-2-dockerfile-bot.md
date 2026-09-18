@@ -4,8 +4,8 @@ phase: '9'
 epic: '9.1'
 status: in_progress
 sync_state: synced
-last_reviewed: 2026-09-17
-status_note: 'Реализовано в v0.1.0; открытые находки ревью — эпик 9.9.'
+last_reviewed: 2026-09-18
+status_note: 'Reconciled 2026-09-18: bot Docker image успешно собирается/pushится в GitHub Actions; runtime запуск на production stack ждёт первого VPS deploy.'
 roles:
   - DEVOPS
   - BACK

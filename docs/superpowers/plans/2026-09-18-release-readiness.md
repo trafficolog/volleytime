@@ -1,6 +1,6 @@
 # Volley Time v0.1.3 Release Readiness Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Publish the current MVP codebase to the canonical GitHub repository, remove release-status documentation drift, and establish evidence for a production release decision without expanding MVP scope.
 
@@ -36,11 +36,11 @@
 - Consumes: release facts from `docs/RELEASES.md`, `docs/operations/reviews/*`, git tags.
 - Produces: one consistent description of implemented MVP vs outstanding external release gates.
 
-- [ ] **Step 1:** Record the documentation drift in `docs/tasks/9-11-1-release-readiness.md`.
-- [ ] **Step 2:** Update root documentation and current-state snapshot so it agrees with `main@v0.1.2`.
-- [ ] **Step 3:** Add `v0.1.3` as release-readiness patch scope only; do not claim production rollout.
-- [ ] **Step 4:** Validate links and references with repository grep/static checks.
-- [ ] **Step 5:** Commit with `Task: 9.11.1` / `Release: v0.1.3`.
+- [x] **Step 1:** Record the documentation drift in `docs/tasks/9-11-1-release-readiness.md`.
+- [x] **Step 2:** Update root documentation and current-state snapshot so it agrees with `main@v0.1.2`.
+- [x] **Step 3:** Add `v0.1.3` as release-readiness patch scope only; do not claim production rollout.
+- [x] **Step 4:** Validate links and references with repository grep/static checks.
+- [x] **Step 5:** Commit with `Task: 9.11.1` / `Release: v0.1.3`.
 
 ### Task 2: Review code and UI against MVP contracts
 
@@ -54,11 +54,11 @@
 - Consumes: R0 Definition of Done, prior review reports, Claude Design reference screens.
 - Produces: `docs/operations/reviews/2026-09-18-v0.1.2-release-readiness.md`.
 
-- [ ] **Step 1:** Re-check security-sensitive auth, tenant isolation, payments/ledger, webhook, rollback, smoke and secrets boundaries.
-- [ ] **Step 2:** Compare implemented route/screen coverage with the Claude Design reference at element/flow level, not pixel level.
-- [ ] **Step 3:** Classify findings as repository blockers, external/manual gates, or intentionally deferred Phase 10+ work.
-- [ ] **Step 4:** For any repository blocker, create a separate SDD task and use red→green→refactor.
-- [ ] **Step 5:** Write review evidence and outstanding gates.
+- [x] **Step 1:** Re-check security-sensitive auth, tenant isolation, payments/ledger, webhook, rollback, smoke and secrets boundaries.
+- [x] **Step 2:** Compare implemented route/screen coverage with the Claude Design reference at element/flow level, not pixel level.
+- [x] **Step 3:** Classify findings as repository blockers, external/manual gates, or intentionally deferred Phase 10+ work.
+- [x] **Step 4:** For any repository blocker, create a separate SDD task and use red→green→refactor.
+- [x] **Step 5:** Write review evidence and outstanding gates.
 
 ### Task 3: Publish release candidate and execute CI gate
 
@@ -72,11 +72,11 @@
 - Consumes: reviewed release-candidate tree.
 - Produces: GitHub branch/PR plus Actions evidence.
 
-- [ ] **Step 1:** Publish the release-candidate snapshot to an isolated GitHub branch.
-- [ ] **Step 2:** Open PR against `main` and let GitHub Actions execute install, lint, format, typecheck, tests and build.
-- [ ] **Step 3:** Inspect every failed job; fix only verified causes through SDD/TDD.
-- [ ] **Step 4:** Re-run the full gate until green or record a concrete blocker.
-- [ ] **Step 5:** Merge only after the gate is green; preserve external/manual production gates as open.
+- [x] **Step 1:** Publish the release-candidate snapshot to an isolated GitHub branch.
+- [x] **Step 2:** Open PR against `main` and let GitHub Actions execute install, lint, format, typecheck, tests and build.
+- [x] **Step 3:** Inspect every failed job; fix only verified causes through SDD/TDD.
+- [x] **Step 4:** Re-run the full gate until green or record a concrete blocker.
+- [x] **Step 5:** Merge only after the gate is green; preserve external/manual production gates as open.
 
 ## Self-review
 
