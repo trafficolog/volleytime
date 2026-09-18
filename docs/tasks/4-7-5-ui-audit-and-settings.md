@@ -2,10 +2,10 @@
 id: '4.7.5'
 phase: '4'
 epic: '4.7'
-status: todo
+status: in_progress
 sync_state: synced
-last_reviewed: 2026-09-17
-status_note: 'Не реализовано в v0.1.0 (ревью 2026-09-16); закрывается фикс-эпиком 4.9.'
+last_reviewed: 2026-09-18
+status_note: "Reconciled 2026-09-18: dashboard, audit API и archive API реализованы; Mini App routes /audit и /settings отсутствуют. Реальный repository gap, требуется отдельный SDD/TDD fix либо явный descoping."
 roles:
   - FE
 depends_on:
