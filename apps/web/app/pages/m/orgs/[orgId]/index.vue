@@ -3,6 +3,7 @@ import type { Organization, OrganizationMember } from '@volley-time/db'
 import { formatDay, formatShortDate, formatTime } from '@volley-time/shared'
 import type { EventListItem } from '~/components/EventCard.vue'
 import { formatMoneyRu } from '~/utils/labels'
+import { canManageOrgSettingsUi, canViewOrgAuditUi } from '~/utils/organization-ui'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
 interface Dashboard {
@@ -36,6 +37,8 @@ const {
 const org = computed(() => orgData.value?.organization ?? null)
 const me = computed(() => orgData.value?.myMember ?? null)
 const isPending = computed(() => me.value?.status === 'pending')
+const canViewAudit = computed(() => canViewOrgAuditUi(me.value))
+const canManageSettings = computed(() => canManageOrgSettingsUi(me.value))
 
 const {
   data: dash,
@@ -210,6 +213,18 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
               <NuxtLink :to="`${base}/members`" class="vt-card p-3 text-center">
                 <VtIcon name="users" :size="18" />
                 <div class="mt-1.5 text-xs font-semibold">Игроки</div>
+              </NuxtLink>
+              <NuxtLink v-if="canViewAudit" :to="`${base}/audit`" class="vt-card p-3 text-center">
+                <VtIcon name="chart" :size="18" />
+                <div class="mt-1.5 text-xs font-semibold">Журнал</div>
+              </NuxtLink>
+              <NuxtLink
+                v-if="canManageSettings"
+                :to="`${base}/settings`"
+                class="vt-card p-3 text-center"
+              >
+                <VtIcon name="settings" :size="18" />
+                <div class="mt-1.5 text-xs font-semibold">Настройки</div>
               </NuxtLink>
             </nav>
           </section>

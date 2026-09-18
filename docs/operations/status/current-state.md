@@ -77,11 +77,11 @@
 
 ### Repository gate
 
-SDD reconciliation выполнен в Task 9.11.2. Исходный drift **119 non-done cards** разобран по evidence: **101 историческая карточка закрыта**, **18 реально открытых сохранены**. С учётом новой служебной карточки snapshot: **237 R0/review task cards, 219 done, 18 non-done**.
+SDD reconciliation выполнен в Task 9.11.2. Исходный drift **119 non-done cards** разобран по evidence: **101 историческая карточка закрыта**, **18 реально открытых были сохранены на момент reconciliation; Task 4.7.5 затем закрыта**. С учётом новой служебной карточки snapshot: **237 R0/review task cards, 220 done, 17 non-done**.
 
 Открытые cards теперь имеют конкретные причины:
 
-- repository gaps: **4.7.5**, **9.8.2**, **9.8.3**;
+- repository gaps: **9.8.2**, **9.8.3**;
 - один manual Telegram gate, представленный двумя карточками: **8.7.2 + 8.8.11**;
 - Phase 9 production/runtime/ops validation: **9.1.1, 9.1.2, 9.2.2, 9.3.1, 9.3.2, 9.4.1, 9.5.1, 9.5.2, 9.6.1, 9.6.2, 9.7.1, 9.7.2, 9.8.1**.
 
@@ -109,7 +109,7 @@ Claude Design export используется как reference интерфей�
 
 ## Следующие шаги
 
-1. Закрыть или явно descoped repository gaps 4.7.5, 9.8.2 и 9.8.3.
+1. Закрыть repository gaps 9.8.2 и 9.8.3.
 2. Выполнить реальный Telegram QA (8.7.2 / 8.8.11).
 3. Настроить VPS/DNS/secrets и выполнить первый production deploy + smoke/rollback.
 4. Проверить реальный backup/restore + внешний monitoring.

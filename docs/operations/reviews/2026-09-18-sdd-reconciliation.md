@@ -54,6 +54,12 @@
 | 9.8.2  | repository + configuration gap | Migrator есть, но workflow не materialize-ит production secrets в `.env`; VPS secrets также не настроены. |
 | 9.8.3  | repository + external gap      | Rollback реализован, но build-on-VPS fallback/runbook отсутствует; полный pipeline/rollback не verified.  |
 
+## Follow-up closures
+
+- **4.7.5** закрыта в PR #3: добавлены Mini App routes `/audit` и `/settings`, permission-aware dashboard links, owner-only save/archive flow и red→green tests для UI policy/labels.
+- Fresh CI PR #3: build, lint/format/typecheck и unit+integration tests — success.
+- Текущий snapshot после закрытия: **237 cards / 220 done / 17 non-done**.
+
 ## Release consequence
 
 Repository CI теперь не является blocker. Однако формулировка **all R0 SDD done** пока неверна: остаются 18 open cards. До тега v0.1.3 необходимо либо реализовать/явно descoped repository gaps, либо пройти соответствующие external/manual acceptance criteria. Production MVP по-прежнему требует Telegram QA, VPS deploy + smoke, backup/restore/monitoring и неделю реального использования.

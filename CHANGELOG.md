@@ -9,6 +9,7 @@ All notable release-level changes are recorded here. Detailed task history lives
 - standardize release runtime target on Node.js 22;
 - execute fresh GitHub CI release gate;
 - reconcile R0 SDD status drift: 119 legacy non-done cards → 18 evidence-backed open cards;
+- complete Task 4.7.5: Mini App audit log + owner settings/archive UI with red→green TDD;
 - document repository-ready vs external production-validation gates.
 
 No new product scope is introduced.
