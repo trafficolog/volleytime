@@ -1,0 +1,36 @@
+name: Temporary 4.7.5 Formatter
+
+on:
+  push:
+    branches:
+      - task/4.7.5-audit-settings-ui
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: task/4.7.5-audit-settings-ui
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Format task files and self-remove
+        run: |
+          pnpm exec prettier --write \
+            'apps/web/app/pages/m/orgs/[orgId]/audit.vue' \
+            'apps/web/app/pages/m/orgs/[orgId]/index.vue' \
+            'apps/web/app/pages/m/orgs/[orgId]/settings.vue' \
+            apps/web/app/utils/organization-ui.ts
+          git rm .github/workflows/format-4-7-5.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "style: format task 4.7.5"
+          git push origin HEAD:task/4.7.5-audit-settings-ui
