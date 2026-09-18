@@ -1,0 +1,1 @@
+-- значения enum PostgreSQL не удаляются: откат оставляет contribution и carryover неиспользуемыми

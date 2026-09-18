@@ -1,0 +1,53 @@
+{
+  "name": "volley-time-platform",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.4.1",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm dev:db && turbo run dev",
+    "dev:db": "docker compose up -d",
+    "dev:db:down": "docker compose down",
+    "dev:db:reset": "docker compose down -v && docker compose up -d",
+    "dev:db:logs": "docker compose logs -f postgres",
+    "dev:web": "pnpm -F @volley-time/web dev",
+    "dev:bot": "pnpm -F @volley-time/bot dev",
+    "build": "turbo run build",
+    "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "turbo run typecheck",
+    "db:generate": "pnpm -F @volley-time/db db:generate",
+    "db:migrate": "pnpm -F @volley-time/db db:migrate",
+    "db:migrate:test": "cross-env-shell DATABASE_URL=$DATABASE_URL_TEST pnpm -F @volley-time/db db:migrate",
+    "db:rollback": "pnpm -F @volley-time/db db:rollback",
+    "setup": "bash scripts/setup.sh",
+    "db:studio": "pnpm -F @volley-time/db db:studio",
+    "clean": "turbo run clean && rm -rf .turbo node_modules/.cache",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:turbo": "turbo run test",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@vitest/ui": "^5.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^10.0.0",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-vue": "^10.11.0",
+    "prettier": "^3.4.0",
+    "turbo": "^2.10.12",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.70.0",
+    "vitest": "^4.0.0",
+    "vue-eslint-parser": "^10.4.1"
+  }
+}

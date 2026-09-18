@@ -1,0 +1,10 @@
+DROP INDEX IF EXISTS "verifications_identifier_idx";
+ALTER TABLE "sessions" DROP COLUMN IF EXISTS "updated_at";
+ALTER TABLE "accounts" DROP COLUMN IF EXISTS "password";
+ALTER TABLE "accounts" DROP COLUMN IF EXISTS "scope";
+ALTER TABLE "accounts" DROP COLUMN IF EXISTS "refresh_token_expires_at";
+ALTER TABLE "accounts" DROP COLUMN IF EXISTS "access_token_expires_at";
+ALTER TABLE "accounts" DROP COLUMN IF EXISTS "id_token";
+ALTER TABLE "accounts" DROP COLUMN IF EXISTS "refresh_token";
+ALTER TABLE "accounts" DROP COLUMN IF EXISTS "access_token";
+DROP TABLE IF EXISTS "verifications";

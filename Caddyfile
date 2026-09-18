@@ -1,0 +1,26 @@
+{$DOMAIN:volleytime.by} {
+	# Telegram webhook → bot (секретный путь).
+	# handle, а не handle_path: grammY ждёт полный путь, иначе бот отвечает 404 (Task 9.9.3).
+	# Точное совпадение: префиксный шаблон пропускал /tg/webhook/<secret>EXTRA (Task 9.10.3).
+	@telegram_webhook path /tg/webhook/{$WEBHOOK_SECRET_PATH} /tg/webhook/{$WEBHOOK_SECRET_PATH}/
+	handle @telegram_webhook {
+		reverse_proxy bot:8443
+	}
+
+	# Всё остальное → Nuxt (Mini App + web)
+	handle {
+		reverse_proxy web:3000
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000;"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+		# ВАЖНО: НЕ ставить X-Frame-Options DENY — сломает Mini App в Telegram webview.
+		# CSP с учётом Telegram (Task 9.9.11): SDK и шрифты Google, встраивание только из Telegram.
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://telegram.org; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: https://t.me https://*.telegram.org https://telegram.org; connect-src 'self'; frame-ancestors https://web.telegram.org https://*.telegram.org https://telegram.org; base-uri 'self'; form-action 'self'"
+	}
+
+	encode gzip zstd
+}

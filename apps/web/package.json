@@ -1,0 +1,31 @@
+{
+  "name": "@volley-time/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev --dotenv ../../.env",
+    "build": "nuxt build",
+    "preview": "nuxt preview",
+    "typecheck": "nuxt typecheck",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@sentry/node": "^10.75.0",
+    "@volley-time/auth": "workspace:*",
+    "@volley-time/core": "workspace:*",
+    "@volley-time/db": "workspace:*",
+    "@volley-time/shared": "workspace:*",
+    "nuxt": "^4.2.2",
+    "vue": "^3.5.24",
+    "vue-router": "^4.6.3",
+    "zod": "^4.6.4"
+  },
+  "devDependencies": {
+    "@nuxtjs/tailwindcss": "^6.14.0",
+    "h3": "1.15.11",
+    "vue-tsc": "^3.3.11"
+  }
+}

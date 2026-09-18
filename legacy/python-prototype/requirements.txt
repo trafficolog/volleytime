@@ -1,0 +1,31 @@
+# Telegram bot
+aiogram==3.13.1
+
+# Database
+sqlalchemy[asyncio]==2.0.36
+alembic==1.14.0
+asyncpg==0.30.0          # PostgreSQL для прода
+aiosqlite==0.20.0        # SQLite для локальной разработки
+
+# Web (для приёма webhook от bePaid)
+aiohttp>=3.10,<3.11
+
+# Scheduler (напоминания, автозакрытие записи)
+apscheduler==3.10.4
+
+# Config
+pydantic==2.10.3
+pydantic-settings==2.7.0
+
+# Логи
+structlog==24.4.0
+
+# Криптография (для проверки RSA-подписи bePaid)
+cryptography==44.0.0
+
+# Утилиты
+python-dotenv==1.0.1
+
+# Dev / тесты
+pytest==8.3.4
+pytest-asyncio==0.25.0

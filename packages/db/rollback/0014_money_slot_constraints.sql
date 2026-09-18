@@ -1,0 +1,11 @@
+ALTER TABLE "bookings" DROP CONSTRAINT IF EXISTS "bookings_payment_id_payments_id_fk";
+ALTER TABLE "ledger_entries" DROP CONSTRAINT IF EXISTS "ledger_entries_amount_positive";
+ALTER TABLE "payments" DROP CONSTRAINT IF EXISTS "payments_amount_positive";
+ALTER TABLE "subscriptions" DROP CONSTRAINT IF EXISTS "subscriptions_total_positive";
+ALTER TABLE "subscriptions" DROP CONSTRAINT IF EXISTS "subscriptions_used_within_total";
+ALTER TABLE "subscription_plans" DROP CONSTRAINT IF EXISTS "subscription_plans_price_non_negative";
+ALTER TABLE "subscription_plans" DROP CONSTRAINT IF EXISTS "subscription_plans_sessions_positive";
+ALTER TABLE "events" DROP CONSTRAINT IF EXISTS "events_ends_after_start";
+ALTER TABLE "events" DROP CONSTRAINT IF EXISTS "events_price_non_negative";
+ALTER TABLE "events" DROP CONSTRAINT IF EXISTS "events_capacity_positive";
+ALTER TABLE "bookings" DROP CONSTRAINT IF EXISTS "bookings_subscription_id_subscriptions_id_fk";

@@ -1,0 +1,158 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '22'
+  REGISTRY: ghcr.io
+
+jobs:
+  test:
+    name: Test before deploy
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: volleytime_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/volleytime_test
+      DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/volleytime_test
+      TELEGRAM_BOT_TOKEN: '123456:CI'
+      BETTER_AUTH_SECRET: ci-secret-at-least-32-chars-long-xx
+      BETTER_AUTH_URL: http://localhost:3000
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: 'pnpm' }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -F @volley-time/db db:migrate
+      - run: pnpm test
+      - run: pnpm lint
+      - run: pnpm typecheck
+
+  build-and-push:
+    name: Build & push images
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build & push web
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/web:latest
+            ghcr.io/${{ github.repository }}/web:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Build & push migrator
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/migrator.Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/migrator:latest
+            ghcr.io/${{ github.repository }}/migrator:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Build & push bot
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/bot/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/bot:latest
+            ghcr.io/${{ github.repository }}/bot:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to VPS
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: deploy
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd /opt/volleytime
+            # ПЕРВЫМ делом сохраняем работающие сейчас образы — иначе «предыдущими»
+            # окажутся новые и откат перезапустит сломанный релиз (Task 9.10.2)
+            if [ -f .env.images ]; then cp -f .env.images .env.images.previous; fi
+            echo "WEB_IMAGE=ghcr.io/${{ github.repository }}/web:${{ github.sha }}" > .env.images
+            echo "BOT_IMAGE=ghcr.io/${{ github.repository }}/bot:${{ github.sha }}" >> .env.images
+            echo "MIGRATOR_IMAGE=ghcr.io/${{ github.repository }}/migrator:${{ github.sha }}" >> .env.images
+            docker compose -f docker-compose.prod.yml --env-file .env --env-file .env.images pull
+            # миграции ОТДЕЛЬНОЙ стадией: ошибка останавливает деплой (Task 9.9.4)
+            docker compose -f docker-compose.prod.yml --env-file .env --env-file .env.images \
+              run --rm migrate
+            docker compose -f docker-compose.prod.yml --env-file .env --env-file .env.images up -d
+            docker image prune -f
+      - name: Smoke check
+        id: smoke
+        env:
+          BASE_URL: https://${{ secrets.DOMAIN }}
+          SMOKE_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          SMOKE_TG_ID: ${{ secrets.SMOKE_TG_ID }}
+          WEBHOOK_SECRET_PATH: ${{ secrets.WEBHOOK_SECRET_PATH }}
+          BOT_INTERNAL_SECRET: ${{ secrets.BOT_INTERNAL_SECRET }}
+        run: |
+          sleep 15
+          node scripts/smoke.mjs
+
+      - name: Rollback on failed smoke
+        if: failure() && steps.smoke.outcome == 'failure'
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: deploy
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd /opt/volleytime
+            if [ ! -f .env.images.previous ]; then
+              echo "нет записи о предыдущих образах — откат невозможен, нужен ручной разбор" && exit 1
+            fi
+            if cmp -s .env.images.previous .env.images; then
+              echo "предыдущие образы совпадают с текущими — откатывать нечего, нужен ручной разбор" && exit 1
+            fi
+            cp -f .env.images.previous .env.images
+            docker compose -f docker-compose.prod.yml --env-file .env --env-file .env.images up -d
+            echo "rolled back to previous images:"
+            cat .env.images

@@ -1,0 +1,157 @@
+# Production stack: caddy (HTTPS) + web (Nuxt) + bot (grammY) + postgres
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: vt_caddy
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      DOMAIN: ${DOMAIN:-volleytime.by}
+      WEBHOOK_SECRET_PATH: ${WEBHOOK_SECRET_PATH}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - bot
+    networks: [frontend]
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  # миграции: отдельный сервис, запускается вручную в деплое (docker compose run --rm migrate)
+  migrate:
+    image: ${MIGRATOR_IMAGE:-volleytime-migrator:latest}
+    build:
+      context: .
+      dockerfile: docker/migrator.Dockerfile
+    container_name: vt_migrate
+    restart: 'no'
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://volley:${DB_PASSWORD}@postgres:5432/volleytime
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [backend]
+    profiles: ['tools']
+
+  web:
+    image: ${WEB_IMAGE:-volleytime-web:latest}
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: vt_web
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://volley:${DB_PASSWORD}@postgres:5432/volleytime
+      RELEASE_VERSION: ${WEB_IMAGE:-dev}
+      # Nuxt перекрывает runtimeConfig только переменными NUXT_* (Task 9.9.5)
+      NUXT_TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      NUXT_BOT_INTERNAL_URL: http://bot:3001
+      NUXT_BOT_INTERNAL_SECRET: ${BOT_INTERNAL_SECRET}
+      NUXT_PUBLIC_TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
+      NUXT_PUBLIC_WEB_URL: ${WEB_URL}
+      NUXT_PUBLIC_BETTER_AUTH_URL: ${BETTER_AUTH_URL}
+      TRUSTED_PROXY: ${TRUSTED_PROXY:-1}
+      # дублируются в привычном виде для скриптов и fail-fast проверки
+      BOT_INTERNAL_URL: http://bot:3001
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [frontend, backend]
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/api/health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  bot:
+    image: ${BOT_IMAGE:-volleytime-bot:latest}
+    build:
+      context: .
+      dockerfile: apps/bot/Dockerfile
+    container_name: vt_bot
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      BOT_MODE: webhook
+      DATABASE_URL: postgres://volley:${DB_PASSWORD}@postgres:5432/volleytime
+      WEBHOOK_URL: https://${DOMAIN:-volleytime.by}/tg/webhook/${WEBHOOK_SECRET_PATH}
+      RELEASE_VERSION: ${BOT_IMAGE:-dev}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [frontend, backend]
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:3001/healthz']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: vt_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: volley
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: volleytime
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks: [backend]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U volley -d volleytime']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    # порт НЕ публикуется — доступ только по внутренней сети
+
+networks:
+  frontend:
+  backend:
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:

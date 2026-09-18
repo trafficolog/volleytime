@@ -1,0 +1,11 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+allowBuilds:
+  esbuild: true
+
+# пины транзитивных зависимостей (pnpm 12 читает overrides только отсюда, Task 9.9.8)
+overrides:
+  drizzle-orm: '0.45.2'
+  postgres: '3.4.9'
+  typescript: '5.9.3'

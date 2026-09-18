@@ -1,0 +1,14 @@
+**/node_modules
+**/.nuxt
+**/.output
+**/dist
+**/.turbo
+.git
+.github
+**/.env
+**/.env.*
+!**/.env.example
+**/*.log
+legacy
+docs
+pgdata

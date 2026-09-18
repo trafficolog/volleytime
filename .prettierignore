@@ -1,0 +1,10 @@
+node_modules
+dist
+.nuxt
+.output
+.turbo
+coverage
+pnpm-lock.yaml
+legacy
+docs/operations/reviews/*.html
+packages/db/migrations/meta

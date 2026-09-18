@@ -1,0 +1,40 @@
+---
+id: "6.4.2"
+phase: 6
+epic: "6.4"
+status: todo
+sync_state: drifted
+last_reviewed: 2026-05-24
+status_note: ""
+roles:
+  - BACK
+depends_on: []
+estimated_hours: "?"
+tags: []
+---
+
+# Task 6.4.2: Sentry + UptimeRobot
+
+## Цель
+
+Sentry + UptimeRobot — см. родительский [Epic 6.4](../epics/6-4-operations.md).
+
+## Контекст
+
+Будет уточнён при подходе к задаче. Сейчас задача находится в backlog.
+
+## Что должно быть сделано
+
+- TODO: описать артефакты при детализации задачи.
+
+## Критерии приёмки
+
+- TODO: описать измеримые критерии при детализации.
+
+## Подсказки
+
+- См. родительский Epic и Phase.
+
+## Не делать
+
+- Не расширять scope без обновления этой карточки.
