@@ -26,13 +26,7 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
-      - name: Check formatting (diagnostic)
-        run: |
-          if ! pnpm format:check; then
-            pnpm exec prettier --write docs/operations/status/current-state.md docs/superpowers/plans/2026-09-18-release-readiness.md
-            git diff -- docs/operations/status/current-state.md docs/superpowers/plans/2026-09-18-release-readiness.md
-            exit 1
-          fi
+      - run: pnpm format:check
       - run: pnpm typecheck
 
   test:
