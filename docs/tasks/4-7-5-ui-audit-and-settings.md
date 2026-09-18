@@ -5,7 +5,7 @@ epic: '4.7'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-18
-status_note: "Reconciled 2026-09-18: dashboard, audit API и archive API реализованы; Mini App routes /audit и /settings отсутствуют. Реальный repository gap, требуется отдельный SDD/TDD fix либо явный descoping."
+status_note: 'Reconciled 2026-09-18: dashboard, audit API и archive API реализованы; Mini App routes /audit и /settings отсутствуют. Реальный repository gap, требуется отдельный SDD/TDD fix либо явный descoping.'
 roles:
   - FE
 depends_on:

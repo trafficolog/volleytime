@@ -5,7 +5,7 @@ epic: '4.1'
 status: done
 sync_state: synced
 last_reviewed: 2026-09-18
-status_note: "Reconciled 2026-09-18: реализация v0.1.0 и hardening эпика 4.9 подтверждены кодом и review evidence; открытых repository-level находок по карточке нет."
+status_note: 'Reconciled 2026-09-18: реализация v0.1.0 и hardening эпика 4.9 подтверждены кодом и review evidence; открытых repository-level находок по карточке нет.'
 roles:
   - BACK
   - DB

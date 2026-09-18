@@ -5,7 +5,7 @@ epic: '9.2'
 status: done
 sync_state: synced
 last_reviewed: 2026-09-18
-status_note: "Reconciled 2026-09-18: production compose contract, networks, volumes, healthchecks and hardening 9.9 подтверждены репозиторием; external stack startup отслеживается отдельными Phase 9 cards."
+status_note: 'Reconciled 2026-09-18: production compose contract, networks, volumes, healthchecks and hardening 9.9 подтверждены репозиторием; external stack startup отслеживается отдельными Phase 9 cards.'
 roles:
   - DEVOPS
 depends_on:

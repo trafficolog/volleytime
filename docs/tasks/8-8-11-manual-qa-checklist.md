@@ -5,7 +5,7 @@ epic: '8.8'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-18
-status_note: "Reconciled 2026-09-18: чеклист готов; реальный Telegram QA не выполнялся, поскольку staging/production bot ещё не развёрнут."
+status_note: 'Reconciled 2026-09-18: чеклист готов; реальный Telegram QA не выполнялся, поскольку staging/production bot ещё не развёрнут.'
 review_ref: 'Phase 8 · P2 #11'
 priority: P2
 roles:

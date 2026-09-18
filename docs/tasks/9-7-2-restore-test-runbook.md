@@ -5,7 +5,7 @@ epic: '9.7'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-18
-status_note: "Reconciled 2026-09-18: restore-test script/runbook реализованы и hardened; восстановление реального production backup ещё не проверено."
+status_note: 'Reconciled 2026-09-18: restore-test script/runbook реализованы и hardened; восстановление реального production backup ещё не проверено.'
 roles:
   - DEVOPS
 depends_on:

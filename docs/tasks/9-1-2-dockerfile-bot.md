@@ -5,7 +5,7 @@ epic: '9.1'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-18
-status_note: "Reconciled 2026-09-18: bot Docker image успешно собирается/pushится в GitHub Actions; runtime запуск на production stack ждёт первого VPS deploy."
+status_note: 'Reconciled 2026-09-18: bot Docker image успешно собирается/pushится в GitHub Actions; runtime запуск на production stack ждёт первого VPS deploy.'
 roles:
   - DEVOPS
   - BACK

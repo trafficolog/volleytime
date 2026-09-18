@@ -5,7 +5,7 @@ epic: '9.5'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-18
-status_note: "Reconciled 2026-09-18: webhook/internal listeners и internal secret реализованы; production notification delivery ждёт deploy."
+status_note: 'Reconciled 2026-09-18: webhook/internal listeners и internal secret реализованы; production notification delivery ждёт deploy.'
 roles:
   - BACK
   - DEVOPS

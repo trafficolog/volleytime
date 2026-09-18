@@ -5,7 +5,7 @@ epic: '9.2'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-18
-status_note: "Reconciled 2026-09-18: Caddy config и webhook routing проверены локально на Caddy 2.11; live DNS/TLS/HTTPS volleytime.by ждут VPS/DNS."
+status_note: 'Reconciled 2026-09-18: Caddy config и webhook routing проверены локально на Caddy 2.11; live DNS/TLS/HTTPS volleytime.by ждут VPS/DNS.'
 roles:
   - DEVOPS
 depends_on:

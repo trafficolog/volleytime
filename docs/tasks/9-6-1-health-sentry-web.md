@@ -5,7 +5,7 @@ epic: '9.6'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-18
-status_note: "Reconciled 2026-09-18: /health и Sentry web integration реализованы; реальный Sentry DSN/event verification ждёт production configuration."
+status_note: 'Reconciled 2026-09-18: /health и Sentry web integration реализованы; реальный Sentry DSN/event verification ждёт production configuration.'
 roles:
   - BACK
   - DEVOPS

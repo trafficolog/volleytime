@@ -5,7 +5,7 @@ epic: '8.7'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-18
-status_note: "Reconciled 2026-09-18: manual-QA checklist существует, но реальный Telegram-прогон iOS/Android/Desktop не выполнен. Тот же underlying gate детализирован в 8.8.11."
+status_note: 'Reconciled 2026-09-18: manual-QA checklist существует, но реальный Telegram-прогон iOS/Android/Desktop не выполнен. Тот же underlying gate детализирован в 8.8.11.'
 roles:
   - QA
 depends_on:

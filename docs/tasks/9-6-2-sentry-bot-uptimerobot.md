@@ -5,7 +5,7 @@ epic: '9.6'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-18
-status_note: "Reconciled 2026-09-18: Sentry bot + bot.catch + healthz реализованы; UptimeRobot и реальные Sentry/alert tests не настроены и не проверены."
+status_note: 'Reconciled 2026-09-18: Sentry bot + bot.catch + healthz реализованы; UptimeRobot и реальные Sentry/alert tests не настроены и не проверены.'
 roles:
   - BACK
   - DEVOPS

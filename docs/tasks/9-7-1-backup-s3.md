@@ -5,7 +5,7 @@ epic: '9.7'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-18
-status_note: "Reconciled 2026-09-18: backup.sh и hardening реализованы; реальные S3 credentials, cron/upload и alert verification остаются external gate."
+status_note: 'Reconciled 2026-09-18: backup.sh и hardening реализованы; реальные S3 credentials, cron/upload и alert verification остаются external gate.'
 roles:
   - DEVOPS
 depends_on:

@@ -5,7 +5,7 @@ epic: '9.3'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-18
-status_note: "Reconciled 2026-09-18: external gate — реальный VPS, SSH hardening, firewall/fail2ban и timezone не provisioned/verified."
+status_note: 'Reconciled 2026-09-18: external gate — реальный VPS, SSH hardening, firewall/fail2ban и timezone не provisioned/verified.'
 roles:
   - DEVOPS
 depends_on: []

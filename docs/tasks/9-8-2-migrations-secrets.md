@@ -5,7 +5,7 @@ epic: '9.8'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-18
-status_note: "Reconciled 2026-09-18: отдельная migrator-stage реализована, но workflow предполагает уже существующий /opt/volleytime/.env; production GitHub Secrets/VPS env не настроены и secret materialization из карточки не реализован."
+status_note: 'Reconciled 2026-09-18: отдельная migrator-stage реализована, но workflow предполагает уже существующий /opt/volleytime/.env; production GitHub Secrets/VPS env не настроены и secret materialization из карточки не реализован.'
 roles:
   - DEVOPS
   - BACK

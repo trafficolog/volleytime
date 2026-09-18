@@ -5,7 +5,7 @@ epic: '9.8'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-18
-status_note: "Reconciled 2026-09-18: deploy workflow tests и build/push images прошли в run 35346916965; Deploy to VPS остановился на missing server host, push→prod не подтверждён."
+status_note: 'Reconciled 2026-09-18: deploy workflow tests и build/push images прошли в run 35346916965; Deploy to VPS остановился на missing server host, push→prod не подтверждён.'
 roles:
   - DEVOPS
 depends_on:
