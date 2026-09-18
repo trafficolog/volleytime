@@ -23,6 +23,7 @@
 ### Task 1: Synchronize release documentation
 
 **Files:**
+
 - Modify: `README.md`
 - Modify: `docs/operations/status/current-state.md`
 - Modify: `docs/RELEASES.md`
@@ -31,6 +32,7 @@
 - Create: `SECURITY.md`
 
 **Interfaces:**
+
 - Consumes: release facts from `docs/RELEASES.md`, `docs/operations/reviews/*`, git tags.
 - Produces: one consistent description of implemented MVP vs outstanding external release gates.
 
@@ -43,10 +45,12 @@
 ### Task 2: Review code and UI against MVP contracts
 
 **Files:**
+
 - Read: `apps/**`, `packages/**`, Docker/CI files, SDD cards and Claude Design export.
 - Create/modify only if a blocking defect is confirmed: a dedicated task + regression test + minimal fix.
 
 **Interfaces:**
+
 - Consumes: R0 Definition of Done, prior review reports, Claude Design reference screens.
 - Produces: `docs/operations/reviews/2026-09-18-v0.1.2-release-readiness.md`.
 
@@ -59,10 +63,12 @@
 ### Task 3: Publish release candidate and execute CI gate
 
 **Files:**
+
 - GitHub repository: `trafficolog/volleytime`
 - Workflows: `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`
 
 **Interfaces:**
+
 - Consumes: reviewed release-candidate tree.
 - Produces: GitHub branch/PR plus Actions evidence.
 
