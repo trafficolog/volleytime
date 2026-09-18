@@ -1,5 +1,7 @@
 # SDD reconciliation R0/MVP — 2026-09-18
 
+> **Scope clarification (2026-09-18):** этот reconciliation считал 236/237 карточек R0 + review/hardening и устранял documentation drift. Он **не задаёт знаменатель MVP**. Канонический R0 из `docs/RELEASES.md` содержит ровно **139 исходных задач**; текущий R0 snapshot ведётся отдельно в [R0 MVP gate](./2026-09-18-r0-mvp-gate.md).
+
 ## Цель
 
 Сверить исторические статусы task cards фаз 3, 4, 5, 6, 8 и 9 с фактической реализацией, hardening-релизами v0.1.1/v0.1.2 и свежим GitHub CI. Reconciliation не расширяет MVP scope и не подменяет external/manual acceptance.

@@ -77,19 +77,20 @@
 
 ### Repository gate
 
-SDD reconciliation выполнен в Task 9.11.2. Исходный drift **119 non-done cards** разобран по evidence: **101 историческая карточка закрыта**, **18 реально открытых были сохранены на момент reconciliation; Task 4.7.5 затем закрыта**. С учётом новой служебной карточки snapshot: **237 R0/review task cards, 220 done, 17 non-done**.
+Канонический MVP gate задаётся **только** R0 release-plan: **139 исходных задач** фаз 3.1-3.8, 4.1-4.8, 5.1-5.12, 6.1-6.7, 8.1-8.7 и 9.1-9.8. Hardening/review/release-readiness эпики (`3.9+`, `4.9`, `5.13+`, `6.8+`, `8.8+`, `9.9+`) не входят в знаменатель MVP и являются evidence исправлений.
 
-Открытые cards теперь имеют конкретные причины:
+Текущий R0 snapshot: **139 tasks = 123 done + 16 in_progress**.
 
-- repository gap: **9.8.3**;
-- один manual Telegram gate, представленный двумя карточками: **8.7.2 + 8.8.11**;
-- Phase 9 production/runtime/ops validation: **9.1.1, 9.1.2, 9.2.2, 9.3.1, 9.3.2, 9.4.1, 9.5.1, 9.5.2, 9.6.1, 9.6.2, 9.7.1, 9.7.2, 9.8.1, 9.8.2**. Для 9.8.2 repository implementation уже готова; остаётся только external secrets/VPS verification.
+Открытые R0 cards:
 
-Свежий GitHub CI на PR #1 прошёл полностью: format/lint/typecheck, unit+integration tests и build. Автоматический Deploy run 35346916965 также успешно выполнил pre-deploy tests и build/push web+migrator+bot, но SSH deploy остановился до подключения с `missing server host`: `VPS_HOST`/SSH production configuration ещё не задана.
+- **8.7.2** — реальный Telegram manual QA;
+- **9.1.1, 9.1.2, 9.2.2, 9.3.1, 9.3.2, 9.4.1, 9.5.1, 9.5.2, 9.6.1, 9.6.2, 9.7.1, 9.7.2, 9.8.1, 9.8.2, 9.8.3** — production/runtime/operations acceptance.
 
-Канонический GitHub уже содержит release-candidate snapshot. Репозиторий остаётся public, тогда как `docs/GITHUB_SETUP.md` исторически описывает private repository; это отдельное policy/config decision, а не доказательство production readiness.
+После PR #3 закрыт последний продуктовый repository gap `4.7.5`. PR #4 дал green CI repository implementation для `9.8.2`. PR #5 дал green CI repository implementation для `9.8.3`: GHCR остаётся дефолтным deploy path, manual `local-build` fallback и оба rollback path документированы/контрактно протестированы.
 
-Подробности: [SDD reconciliation](../reviews/2026-09-18-sdd-reconciliation.md).
+**Известных repository implementation gaps в исходных 139 R0 задачах больше нет.** Оставшиеся 16 карточек нельзя честно закрыть без Telegram/VPS/DNS/Sentry/S3/live deploy evidence.
+
+Ранее выполненный reconciliation по 237 R0+review cards остаётся полезным документарным аудитом, но **не является MVP denominator**.
 
 ### External / production gate
 
@@ -109,8 +110,8 @@ Claude Design export используется как reference интерфей�
 
 ## Следующие шаги
 
-1. Закрыть repository gap 9.8.3.
-2. Выполнить реальный Telegram QA (8.7.2 / 8.8.11).
-3. Настроить VPS/DNS/secrets и выполнить первый production deploy + smoke/rollback.
-4. Проверить реальный backup/restore + внешний monitoring.
-5. Обкатать продукт на одной реальной группе и только после этого подтверждать production MVP.
+1. Выполнить реальный Telegram QA по R0 Task 8.7.2 (hardening-checklist 8.8.11 используется как расширенный сценарий).
+2. Настроить VPS/DNS/GitHub Secrets и выбрать active deploy path после проверки GHCR.
+3. Выполнить первый production deploy + smoke + реальный rollback.
+4. Проверить backup upload/restore, Sentry и внешний monitoring.
+5. Провести неделю реальных тренировок только через Volley Time и после этого подтвердить R0 MVP.
