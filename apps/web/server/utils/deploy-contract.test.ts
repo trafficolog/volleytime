@@ -12,6 +12,12 @@ const workflowPath = fileURLToPath(
 const rendererPath = fileURLToPath(
   new URL('../../../../scripts/render-production-env.mjs', import.meta.url),
 )
+const localBuildScriptPath = fileURLToPath(
+  new URL('../../../../scripts/deploy-local-build.sh', import.meta.url),
+)
+const deployRunbookPath = fileURLToPath(
+  new URL('../../../../docs/operations/runbooks/deploy.md', import.meta.url),
+)
 
 const requiredEnv = {
   DOMAIN: 'volleytime.example',
@@ -29,6 +35,45 @@ const requiredEnv = {
 const dirs: string[] = []
 afterEach(() => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true })
+  it('offers a manual local-build fallback while keeping GHCR as the default path', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+
+    expect(workflow).toContain('deployment_mode:')
+    expect(workflow).toContain('- ghcr')
+    expect(workflow).toContain('- local-build')
+    expect(workflow).toContain("inputs.deployment_mode == 'local-build'")
+    expect(workflow).toContain('Deploy local build over SSH')
+    expect(workflow).toContain('scripts/deploy-local-build.sh deploy')
+  })
+
+  it('local-build deploy records the previous revision and migrates before starting services', () => {
+    const script = readFileSync(localBuildScriptPath, 'utf8')
+    const previous = script.indexOf('git rev-parse HEAD')
+    const pull = script.indexOf('git pull --ff-only')
+    const build = script.indexOf('build migrate web bot')
+    const migrate = script.indexOf('run --rm migrate')
+    const up = script.indexOf('up -d')
+
+    expect(script).toContain('.deploy/previous-git-sha')
+    expect(previous).toBeGreaterThan(-1)
+    expect(pull).toBeGreaterThan(previous)
+    expect(build).toBeGreaterThan(pull)
+    expect(migrate).toBeGreaterThan(build)
+    expect(up).toBeGreaterThan(migrate)
+    expect(script).toContain('rollback)')
+    expect(script).toContain('git reset --hard')
+  })
+
+  it('documents GHCR probing, both deployment paths and rollback limits', () => {
+    const runbook = readFileSync(deployRunbookPath, 'utf8')
+
+    expect(runbook).toContain('docker pull ghcr.io/')
+    expect(runbook).toContain('deployment_mode')
+    expect(runbook).toContain('local-build')
+    expect(runbook).toContain('rollback')
+    expect(runbook).toContain('forward-compatible')
+  })
+
 })
 
 describe('production env deployment contract', () => {
