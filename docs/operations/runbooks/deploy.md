@@ -20,6 +20,8 @@ The release path is `task branch → main → prod`: task branches are reviewed 
 
 The `prod` update must be a reviewed fast-forward from the selected `main` revision. A push to `main` runs the normal CI workflow but does not deploy production. A push to `prod` starts the production workflow; `workflow_dispatch` remains available for an intentional rerun or the local-build fallback.
 
+Every manual run must select `prod` in the GitHub **Branch** dropdown (or pass `--ref prod` through GitHub CLI). The workflow source gate rejects `main`, task branches, and tags before tests, image publication, production-secret handling, or VPS access.
+
 ## Path A — GHCR (default)
 
 A push to `prod` uses this path automatically:
