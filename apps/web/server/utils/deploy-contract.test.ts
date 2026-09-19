@@ -95,8 +95,8 @@ describe('production env deployment contract', () => {
     expect(rendered).toContain('DOMAIN="volleytime.example"')
     expect(rendered).toContain('DB_PASSWORD="db \\"secret\\" with spaces"')
     expect(rendered).toContain('TRUSTED_PROXY="1"')
-    expect(renderer).toContain("mode: 0o600")
-    expect(renderer).toContain("chmodSync(output, 0o600)")
+    expect(renderer).toContain('mode: 0o600')
+    expect(renderer).toContain('chmodSync(output, 0o600)')
     if (process.platform !== 'win32') {
       expect(statSync(output).mode & 0o777).toBe(0o600)
     }
