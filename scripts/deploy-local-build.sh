@@ -14,6 +14,8 @@ deploy() {
   printf '%s\n' "$previous_sha" > .deploy/previous-git-sha
   chmod 600 .deploy/previous-git-sha
 
+  bash .deploy/scripts/backup-local.sh
+
   git fetch origin prod
   git checkout prod
   git pull --ff-only origin prod
