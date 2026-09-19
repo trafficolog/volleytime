@@ -5,7 +5,7 @@ epic: '9.3'
 status: in_progress
 sync_state: local
 last_reviewed: 2026-09-19
-status_note: 'Live audit confirmed root and password SSH are enabled; deploy and independent recovery access must be proven before hardening.'
+status_note: 'Live hardening and post-change smoke pass; task remains open only until the owner copies the recovery private key to storage independent of the daily-key system.'
 roles:
   - DEVOPS
 depends_on:
@@ -58,6 +58,19 @@ Live-аудит выделенного VPS показал работающий r
 ## Порядок без локаута
 
 `users + keys` → `оба новых login` → `sshd -t` → `reload` → `оба login повторно` → `root login отклонён` → `firewall`.
+
+## Live evidence — 2026-09-19
+
+- Daily key fingerprint: `SHA256:OYBK/Yjj0UVvr7zictSlkM2201vS8aGzo8pHvY8EcV0`.
+- Recovery key fingerprint: `SHA256:HdbQkkdmMFTslw7rW5fejkbKCBCi5BuT18FzIdaHhXw`.
+- `deploy` и `ops-recovery` вошли своими ключами до и после reload; `docker ps` и `sudo -n true` успешны.
+- Root key login после reload отклонён: `Permission denied (publickey)`.
+- Effective SSH: root/password/keyboard-interactive `no`, public key `yes`.
+- UFW active, default deny incoming; разрешены только TCP 22/80/443 для IPv4/IPv6.
+- fail2ban active/enabled, jail `sshd` active; unattended-upgrades active/enabled.
+- Timezone `Europe/Minsk`; `/swapfile` 2 GB активен и добавлен в `/etc/fstab`.
+- На сервере снаружи слушает только SSH; HTTP/HTTPS зарезервированы UFW для Caddy после deploy.
+- Pending owner action: скопировать `volleytime-recovery` в независимое offline-хранилище и проверить fingerprint; до подтверждения статус остаётся `in_progress`.
 
 ## Не делать
 
