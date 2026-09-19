@@ -228,6 +228,19 @@ describe('fallback deployment contract', () => {
     expect(workflow).toContain('scripts/deploy-local-build.sh deploy-bundle')
   })
 
+  it('gives long-running local-build deploy and rollback bounded SSH timeouts', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const deployStep = workflow.match(
+      /- name: Deploy verified bundle over SSH[\s\S]*?(?=\n {6}- name:)/,
+    )?.[0]
+    const rollbackStep = workflow.match(
+      /- name: Rollback local build on failed smoke[\s\S]*?(?=\n {6}- name:|\n {2}[a-z-]+:|$)/,
+    )?.[0]
+
+    expect(deployStep).toContain('command_timeout: 30m')
+    expect(rollbackStep).toContain('command_timeout: 30m')
+  })
+
   it('local-build deploy records the previous revision and migrates before starting services', () => {
     const script = readFileSync(localBuildScriptPath, 'utf8')
     const previous = script.indexOf('git rev-parse HEAD')
