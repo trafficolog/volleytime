@@ -15,6 +15,6 @@ describe('Telegram production egress contract', () => {
     expect(botStart).toBeGreaterThan(-1)
     expect(botEnd).toBeGreaterThan(botStart)
     expect(bot).toContain('NODE_OPTIONS: --dns-result-order=ipv6first')
-    expect(compose).toMatch(/\n  backend:\r?\n    enable_ipv6: true/)
+    expect(compose).toMatch(/\n {2}backend:\r?\n {4}enable_ipv6: true/)
   })
 })
