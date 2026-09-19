@@ -74,6 +74,8 @@ bash .deploy/scripts/deploy-local-build.sh deploy-bundle .deploy/release.bundle 
 
 There is no server-side `git fetch`, `git pull`, or registry pull in this path. Bundle verification uses only the host Bash and Git already required by the checkout; host Node.js is not required. The VPS needs Docker/Compose but no outbound GitHub or GHCR egress.
 
+The local-build deploy and its rollback have an explicit 30-minute SSH command timeout. On the 2 GiB pilot VPS a cold Nuxt/Docker build can exceed 10 minutes under memory and disk pressure. If GitHub Actions reports a timeout, do not immediately start another deployment: first connect with the normal or recovery key, check for `deploy-local-build.sh` and `docker compose ... build` processes, and verify the active containers and release SHA. The remote process can survive the SSH action timeout and must finish or be deliberately recovered before a rerun.
+
 ## Path B — GHCR (manual alternative)
 
 Use this only after the GHCR probe succeeds reliably. Run the **Deploy** workflow manually on `prod` and select `deployment_mode=ghcr`. The workflow:
