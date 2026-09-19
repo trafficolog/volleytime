@@ -7,24 +7,39 @@
 
 ## 2. SSH + hardening
 
+Используются два разных ключа и две учётные записи:
+
+- `deploy` — ежедневный deploy, доступ к Docker и `/opt/volleytime`;
+- `ops-recovery` — независимый аварийный ключ с `sudo`, который после настройки хранится отдельно от daily key.
+
 ```bash
-ssh-copy-id root@<IP>           # с локальной машины
-# на сервере:
-adduser deploy && usermod -aG docker deploy
-mkdir -p /home/deploy/.ssh && cp ~/.ssh/authorized_keys /home/deploy/.ssh/
-chown -R deploy:deploy /home/deploy/.ssh && chmod 700 /home/deploy/.ssh
+# Сначала пользователи и разные public keys, затем две новые SSH-сессии.
+useradd --create-home --shell /bin/bash deploy
+usermod -aG docker deploy
+useradd --create-home --shell /bin/bash ops-recovery
+usermod -aG sudo ops-recovery
+
+install -d -m 700 -o deploy -g deploy /home/deploy/.ssh
+install -m 600 -o deploy -g deploy /dev/stdin /home/deploy/.ssh/authorized_keys
+install -d -m 700 -o ops-recovery -g ops-recovery /home/ops-recovery/.ssh
+install -m 600 -o ops-recovery -g ops-recovery /dev/stdin /home/ops-recovery/.ssh/authorized_keys
 ```
 
-Проверить вход `ssh deploy@<IP>` → только потом:
+Проверить `deploy` key login + `docker ps` и отдельно `ops-recovery` key login + `sudo -n true`. Только после этого создать drop-in:
 
 ```bash
-# /etc/ssh/sshd_config
+cat >/etc/ssh/sshd_config.d/90-production-hardening.conf <<'EOF'
 PasswordAuthentication no
+KbdInteractiveAuthentication no
 PermitRootLogin no
-systemctl restart sshd
+PubkeyAuthentication yes
+EOF
+
+sshd -t
+systemctl reload ssh
 ```
 
-> ⚠️ Не отключать root до проверки входа deploy — иначе локаут.
+После reload повторить оба новых входа, убедиться через `sshd -T` в effective settings и проверить, что root key login отклонён. Текущую root-сессию закрывать последней. Консоль/rescue провайдера остаётся третьей линией восстановления.
 
 ## 3. Firewall + fail2ban
 

@@ -29,10 +29,11 @@ DEPLOY.md: Selectel/Timeweb, Москва, 2-4 vCPU / 4-8 GB. Финальный
 
 ## Задачи
 
-| ID    | Задача                                                  | Часов |
-| ----- | ------------------------------------------------------- | ----: |
-| 9.3.1 | VPS создание + SSH + firewall + hardening               |   1-2 |
-| 9.3.2 | Docker install + deploy-пользователь + provisioning doc |   1-2 |
+| ID    | Задача                                                    | Часов |
+| ----- | --------------------------------------------------------- | ----: |
+| 9.3.1 | VPS создание + SSH + firewall + hardening                 |   1-2 |
+| 9.3.2 | Docker install + deploy-пользователь + provisioning doc   |   1-2 |
+| 9.3.3 | Recovery-safe SSH: daily key + независимый аварийный ключ |   1-2 |
 
 ## Не делать
 
