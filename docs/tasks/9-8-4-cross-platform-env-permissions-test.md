@@ -2,10 +2,10 @@
 id: '9.8.4'
 phase: '9'
 epic: '9.8'
-status: in_progress
+status: done
 sync_state: local
 last_reviewed: 2026-09-19
-status_note: 'A fresh Windows gate fails because Node reports emulated NTFS mode 0666 after chmodSync(0600); the production renderer itself succeeds and Linux permissions remain the security contract.'
+status_note: 'Windows now verifies the renderer permission contract without treating emulated NTFS mode bits as POSIX evidence; the focused test and a fresh full repository gate pass.'
 roles:
   - DEVOPS
   - QA
@@ -48,3 +48,9 @@ tags:
 - ❌ Не считать Windows mode bits доказательством Linux permissions.
 - ❌ Не удалять или ослаблять `chmodSync(..., 0o600)`.
 - ❌ Не менять состав или значения production secrets.
+
+## Проверка
+
+- `pnpm exec vitest run apps/web/server/utils/deploy-contract.test.ts` — 1 файл, 6 тестов пройдены.
+- Свежий detached checkout на Windows: `pnpm install --frozen-lockfile`, `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` — успешно.
+- Полный тестовый набор: 71 файл, 389 тестов пройдены.
