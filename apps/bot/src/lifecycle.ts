@@ -5,11 +5,59 @@ import type { Bot, BotError } from 'grammy'
 import type { BotContext } from './context'
 import { captureError } from './sentry'
 
+const TELEGRAM_BOT_URL = /(https:\/\/api\.telegram\.org\/bot)[^/\s"']+/gi
+const URL_CREDENTIALS = /([a-z][a-z0-9+.-]*:\/\/)[^/@\s]+@/gi
+
+interface SanitizedOperationalError {
+  name: string
+  message: string
+  code?: string
+  cause?: SanitizedOperationalError
+}
+
+function redactOperationalText(value: string): string {
+  return value.replace(TELEGRAM_BOT_URL, '$1[REDACTED]').replace(URL_CREDENTIALS, '$1[REDACTED]@')
+}
+
+export function sanitizeOperationalError(
+  error: unknown,
+  depth = 0,
+  seen = new WeakSet<object>(),
+): SanitizedOperationalError {
+  if (typeof error !== 'object' || error === null) {
+    return { name: 'Error', message: redactOperationalText(String(error)) }
+  }
+  if (seen.has(error)) return { name: 'Error', message: '[circular error]' }
+  seen.add(error)
+
+  const record = error as Record<string, unknown>
+  const name = typeof record.name === 'string' ? record.name : 'Error'
+  const message = typeof record.message === 'string' ? redactOperationalText(record.message) : name
+  const code =
+    typeof record.code === 'string' || typeof record.code === 'number'
+      ? String(record.code)
+      : undefined
+  const nested = record.cause ?? record.error
+
+  return {
+    name,
+    message,
+    ...(code ? { code } : {}),
+    ...(nested !== undefined && depth < 3
+      ? { cause: sanitizeOperationalError(nested, depth + 1, seen) }
+      : {}),
+  }
+}
+
+export function logFatalError(error: unknown): void {
+  console.error('[bot] fatal:', sanitizeOperationalError(error))
+}
+
 /** Ошибка в хендлере не должна валить бота (Task 3.9.7). */
 export function handleBotError(err: BotError<BotContext>): void {
   console.error('[bot] update failed', {
     updateId: err.ctx?.update?.update_id,
-    error: err.error instanceof Error ? err.error.message : err.error,
+    error: sanitizeOperationalError(err.error),
   })
   captureError(err.error, { updateId: err.ctx?.update?.update_id })
 }
@@ -69,7 +117,10 @@ export async function withRetries<T>(
       return await fn()
     } catch (e) {
       lastError = e
-      console.error(`[bot] ${opts.label ?? 'operation'} failed (attempt ${i}/${attempts})`, e)
+      console.error(
+        `[bot] ${opts.label ?? 'operation'} failed (attempt ${i}/${attempts})`,
+        sanitizeOperationalError(e),
+      )
       if (i < attempts) await sleep(base * 2 ** (i - 1))
     }
   }
