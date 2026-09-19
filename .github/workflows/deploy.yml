@@ -167,7 +167,7 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: deploy
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: '.env.production,release.bundle,scripts/release-bundle.mjs,scripts/deploy-local-build.sh,scripts/backup-local.sh'
+          source: '.env.production,release.bundle,scripts/release-bundle.sh,scripts/deploy-local-build.sh,scripts/backup-local.sh'
           target: '/opt/volleytime/.deploy'
       - name: Deploy GHCR images over SSH
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'ghcr' }}
