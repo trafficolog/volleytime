@@ -162,7 +162,7 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: deploy
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: '.env.production,scripts/deploy-local-build.sh'
+          source: '.env.production,scripts/deploy-local-build.sh,scripts/backup-local.sh'
           target: '/opt/volleytime/.deploy'
       - name: Deploy GHCR images over SSH
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.deployment_mode == 'ghcr' }}
@@ -177,6 +177,7 @@ jobs:
             test -f .deploy/.env.production
             install -m 600 .deploy/.env.production .env
             rm -f .deploy/.env.production
+            bash .deploy/scripts/backup-local.sh
             # ПЕРВЫМ делом сохраняем работающие сейчас образы — иначе «предыдущими»
             # окажутся новые и откат перезапустит сломанный релиз (Task 9.10.2)
             if [ -f .env.images ]; then cp -f .env.images .env.images.previous; fi
