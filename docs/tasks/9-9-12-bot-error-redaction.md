@@ -2,10 +2,10 @@
 id: '9.9.12'
 phase: '9'
 epic: '9.9'
-status: in_progress
+status: done
 sync_state: local
 last_reviewed: 2026-09-19
-status_note: 'A live Telegram timeout proved that logging the raw grammY/Fetch error exposes the bot token embedded in the request URL; the leaked token must be rotated separately in BotFather.'
+status_note: 'Retry and fatal bot logs now use the shared recursive sanitizer; the focused test, full repository gate, BotFather token rotation and VPS secret update are complete.'
 roles:
   - BACKEND
   - DEVOPS
@@ -40,11 +40,11 @@ tags:
 
 ## Критерии приёмки
 
-- [ ] Retry log не содержит исходный token или полный Telegram bot URL.
-- [ ] Fatal startup log использует тот же sanitizer.
-- [ ] Error name, безопасное message и network code остаются видимыми.
-- [ ] Focused tests и обязательный repository gate проходят.
-- [ ] Новый token установлен на VPS и старый отозван через BotFather.
+- [x] Retry log не содержит исходный token или полный Telegram bot URL.
+- [x] Fatal startup log использует тот же sanitizer.
+- [x] Error name, безопасное message и network code остаются видимыми.
+- [x] Focused tests и обязательный repository gate проходят.
+- [x] Новый token установлен на VPS и старый отозван через BotFather.
 
 ## Не делать
 
