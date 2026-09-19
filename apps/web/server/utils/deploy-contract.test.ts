@@ -27,8 +27,14 @@ const productionSourceGuardPath = fileURLToPath(
   new URL('../../../../scripts/require-prod-ref.mjs', import.meta.url),
 )
 const releaseBundlePath = fileURLToPath(
-  new URL('../../../../scripts/release-bundle.mjs', import.meta.url),
+  new URL('../../../../scripts/release-bundle.sh', import.meta.url),
 )
+const bashExecutable =
+  process.platform === 'win32' ? 'C:\\Program Files\\Git\\bin\\bash.exe' : 'bash'
+const releaseBundleScript =
+  process.platform === 'win32'
+    ? releaseBundlePath.replace(/^([A-Za-z]):\\/, '/$1/').replaceAll('\\', '/')
+    : releaseBundlePath
 const deployRunbookPath = fileURLToPath(
   new URL('../../../../docs/operations/runbooks/deploy.md', import.meta.url),
 )
@@ -87,9 +93,9 @@ function runBundleCli(
   expected = fixture.candidate,
 ) {
   return spawnSync(
-    process.execPath,
+    bashExecutable,
     [
-      releaseBundlePath,
+      releaseBundleScript,
       command,
       '--repo',
       fixture.deployed,
@@ -203,6 +209,8 @@ describe('fallback deployment contract', () => {
     expect(workflow).toContain('deploy-bundle .deploy/release.bundle ${{ github.sha }}')
     expect(script).not.toContain('git fetch origin prod')
     expect(script).not.toContain('git pull --ff-only')
+    expect(script).toContain('bash .deploy/scripts/release-bundle.sh verify')
+    expect(script).not.toContain('node .deploy/scripts/release-bundle')
     expect(runbook).toContain('task branch → main → prod')
     expect(runbook).toContain('Do not develop directly in `prod`')
   })
@@ -223,7 +231,7 @@ describe('fallback deployment contract', () => {
   it('local-build deploy records the previous revision and migrates before starting services', () => {
     const script = readFileSync(localBuildScriptPath, 'utf8')
     const previous = script.indexOf('git rev-parse HEAD')
-    const advance = script.indexOf('release-bundle.mjs advance')
+    const advance = script.indexOf('release-bundle.sh advance')
     const build = script.indexOf('build migrate web bot')
     const migrate = script.indexOf('run --rm migrate')
     const up = script.indexOf('up -d')

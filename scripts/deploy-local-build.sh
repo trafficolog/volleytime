@@ -50,9 +50,9 @@ deploy_bundle() {
   test -n "$bundle"
   test -f "$bundle"
   [[ "$expected_sha" =~ ^[0-9a-fA-F]{40}$ ]]
-  test -f .deploy/scripts/release-bundle.mjs
+  test -f .deploy/scripts/release-bundle.sh
 
-  node .deploy/scripts/release-bundle.mjs verify \
+  bash .deploy/scripts/release-bundle.sh verify \
     --repo "$ROOT" --bundle "$bundle" --expected "$expected_sha"
 
   previous_sha="$(git rev-parse HEAD)"
@@ -64,7 +64,7 @@ deploy_bundle() {
 
   bash .deploy/scripts/backup-local.sh
 
-  node .deploy/scripts/release-bundle.mjs advance \
+  bash .deploy/scripts/release-bundle.sh advance \
     --repo "$ROOT" --bundle "$bundle" --expected "$expected_sha"
 
   install_release_manifest "$expected_sha" "$previous_sha"

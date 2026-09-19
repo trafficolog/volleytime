@@ -72,7 +72,7 @@ The effective command is:
 bash .deploy/scripts/deploy-local-build.sh deploy-bundle .deploy/release.bundle EXPECTED_FULL_SHA
 ```
 
-There is no server-side `git fetch`, `git pull`, or registry pull in this path. The VPS needs Docker/Compose but no outbound GitHub or GHCR egress.
+There is no server-side `git fetch`, `git pull`, or registry pull in this path. Bundle verification uses only the host Bash and Git already required by the checkout; host Node.js is not required. The VPS needs Docker/Compose but no outbound GitHub or GHCR egress.
 
 ## Path B — GHCR (manual alternative)
 
