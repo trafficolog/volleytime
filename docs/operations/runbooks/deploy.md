@@ -1,18 +1,18 @@
 # Production deploy runbook
 
-This runbook covers the two R0 deployment paths from Task 9.8.3. **GHCR remains the default path.** The local-build path is an explicit fallback for a VPS that cannot reliably pull GitHub Container Registry images.
+This runbook covers the two R0 deployment paths from Tasks 9.8.3 and 9.8.7. **A verified Git bundle with a local VPS build is the active automatic path.** GHCR remains an explicit manual alternative for diagnostics or a future network change.
 
 ## Before the first production deploy
 
 Configure the GitHub Secrets required by `.github/workflows/deploy.yml`, provision the VPS from Tasks 9.3.x, point DNS to it, and configure the Telegram Mini App/webhook. The deploy workflow deliberately fails closed when required secrets are missing.
 
-On the VPS, verify GHCR reachability before choosing the active path:
+GHCR is not required by the active path. To diagnose whether the manual alternative is usable, probe it explicitly on the VPS:
 
 ```bash
 docker pull ghcr.io/trafficolog/volleytime/web:latest
 ```
 
-If the pull succeeds reliably, keep `deployment_mode=ghcr`. If it times out or the registry is unreachable from the VPS network, use the manual `local-build` fallback.
+If the pull times out or the registry is unreachable, keep `deployment_mode=local-build`. The bundle path does not require outbound GitHub or GHCR access from the VPS.
 
 ## Dedicated GitHub Actions credentials
 
@@ -48,44 +48,45 @@ To rotate the CI credential, create a new dedicated key, add and test its restri
 
 The release path is `task branch → main → prod`: task branches are reviewed and merged into `main`, then a tested `main` revision is promoted to `prod` for production deployment. Do not develop directly in `prod`, and do not use a task branch as a production source.
 
-The `prod` update must be a reviewed fast-forward from the selected `main` revision. A push to `main` runs the normal CI workflow but does not deploy production. A push to `prod` starts the production workflow; `workflow_dispatch` remains available for an intentional rerun or the local-build fallback.
+The `prod` update must be a reviewed fast-forward from the selected `main` revision. A push to `main` runs the normal CI workflow but does not deploy production. A push to `prod` automatically starts the verified-bundle local-build workflow; `workflow_dispatch` remains available for an intentional local-build rerun or the manual GHCR alternative.
 
 Every manual run must select `prod` in the GitHub **Branch** dropdown (or pass `--ref prod` through GitHub CLI). The workflow source gate rejects `main`, task branches, and tags before tests, image publication, production-secret handling, or VPS access.
 
-## Path A — GHCR (default)
+## Path A — verified bundle and build on VPS (active)
 
-A push to `prod` uses this path automatically:
+A push to `prod` uses this path automatically. A manual rerun selects `deployment_mode=local-build` and the `prod` branch. GitHub Actions:
 
 1. tests/lint/typecheck;
-2. build and push `web`, `migrator`, and `bot` images tagged with the commit SHA;
-3. materialize production secrets into a mode-0600 `.env` on the VPS;
-4. pull the SHA-tagged images;
-5. run migrations as a separate stage;
-6. start the production compose stack;
-7. run the smoke check;
-8. on smoke failure, restore `.env.images.previous`.
+2. creates `release.bundle` from the checked-out `prod` commit;
+3. uploads the bundle, release helpers, and a mode-0600 production env staging file;
+4. runs `deploy-bundle` with the immutable `${{ github.sha }}`;
+5. runs the smoke check and invokes local rollback if smoke fails.
 
-For a manual deploy, run the **Deploy** workflow with `deployment_mode=ghcr`.
+The VPS script verifies the bundle and exact advertised SHA before recording the previous revision. It then creates the local database backup, confirms a clean tracked `prod` checkout and fast-forward ancestry, advances to the verified commit, builds `migrate web bot`, runs migrations, and starts the stack. Untracked runtime state such as `.env`, `.deploy/`, and `backups/` is preserved.
 
-## Path B — build on VPS
-
-Use this only when GHCR cannot be pulled from the VPS.
-
-Run the **Deploy** workflow manually and select `deployment_mode=local-build`. CI tests still run, but the registry build/push job is skipped. The workflow uploads the production env and the current fallback script, then executes:
+The effective command is:
 
 ```bash
-bash .deploy/scripts/deploy-local-build.sh deploy
+bash .deploy/scripts/deploy-local-build.sh deploy-bundle .deploy/release.bundle EXPECTED_FULL_SHA
 ```
 
-The script:
+There is no server-side `git fetch`, `git pull`, or registry pull in this path. The VPS needs Docker/Compose but no outbound GitHub or GHCR egress.
 
-1. records the current Git revision in `.deploy/previous-git-sha`;
-2. fast-forwards the VPS checkout from `origin/prod`;
-3. builds `migrate web bot` locally through `docker-compose.prod.yml`;
-4. runs the migration stage;
-5. starts the stack and prunes unused images.
+## Path B — GHCR (manual alternative)
 
-The VPS therefore needs Git access to the canonical repository in addition to Docker/Compose.
+Use this only after the GHCR probe succeeds reliably. Run the **Deploy** workflow manually on `prod` and select `deployment_mode=ghcr`. The workflow:
+
+1. builds and pushes `web`, `migrator`, and `bot` images tagged with the commit SHA;
+2. materializes production secrets into a mode-0600 `.env` on the VPS;
+3. records the previous image set and pulls the SHA-tagged images;
+4. runs migrations as a separate stage and starts the stack;
+5. restores `.env.images.previous` if smoke fails.
+
+For a direct diagnostic probe only:
+
+```bash
+docker pull ghcr.io/trafficolog/volleytime/web:latest
+```
 
 ## Rollback
 
@@ -95,9 +96,9 @@ The workflow records the previous image set before replacing `.env.images`. If s
 
 For a manual GHCR rollback, verify the target SHA and restore the corresponding image variables before `docker compose ... up -d`.
 
-### local-build path
+### verified-bundle local-build path
 
-The local-build deploy records the previous Git SHA before pulling `prod`. To return to it:
+The local-build deploy records the previous Git SHA before advancing `prod` from the verified bundle. To return to it:
 
 ```bash
 cd /opt/volleytime
@@ -122,4 +123,4 @@ After the first live deployment verify:
 - UptimeRobot/other external health monitoring is active;
 - rollback is exercised once and the service returns healthy afterwards.
 
-Record whether GHCR or `local-build` is the active production path only after this VPS verification.
+Record the verified-bundle `local-build` path as active only after this VPS verification. Keep GHCR classified as a manual alternative until its reachability and rollback are independently exercised.

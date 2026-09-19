@@ -8,7 +8,7 @@ on:
       deployment_mode:
         description: Deployment path
         required: true
-        default: ghcr
+        default: local-build
         type: choice
         options:
           - ghcr
@@ -67,7 +67,7 @@ jobs:
   build-and-push:
     name: Build & push images
     needs: test
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.deployment_mode == 'ghcr' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'ghcr' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -121,8 +121,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with: { node-version: '22' }
+      - name: Create release bundle
+        run: git bundle create release.bundle HEAD
       - name: Prepare production env
         env:
           DOMAIN: ${{ secrets.DOMAIN }}
@@ -155,6 +159,7 @@ jobs:
             set -euo pipefail
             install -d -m 700 /opt/volleytime/.deploy
             rm -f /opt/volleytime/.deploy/.env.production
+            rm -f /opt/volleytime/.deploy/release.bundle
             rm -rf /opt/volleytime/.deploy/scripts
       - name: Upload production env
         uses: appleboy/scp-action@v1
@@ -162,10 +167,10 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: deploy
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: '.env.production,scripts/deploy-local-build.sh,scripts/backup-local.sh'
+          source: '.env.production,release.bundle,scripts/release-bundle.mjs,scripts/deploy-local-build.sh,scripts/backup-local.sh'
           target: '/opt/volleytime/.deploy'
       - name: Deploy GHCR images over SSH
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.deployment_mode == 'ghcr' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'ghcr' }}
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -191,8 +196,8 @@ jobs:
             docker compose -f docker-compose.prod.yml --env-file .env --env-file .env.images up -d
             docker image prune -f
 
-      - name: Deploy local build over SSH
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'local-build' }}
+      - name: Deploy verified bundle over SSH
+        if: ${{ github.event_name == 'push' || inputs.deployment_mode == 'local-build' }}
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -205,7 +210,7 @@ jobs:
             test -f .deploy/scripts/deploy-local-build.sh
             install -m 600 .deploy/.env.production .env
             rm -f .deploy/.env.production
-            bash .deploy/scripts/deploy-local-build.sh deploy
+            bash .deploy/scripts/deploy-local-build.sh deploy-bundle .deploy/release.bundle ${{ github.sha }}
 
       - name: Smoke check
         id: smoke
@@ -220,7 +225,7 @@ jobs:
           node scripts/smoke.mjs
 
       - name: Rollback GHCR images on failed smoke
-        if: ${{ failure() && steps.smoke.outcome == 'failure' && (github.event_name != 'workflow_dispatch' || inputs.deployment_mode == 'ghcr') }}
+        if: ${{ failure() && steps.smoke.outcome == 'failure' && github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'ghcr' }}
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -241,7 +246,7 @@ jobs:
             cat .env.images
 
       - name: Rollback local build on failed smoke
-        if: ${{ failure() && steps.smoke.outcome == 'failure' && github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'local-build' }}
+        if: ${{ failure() && steps.smoke.outcome == 'failure' && (github.event_name == 'push' || inputs.deployment_mode == 'local-build') }}
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
