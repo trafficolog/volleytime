@@ -64,6 +64,8 @@ A push to `prod` uses this path automatically. A manual rerun selects `deploymen
 
 The VPS script verifies the bundle and exact advertised SHA before recording the previous revision. It then creates the local database backup, confirms a clean tracked `prod` checkout and fast-forward ancestry, advances to the verified commit, builds `migrate web bot`, runs migrations, and starts the stack. Untracked runtime state such as `.env`, `.deploy/`, and `backups/` is preserved.
 
+Before the build, the script writes `.env.images` with SHA-tagged local images and `RELEASE_VERSION` equal to the full expected commit SHA. If that candidate differs from the active manifest, the active file is copied to `.env.images.previous` first. A same-SHA redeploy deliberately retains the existing previous manifest so it does not erase the real rollback target. The smoke check rejects a web health response whose `release` differs from the workflow SHA.
+
 The effective command is:
 
 ```bash
@@ -98,14 +100,14 @@ For a manual GHCR rollback, verify the target SHA and restore the corresponding 
 
 ### verified-bundle local-build path
 
-The local-build deploy records the previous Git SHA before advancing `prod` from the verified bundle. To return to it:
+The local-build deploy records the previous Git SHA and image manifest before advancing `prod` from the verified bundle. To return to it:
 
 ```bash
 cd /opt/volleytime
 bash .deploy/scripts/deploy-local-build.sh rollback
 ```
 
-Rollback performs `git reset --hard` to the recorded revision, rebuilds web/bot, and restarts them.
+Rollback performs `git reset --hard` to the recorded revision, restores `.env.images.previous`, then rebuilds web/bot under the restored tags and release identity before restarting them.
 
 **Database migrations are not automatically reversed.** R0 production migrations must be forward-compatible with the previous application revision. A destructive migration requires a separately reviewed database rollback plan and a tested backup restore; do not improvise it during an incident.
 

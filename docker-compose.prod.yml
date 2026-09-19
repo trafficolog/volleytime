@@ -57,7 +57,7 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgres://volley:${DB_PASSWORD}@postgres:5432/volleytime
-      RELEASE_VERSION: ${WEB_IMAGE:-dev}
+      RELEASE_VERSION: ${RELEASE_VERSION:-dev}
       # Nuxt перекрывает runtimeConfig только переменными NUXT_* (Task 9.9.5)
       NUXT_TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       NUXT_BOT_INTERNAL_URL: http://bot:3001
@@ -101,7 +101,7 @@ services:
       BOT_MODE: webhook
       DATABASE_URL: postgres://volley:${DB_PASSWORD}@postgres:5432/volleytime
       WEBHOOK_URL: https://${DOMAIN:-volleytime.by}/tg/webhook/${WEBHOOK_SECRET_PATH}
-      RELEASE_VERSION: ${BOT_IMAGE:-dev}
+      RELEASE_VERSION: ${RELEASE_VERSION:-dev}
     depends_on:
       postgres:
         condition: service_healthy

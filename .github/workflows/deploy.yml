@@ -183,12 +183,21 @@ jobs:
             install -m 600 .deploy/.env.production .env
             rm -f .deploy/.env.production
             bash .deploy/scripts/backup-local.sh
-            # ПЕРВЫМ делом сохраняем работающие сейчас образы — иначе «предыдущими»
-            # окажутся новые и откат перезапустит сломанный релиз (Task 9.10.2)
-            if [ -f .env.images ]; then cp -f .env.images .env.images.previous; fi
-            echo "WEB_IMAGE=ghcr.io/${{ github.repository }}/web:${{ github.sha }}" > .env.images
-            echo "BOT_IMAGE=ghcr.io/${{ github.repository }}/bot:${{ github.sha }}" >> .env.images
-            echo "MIGRATOR_IMAGE=ghcr.io/${{ github.repository }}/migrator:${{ github.sha }}" >> .env.images
+            candidate_manifest=.deploy/.env.images.candidate
+            {
+              echo "WEB_IMAGE=ghcr.io/${{ github.repository }}/web:${{ github.sha }}"
+              echo "BOT_IMAGE=ghcr.io/${{ github.repository }}/bot:${{ github.sha }}"
+              echo "MIGRATOR_IMAGE=ghcr.io/${{ github.repository }}/migrator:${{ github.sha }}"
+              echo "RELEASE_VERSION=${{ github.sha }}"
+            } > "$candidate_manifest"
+            chmod 600 "$candidate_manifest"
+            # A same-SHA redeploy must retain the real previous release manifest.
+            if [ -f .env.images ] && ! cmp -s .env.images "$candidate_manifest"; then
+              cp -f .env.images .env.images.previous
+              chmod 600 .env.images.previous
+            fi
+            install -m 600 "$candidate_manifest" .env.images
+            rm -f -- "$candidate_manifest"
             docker compose -f docker-compose.prod.yml --env-file .env --env-file .env.images pull
             # миграции ОТДЕЛЬНОЙ стадией: ошибка останавливает деплой (Task 9.9.4)
             docker compose -f docker-compose.prod.yml --env-file .env --env-file .env.images \
@@ -220,6 +229,7 @@ jobs:
           SMOKE_TG_ID: ${{ secrets.SMOKE_TG_ID }}
           WEBHOOK_SECRET_PATH: ${{ secrets.WEBHOOK_SECRET_PATH }}
           BOT_INTERNAL_SECRET: ${{ secrets.BOT_INTERNAL_SECRET }}
+          EXPECTED_RELEASE: ${{ github.sha }}
         run: |
           sleep 15
           node scripts/smoke.mjs

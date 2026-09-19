@@ -12,6 +12,7 @@ import { createHmac } from 'node:crypto'
 
 const BASE = (process.env.BASE_URL ?? 'http://localhost:3000').replace(/\/+$/, '')
 const WEBHOOK_PATH = process.env.WEBHOOK_SECRET_PATH ?? ''
+const EXPECTED_RELEASE = process.env.EXPECTED_RELEASE ?? ''
 const failures = []
 
 const check = (name, ok, details = '') => {
@@ -45,7 +46,19 @@ const json = async (res) => {
 // 1. health
 const health = await fetch(`${BASE}/api/health`)
 const healthBody = await json(health)
-check('health', health.status === 200 && healthBody?.status === 'ok', JSON.stringify(healthBody))
+check(
+  'health',
+  health.status === 200 && healthBody?.status === 'ok',
+  EXPECTED_RELEASE ? `HTTP ${health.status}` : JSON.stringify(healthBody),
+)
+if (EXPECTED_RELEASE) {
+  const actualRelease = healthBody?.release ?? 'missing'
+  check(
+    'release identity',
+    healthBody?.release === EXPECTED_RELEASE,
+    `actual=${actualRelease} expected=${EXPECTED_RELEASE}`,
+  )
+}
 
 // 2. сессия
 const session = await fetch(`${BASE}/api/auth/get-session`)
