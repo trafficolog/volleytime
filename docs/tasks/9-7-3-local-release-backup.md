@@ -5,7 +5,7 @@ epic: '9.7'
 status: in_progress
 sync_state: local
 last_reviewed: 2026-09-19
-status_note: 'The pilot needs a verified local database snapshot before each production migration; S3 upload remains a later external gate.'
+status_note: 'A production baseline dump and isolated restore are verified; the task remains open until the backup hook is merged and exercised by the release workflow. S3 remains a later external gate.'
 roles:
   - DEVOPS
   - QA
@@ -52,3 +52,10 @@ tags:
 - Не считать snapshot всего VPS заменой проверяемому DB dump.
 - Не удалять текущий S3 backup path.
 - Не выполнять автоматический destructive restore в production БД.
+
+## Live evidence — 2026-09-19
+
+- Production dump создан в `/opt/volleytime/backups` после первой миграции.
+- Файл: mode `0600`, owner `deploy:deploy`, gzip validation прошла, размер 6860 bytes.
+- Dump восстановлен в отдельный временный `postgres:16-alpine`; проверены 15 таблиц в `public` schema.
+- Production PostgreSQL оставался healthy; restore не выполнялся в production volume.
