@@ -14,9 +14,17 @@ docker pull ghcr.io/trafficolog/volleytime/web:latest
 
 If the pull succeeds reliably, keep `deployment_mode=ghcr`. If it times out or the registry is unreachable from the VPS network, use the manual `local-build` fallback.
 
+## Branch promotion contract
+
+The release path is `task branch → main → prod`: task branches are reviewed and merged into `main`, then a tested `main` revision is promoted to `prod` for production deployment. Do not develop directly in `prod`, and do not use a task branch as a production source.
+
+The `prod` update must be a reviewed fast-forward from the selected `main` revision. A push to `main` runs the normal CI workflow but does not deploy production. A push to `prod` starts the production workflow; `workflow_dispatch` remains available for an intentional rerun or the local-build fallback.
+
+Every manual run must select `prod` in the GitHub **Branch** dropdown (or pass `--ref prod` through GitHub CLI). The workflow source gate rejects `main`, task branches, and tags before tests, image publication, production-secret handling, or VPS access.
+
 ## Path A — GHCR (default)
 
-A push to `main` uses this path automatically:
+A push to `prod` uses this path automatically:
 
 1. tests/lint/typecheck;
 2. build and push `web`, `migrator`, and `bot` images tagged with the commit SHA;
@@ -42,7 +50,7 @@ bash .deploy/scripts/deploy-local-build.sh deploy
 The script:
 
 1. records the current Git revision in `.deploy/previous-git-sha`;
-2. fast-forwards the VPS checkout from `origin/main`;
+2. fast-forwards the VPS checkout from `origin/prod`;
 3. builds `migrate web bot` locally through `docker-compose.prod.yml`;
 4. runs the migration stage;
 5. starts the stack and prunes unused images.
@@ -59,7 +67,7 @@ For a manual GHCR rollback, verify the target SHA and restore the corresponding 
 
 ### local-build path
 
-The local-build deploy records the previous Git SHA before pulling `main`. To return to it:
+The local-build deploy records the previous Git SHA before pulling `prod`. To return to it:
 
 ```bash
 cd /opt/volleytime

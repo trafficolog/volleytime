@@ -2,7 +2,7 @@ name: Deploy
 
 on:
   push:
-    branches: [main]
+    branches: [prod]
   workflow_dispatch:
     inputs:
       deployment_mode:
@@ -23,8 +23,17 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
+  source-gate:
+    name: Verify production source
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require prod branch
+        run: node scripts/require-prod-ref.mjs
+
   test:
     name: Test before deploy
+    needs: source-gate
     runs-on: ubuntu-latest
     services:
       postgres:

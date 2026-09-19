@@ -15,6 +15,9 @@ const rendererPath = fileURLToPath(
 const localBuildScriptPath = fileURLToPath(
   new URL('../../../../scripts/deploy-local-build.sh', import.meta.url),
 )
+const productionSourceGuardPath = fileURLToPath(
+  new URL('../../../../scripts/require-prod-ref.mjs', import.meta.url),
+)
 const deployRunbookPath = fileURLToPath(
   new URL('../../../../docs/operations/runbooks/deploy.md', import.meta.url),
 )
@@ -38,6 +41,43 @@ afterEach(() => {
 })
 
 describe('fallback deployment contract', () => {
+  it('rejects production deployment from every ref except prod', () => {
+    const runGuard = (ref: string) =>
+      spawnSync(process.execPath, [productionSourceGuardPath], {
+        env: { ...process.env, GITHUB_REF: ref },
+        encoding: 'utf8',
+      })
+
+    const prod = runGuard('refs/heads/prod')
+    expect(prod.status, prod.stderr).toBe(0)
+
+    for (const ref of ['refs/heads/main', 'refs/heads/fix/example', 'refs/tags/v0.1.0']) {
+      const rejected = runGuard(ref)
+      expect(rejected.status).not.toBe(0)
+      expect(rejected.stderr).toContain('requires refs/heads/prod')
+    }
+
+    const workflow = readFileSync(workflowPath, 'utf8')
+    expect(workflow).toContain('source-gate:')
+    expect(workflow).toContain('node scripts/require-prod-ref.mjs')
+    expect(workflow).toMatch(/test:\n\s+name: Test before deploy\n\s+needs: source-gate/)
+  })
+
+  it('deploys production only from prod and keeps main as the integration branch', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const script = readFileSync(localBuildScriptPath, 'utf8')
+    const runbook = readFileSync(deployRunbookPath, 'utf8')
+
+    expect(workflow).toContain('branches: [prod]')
+    expect(workflow).not.toContain('branches: [main]')
+    expect(script).toContain('git fetch origin prod')
+    expect(script).toContain('git checkout prod')
+    expect(script).toContain('git pull --ff-only origin prod')
+    expect(script).not.toContain('git pull --ff-only origin main')
+    expect(runbook).toContain('task branch → main → prod')
+    expect(runbook).toContain('Do not develop directly in `prod`')
+  })
+
   it('offers a manual local-build fallback while keeping GHCR as the default path', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
 
