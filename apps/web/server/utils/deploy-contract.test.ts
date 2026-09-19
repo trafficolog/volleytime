@@ -38,6 +38,21 @@ afterEach(() => {
 })
 
 describe('fallback deployment contract', () => {
+  it('deploys production only from prod and keeps main as the integration branch', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const script = readFileSync(localBuildScriptPath, 'utf8')
+    const runbook = readFileSync(deployRunbookPath, 'utf8')
+
+    expect(workflow).toContain('branches: [prod]')
+    expect(workflow).not.toContain('branches: [main]')
+    expect(script).toContain('git fetch origin prod')
+    expect(script).toContain('git checkout prod')
+    expect(script).toContain('git pull --ff-only origin prod')
+    expect(script).not.toContain('git pull --ff-only origin main')
+    expect(runbook).toContain('task branch → main → prod')
+    expect(runbook).toContain('Do not develop directly in `prod`')
+  })
+
   it('offers a manual local-build fallback while keeping GHCR as the default path', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
 

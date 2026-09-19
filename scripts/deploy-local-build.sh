@@ -14,9 +14,9 @@ deploy() {
   printf '%s\n' "$previous_sha" > .deploy/previous-git-sha
   chmod 600 .deploy/previous-git-sha
 
-  git fetch origin main
-  git checkout main
-  git pull --ff-only origin main
+  git fetch origin prod
+  git checkout prod
+  git pull --ff-only origin prod
 
   # Build all application images on the VPS. Postgres/Caddy stay upstream images.
   "${COMPOSE[@]}" build migrate web bot

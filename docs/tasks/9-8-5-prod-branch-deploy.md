@@ -11,6 +11,7 @@ roles:
   - QA
 depends_on:
   - '9.8.3'
+  - '9.8.4'
 estimated_hours: '1'
 tags:
   - deployment
