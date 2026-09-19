@@ -2,16 +2,17 @@
 id: '3.10.5'
 phase: '3'
 epic: '3.10'
-status: in_progress
+status: done
 sync_state: local
 last_reviewed: 2026-09-19
-status_note: 'Windows typecheck completes with a Volar ERR_PACKAGE_PATH_NOT_EXPORTED warning because the web app directly pins vue-router 4 while Nuxt provides a compatible router version.'
+status_note: 'Removed the redundant vue-router 4 dependency; a fresh Windows checkout passes format, lint, typecheck without the Volar warning, 380 tests, and production build.'
 roles:
   - FRONTEND
   - QA
 depends_on:
   - '3.9.6'
   - '3.10.4'
+  - '4.9.19'
 estimated_hours: '1'
 tags:
   - nuxt
