@@ -116,6 +116,16 @@ describe('fallback deployment contract', () => {
     expect(runbook).toContain('rollback')
     expect(runbook).toContain('forward-compatible')
   })
+
+  it('documents a dedicated restricted GitHub Actions key lifecycle', () => {
+    const runbook = readFileSync(deployRunbookPath, 'utf8')
+
+    expect(runbook).toContain('volleytime-github-actions')
+    expect(runbook).toContain('restrict')
+    expect(runbook).toContain('VPS_SSH_KEY')
+    expect(runbook).toContain('volleytime-recovery')
+    expect(runbook).toContain('revoke')
+  })
 })
 
 describe('production env deployment contract', () => {

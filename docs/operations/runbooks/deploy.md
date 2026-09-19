@@ -14,6 +14,36 @@ docker pull ghcr.io/trafficolog/volleytime/web:latest
 
 If the pull succeeds reliably, keep `deployment_mode=ghcr`. If it times out or the registry is unreachable from the VPS network, use the manual `local-build` fallback.
 
+## Dedicated GitHub Actions credentials
+
+Automation uses its own Ed25519 key named `volleytime-github-actions`. Never upload the normal `volleytime` private key or the emergency `volleytime-recovery` private key to GitHub.
+
+Generate the CI key locally without overwriting an existing file:
+
+```powershell
+$key = 'D:\ai\freelance\keys-vps\volleytime-github-actions'
+if (Test-Path $key -PathType Leaf) { throw "$key already exists" }
+ssh-keygen -t ed25519 -f $key -C 'github-actions@volleytime' -N '""'
+```
+
+Append only the public key to `/home/deploy/.ssh/authorized_keys`. Prefix the line with OpenSSH `restrict` so the CI credential cannot request forwarding, agent access, X11 or a PTY:
+
+```text
+restrict ssh-ed25519 PUBLIC_KEY github-actions@volleytime
+```
+
+Keep the `.ssh` directory mode `0700` and `authorized_keys` mode `0600`. Verify all three credentials independently with `BatchMode=yes`: `volleytime-github-actions`, `volleytime`, and `volleytime-recovery`. A failure of either human-controlled key blocks rollout.
+
+Set repository Secrets without echoing their values. The workflow requires `VPS_HOST`, `VPS_SSH_KEY`, `DOMAIN`, `DB_PASSWORD`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `WEBHOOK_SECRET_PATH`, `WEBHOOK_SECRET_TOKEN`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `BOT_INTERNAL_SECRET`, and `WEB_URL`. `VPS_SSH_KEY` contains only the dedicated CI private key. Leave absent optional Sentry, S3 and external-healthcheck values unset.
+
+Read back names and update timestamps, never values:
+
+```bash
+gh secret list --repo trafficolog/volleytime --json name,updatedAt
+```
+
+To rotate the CI credential, create a new dedicated key, add and test its restricted public-key line, replace only `VPS_SSH_KEY`, run a source-gated deployment, and then remove the old CI line. To revoke automation immediately, remove only the authorized-key line ending in `github-actions@volleytime` and delete the GitHub Secret `VPS_SSH_KEY`. Do not modify the `volleytime` or `volleytime-recovery` lines.
+
 ## Branch promotion contract
 
 The release path is `task branch → main → prod`: task branches are reviewed and merged into `main`, then a tested `main` revision is promoted to `prod` for production deployment. Do not develop directly in `prod`, and do not use a task branch as a production source.
