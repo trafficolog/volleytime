@@ -2,10 +2,10 @@
 id: '9.11.3'
 phase: '9'
 epic: '9.11'
-status: in_progress
-sync_state: local
+status: done
+sync_state: synced
 last_reviewed: 2026-09-19
-status_note: 'Release sequence v0.1.3 -> v0.1.4 approved; written design is awaiting review before implementation planning.'
+status_note: 'Approved design and implementation plan define the immutable v0.1.3 baseline and the task-by-task v0.1.4 production automation release.'
 roles:
   - DEVOPS
   - QA
@@ -44,12 +44,12 @@ tags:
 
 ## Критерии приёмки
 
-- [ ] Письменный дизайн содержит архитектуру, data flow, security, rollback и тестирование.
-- [ ] `v0.1.3` привязан только к уже проверенному SHA `91f6bff`.
-- [ ] Каждая реализационная правка имеет отдельный будущий task/branch/PR.
-- [ ] Основной автоматический путь не требует исходящего GitHub/GHCR-доступа с VPS.
-- [ ] Текущий пользовательский и recovery-ключи не копируются в GitHub.
-- [ ] Необеспеченные внешние gate остаются открытыми.
+- [x] Письменный дизайн содержит архитектуру, data flow, security, rollback и тестирование.
+- [x] `v0.1.3` привязан только к уже проверенному SHA `91f6bff`.
+- [x] Каждая реализационная правка имеет отдельный будущий task/branch/PR.
+- [x] Основной автоматический путь не требует исходящего GitHub/GHCR-доступа с VPS.
+- [x] Текущий пользовательский и recovery-ключи не копируются в GitHub.
+- [x] Необеспеченные внешние gate остаются открытыми.
 
 ## Не делать
 
