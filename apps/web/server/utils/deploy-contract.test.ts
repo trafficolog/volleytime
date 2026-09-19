@@ -83,6 +83,7 @@ describe('production env deployment contract', () => {
     const dir = mkdtempSync(join(tmpdir(), 'volleytime-prod-env-'))
     dirs.push(dir)
     const output = join(dir, '.env.production')
+    const renderer = readFileSync(rendererPath, 'utf8')
 
     const result = spawnSync(process.execPath, [rendererPath, output], {
       env: { ...process.env, ...requiredEnv },
@@ -94,7 +95,11 @@ describe('production env deployment contract', () => {
     expect(rendered).toContain('DOMAIN="volleytime.example"')
     expect(rendered).toContain('DB_PASSWORD="db \\"secret\\" with spaces"')
     expect(rendered).toContain('TRUSTED_PROXY="1"')
-    expect(statSync(output).mode & 0o777).toBe(0o600)
+    expect(renderer).toContain('mode: 0o600')
+    expect(renderer).toContain('chmodSync(output, 0o600)')
+    if (process.platform !== 'win32') {
+      expect(statSync(output).mode & 0o777).toBe(0o600)
+    }
 
     for (const value of Object.values(requiredEnv)) {
       expect(result.stdout).not.toContain(value)
