@@ -22,17 +22,21 @@ async function walk(dir: string): Promise<string[]> {
   return out
 }
 
-function toRoute(file: string): {
+export function routeFromRelativeFile(relativeFile: string): {
   method: 'get' | 'post' | 'patch' | 'put' | 'delete'
   route: string
 } {
-  const rel = path.relative(path.join(serverDir, 'api'), file)
+  const rel = relativeFile.replaceAll('\\', '/')
   const m = rel.match(/^(.*?)(?:\/)?([^/]+)\.(get|post|patch|put|delete)\.ts$/)!
   const dirPart = m[1] ?? ''
   const name = m[2]!
   const segs = [...dirPart.split('/').filter(Boolean), ...(name === 'index' ? [] : [name])]
   const route = '/api/' + segs.map((s) => s.replace(/^\[(.+)\]$/, ':$1')).join('/')
   return { method: m[3] as never, route: route.replace(/\/$/, '') }
+}
+
+function toRoute(file: string) {
+  return routeFromRelativeFile(path.relative(path.join(serverDir, 'api'), file))
 }
 
 export interface TestResponse {
