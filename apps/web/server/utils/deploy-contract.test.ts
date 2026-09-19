@@ -1,8 +1,16 @@
-import { mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { spawnSync } from 'node:child_process'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
@@ -17,6 +25,9 @@ const localBuildScriptPath = fileURLToPath(
 )
 const productionSourceGuardPath = fileURLToPath(
   new URL('../../../../scripts/require-prod-ref.mjs', import.meta.url),
+)
+const releaseBundlePath = fileURLToPath(
+  new URL('../../../../scripts/release-bundle.mjs', import.meta.url),
 )
 const deployRunbookPath = fileURLToPath(
   new URL('../../../../docs/operations/runbooks/deploy.md', import.meta.url),
@@ -38,6 +49,123 @@ const requiredEnv = {
 const dirs: string[] = []
 afterEach(() => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true })
+})
+
+function runGit(cwd: string, ...args: string[]): string {
+  const result = spawnSync('git', args, { cwd, encoding: 'utf8' })
+  expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0)
+  return result.stdout.trim()
+}
+
+function createBundleFixture() {
+  const root = mkdtempSync(join(tmpdir(), 'volleytime-release-bundle-'))
+  dirs.push(root)
+  const source = join(root, 'source')
+  const deployed = join(root, 'deployed')
+  const bundle = join(root, 'release.bundle')
+  mkdirSync(source)
+  runGit(source, 'init', '-b', 'prod')
+  runGit(source, 'config', 'user.name', 'Volley Time Test')
+  runGit(source, 'config', 'user.email', 'test@volleytime.invalid')
+  writeFileSync(join(source, 'release.txt'), 'baseline\n')
+  runGit(source, 'add', 'release.txt')
+  runGit(source, 'commit', '-m', 'baseline')
+  const baseline = runGit(source, 'rev-parse', 'HEAD')
+  runGit(root, 'clone', source, deployed)
+  writeFileSync(join(source, 'release.txt'), 'candidate\n')
+  runGit(source, 'add', 'release.txt')
+  runGit(source, 'commit', '-m', 'candidate')
+  const candidate = runGit(source, 'rev-parse', 'HEAD')
+  runGit(source, 'checkout', '--detach', candidate)
+  runGit(source, 'bundle', 'create', bundle, 'HEAD')
+  return { root, source, deployed, bundle, baseline, candidate }
+}
+
+function runBundleCli(
+  command: 'verify' | 'advance',
+  fixture: ReturnType<typeof createBundleFixture>,
+  expected = fixture.candidate,
+) {
+  return spawnSync(
+    process.execPath,
+    [
+      releaseBundlePath,
+      command,
+      '--repo',
+      fixture.deployed,
+      '--bundle',
+      fixture.bundle,
+      '--expected',
+      expected,
+    ],
+    { encoding: 'utf8' },
+  )
+}
+
+describe('release bundle CLI', () => {
+  it('verifies and advances the exact fast-forward commit without touching untracked runtime files', () => {
+    const fixture = createBundleFixture()
+    writeFileSync(join(fixture.deployed, '.env'), 'runtime-only\n')
+
+    const valid = runBundleCli('verify', fixture)
+    expect(valid.status, valid.stderr).toBe(0)
+    const advanced = runBundleCli('advance', fixture)
+    expect(advanced.status, advanced.stderr).toBe(0)
+    expect(runGit(fixture.deployed, 'rev-parse', 'HEAD')).toBe(fixture.candidate)
+    expect(existsSync(join(fixture.deployed, '.env'))).toBe(true)
+  })
+
+  it('rejects a valid bundle that does not advertise the expected SHA', () => {
+    const fixture = createBundleFixture()
+    const mismatched = runBundleCli('verify', fixture, fixture.baseline)
+
+    expect(mismatched.status).not.toBe(0)
+    expect(mismatched.stderr).toContain('expected SHA is not advertised by bundle')
+  })
+
+  it('rejects an invalid bundle', () => {
+    const fixture = createBundleFixture()
+    writeFileSync(fixture.bundle, 'not a git bundle')
+    const invalid = runBundleCli('verify', fixture)
+
+    expect(invalid.status).not.toBe(0)
+    expect(runGit(fixture.deployed, 'rev-parse', 'HEAD')).toBe(fixture.baseline)
+  })
+
+  it('rejects a dirty tracked checkout', () => {
+    const fixture = createBundleFixture()
+    writeFileSync(join(fixture.deployed, 'release.txt'), 'dirty\n')
+    const dirty = runBundleCli('advance', fixture)
+
+    expect(dirty.status).not.toBe(0)
+    expect(dirty.stderr).toContain('tracked checkout is not clean')
+    expect(runGit(fixture.deployed, 'rev-parse', 'HEAD')).toBe(fixture.baseline)
+  })
+
+  it('rejects advancing a production checkout that is not on prod', () => {
+    const fixture = createBundleFixture()
+    runGit(fixture.deployed, 'switch', '-c', 'main')
+    const rejected = runBundleCli('advance', fixture)
+
+    expect(rejected.status).not.toBe(0)
+    expect(rejected.stderr).toContain('production checkout must be on prod')
+    expect(runGit(fixture.deployed, 'rev-parse', 'HEAD')).toBe(fixture.baseline)
+  })
+
+  it('rejects a non-fast-forward target', () => {
+    const fixture = createBundleFixture()
+    runGit(fixture.deployed, 'config', 'user.name', 'Volley Time Test')
+    runGit(fixture.deployed, 'config', 'user.email', 'test@volleytime.invalid')
+    writeFileSync(join(fixture.deployed, 'deployed-only.txt'), 'diverged\n')
+    runGit(fixture.deployed, 'add', 'deployed-only.txt')
+    runGit(fixture.deployed, 'commit', '-m', 'diverged production')
+    const deployedSha = runGit(fixture.deployed, 'rev-parse', 'HEAD')
+    const rejected = runBundleCli('advance', fixture)
+
+    expect(rejected.status).not.toBe(0)
+    expect(rejected.stderr).toContain('target is not a fast-forward')
+    expect(runGit(fixture.deployed, 'rev-parse', 'HEAD')).toBe(deployedSha)
+  })
 })
 
 describe('fallback deployment contract', () => {
@@ -70,37 +198,40 @@ describe('fallback deployment contract', () => {
 
     expect(workflow).toContain('branches: [prod]')
     expect(workflow).not.toContain('branches: [main]')
-    expect(script).toContain('git fetch origin prod')
-    expect(script).toContain('git checkout prod')
-    expect(script).toContain('git pull --ff-only origin prod')
-    expect(script).not.toContain('git pull --ff-only origin main')
+    expect(workflow).toContain('git bundle create release.bundle HEAD')
+    expect(workflow).toContain("source: '.env.production,release.bundle")
+    expect(workflow).toContain('deploy-bundle .deploy/release.bundle ${{ github.sha }}')
+    expect(script).not.toContain('git fetch origin prod')
+    expect(script).not.toContain('git pull --ff-only')
     expect(runbook).toContain('task branch → main → prod')
     expect(runbook).toContain('Do not develop directly in `prod`')
   })
 
-  it('offers a manual local-build fallback while keeping GHCR as the default path', () => {
+  it('uses local bundle builds automatically while keeping GHCR as a manual alternative', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
 
     expect(workflow).toContain('deployment_mode:')
     expect(workflow).toContain('- ghcr')
     expect(workflow).toContain('- local-build')
+    expect(workflow).toContain("github.event_name == 'push'")
+    expect(workflow).toContain("inputs.deployment_mode == 'ghcr'")
     expect(workflow).toContain("inputs.deployment_mode == 'local-build'")
-    expect(workflow).toContain('Deploy local build over SSH')
-    expect(workflow).toContain('scripts/deploy-local-build.sh deploy')
+    expect(workflow).toContain('Deploy verified bundle over SSH')
+    expect(workflow).toContain('scripts/deploy-local-build.sh deploy-bundle')
   })
 
   it('local-build deploy records the previous revision and migrates before starting services', () => {
     const script = readFileSync(localBuildScriptPath, 'utf8')
     const previous = script.indexOf('git rev-parse HEAD')
-    const pull = script.indexOf('git pull --ff-only')
+    const advance = script.indexOf('release-bundle.mjs advance')
     const build = script.indexOf('build migrate web bot')
     const migrate = script.indexOf('run --rm migrate')
     const up = script.indexOf('up -d')
 
     expect(script).toContain('.deploy/previous-git-sha')
     expect(previous).toBeGreaterThan(-1)
-    expect(pull).toBeGreaterThan(previous)
-    expect(build).toBeGreaterThan(pull)
+    expect(advance).toBeGreaterThan(previous)
+    expect(build).toBeGreaterThan(advance)
     expect(migrate).toBeGreaterThan(build)
     expect(up).toBeGreaterThan(migrate)
     expect(script).toContain('rollback)')
