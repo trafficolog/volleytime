@@ -98,7 +98,7 @@ services:
     environment:
       NODE_ENV: production
       NODE_OPTIONS: --dns-result-order=ipv6first
-      BOT_MODE: webhook
+      BOT_MODE: ${BOT_MODE:-webhook}
       DATABASE_URL: postgres://volley:${DB_PASSWORD}@postgres:5432/volleytime
       WEBHOOK_URL: https://${DOMAIN:-volleytime.by}/tg/webhook/${WEBHOOK_SECRET_PATH}
       RELEASE_VERSION: ${RELEASE_VERSION:-dev}

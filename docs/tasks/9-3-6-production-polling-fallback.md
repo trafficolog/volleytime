@@ -40,13 +40,13 @@ Task 9.3.5 доказала внешний IPv4 routing blackhole: Telegram webh
 
 ## Критерии приёмки
 
-- [ ] Contract test сначала падает на hardcoded production `BOT_MODE: webhook`.
-- [ ] Compose получает `BOT_MODE` из production env и сохраняет безопасный fallback для старых env.
-- [ ] Renderer пишет `BOT_MODE="polling"` по умолчанию, принимает `webhook` и отклоняет другие значения.
-- [ ] Deploy workflow передаёт `vars.PRODUCTION_BOT_MODE` renderer-у.
-- [ ] Polling startup не сбрасывает pending updates.
-- [ ] Focused test проходит после наблюдаемого RED.
-- [ ] `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` проходят.
+- [x] Contract test сначала падает на hardcoded production `BOT_MODE: webhook`.
+- [x] Compose получает `BOT_MODE` из production env и сохраняет безопасный fallback для старых env.
+- [x] Renderer пишет `BOT_MODE="polling"` по умолчанию, принимает `webhook` и отклоняет другие значения.
+- [x] Deploy workflow передаёт `vars.PRODUCTION_BOT_MODE` renderer-у.
+- [x] Polling startup не сбрасывает pending updates.
+- [x] Focused test проходит после наблюдаемого RED.
+- [x] `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` проходят.
 - [ ] После production deploy bot healthy, mode=`polling`, pending webhook queue очищена через polling и реальный update обработан.
 - [ ] Web/API health и точный release SHA остаются healthy.
 
@@ -56,3 +56,10 @@ Task 9.3.5 доказала внешний IPv4 routing blackhole: Telegram webh
 - Не добавлять MTProxy для Bot API polling: доступный Telegram IPv6 уже подтверждён.
 - Не использовать `drop_pending_updates=true`.
 - Не объявлять прямой webhook исправленным: его acceptance остаётся открытым до восстановления IPv4 routing.
+
+## Локальные доказательства
+
+- RED 1: focused deploy contract упал, потому что production renderer не выдавал `BOT_MODE="polling"`.
+- RED 2: расширенный contract упал до документирования `PRODUCTION_BOT_MODE` и правил сохранения pending updates в runbook.
+- GREEN: focused deploy contract — 17/17 тестов.
+- Полные gates: `format:check` passed; `lint` — 0 errors (24 существующих warnings); `typecheck` — 6/6; `test` — 75 файлов, 409 тестов; `build` — 2/2 пакета.

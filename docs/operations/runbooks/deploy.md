@@ -52,6 +52,14 @@ The `prod` update must be a reviewed fast-forward from the selected `main` revis
 
 Every manual run must select `prod` in the GitHub **Branch** dropdown (or pass `--ref prod` through GitHub CLI). The workflow source gate rejects `main`, task branches, and tags before tests, image publication, production-secret handling, or VPS access.
 
+## Telegram update transport
+
+`PRODUCTION_BOT_MODE` is an optional GitHub repository variable with the allowlisted values `polling` or `webhook`. When it is unset, the production env renderer selects `polling`. This is the R0 pilot fallback for a hosting route where outbound Telegram IPv6 works but Telegram's IPv4-only webhook traffic does not reach the VPS.
+
+Polling startup calls `deleteWebhook()` without `drop_pending_updates`, so Telegram pending updates remain available to `getUpdates`. Keep `NODE_OPTIONS=--dns-result-order=ipv6first` for the bot while Telegram IPv4 is unavailable. Verify the bot health response reports `mode=polling`, send a real update, and confirm it is handled once.
+
+Set `PRODUCTION_BOT_MODE=webhook` only after a packet capture proves Telegram IPv4 traffic reaches the public VPS interface. The webhook server, Caddy route and secrets remain deployed so this switch does not require a code change. Polling is a transport fallback, not evidence that direct webhook ingress is fixed.
+
 ## Path A — verified bundle and build on VPS (active)
 
 A push to `prod` uses this path automatically. A manual rerun selects `deployment_mode=local-build` and the `prod` branch. GitHub Actions:
@@ -118,7 +126,7 @@ Rollback performs `git reset --hard` to the recorded revision, restores `.env.im
 After the first live deployment verify:
 
 - `https://<DOMAIN>/api/health` returns 200 and reports the database healthy;
-- the Telegram bot answers through webhook mode;
+- the Telegram bot answers through the configured `polling` or `webhook` transport;
 - the Mini App opens through HTTPS and authenticates with real initData;
 - an organizer can create an event and a second Telegram account can book it;
 - backup upload reaches the configured S3 bucket;

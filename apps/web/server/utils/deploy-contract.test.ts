@@ -20,6 +20,10 @@ const workflowPath = fileURLToPath(
 const rendererPath = fileURLToPath(
   new URL('../../../../scripts/render-production-env.mjs', import.meta.url),
 )
+const productionComposePath = fileURLToPath(
+  new URL('../../../../docker-compose.prod.yml', import.meta.url),
+)
+const botEntryPath = fileURLToPath(new URL('../../../bot/src/index.ts', import.meta.url))
 const localBuildScriptPath = fileURLToPath(
   new URL('../../../../scripts/deploy-local-build.sh', import.meta.url),
 )
@@ -281,6 +285,47 @@ describe('fallback deployment contract', () => {
 })
 
 describe('production env deployment contract', () => {
+  it('renders a reversible polling fallback for production Telegram updates', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'volleytime-prod-mode-'))
+    dirs.push(dir)
+    const pollingOutput = join(dir, '.env.polling')
+    const webhookOutput = join(dir, '.env.webhook')
+    const invalidOutput = join(dir, '.env.invalid')
+
+    const polling = spawnSync(process.execPath, [rendererPath, pollingOutput], {
+      env: { ...process.env, ...requiredEnv },
+      encoding: 'utf8',
+    })
+    expect(polling.status, polling.stderr).toBe(0)
+    expect(readFileSync(pollingOutput, 'utf8')).toContain('BOT_MODE="polling"')
+
+    const webhook = spawnSync(process.execPath, [rendererPath, webhookOutput], {
+      env: { ...process.env, ...requiredEnv, BOT_MODE: 'webhook' },
+      encoding: 'utf8',
+    })
+    expect(webhook.status, webhook.stderr).toBe(0)
+    expect(readFileSync(webhookOutput, 'utf8')).toContain('BOT_MODE="webhook"')
+
+    const invalid = spawnSync(process.execPath, [rendererPath, invalidOutput], {
+      env: { ...process.env, ...requiredEnv, BOT_MODE: 'invalid' },
+      encoding: 'utf8',
+    })
+    expect(invalid.status).not.toBe(0)
+    expect(invalid.stderr).toContain('BOT_MODE')
+    expect(existsSync(invalidOutput)).toBe(false)
+
+    const compose = readFileSync(productionComposePath, 'utf8')
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const botEntry = readFileSync(botEntryPath, 'utf8')
+    const runbook = readFileSync(deployRunbookPath, 'utf8')
+    expect(compose).toContain('BOT_MODE: ${BOT_MODE:-webhook}')
+    expect(workflow).toContain('BOT_MODE: ${{ vars.PRODUCTION_BOT_MODE }}')
+    expect(botEntry).toContain('await bot.api.deleteWebhook().catch(() => {})')
+    expect(botEntry).not.toContain('drop_pending_updates: true')
+    expect(runbook).toContain('PRODUCTION_BOT_MODE')
+    expect(runbook).toContain('pending updates')
+  })
+
   it('renders a mode-0600 dotenv file without printing secret values', () => {
     const dir = mkdtempSync(join(tmpdir(), 'volleytime-prod-env-'))
     dirs.push(dir)
