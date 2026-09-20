@@ -2,10 +2,10 @@
 id: '9.3.6'
 phase: '9'
 epic: '9.3'
-status: in_progress
-sync_state: local
+status: done
+sync_state: synced
 last_reviewed: 2026-09-20
-status_note: 'Approved bounded fallback: use the existing outbound polling path for the low-load pilot while the hosting provider IPv4 route cannot receive Telegram webhooks.'
+status_note: 'Production polling fallback deployed at e5e0c9e; four queued updates and the user-observed greeting responses prove live Telegram delivery.'
 roles:
   - DEVOPS
   - QA
@@ -47,8 +47,8 @@ Task 9.3.5 доказала внешний IPv4 routing blackhole: Telegram webh
 - [x] Polling startup не сбрасывает pending updates.
 - [x] Focused test проходит после наблюдаемого RED.
 - [x] `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build` проходят.
-- [ ] После production deploy bot healthy, mode=`polling`, pending webhook queue очищена через polling и реальный update обработан.
-- [ ] Web/API health и точный release SHA остаются healthy.
+- [x] После production deploy bot healthy, mode=`polling`, pending webhook queue очищена через polling и реальный update обработан.
+- [x] Web/API health и точный release SHA остаются healthy.
 
 ## Не делать
 
@@ -63,3 +63,11 @@ Task 9.3.5 доказала внешний IPv4 routing blackhole: Telegram webh
 - RED 2: расширенный contract упал до документирования `PRODUCTION_BOT_MODE` и правил сохранения pending updates в runbook.
 - GREEN: focused deploy contract — 17/17 тестов.
 - Полные gates: `format:check` passed; `lint` — 0 errors (24 существующих warnings); `typecheck` — 6/6; `test` — 75 файлов, 409 тестов; `build` — 2/2 пакета.
+
+## Production evidence
+
+- PR #23 прошёл Build, Lint/Format/Typecheck и Test CI и был объединён в `main`; точный merge SHA `e5e0c9eccfa79f0cc4dcb387f0c43ab62fa9ce2e` fast-forward продвинут в `prod`.
+- Deploy workflow #35510987693 завершился успешно; independent SSH readback показал тот же Git SHA и healthy `web`, `bot`, `postgres` containers.
+- Public `https://volleytime.by/api/health` вернул `status=ok`, `db=ok`, `auth=ok` и точный release SHA.
+- Bot `/healthz` вернул `status=ok`, `mode=polling` и точный release SHA; startup log содержит `starting in polling mode`.
+- До deploy у Telegram было четыре pending updates. После запуска bot log содержит четыре успешно обработанных сообщения, пользователь подтвердил получение ответов-приветствий, а безопасный `getWebhookInfo` readback показал пустой webhook URL, `pending_update_count=0` и отсутствие last error.
