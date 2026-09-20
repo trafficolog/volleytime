@@ -139,6 +139,7 @@ jobs:
           BETTER_AUTH_URL: ${{ secrets.BETTER_AUTH_URL }}
           BOT_INTERNAL_SECRET: ${{ secrets.BOT_INTERNAL_SECRET }}
           WEB_URL: ${{ secrets.WEB_URL }}
+          BOT_MODE: ${{ vars.PRODUCTION_BOT_MODE }}
           SENTRY_DSN_WEB: ${{ secrets.SENTRY_DSN_WEB }}
           SENTRY_DSN_BOT: ${{ secrets.SENTRY_DSN_BOT }}
           S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}

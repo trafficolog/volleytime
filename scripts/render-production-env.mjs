@@ -28,6 +28,7 @@ const OPTIONAL = [
 ]
 
 const DEFAULTS = {
+  BOT_MODE: 'polling',
   EMAIL_DRIVER: 'console',
   TRUSTED_PROXY: '1',
   AUTH_RATE_LIMIT: '20',
@@ -50,6 +51,12 @@ function quote(value) {
 const missing = REQUIRED.filter((key) => valueOf(key).trim() === '')
 if (missing.length) {
   console.error(`[prod-env] missing required keys: ${missing.join(', ')}`)
+  process.exit(1)
+}
+
+const botMode = valueOf('BOT_MODE').trim() || DEFAULTS.BOT_MODE
+if (!['polling', 'webhook'].includes(botMode)) {
+  console.error('[prod-env] BOT_MODE must be polling or webhook')
   process.exit(1)
 }
 
