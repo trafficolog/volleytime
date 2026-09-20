@@ -80,6 +80,7 @@ describe('production release identity contract', () => {
     mkdirSync(binDir)
 
     writeFileSync(join(dir, 'deploy-local-build.sh'), localBuild)
+    chmodSync(join(dir, 'deploy-local-build.sh'), 0o755)
     writeFileSync(
       join(binDir, 'docker'),
       '#!/usr/bin/env bash\nprintf \'%s\\n\' "$*" >> "$VOLLEYTIME_ROOT/docker.log"\n',
@@ -162,6 +163,7 @@ describe('production release identity contract', () => {
     const binDir = join(dir, 'bin')
     mkdirSync(binDir)
     writeFileSync(join(dir, 'deploy-local-build.sh'), localBuild)
+    chmodSync(join(dir, 'deploy-local-build.sh'), 0o755)
     writeFileSync(
       join(binDir, 'docker'),
       '#!/usr/bin/env bash\nprintf \'%s\\n\' "$*" >> "$VOLLEYTIME_ROOT/docker.log"\n',
