@@ -36,6 +36,8 @@ Keep the `.ssh` directory mode `0700` and `authorized_keys` mode `0600`. Verify 
 
 Set repository Secrets without echoing their values. The workflow requires `VPS_HOST`, `VPS_SSH_KEY`, `DOMAIN`, `DB_PASSWORD`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `WEBHOOK_SECRET_PATH`, `WEBHOOK_SECRET_TOKEN`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `BOT_INTERNAL_SECRET`, and `WEB_URL`. `VPS_SSH_KEY` contains only the dedicated CI private key. Leave absent optional Sentry, S3 and external-healthcheck values unset.
 
+Before rendering or uploading the production env, the workflow calls Telegram `getMe` and verifies that the normalized `TELEGRAM_BOT_USERNAME` belongs to `TELEGRAM_BOT_TOKEN`. A mismatch, network failure or malformed response stops the deployment without printing the token or tokenized Bot API URL. When rotating the bot token or username, update both secrets as one identity and let this guard pass before any VPS mutation.
+
 Read back names and update timestamps, never values:
 
 ```bash

@@ -20,6 +20,9 @@ const workflowPath = fileURLToPath(
 const rendererPath = fileURLToPath(
   new URL('../../../../scripts/render-production-env.mjs', import.meta.url),
 )
+const telegramIdentityVerifierPath = fileURLToPath(
+  new URL('../../../../scripts/verify-telegram-bot-identity.mjs', import.meta.url),
+)
 const productionComposePath = fileURLToPath(
   new URL('../../../../docker-compose.prod.yml', import.meta.url),
 )
@@ -285,6 +288,16 @@ describe('fallback deployment contract', () => {
 })
 
 describe('production env deployment contract', () => {
+  it('verifies the Telegram bot identity before rendering production secrets', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const verify = workflow.indexOf('node scripts/verify-telegram-bot-identity.mjs')
+    const render = workflow.indexOf('node scripts/render-production-env.mjs')
+
+    expect(existsSync(telegramIdentityVerifierPath)).toBe(true)
+    expect(verify).toBeGreaterThan(-1)
+    expect(render).toBeGreaterThan(verify)
+  })
+
   it('renders a reversible polling fallback for production Telegram updates', () => {
     const dir = mkdtempSync(join(tmpdir(), 'volleytime-prod-mode-'))
     dirs.push(dir)
