@@ -3,9 +3,9 @@ id: '9.3.4'
 phase: '9'
 epic: '9.3'
 status: in_progress
-sync_state: local
-last_reviewed: 2026-09-19
-status_note: 'Live diagnosis proves Telegram IPv4 149.154.166.110 is unreachable from the VPS, while host IPv6 and an IPv6-enabled Docker probe reach 2001:67c:4e8:f004::9 successfully.'
+sync_state: synced
+last_reviewed: 2026-09-21
+status_note: 'IPv6 egress acceptance passed, but the card remains open because its webhook-installed criterion is intentionally unmet while production uses the approved polling fallback after IPv4 ingress failure.'
 roles:
   - DEVOPS
   - QA
@@ -42,9 +42,9 @@ tags:
 
 ## Критерии приёмки
 
-- [ ] `backend` создаётся dual-stack и выдаёт контейнерам IPv6.
-- [ ] Bot предпочитает IPv6 при DNS lookup.
-- [ ] Tokenless Node fetch из production network получает HTTP 200 от `api.telegram.org`.
+- [x] `backend` создаётся dual-stack и выдаёт контейнерам IPv6.
+- [x] Bot предпочитает IPv6 при DNS lookup.
+- [x] Tokenless Node fetch из production network получает HTTP 200 от `api.telegram.org`.
 - [ ] Bot healthy, webhook установлен, restart count стабилен.
 
 ## Не делать
@@ -52,3 +52,8 @@ tags:
 - Не отключать TLS verification и не обращаться к Telegram API по IP без SNI hostname.
 - Не добавлять публичный proxy без отдельной security-задачи.
 - Не перезапускать Docker daemon: user-defined IPv6 network уже подтверждена без daemon-wide изменений.
+
+## Production evidence — 2026-09-21
+
+- Concrete Telegram IPv4 `149.154.166.110` remains unreachable from the VPS; concrete IPv6 `2001:67c:4e8:f004::9` succeeds with the Telegram TLS hostname from the production network.
+- The bot is healthy and processes updates in `polling` mode; `getWebhookInfo` deliberately reports an empty URL and zero pending updates. The remaining webhook-installed subcriterion belongs to the unresolved provider IPv4 ingress path, not the working polling transport.

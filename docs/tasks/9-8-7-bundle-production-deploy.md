@@ -2,10 +2,10 @@
 id: '9.8.7'
 phase: '9'
 epic: '9.8'
-status: in_progress
-sync_state: local
-last_reviewed: 2026-09-19
-status_note: 'Implementing a prod-only Git bundle delivery path that does not require GitHub or GHCR egress from the VPS.'
+status: done
+sync_state: synced
+last_reviewed: 2026-09-21
+status_note: 'Exact-SHA Git bundle delivery is the verified active production path; automatic and manual local-build deployments pass backup, migration, smoke and rollback boundaries without VPS GitHub/GHCR egress.'
 roles:
   - DEVOPS
   - QA
@@ -42,14 +42,14 @@ tags:
 
 ## Критерии приёмки
 
-- [ ] Automatic push path не выполняет на VPS `git fetch`, `git pull` или GHCR pull.
-- [ ] Только точный `${{ github.sha }}` принимается из валидного bundle.
-- [ ] Невалидный SHA/bundle, dirty tracked checkout и non-fast-forward останавливают release до изменения checkout.
-- [ ] Untracked production runtime-файлы сохраняются.
-- [ ] Backup выполняется до bundle advancement и migrations.
-- [ ] Push и manual local-build используют `deploy-bundle`; manual GHCR остаётся доступным.
-- [ ] Focused contracts, shell syntax и полный repository gate проходят.
-- [ ] Runbook описывает active bundle path и его rollback boundary.
+- [x] Automatic push path не выполняет на VPS `git fetch`, `git pull` или GHCR pull.
+- [x] Только точный `${{ github.sha }}` принимается из валидного bundle.
+- [x] Невалидный SHA/bundle, dirty tracked checkout и non-fast-forward останавливают release до изменения checkout.
+- [x] Untracked production runtime-файлы сохраняются.
+- [x] Backup выполняется до bundle advancement и migrations.
+- [x] Push и manual local-build используют `deploy-bundle`; manual GHCR остаётся доступным.
+- [x] Focused contracts, shell syntax и полный repository gate проходят.
+- [x] Runbook описывает active bundle path и его rollback boundary.
 
 ## Не делать
 
@@ -57,3 +57,8 @@ tags:
 - Не использовать `git reset --hard` для продвижения нового релиза.
 - Не принимать task branch, tag или произвольный SHA.
 - Не включать `.env`, ключи или токены в bundle.
+
+## Production evidence — 2026-09-21
+
+- Workflow `35513044804` delivered and deployed exact SHA `c8648c25ce2e1955806cb051af5365089945d2ca` from a verified bundle; workflow `35566144557` repeated the path after controlled rollback and passed smoke.
+- VPS checkout, SHA-tagged web/bot images and both health endpoints matched the workflow SHA; untracked runtime state and the immutable v0.1.3 rollback manifest remained intact.

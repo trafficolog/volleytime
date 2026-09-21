@@ -4,8 +4,8 @@ phase: '9'
 epic: '9.5'
 status: in_progress
 sync_state: synced
-last_reviewed: 2026-09-18
-status_note: 'Reconciled 2026-09-18: webhook mode и secret protection реализованы; live setWebhook/getWebhookInfo/update delivery ждут bot/VPS deployment.'
+last_reviewed: 2026-09-21
+status_note: 'Webhook implementation and secret protection are deployed, but Telegram IPv4 ingress never reaches the VPS; production uses polling and webhook delivery acceptance remains open.'
 roles:
   - BACK
   - DEVOPS

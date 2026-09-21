@@ -4,8 +4,8 @@ phase: '9'
 epic: '9.7'
 status: in_progress
 sync_state: synced
-last_reviewed: 2026-09-18
-status_note: 'Reconciled 2026-09-18: backup.sh и hardening реализованы; реальные S3 credentials, cron/upload и alert verification остаются external gate.'
+last_reviewed: 2026-09-21
+status_note: 'Release-local backups are active and hosting-level server backups exist; S3 credentials, scheduled upload, retention and alert verification remain deferred external gates.'
 roles:
   - DEVOPS
 depends_on:

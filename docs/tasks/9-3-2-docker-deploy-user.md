@@ -2,10 +2,10 @@
 id: '9.3.2'
 phase: '9'
 epic: '9.3'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-18
-status_note: 'Reconciled 2026-09-18: external gate — Docker/deploy user и /opt/volleytime на реальном VPS не provisioned/verified.'
+last_reviewed: 2026-09-21
+status_note: 'Docker/Compose, non-root deploy access, root/password SSH disablement, /opt/volleytime ownership and the provisioning runbook are verified on the production VPS.'
 roles:
   - DEVOPS
 depends_on:
@@ -98,3 +98,9 @@ tags:
 - ❌ Не отключать root до проверки deploy-входа
 - ❌ Не давать deploy sudo без необходимости (docker группы хватает)
 - ❌ Не пропускать provisioning doc
+
+## Production evidence — 2026-09-21
+
+- Normal, recovery and restricted CI keys authenticate independently as non-root `deploy`; Docker commands run without sudo.
+- `/opt/volleytime` is the active deploy root owned for `deploy` operations; root and password SSH authentication were disabled only after alternate key access was verified.
+- The production stack has completed repeated bundle deployments and a controlled rollback under `deploy`.

@@ -4,8 +4,8 @@ phase: '9'
 epic: '9.4'
 status: in_progress
 sync_state: synced
-last_reviewed: 2026-09-18
-status_note: 'Reconciled 2026-09-18: external gate — DNS, live HTTPS и BotFather Mini App domain/menu/deeplinks не verified на production.'
+last_reviewed: 2026-09-21
+status_note: 'DNS and live HTTPS are verified; BotFather domain/menu, real Mini App opening, deeplinks and initData login still require client-side acceptance.'
 roles:
   - DEVOPS
 depends_on:

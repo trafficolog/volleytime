@@ -2,10 +2,10 @@
 id: '9.2.2'
 phase: '9'
 epic: '9.2'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-18
-status_note: 'Reconciled 2026-09-18: Caddy config и webhook routing проверены локально на Caddy 2.11; live DNS/TLS/HTTPS volleytime.by ждут VPS/DNS.'
+last_reviewed: 2026-09-21
+status_note: 'Live Caddy terminates valid HTTPS for volleytime.by, redirects HTTP, proxies web and retains the exact secret webhook route to the internal bot listener.'
 roles:
   - DEVOPS
 depends_on:
@@ -102,3 +102,8 @@ Caddyfile: auto-HTTPS (Let's Encrypt), проксирование volleytime.by 
 - ❌ Не хардкодить webhook секрет в Caddyfile
 - ❌ Не использовать self-signed (Telegram требует валидный)
 - ❌ Не терять caddy_data volume (rate limit Let's Encrypt)
+
+## Production evidence — 2026-09-21
+
+- `http://volleytime.by` returns `308` to HTTPS; HTTPS returns `200` through Caddy with HSTS, nosniff and referrer-policy headers and no `X-Frame-Options: DENY`.
+- Public `/api/health` reaches `web:3000`; the deployed Caddy configuration retains the exact env-derived Telegram webhook matcher and `bot:8443` reverse proxy while production polling is active.

@@ -2,10 +2,10 @@
 id: '9.8.1'
 phase: '9'
 epic: '9.8'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-18
-status_note: 'Reconciled 2026-09-18: deploy workflow tests и build/push images прошли в run 35346916965; Deploy to VPS остановился на missing server host, push→prod не подтверждён.'
+last_reviewed: 2026-09-21
+status_note: 'The production workflow is live and source-gated; its original main/GHCR topology was superseded by Tasks 9.8.5 and 9.8.7, and verified prod pushes now deploy automatically through the bundle/local-build path.'
 roles:
   - DEVOPS
 depends_on:
@@ -128,3 +128,8 @@ GitHub Actions workflow: push в main → тесты → build образов (w
 - ❌ Не деплоить под root
 - ❌ Не применять миграции внутри up (отдельный шаг 9.8.2)
 - ❌ Не забывать sha-теги (rollback)
+
+## Production evidence — 2026-09-21
+
+- The approved successor topology is `task branch → main → prod`; only `prod` deploys. Workflow `35513044804` passed tests, exact-SHA bundle deployment and smoke, and workflow `35566144557` passed the post-rollback redeploy.
+- Production runs SHA-tagged web/bot images under non-root `deploy`; the explicit GHCR path remains manual because registry reachability from the VPS is unavailable.
