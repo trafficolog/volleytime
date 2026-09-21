@@ -2,10 +2,10 @@
 id: '9.7.3'
 phase: '9'
 epic: '9.7'
-status: in_progress
-sync_state: local
-last_reviewed: 2026-09-19
-status_note: 'A production baseline dump and isolated restore are verified; the task remains open until the backup hook is merged and exercised by the release workflow. S3 remains a later external gate.'
+status: done
+sync_state: synced
+last_reviewed: 2026-09-21
+status_note: 'The release backup hook is merged and exercised before production advancement/migrations; local gzip, permissions, retention and isolated restore acceptance passed. S3 remains Task 9.7.1/9.7.2 scope.'
 roles:
   - DEVOPS
   - QA
@@ -41,11 +41,11 @@ tags:
 
 ## Критерии приёмки
 
-- [ ] Оба deploy path создают локальный backup до `run --rm migrate`.
-- [ ] Backup имеет timestamped имя, gzip проходит проверку, права каталога/файла ограничены.
-- [ ] При ошибке дампа release останавливается до миграции.
-- [ ] Retention сохраняет последние `LOCAL_BACKUP_KEEP` файлов.
-- [ ] Реальный production backup создан и восстановлен во временную БД.
+- [x] Оба deploy path создают локальный backup до `run --rm migrate`.
+- [x] Backup имеет timestamped имя, gzip проходит проверку, права каталога/файла ограничены.
+- [x] При ошибке дампа release останавливается до миграции.
+- [x] Retention сохраняет последние `LOCAL_BACKUP_KEEP` файлов.
+- [x] Реальный production backup создан и восстановлен во временную БД.
 
 ## Не делать
 
@@ -59,3 +59,8 @@ tags:
 - Файл: mode `0600`, owner `deploy:deploy`, gzip validation прошла, размер 6860 bytes.
 - Dump восстановлен в отдельный временный `postgres:16-alpine`; проверены 15 таблиц в `public` schema.
 - Production PostgreSQL оставался healthy; restore не выполнялся в production volume.
+
+## Release evidence — 2026-09-21
+
+- Automatic bundle deployments created local backups before checkout advancement and migrations; the latest audited file is `volleytime_20260921_055333.sql.gz`, mode `0600`, owner `deploy:deploy`, size 8464 bytes, SHA-256 `7238f784a7743910ad2bdb8f9879ebc89ca4747531ffde09f6357c779d584e23`.
+- `gzip -t` passed and no temporary restore container remained. The earlier isolated PostgreSQL 16 restore verified 15 public tables without touching the production volume.

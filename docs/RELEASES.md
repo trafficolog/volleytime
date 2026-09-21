@@ -137,7 +137,7 @@
 - унификация release runtime на Node.js 22 (`.nvmrc`, package engines, Docker, CI);
 - CI: format, lint, typecheck, unit/integration tests, build.
 
-Не закрывает автоматически:
+На момент публикации `v0.1.3` не закрывал:
 
 - ручной QA в настоящем Telegram;
 - первый VPS deploy и production smoke;
@@ -146,9 +146,36 @@
 
 **Статус 2026-09-18:** canonical R0 scope — **ровно 139 исходных задач** из фаз 3.1-3.8, 4.1-4.8, 5.1-5.12, 6.1-6.7, 8.1-8.7 и 9.1-9.8. Текущий R0 snapshot после Task 4.7.5: **123 done / 16 in_progress**. Дополнительные 98 hardening/review/release-readiness cards не входят в знаменатель 139 и используются только как evidence исправлений.
 
-После PR #4 и PR #5 известных repository implementation gaps в R0 не остаётся: 9.8.2 имеет green CI для secrets materialization/migrate ordering; 9.8.3 имеет green CI для GHCR-default + manual build-on-VPS fallback + rollback runbook. Обе карточки остаются `in_progress`, потому что их live acceptance требует реальных GitHub Secrets/VPS/GHCR/deploy/rollback проверок. Остальные открытые R0 criteria также manual/external production gates.
+На снимке `v0.1.3` после PR #4 и PR #5 известных repository implementation gaps в R0 уже не оставалось: 9.8.2 имела green CI для secrets materialization/migrate ordering; 9.8.3 — для тогдашней GHCR-default схемы, manual build-on-VPS fallback и rollback runbook. Обе карточки оставались `in_progress`, потому что их live acceptance ещё требовала GitHub Secrets/VPS/deploy/rollback; последующий результат зафиксирован ниже в `v0.1.4`.
 
 `v0.1.2` остаётся неизменным историческим тегом. `v0.1.3` создаётся только после успешного repository release-gate.
+
+---
+
+## R0.4 — Production Automation `v0.1.4`
+
+> Patch без расширения продуктового scope. `v0.1.3` зафиксирован как проверенный manual-production baseline `91f6bff`; `v0.1.4` автоматизирует безопасное продвижение `main → prod → VPS`.
+
+Входит:
+
+- отдельный restricted SSH credential для GitHub Actions и fail-closed production Secrets;
+- prod-only workflow с source gate;
+- доставка exact SHA через проверяемый Git bundle без исходящего GitHub/GHCR-доступа с VPS;
+- release-local PostgreSQL backup до checkout advancement и migrations;
+- SHA-tagged local images и одинаковая release identity в Git, web и bot health;
+- explicit rollback на immutable ancestor с совместимостью legacy Compose;
+- production polling fallback при рабочем Telegram IPv6 egress и недоступном IPv4 webhook ingress.
+
+Live evidence 2026-09-21:
+
+- tested candidate `c8648c25ce2e1955806cb051af5365089945d2ca` прошёл workflow `35513044804`;
+- controlled rollback на `v0.1.3` (`91f6bffbd005876f94ffd1c31cebb4bcd891a752`) сохранил healthy runtime и polling без отката БД;
+- redeploy workflow `35566144557` вернул exact candidate SHA и сохранил v0.1.3 как rollback manifest;
+- последний audited release backup прошёл gzip validation; отдельный production dump ранее восстановлен в isolated PostgreSQL 16 с 15 public tables.
+
+Текущий canonical R0 snapshot после evidence reconciliation: **130 done / 9 in_progress из 139 задач**. Открыты manual Telegram/BotFather acceptance, полный инфраструктурный audit Task 9.3.1, webhook ingress, real notification delivery, Sentry/UptimeRobot, S3 upload/restore и недельный pilot gate.
+
+Immutable tag `v0.1.4` является источником истины для финального docs-inclusive production SHA; он создаётся только после успешного продвижения финального `main` в `prod` и повторного exact-SHA smoke.
 
 ---
 

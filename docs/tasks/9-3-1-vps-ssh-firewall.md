@@ -4,8 +4,8 @@ phase: '9'
 epic: '9.3'
 status: in_progress
 sync_state: synced
-last_reviewed: 2026-09-18
-status_note: 'Reconciled 2026-09-18: external gate — реальный VPS, SSH hardening, firewall/fail2ban и timezone не provisioned/verified.'
+last_reviewed: 2026-09-21
+status_note: 'Production VPS and key-only non-root SSH are live; the card remains open because the full ufw, unattended-upgrades and timezone checklist was not independently re-audited in this release.'
 roles:
   - DEVOPS
 depends_on: []

@@ -2,10 +2,10 @@
 id: '9.1.2'
 phase: '9'
 epic: '9.1'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-18
-status_note: 'Reconciled 2026-09-18: bot Docker image успешно собирается/pushится в GitHub Actions; runtime запуск на production stack ждёт первого VPS deploy.'
+last_reviewed: 2026-09-21
+status_note: 'Production bot image builds from the monorepo root and runs healthy with internal and webhook listeners available while the approved polling transport is active.'
 roles:
   - DEVOPS
   - BACK
@@ -98,3 +98,8 @@ Bot — Node-процесс с grammY. В production: webhook listener (от Tel
 - ❌ Не выставлять 3001 (internal) наружу (только docker-сеть)
 - ❌ Не хардкодить токен бота
 - ❌ Не собирать из apps/bot контекста (нужен корень)
+
+## Production evidence — 2026-09-21
+
+- SHA-tagged image `volleytime-bot:c8648c25ce2e1955806cb051af5365089945d2ca` runs in production and is approximately 168 MB.
+- `vt_bot` is healthy; internal `/healthz` reports `mode=polling` and the exact release SHA. Ports 3001 and 8443 are exposed only inside Docker networks.

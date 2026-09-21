@@ -2,10 +2,10 @@
 id: '9.9.13'
 phase: '9'
 epic: '9.9'
-status: in_progress
-sync_state: local
-last_reviewed: 2026-09-19
-status_note: 'Live deploy serves external HTTPS successfully, but Docker marks web unhealthy because Alpine resolves localhost to ::1 while the Node process listens on IPv4 0.0.0.0.'
+status: done
+sync_state: synced
+last_reviewed: 2026-09-21
+status_note: 'IPv4 container healthchecks are deployed and repeated production checks show healthy web/bot with stable runtime and external HTTPS health.'
 roles:
   - DEVOPS
   - QA
@@ -40,13 +40,18 @@ Bot использует тот же шаблон `localhost` для listener н
 
 ## Критерии приёмки
 
-- [ ] Focused compose contract test проходит.
-- [ ] Внутренние IPv4 health endpoints отвечают 200.
-- [ ] `docker compose ps` показывает web/bot healthy.
-- [ ] Внешний HTTPS health остаётся 200.
+- [x] Focused compose contract test проходит.
+- [x] Внутренние IPv4 health endpoints отвечают 200.
+- [x] `docker compose ps` показывает web/bot healthy.
+- [x] Внешний HTTPS health остаётся 200.
 
 ## Не делать
 
 - Не переводить application listener на IPv6 ради healthcheck.
 - Не увеличивать retries/timeout, скрывая ошибочный адрес.
 - Не ослаблять содержательную проверку `/api/health` и `/healthz`.
+
+## Production evidence — 2026-09-21
+
+- `vt_web` and `vt_bot` report healthy after deploy, rollback and redeploy; internal bot `/healthz` answers from `127.0.0.1:3001`.
+- Public `/api/health` remains HTTP 200 with database/auth checks and the exact production release SHA.

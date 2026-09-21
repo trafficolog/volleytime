@@ -2,10 +2,10 @@
 id: '9.1.1'
 phase: '9'
 epic: '9.1'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-18
-status_note: 'Reconciled 2026-09-18: web Docker image успешно собирается/pushится в GitHub Actions; запуск контейнера на production stack и /health ждут первого VPS deploy.'
+last_reviewed: 2026-09-21
+status_note: 'Production web image builds from the monorepo root, runs as a healthy container on port 3000 and serves the database-backed public health endpoint.'
 roles:
   - DEVOPS
   - BACK
@@ -113,3 +113,8 @@ Production Dockerfile для apps/web (Nuxt SSR). Multi-stage: deps → build �
 - ❌ Не оставлять dev-зависимости в runtime
 - ❌ Не хардкодить секреты/env в образ
 - ❌ Не собирать из apps/web как контекст (нужен корень)
+
+## Production evidence — 2026-09-21
+
+- SHA-tagged image `volleytime-web:c8648c25ce2e1955806cb051af5365089945d2ca` runs in production and is approximately 63 MB.
+- `vt_web` is healthy and `https://volleytime.by/api/health` returns HTTP 200 with `db=ok`, `auth=ok` and the exact release SHA.

@@ -4,8 +4,8 @@ phase: '9'
 epic: '9.7'
 status: in_progress
 sync_state: synced
-last_reviewed: 2026-09-18
-status_note: 'Reconciled 2026-09-18: restore-test script/runbook реализованы и hardened; восстановление реального production backup ещё не проверено.'
+last_reviewed: 2026-09-21
+status_note: 'A real local production dump restored successfully into isolated PostgreSQL with 15 public tables; S3 download/restore acceptance remains deferred with Task 9.7.1.'
 roles:
   - DEVOPS
 depends_on:

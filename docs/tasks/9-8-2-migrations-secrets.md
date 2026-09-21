@@ -2,10 +2,10 @@
 id: '9.8.2'
 phase: '9'
 epic: '9.8'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-18
-status_note: 'Repository implementation complete on PR #4: secure production env rendering/upload/install occurs before pull → migrate → up. External gate remains: actual GitHub Secrets/VPS deployment are not configured or verified yet.'
+last_reviewed: 2026-09-21
+status_note: 'Required GitHub Secret names, mode-0600 env delivery and fail-closed migrate-before-up execution are verified across successful production bundle deployments.'
 roles:
   - DEVOPS
   - BACK
@@ -104,3 +104,8 @@ tags:
 - ❌ Не авто-мигрировать при старте контейнера (гонки)
 - ❌ Не коммитить .env / секреты
 - ❌ Не оставлять .env с правами для всех
+
+## Production evidence — 2026-09-21
+
+- All 12 required GitHub Secret names exist; values were never read back or logged. Production env staging/install completed in the successful deploy workflows.
+- Migrations ran as a separate fail-closed stage before application start; public health subsequently reported database and auth schema checks as `ok`.

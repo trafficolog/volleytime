@@ -4,8 +4,8 @@ phase: '9'
 epic: '9.5'
 status: in_progress
 sync_state: synced
-last_reviewed: 2026-09-18
-status_note: 'Reconciled 2026-09-18: webhook/internal listeners и internal secret реализованы; production notification delivery ждёт deploy.'
+last_reviewed: 2026-09-21
+status_note: 'Both listeners and network isolation are deployed and bot health is verified; a real web-to-bot production notification delivery remains unobserved.'
 roles:
   - BACK
   - DEVOPS

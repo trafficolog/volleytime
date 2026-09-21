@@ -2,9 +2,9 @@
 
 This runbook covers the two R0 deployment paths from Tasks 9.8.3 and 9.8.7. **A verified Git bundle with a local VPS build is the active automatic path.** GHCR remains an explicit manual alternative for diagnostics or a future network change.
 
-## Before the first production deploy
+## Provisioning or disaster-recovery prerequisites
 
-Configure the GitHub Secrets required by `.github/workflows/deploy.yml`, provision the VPS from Tasks 9.3.x, point DNS to it, and configure the Telegram Mini App/webhook. The deploy workflow deliberately fails closed when required secrets are missing.
+The current production VPS, DNS and required GitHub Secrets are configured. For a replacement VPS or disaster recovery, provision Tasks 9.3.x, point DNS to it, restore the required secret names and configure the Telegram Mini App transport. The deploy workflow deliberately fails closed when required secrets are missing.
 
 GHCR is not required by the active path. To diagnose whether the manual alternative is usable, probe it explicitly on the VPS:
 
@@ -119,20 +119,34 @@ bash .deploy/scripts/deploy-local-build.sh rollback
 
 Rollback performs `git reset --hard` to the recorded revision, restores `.env.images.previous`, then rebuilds web/bot under the restored tags and release identity before restarting them.
 
+For a controlled release drill or an older immutable ancestor that is not the current one-step manifest, use the explicit target command:
+
+```bash
+cd /opt/volleytime
+bash .deploy/scripts/deploy-local-build.sh rollback-to FULL_40_CHARACTER_ANCESTOR_SHA
+```
+
+`rollback-to` rejects malformed, missing, current and non-ancestor revisions before changing Git, manifests or runtime. For a legacy Compose revision it creates an exact SHA-tagged target manifest and applies a compatibility override so `RELEASE_VERSION` and the allowlisted current `BOT_MODE` remain deterministic.
+
 **Database migrations are not automatically reversed.** R0 production migrations must be forward-compatible with the previous application revision. A destructive migration requires a separately reviewed database rollback plan and a tested backup restore; do not improvise it during an incident.
 
-## Production verification checklist
+## Production verification state
 
-After the first live deployment verify:
+Verified for `v0.1.4`:
 
-- `https://<DOMAIN>/api/health` returns 200 and reports the database healthy;
-- the Telegram bot answers through the configured `polling` or `webhook` transport;
-- the Mini App opens through HTTPS and authenticates with real initData;
-- an organizer can create an event and a second Telegram account can book it;
-- backup upload reaches the configured S3 bucket;
-- restore-test succeeds against a recent backup;
-- Sentry receives a controlled web and bot test error;
-- UptimeRobot/other external health monitoring is active;
-- rollback is exercised once and the service returns healthy afterwards.
+- `https://volleytime.by/api/health` returns 200 with database/auth checks and exact release SHA;
+- web, bot and PostgreSQL containers are healthy;
+- the Telegram bot processes real updates through `polling`, with empty webhook URL and zero pending updates;
+- release-local backups run before advancement/migration; gzip, restricted permissions and an isolated PostgreSQL restore are verified;
+- controlled rollback to immutable `v0.1.3` and redeploy to the tested candidate both completed successfully.
 
-Record the verified-bundle `local-build` path as active only after this VPS verification. Keep GHCR classified as a manual alternative until its reachability and rollback are independently exercised.
+Still open and must not be inferred from deployment smoke:
+
+- real Telegram Mini App/BotFather/deeplink/initData QA;
+- organizer/player end-to-end pilot flow and production notification delivery;
+- S3 upload/retention and S3-based restore;
+- controlled Sentry events and external UptimeRobot alerting;
+- direct webhook delivery until provider IPv4 ingress is repaired;
+- one week of real trainings through Volley Time.
+
+The verified-bundle `local-build` path is the active production path. Keep GHCR classified as a manual alternative until its reachability and rollback are independently exercised.

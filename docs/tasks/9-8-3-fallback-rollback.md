@@ -2,10 +2,10 @@
 id: '9.8.3'
 phase: '9'
 epic: '9.8'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-18
-status_note: 'Repository implementation verified green on PR #5: GHCR default, manual local-build fallback and rollback runbook/contract are ready. Task remains in_progress until real VPS GHCR reachability, end-to-end deploy and rollback are verified.'
+last_reviewed: 2026-09-21
+status_note: 'GHCR unavailability selected local build as the active path; end-to-end prod deploy, exact-SHA controlled rollback and redeploy are verified and documented.'
 roles:
   - DEVOPS
 depends_on:
@@ -119,3 +119,8 @@ tags:
 - ❌ Не деплоить без rollback-плана
 - ❌ Не делать ломающие миграции (усложняют откат)
 - ❌ Не пропускать финальную проверку пайплайна
+
+## Production evidence — 2026-09-21
+
+- GHCR is not a viable VPS dependency; the verified Git-bundle local-build successor from Task 9.8.7 is the active automatic path and requires no server-side GitHub/GHCR egress.
+- Controlled rollback from `c8648c25ce2e1955806cb051af5365089945d2ca` to immutable v0.1.3 `91f6bffbd005876f94ffd1c31cebb4bcd891a752` completed with healthy web/bot/PostgreSQL and no database reversal; workflow `35566144557` then redeployed the candidate successfully.

@@ -2,7 +2,20 @@
 
 All notable release-level changes are recorded here. Detailed task history lives in `docs/tasks/` and `docs/RELEASES.md`.
 
-## [Unreleased / v0.1.3] — Release readiness
+## [v0.1.4] — 2026-09-21
+
+- add prod-only exact-SHA deployment through a verified Git bundle and local VPS build;
+- provision a dedicated restricted GitHub Actions key and fail-closed production Secrets;
+- create and validate a local PostgreSQL backup before checkout advancement and migrations;
+- publish deterministic SHA-tagged web/bot images and release identity in health endpoints;
+- add polling as the production Telegram fallback while provider IPv4 webhook ingress is unavailable;
+- add explicit ancestor-target rollback with legacy-Compose identity compatibility;
+- verify live deploy, smoke, controlled rollback to `v0.1.3` and successful redeploy;
+- reconcile production task evidence while preserving manual Telegram, monitoring, S3 and one-week pilot gates.
+
+No new product scope is introduced.
+
+## [v0.1.3] — 2026-09-19
 
 - synchronize root/status documentation with the implemented MVP;
 - publish the canonical release candidate to GitHub;
