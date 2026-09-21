@@ -2,10 +2,10 @@
 id: '9.3.4'
 phase: '9'
 epic: '9.3'
-status: in_progress
+status: done
 sync_state: synced
 last_reviewed: 2026-09-21
-status_note: 'IPv6 egress acceptance passed, but the card remains open because its webhook-installed criterion is intentionally unmet while production uses the approved polling fallback after IPv4 ingress failure.'
+status_note: 'Concrete-IP IPv6/SNI, normal Bot API, dual-stack container, DNS preference, health and restart stability passed in production; webhook ingress remains isolated in Task 9.5.1.'
 roles:
   - DEVOPS
   - QA
@@ -45,7 +45,9 @@ tags:
 - [x] `backend` создаётся dual-stack и выдаёт контейнерам IPv6.
 - [x] Bot предпочитает IPv6 при DNS lookup.
 - [x] Tokenless Node fetch из production network получает HTTP 200 от `api.telegram.org`.
-- [ ] Bot healthy, webhook установлен, restart count стабилен.
+- [x] Bot healthy в утверждённом production transport, restart count стабилен.
+
+Webhook installation не является egress-критерием: прямой Telegram ingress отслеживается Task 9.5.1 и остаётся открытым. Закрытие этой карточки подтверждает только исходящий Bot API transport и не объявляет webhook работающим.
 
 ## Не делать
 
@@ -57,3 +59,6 @@ tags:
 
 - Concrete Telegram IPv4 `149.154.166.110` remains unreachable from the VPS; concrete IPv6 `2001:67c:4e8:f004::9` succeeds with the Telegram TLS hostname from the production network.
 - The bot is healthy and processes updates in `polling` mode; `getWebhookInfo` deliberately reports an empty URL and zero pending updates. The remaining webhook-installed subcriterion belongs to the unresolved provider IPv4 ingress path, not the working polling transport.
+- Fresh concrete-IP probes from `vt_bot` preserved `servername=api.telegram.org` and the HTTP Host header: IPv6 returned `302`, while IPv4 timed out and reset as expected; normal `https://api.telegram.org` returned `200`.
+- `vt_bot` had backend IPv6 `fd3f:fc9a:f0f4::3`, `NODE_OPTIONS=--dns-result-order=ipv6first`, restart count `0`, health `ok`, mode `polling` and release `16c2fe422db94bc97c085201a6cf9fcc919b7b72`.
+- `getWebhookInfo` returned `ok=true`, empty URL, zero pending updates and no last error. This proves a clean polling state, not webhook ingress.
