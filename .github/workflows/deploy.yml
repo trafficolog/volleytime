@@ -149,7 +149,9 @@ jobs:
           SMOKE_TG_ID: ${{ secrets.SMOKE_TG_ID }}
           BACKUP_AGE_RECIPIENT: ${{ secrets.BACKUP_AGE_RECIPIENT }}
           HEALTHCHECK_URL: ${{ secrets.HEALTHCHECK_URL }}
-        run: node scripts/render-production-env.mjs .env.production
+        run: |
+          node scripts/verify-telegram-bot-identity.mjs
+          node scripts/render-production-env.mjs .env.production
       - name: Prepare remote secret staging
         uses: appleboy/ssh-action@v1
         with:

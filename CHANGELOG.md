@@ -9,6 +9,7 @@ All notable release-level changes are recorded here. Detailed task history lives
 - close Telegram IPv6 egress acceptance with concrete-IP/SNI production evidence while keeping webhook ingress explicitly open.
 - verify a marked production notification through the protected web-to-bot-to-Telegram path without exposing recipient or secret values.
 - diagnose a production bot-identity mismatch where invite links referenced the legacy bot while the token belonged to the current bot.
+- fail closed before production env rendering when the configured Telegram username does not belong to the deployed bot token.
 
 ## [v0.1.4] — 2026-09-21
 
