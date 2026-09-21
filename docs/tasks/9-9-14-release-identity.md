@@ -2,10 +2,10 @@
 id: '9.9.14'
 phase: '9'
 epic: '9.9'
-status: in_progress
-sync_state: local
-last_reviewed: 2026-09-19
-status_note: 'Live preflight found that one-step rollback metadata points to an intermediate deploy rather than immutable v0.1.3; implementing an explicit ancestor-target rollback with legacy-Compose identity compatibility.'
+status: done
+sync_state: synced
+last_reviewed: 2026-09-21
+status_note: 'Production acceptance passed: explicit rollback to immutable v0.1.3 preserved polling and exact identity, then redeploy restored the current candidate and the v0.1.3 rollback manifest.'
 roles:
   - DEVOPS
   - QA
@@ -66,3 +66,12 @@ tags:
 - RED: behavioral test временного Git-репозитория завершился exit 2, потому что `rollback-to` отсутствовал.
 - GREEN: release identity + deploy focused contracts — 23/23; отдельный rollback contract — 6/6, включая legacy Compose и отказ unsafe targets до Docker вызовов.
 - Shell syntax passed. Полные gates: format passed; lint — 0 errors (24 существующих warnings); typecheck — 6/6; test — 75 файлов, 411 тестов; build — 2/2 пакета.
+
+## Production evidence
+
+- PR #25 merged as `c8648c25ce2e1955806cb051af5365089945d2ca`; production deploy workflow `35513044804` passed source, test, bundle deploy and smoke gates.
+- Controlled `rollback-to 91f6bffbd005876f94ffd1c31cebb4bcd891a752` completed successfully. Git HEAD, public web health and internal bot health all reported the exact v0.1.3 SHA; bot remained in `polling` mode; web, bot and PostgreSQL were healthy; the database was neither reset nor restored.
+- Redeploy workflow `35566144557` passed all gates and restored production to `c8648c25ce2e1955806cb051af5365089945d2ca`.
+- Independent post-deploy readback matched the candidate SHA in Git HEAD, public `/api/health`, web image and bot `/healthz`; web, bot and PostgreSQL were healthy, and bot mode was `polling`.
+- `.deploy/previous-git-sha` and `.env.images.previous` both retained the exact immutable rollback baseline `91f6bffbd005876f94ffd1c31cebb4bcd891a752` after redeploy.
+- Telegram `getWebhookInfo` returned `ok=true`, an empty webhook URL, zero pending updates and no last error, consistent with the approved polling fallback.
