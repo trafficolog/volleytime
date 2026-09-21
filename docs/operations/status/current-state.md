@@ -1,7 +1,7 @@
 # 📸 Текущее состояние проекта
 
 > **Last generated:** 2026-09-21
-> **Source:** canonical GitHub repository, production VPS and live `v0.1.4` release evidence.
+> **Source:** canonical GitHub repository, production VPS and live `v0.1.5` release evidence.
 
 ## Краткая сводка
 
@@ -65,13 +65,14 @@
 
 ## Review history
 
-| Версия   | Результат                                                                                            |
-| -------- | ---------------------------------------------------------------------------------------------------- |
-| `v0.1.0` | Первое полное ревью выявило 21 P0.                                                                   |
-| `v0.1.1` | 21 P0 закрыты; 370 тестов были зелёными по отчёту ревью.                                             |
-| `v0.1.2` | Повторное ревью подтвердило P0 и выявило 4 P1 + 5 P2; fix-эпики 3.10, 5.14, 6.9, 8.9, 9.10 смёржены. |
-| `v0.1.3` | Опубликованный verified production baseline `91f6bff`; manual local build и isolated restore.        |
-| `v0.1.4` | Опубликован на `16c2fe4`: prod-only bundle deploy, exact identity, polling fallback и live rollback. |
+| Версия   | Результат                                                                                                                            |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `v0.1.0` | Первое полное ревью выявило 21 P0.                                                                                                   |
+| `v0.1.1` | 21 P0 закрыты; 370 тестов были зелёными по отчёту ревью.                                                                             |
+| `v0.1.2` | Повторное ревью подтвердило P0 и выявило 4 P1 + 5 P2; fix-эпики 3.10, 5.14, 6.9, 8.9, 9.10 смёржены.                                 |
+| `v0.1.3` | Опубликованный verified production baseline `91f6bff`; manual local build и isolated restore.                                        |
+| `v0.1.4` | Опубликован на `16c2fe4`: prod-only bundle deploy, exact identity, polling fallback и live rollback.                                 |
+| `v0.1.5` | Исправлен bot identity drift: invite links, token и runtime config указывают на `@volleytimeby_bot`; deploy guard проверяет `getMe`. |
 
 Отчёты: [v0.1.0 review](../reviews/2026-09-16-v0.1.0-review.md), [v0.1.1 re-review](../reviews/2026-09-18-v0.1.1-rereview.md), [v0.1.2 release-readiness](../reviews/2026-09-18-v0.1.2-release-readiness.md).
 
@@ -110,7 +111,7 @@
 - [x] полный VPS hardening audit: key-only SSH/recovery, UFW, fail2ban, timezone/NTP и unattended-upgrades dry-run.
 - [x] real production delivery через защищённый `web → bot internal notify → Telegram` path.
 
-Выявлен отдельный production configuration defect: invite URL использует legacy username `volleyballtime_bot`, тогда как установленный token принадлежит актуальному `volleytimeby_bot`. Root cause зафиксирован в Task 9.9.15; исправление и deploy guard вынесены в Task 9.9.16.
+Production bot identity drift устранён: invite URL, web/bot runtime config и установленный token теперь согласованы на `volleytimeby_bot`; deploy guard блокирует повторное несовпадение до формирования или загрузки production env.
 
 Остаются открытыми:
 
@@ -120,7 +121,7 @@
 - [ ] прямой webhook ingress до исправления IPv4-маршрута провайдера (polling остаётся рабочим fallback);
 - [ ] неделя реальных тренировок только через Volley Time (R0 DoD).
 
-Статус: **`v0.1.4` опубликован и работает в production; полный R0/MVP acceptance остаётся открытым до manual QA, monitoring/S3 и недельного pilot gate**.
+Статус: **`v0.1.5` опубликован и работает в production; полный R0/MVP acceptance остаётся открытым до manual QA, monitoring/S3 и недельного pilot gate**.
 
 ## Claude Design reference
 

@@ -181,6 +181,32 @@ Immutable tag `v0.1.4` является источником истины для
 
 ---
 
+## R0.5 — Telegram Bot Identity Guard `v0.1.5`
+
+> Patch без расширения продуктового scope. Исправляет production drift, при котором invite URL указывал на legacy-бота, а Mini App и уведомления работали через token актуального бота.
+
+Входит:
+
+- отдельная диагностика Task 9.9.15 с live-сверкой web/bot config и Telegram `getMe`;
+- secret-safe deployment verifier соответствия `TELEGRAM_BOT_USERNAME` владельцу `TELEGRAM_BOT_TOKEN`;
+- fail-closed остановка до рендера/upload production env при mismatch, сетевой ошибке или невалидном ответе;
+- production Secret и runtime config исправлены на `volleytimeby_bot` без изменения invite tokens;
+- Task 9.9.16 проведена через RED → GREEN, полный repository gate, CI, backup/deploy/smoke и независимый VPS audit.
+
+Live evidence 2026-09-21:
+
+- PR #34 merged as `67bbfe89acaac04992b8128d45cb1b40f8acc75c`; production workflow `35650271644` завершился успешно;
+- реальный GitHub Actions guard принял исправленную пару username/token до работы с VPS;
+- Git HEAD, public web health и bot health совпали на exact SHA `67bbfe89acaac04992b8128d45cb1b40f8acc75c`;
+- web server/public config, bot config и Telegram `getMe` совпали на `volleytimeby_bot`;
+- sample invite URL использует `https://t.me/volleytimeby_bot?start=org_…`;
+- web, bot и PostgreSQL healthy, restart count `0`, release backup создан;
+- annotated tag и public GitHub Release `v0.1.5` опубликованы на проверенном production SHA.
+
+Canonical R0 snapshot не изменился: **132 done / 7 in_progress из 139 задач**. Открыты только прежние manual Telegram/BotFather acceptance, webhook ingress, Sentry/UptimeRobot, S3 upload/restore и недельный pilot gate.
+
+---
+
 ## R1 — Automation & Reliability `v0.2.0`
 
 > Делает эксплуатацию MVP низкозатратной: платформа работает сама.
