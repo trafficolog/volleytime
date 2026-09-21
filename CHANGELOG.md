@@ -4,12 +4,17 @@ All notable release-level changes are recorded here. Detailed task history lives
 
 ## [Unreleased]
 
+## [v0.1.5] — 2026-09-21
+
 - complete the independent VPS hardening audit;
 - repair the malformed production APT periodic config and verify unattended-upgrades with a root dry-run.
 - close Telegram IPv6 egress acceptance with concrete-IP/SNI production evidence while keeping webhook ingress explicitly open.
 - verify a marked production notification through the protected web-to-bot-to-Telegram path without exposing recipient or secret values.
 - diagnose a production bot-identity mismatch where invite links referenced the legacy bot while the token belonged to the current bot.
 - fail closed before production env rendering when the configured Telegram username does not belong to the deployed bot token.
+- correct production invite links to `@volleytimeby_bot` and publish the audited SHA as an annotated tag and public GitHub Release.
+
+No new product scope is introduced.
 
 ## [v0.1.4] — 2026-09-21
 
