@@ -6,6 +6,7 @@ All notable release-level changes are recorded here. Detailed task history lives
 
 - complete the independent VPS hardening audit;
 - repair the malformed production APT periodic config and verify unattended-upgrades with a root dry-run.
+- close Telegram IPv6 egress acceptance with concrete-IP/SNI production evidence while keeping webhook ingress explicitly open.
 
 ## [v0.1.4] — 2026-09-21
 
