@@ -110,6 +110,8 @@
 - [x] полный VPS hardening audit: key-only SSH/recovery, UFW, fail2ban, timezone/NTP и unattended-upgrades dry-run.
 - [x] real production delivery через защищённый `web → bot internal notify → Telegram` path.
 
+Выявлен отдельный production configuration defect: invite URL использует legacy username `volleyballtime_bot`, тогда как установленный token принадлежит актуальному `volleytimeby_bot`. Root cause зафиксирован в Task 9.9.15; исправление и deploy guard вынесены в Task 9.9.16.
+
 Остаются открытыми:
 
 - [ ] [ручной Telegram QA](../qa/telegram-miniapp-checklist.md) (Task 8.8.11);
