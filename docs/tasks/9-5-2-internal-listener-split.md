@@ -2,15 +2,14 @@
 id: '9.5.2'
 phase: '9'
 epic: '9.5'
-status: in_progress
+status: done
 sync_state: synced
 last_reviewed: 2026-09-21
-status_note: 'Both listeners and network isolation are deployed and bot health is verified; a real web-to-bot production notification delivery remains unobserved.'
+status_note: 'A marked production notification traversed vt_web to the protected bot internal endpoint and was accepted by Telegram; isolation, health and restart stability were re-verified.'
 roles:
   - BACK
   - DEVOPS
 depends_on:
-  - '9.5.1'
   - '8.4.1'
 estimated_hours: '1'
 tags:
@@ -95,13 +94,24 @@ Bot поднимает два независимых listener: webhook (:8443, �
 
 ## Критерии приёмки
 
-- ✅ Два listener: webhook :8443, internal notify :3001
-- ✅ Internal notify защищён secret (403 при неверном)
-- ✅ В webhook режиме оба стартуют
-- ✅ В dev (polling) internal notify тоже работает (web→bot локально)
-- ✅ :3001 не публикуется наружу (только backend docker-сеть)
-- ✅ :8443 через Caddy (frontend сеть)
-- ✅ Уведомления (8.5) доставляются в production
+- [x] Два listener: webhook :8443, internal notify :3001.
+- [x] Internal notify защищён secret (403 при неверном).
+- [x] В webhook режиме оба стартуют.
+- [x] В dev и production polling internal notify работает независимо от Telegram ingress transport.
+- [x] :3001 не публикуется наружу (только backend docker-сеть).
+- [x] :8443 через Caddy (frontend сеть).
+- [x] Уведомления (8.5) доставляются в production.
+
+Task 9.5.1 не является runtime dependency для internal notify: webhook и polling взаимоисключающе выбирают Telegram ingress, а `web → bot:3001 → Telegram API` запускается в обоих режимах. Прямой webhook ingress остаётся отдельным открытым gate.
+
+## Production E2E evidence — 2026-09-21
+
+- В production найдены два активных пользователя с Telegram identity; идентификаторы и другие PII не выводились.
+- Запрос из `vt_web` к `/internal/notify` с заведомо неверным secret вернул `403 Forbidden` и не отправил сообщение.
+- Один маркированный запрос из `vt_web` с production internal secret прошёл реальный путь `web → bot:3001 → bot.api.sendMessage → Telegram` и вернул `200 OK`. Endpoint отвечает `200` только после успешного `await bot.api.sendMessage`; Telegram/API ошибка вернула бы `500`.
+- Тестовое сообщение явно сообщало, что это автоматическая production-проверка и действий не требуется.
+- После отправки `vt_bot` сообщил health `ok`, mode `polling`, restart count `0`; Docker показал `3001/tcp` и `8443/tcp` без published host ports.
+- Focused notifier/internal/config regression: 4 files, 24 tests passed. Значения secret и Telegram IDs не попали в evidence.
 
 ## Подсказки
 
