@@ -11,7 +11,7 @@
 - **Runtime release target:** Node.js 22, pnpm 12.4.1
 - **R0/MVP scope:** phases 3, 4, 5, 6, 8, 9
 - **Реализация:** основные MVP-потоки закодированы; два code review прошли hardening до `v0.1.2`.
-- **Текущая итерация:** `v0.1.4` production automation — exact-SHA bundle deploy, release-local backup, smoke и rollback.
+- **Текущая итерация:** post-release MVP acceptance после опубликованного `v0.1.4`; новые продуктовые доработки оформляются отдельными SDD-задачами по готовности референсов.
 - **Следующие продуктовые фазы:** 10 / 7 / 15 и далее — вне текущего release scope.
 
 ## Что реализовано в R0
@@ -71,7 +71,7 @@
 | `v0.1.1` | 21 P0 закрыты; 370 тестов были зелёными по отчёту ревью.                                             |
 | `v0.1.2` | Повторное ревью подтвердило P0 и выявило 4 P1 + 5 P2; fix-эпики 3.10, 5.14, 6.9, 8.9, 9.10 смёржены. |
 | `v0.1.3` | Опубликованный verified production baseline `91f6bff`; manual local build и isolated restore.        |
-| `v0.1.4` | Production automation: prod-only bundle deploy, exact identity, polling fallback и live rollback.    |
+| `v0.1.4` | Опубликован на `16c2fe4`: prod-only bundle deploy, exact identity, polling fallback и live rollback. |
 
 Отчёты: [v0.1.0 review](../reviews/2026-09-16-v0.1.0-review.md), [v0.1.1 re-review](../reviews/2026-09-18-v0.1.1-rereview.md), [v0.1.2 release-readiness](../reviews/2026-09-18-v0.1.2-release-readiness.md).
 
@@ -118,7 +118,7 @@
 - [ ] прямой webhook ingress до исправления IPv4-маршрута провайдера (polling остаётся рабочим fallback);
 - [ ] неделя реальных тренировок только через Volley Time (R0 DoD).
 
-Статус: **`v0.1.4` production automation готов к публикации; полный R0/MVP acceptance остаётся открытым до manual QA, monitoring/S3 и недельного pilot gate**.
+Статус: **`v0.1.4` опубликован и работает в production; полный R0/MVP acceptance остаётся открытым до manual QA, monitoring/S3 и недельного pilot gate**.
 
 ## Claude Design reference
 

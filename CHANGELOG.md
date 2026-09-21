@@ -12,6 +12,7 @@ All notable release-level changes are recorded here. Detailed task history lives
 - add explicit ancestor-target rollback with legacy-Compose identity compatibility;
 - verify live deploy, smoke, controlled rollback to `v0.1.3` and successful redeploy;
 - reconcile production task evidence while preserving manual Telegram, monitoring, S3 and one-week pilot gates.
+- publish annotated tag and GitHub Release on final production SHA `16c2fe422db94bc97c085201a6cf9fcc919b7b72` after workflow `35569731828` passed.
 
 No new product scope is introduced.
 
