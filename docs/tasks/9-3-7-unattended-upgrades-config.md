@@ -2,10 +2,10 @@
 id: '9.3.7'
 phase: '9'
 epic: '9.3'
-status: todo
-sync_state: local
+status: done
+sync_state: synced
 last_reviewed: 2026-09-21
-status_note: 'Independent Task 9.3.1 audit reproduced a syntax error in /etc/apt/apt.conf.d/20auto-upgrades; no remediation has been applied yet.'
+status_note: 'The production APT periodic config now matches the package reference; parser, timer and root dry-run passed without changing application runtime.'
 roles:
   - DEVOPS
   - SECURITY
@@ -45,13 +45,23 @@ tags:
 
 ## Критерии приёмки
 
-- [ ] До исправления `apt-config dump` воспроизводимо падает на строке 1.
-- [ ] Повреждённый файл сохранён как датированный root-only backup.
-- [ ] Новый файл совпадает с package reference и разбирается APT без ошибок.
-- [ ] Effective values `Update-Package-Lists=1` и `Unattended-Upgrade=1`.
-- [ ] `apt-daily-upgrade.timer` active/enabled, dry-run завершается успешно.
-- [ ] SSH, firewall, Docker и application runtime не изменены.
-- [ ] Task 9.3.1 повторно проверена и может быть закрыта только после GREEN evidence.
+- [x] До исправления `apt-config dump` воспроизводимо падает на строке 1.
+- [x] Повреждённый файл сохранён как датированный root-only backup.
+- [x] Новый файл совпадает с package reference и разбирается APT без ошибок.
+- [x] Effective values `Update-Package-Lists=1` и `Unattended-Upgrade=1`.
+- [x] `apt-daily-upgrade.timer` active/enabled, dry-run завершается успешно.
+- [x] SSH, firewall, Docker и application runtime не изменены.
+- [x] Task 9.3.1 повторно проверена и закрыта только после GREEN evidence.
+
+## Production evidence — 2026-09-21
+
+- RED: `apt-config dump` returned exit `100` with `Extra junk after value` on line 1 before mutation.
+- The damaged 81-byte file was moved to `/var/backups/volleytime/20auto-upgrades.bak.20260921T123504Z` with owner `root:root` and mode `0600`.
+- The replacement is `root:root 0644`, byte-for-byte matches `/usr/share/unattended-upgrades/20auto-upgrades`, and `apt-config dump` exits `0` without warnings.
+- Effective values are `APT::Periodic::Update-Package-Lists "1"` and `APT::Periodic::Unattended-Upgrade "1"`; `apt-daily-upgrade.timer` is active/enabled.
+- Root-equivalent `unattended-upgrade --dry-run --debug` returned exit `0`, reported `upgrade result: True` and did not install packages.
+- Main and recovery SSH access still resolve to `deploy`; the four application containers retained their IDs and health, public `/api/health` remained `ok`, and only 22/80/443 were externally reachable.
+- No reboot, application restart, full upgrade or firewall/SSH/Docker configuration change was performed.
 
 ## Не делать
 
