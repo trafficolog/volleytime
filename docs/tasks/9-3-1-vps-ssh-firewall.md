@@ -2,10 +2,10 @@
 id: '9.3.1'
 phase: '9'
 epic: '9.3'
-status: in_progress
+status: done
 sync_state: synced
 last_reviewed: 2026-09-21
-status_note: 'Independent audit passed SSH, recovery access, firewall, fail2ban and timezone checks, but apt periodic configuration is syntactically invalid; remediation is isolated as Task 9.3.7.'
+status_note: 'Independent audit passed SSH/recovery access, firewall, fail2ban and timezone checks; Task 9.3.7 repaired and dry-run verified unattended-upgrades.'
 roles:
   - DEVOPS
 depends_on: []
@@ -91,7 +91,7 @@ DEPLOY.md: Selectel/Timeweb, Москва, 2-4 vCPU / 4-8 GB. Сервер в и
 - [x] Пароль-логин и root SSH login отключены.
 - [x] UFW разрешает только 22, 80, 443 с default deny incoming; внутренние application/database порты снаружи закрыты.
 - [x] fail2ban активен, включён и содержит SSH jail.
-- [ ] Авто-обновления безопасности имеют валидную конфигурацию и проходят dry-run (Task 9.3.7).
+- [x] Авто-обновления безопасности имеют валидную конфигурацию и проходят dry-run (Task 9.3.7).
 - [x] Timezone `Europe/Moscow`, NTP включён и синхронизирован.
 
 ## Independent audit — 2026-09-21
@@ -103,6 +103,7 @@ DEPLOY.md: Selectel/Timeweb, Москва, 2-4 vCPU / 4-8 GB. Сервер в и
 - `apt-daily-upgrade.timer` active/enabled и пакет `unattended-upgrades` установлен, но `apt-config dump` стабильно завершается ошибкой `Syntax error /etc/apt/apt.conf.d/20auto-upgrades:1: Extra junk after value`.
 - Byte-level inspection показал literal backslashes вместо кавычек: `\ 1\;` и `\1\;`; package reference содержит корректные строки с `"1"`. Root cause — повреждённое содержимое `/etc/apt/apt.conf.d/20auto-upgrades`, а не timer или пакет.
 - `timedatectl` сообщает `Europe/Moscow`, `NTP=yes`, `NTPSynchronized=yes`. Публично слушают только SSH и Caddy HTTP/HTTPS; web, bot и PostgreSQL не публикуют внутренние порты.
+- Task 9.3.7 сохранила root-only backup, атомарно восстановила package-reference config и получила GREEN parser/reference/timer/root dry-run evidence без reboot или изменения application runtime.
 
 ## Подсказки
 

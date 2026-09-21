@@ -81,12 +81,11 @@
 
 Канонический MVP gate задаётся **только** R0 release-plan: **139 исходных задач** фаз 3.1-3.8, 4.1-4.8, 5.1-5.12, 6.1-6.7, 8.1-8.7 и 9.1-9.8. Hardening/review/release-readiness эпики (`3.9+`, `4.9`, `5.13+`, `6.8+`, `8.8+`, `9.9+`) не входят в знаменатель MVP и являются evidence исправлений.
 
-Текущий R0 snapshot: **139 tasks = 130 done + 9 in_progress**.
+Текущий R0 snapshot: **139 tasks = 131 done + 8 in_progress**.
 
 Открытые R0 cards:
 
 - **8.7.2** — полный реальный Telegram Mini App QA на клиенте и двух аккаунтах;
-- **9.3.1** — независимый финальный аудит полного ufw/unattended-upgrades/timezone checklist;
 - **9.4.1** — BotFather domain/menu, Mini App opening, deeplinks и real initData login;
 - **9.5.1** — прямой Telegram webhook остаётся заблокирован внешним IPv4 ingress; production работает через polling;
 - **9.5.2** — реальная web→bot notification delivery;
@@ -95,7 +94,7 @@
 
 После PR #3 закрыт последний продуктовый repository gap `4.7.5`. Production deploy path затем был переведён на проверяемый Git bundle: push в `prod` проходит CI, передаёт exact SHA на VPS, создаёт локальный DB backup, собирает SHA-tagged images, выполняет migration/up и smoke. GHCR сохранён только как ручная альтернатива.
 
-**Известных repository implementation gaps в исходных 139 R0 задачах больше нет.** Оставшиеся 9 карточек требуют manual/client, monitoring, S3 или отдельного infrastructure-аудита и не закрываются repository CI.
+**Известных repository implementation gaps в исходных 139 R0 задачах больше нет.** Оставшиеся 8 карточек требуют manual/client, monitoring, S3 или внешнего webhook evidence и не закрываются repository CI.
 
 Ранее выполненный reconciliation по 237 R0+review cards остаётся полезным документарным аудитом, но **не является MVP denominator**.
 
@@ -109,6 +108,7 @@
 - [x] release-local backup до advancement/migration и isolated restore в PostgreSQL 16;
 - [x] controlled application rollback на `v0.1.3` и успешный redeploy exact SHA;
 - [x] Telegram Bot API outbound через IPv6 и обработка реальных updates в polling mode.
+- [x] полный VPS hardening audit: key-only SSH/recovery, UFW, fail2ban, timezone/NTP и unattended-upgrades dry-run.
 
 Остаются открытыми:
 

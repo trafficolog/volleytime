@@ -2,6 +2,11 @@
 
 All notable release-level changes are recorded here. Detailed task history lives in `docs/tasks/` and `docs/RELEASES.md`.
 
+## [Unreleased]
+
+- complete the independent VPS hardening audit;
+- repair the malformed production APT periodic config and verify unattended-upgrades with a root dry-run.
+
 ## [v0.1.4] — 2026-09-21
 
 - add prod-only exact-SHA deployment through a verified Git bundle and local VPS build;
