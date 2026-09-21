@@ -81,20 +81,19 @@
 
 Канонический MVP gate задаётся **только** R0 release-plan: **139 исходных задач** фаз 3.1-3.8, 4.1-4.8, 5.1-5.12, 6.1-6.7, 8.1-8.7 и 9.1-9.8. Hardening/review/release-readiness эпики (`3.9+`, `4.9`, `5.13+`, `6.8+`, `8.8+`, `9.9+`) не входят в знаменатель MVP и являются evidence исправлений.
 
-Текущий R0 snapshot: **139 tasks = 131 done + 8 in_progress**.
+Текущий R0 snapshot: **139 tasks = 132 done + 7 in_progress**.
 
 Открытые R0 cards:
 
 - **8.7.2** — полный реальный Telegram Mini App QA на клиенте и двух аккаунтах;
 - **9.4.1** — BotFather domain/menu, Mini App opening, deeplinks и real initData login;
 - **9.5.1** — прямой Telegram webhook остаётся заблокирован внешним IPv4 ingress; production работает через polling;
-- **9.5.2** — реальная web→bot notification delivery;
 - **9.6.1, 9.6.2** — Sentry event delivery и внешний UptimeRobot alert;
 - **9.7.1, 9.7.2** — S3 upload/retention и S3-based restore.
 
 После PR #3 закрыт последний продуктовый repository gap `4.7.5`. Production deploy path затем был переведён на проверяемый Git bundle: push в `prod` проходит CI, передаёт exact SHA на VPS, создаёт локальный DB backup, собирает SHA-tagged images, выполняет migration/up и smoke. GHCR сохранён только как ручная альтернатива.
 
-**Известных repository implementation gaps в исходных 139 R0 задачах больше нет.** Оставшиеся 8 карточек требуют manual/client, monitoring, S3 или внешнего webhook evidence и не закрываются repository CI.
+**Известных repository implementation gaps в исходных 139 R0 задачах больше нет.** Оставшиеся 7 карточек требуют manual/client, monitoring, S3 или внешнего webhook evidence и не закрываются repository CI.
 
 Ранее выполненный reconciliation по 237 R0+review cards остаётся полезным документарным аудитом, но **не является MVP denominator**.
 
@@ -109,6 +108,7 @@
 - [x] controlled application rollback на `v0.1.3` и успешный redeploy exact SHA;
 - [x] Telegram Bot API outbound через IPv6 и обработка реальных updates в polling mode.
 - [x] полный VPS hardening audit: key-only SSH/recovery, UFW, fail2ban, timezone/NTP и unattended-upgrades dry-run.
+- [x] real production delivery через защищённый `web → bot internal notify → Telegram` path.
 
 Остаются открытыми:
 
@@ -127,7 +127,7 @@ Claude Design export используется как reference интерфей�
 ## Следующие шаги
 
 1. Выполнить реальный Telegram QA по R0 Task 8.7.2 (hardening-checklist 8.8.11 используется как расширенный сценарий).
-2. Проверить BotFather Menu Button, Mini App initData login, event deeplink и production notification delivery.
+2. Проверить BotFather Menu Button, Mini App initData login и event deeplink на реальном клиенте.
 3. Подключить Sentry/UptimeRobot и проверить реальные alerts.
 4. Перенести release backup в S3, настроить retention и провести S3-based restore test.
 5. Провести неделю реальных тренировок только через Volley Time и после этого подтвердить R0 MVP.
