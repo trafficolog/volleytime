@@ -172,10 +172,12 @@ Live evidence 2026-09-21:
 - controlled rollback на `v0.1.3` (`91f6bffbd005876f94ffd1c31cebb4bcd891a752`) сохранил healthy runtime и polling без отката БД;
 - redeploy workflow `35566144557` вернул exact candidate SHA и сохранил v0.1.3 как rollback manifest;
 - последний audited release backup прошёл gzip validation; отдельный production dump ранее восстановлен в isolated PostgreSQL 16 с 15 public tables.
+- финальный workflow `35569731828` продвинул docs-inclusive SHA `16c2fe422db94bc97c085201a6cf9fcc919b7b72`; `main`, `prod`, VPS, web и bot совпали по полному SHA;
+- annotated tag и public GitHub Release `v0.1.4` опубликованы на финальном production SHA; post-deploy audit подтвердил healthy runtime, polling и валидный release backup.
 
 Текущий canonical R0 snapshot после evidence reconciliation: **130 done / 9 in_progress из 139 задач**. Открыты manual Telegram/BotFather acceptance, полный инфраструктурный audit Task 9.3.1, webhook ingress, real notification delivery, Sentry/UptimeRobot, S3 upload/restore и недельный pilot gate.
 
-Immutable tag `v0.1.4` является источником истины для финального docs-inclusive production SHA; он создаётся только после успешного продвижения финального `main` в `prod` и повторного exact-SHA smoke.
+Immutable tag `v0.1.4` является источником истины для финального docs-inclusive production SHA `16c2fe422db94bc97c085201a6cf9fcc919b7b72`; тег опубликован после успешного продвижения `main` в `prod` и повторного exact-SHA smoke.
 
 ---
 
