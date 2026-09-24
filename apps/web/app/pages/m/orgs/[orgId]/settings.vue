@@ -25,6 +25,7 @@ const form = reactive({
   city: '',
   description: '',
   defaultMemberStatus: 'active' as 'active' | 'pending',
+  subscriptionsEnabled: true,
 })
 
 function syncForm(value: Organization | null) {
@@ -33,6 +34,7 @@ function syncForm(value: Organization | null) {
   form.city = value.city ?? ''
   form.description = value.description ?? ''
   form.defaultMemberStatus = value.defaultMemberStatus
+  form.subscriptionsEnabled = value.subscriptionsEnabled
 }
 
 watch(org, syncForm, { immediate: true })
@@ -56,13 +58,18 @@ async function onSave() {
         city: form.city.trim() || null,
         description: form.description.trim() || null,
         defaultMemberStatus: form.defaultMemberStatus,
+        subscriptionsEnabled: form.subscriptionsEnabled,
       },
     })
     await refreshOrg()
+    if (orgError.value || org.value?.subscriptionsEnabled !== form.subscriptionsEnabled) {
+      throw new Error('Organization settings could not be confirmed')
+    }
     await fetchAll()
     saved.value = true
     haptic('success')
   } catch (e) {
+    if (org.value) form.subscriptionsEnabled = org.value.subscriptionsEnabled
     formError.value = apiErrorMessage(e, 'Не удалось сохранить настройки')
     haptic('error')
   } finally {
@@ -161,6 +168,24 @@ async function onArchive() {
               </label>
             </div>
           </fieldset>
+
+          <div class="border-t border-vt-stroke pt-4">
+            <label class="flex items-start gap-3 cursor-pointer" for="settings-subscriptions">
+              <input
+                id="settings-subscriptions"
+                v-model="form.subscriptionsEnabled"
+                type="checkbox"
+                class="mt-1 h-5 w-5 shrink-0 accent-vt-flame"
+                :disabled="saving"
+                aria-describedby="settings-subscriptions-hint"
+              />
+              <span class="text-sm font-semibold">Использовать абонементы</span>
+            </label>
+            <p id="settings-subscriptions-hint" class="text-xs text-vt-mute-2 mt-2">
+              При отключении новые покупки и записи по абонементу будут недоступны. Купленные
+              остатки и история сохранятся и снова станут доступны после включения.
+            </p>
+          </div>
 
           <p v-if="formError" class="text-sm text-vt-rose-ink" role="alert">{{ formError }}</p>
           <p v-if="saved" class="text-sm text-vt-grass-ink" role="status">Сохранено</p>

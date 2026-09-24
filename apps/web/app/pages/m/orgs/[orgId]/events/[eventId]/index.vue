@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Event, OrganizationMember, Subscription } from '@volley-time/db'
+import type { Event, Organization, OrganizationMember, Subscription } from '@volley-time/db'
 import { formatDay, formatTime } from '@volley-time/shared'
 import { displayName, formatPrice } from '~/utils/labels'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
@@ -28,15 +28,21 @@ const {
 } = await useFetch<{ event: EventDetails; roster: RosterItem[] }>(
   () => `/api/organizations/${orgId.value}/events/${eventId.value}`,
 )
-const { data: orgData } = await useFetch<{ myMember: OrganizationMember }>(
-  () => `/api/organizations/${orgId.value}`,
-)
+const { data: orgData } = await useFetch<{
+  organization: Organization
+  myMember: OrganizationMember
+}>(() => `/api/organizations/${orgId.value}`)
 const ev = computed(() => data.value?.event ?? null)
 const roster = computed(() => data.value?.roster ?? [])
 const isManager = computed(() => {
   const m = orgData.value?.myMember
   return !!m && m.status === 'active' && ['owner', 'organizer'].includes(m.role)
 })
+const subscriptionsEnabled = computed(
+  () =>
+    orgData.value?.organization?.id === orgId.value &&
+    orgData.value.organization.subscriptionsEnabled === true,
+)
 
 const my = computed(() => ev.value?.myBooking ?? null)
 const full = computed(() => !!ev.value && ev.value.taken >= ev.value.capacity)
@@ -101,6 +107,11 @@ async function openBooking() {
   actionError.value = ''
   if (!ev.value) return
   if (ev.value.price === 0) return doBook('free')
+  if (!subscriptionsEnabled.value) {
+    subs.value = []
+    sheetOpen.value = true
+    return
+  }
   try {
     const res = await $fetch<{ subscriptions: Subscription[] }>(
       `/api/organizations/${orgId.value}/subscriptions/my`,
@@ -118,6 +129,7 @@ async function openBooking() {
 }
 
 async function doBook(method: string, subscriptionId?: number) {
+  if (method === 'subscription' && !subscriptionsEnabled.value) return
   submitting.value = true
   actionError.value = ''
   try {
@@ -302,7 +314,7 @@ async function cancelMine() {
     >
       <div class="space-y-2">
         <button
-          v-for="s in subs"
+          v-for="s in subscriptionsEnabled ? subs : []"
           :key="s.id"
           type="button"
           class="vt-card w-full p-3.5 flex items-center gap-3"
