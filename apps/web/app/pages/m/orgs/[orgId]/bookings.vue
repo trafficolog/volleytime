@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import type { Booking, Event, Venue } from '@volley-time/db'
 import { formatDay, formatTime } from '@volley-time/shared'
+
 import { BOOKING_STATUS_LABELS, label } from '~/utils/labels'
+import {
+  canCancelPlayerBooking,
+  createPlayerBookingsLoader,
+  runPlayerBookingCancellation,
+} from '~/utils/player-bookings-loader'
+import { createPlayerRequestGuard } from '~/utils/player-request-guard'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
 type MyBooking = Booking & { event: Event & { venue: Venue | null } }
@@ -17,24 +24,51 @@ const loading = ref(false)
 const loadError = ref('')
 const actionError = ref('')
 const cancelling = ref<number | null>(null)
+const cancellationGuard = createPlayerRequestGuard(() => `${orgId.value}:${filter.value}`)
+const loadView = createPlayerBookingsLoader<MyBooking>(
+  () => orgId.value,
+  () => filter.value,
+  async (requestedOrgId, requestedFilter) =>
+    (
+      await $fetch<{ bookings: MyBooking[] }>(`/api/organizations/${requestedOrgId}/bookings/my`, {
+        query: { filter: requestedFilter },
+      })
+    ).bookings.filter(
+      (booking) =>
+        booking.status !== 'cancelled' &&
+        booking.organizationId === requestedOrgId &&
+        booking.event.organizationId === requestedOrgId,
+    ),
+)
+let currentLoad: ReturnType<typeof loadView> | null = null
 
 async function load() {
+  const request = loadView()
+  currentLoad = request
   loading.value = true
   loadError.value = ''
   try {
-    items.value = (
-      await $fetch<{ bookings: MyBooking[] }>(`/api/organizations/${orgId.value}/bookings/my`, {
-        query: { filter: filter.value },
-      })
-    ).bookings.filter((b) => b.status !== 'cancelled')
+    const result = await request
+    if (result.stale) return
+    items.value = result.bookings
   } catch (e) {
-    loadError.value = apiErrorMessage(e, 'Не удалось загрузить записи')
+    if (currentLoad === request) loadError.value = apiErrorMessage(e, 'Не удалось загрузить записи')
   } finally {
-    loading.value = false
+    if (currentLoad === request) loading.value = false
   }
 }
 await load()
-watch(filter, load)
+watch(
+  [orgId, filter],
+  () => {
+    cancellationGuard.invalidate()
+    items.value = []
+    actionError.value = ''
+    cancelling.value = null
+    void load()
+  },
+  { flush: 'sync' },
+)
 
 const TONE: Record<string, 'grass' | 'amber' | 'default' | 'rose'> = {
   confirmed: 'grass',
@@ -45,26 +79,52 @@ const TONE: Record<string, 'grass' | 'amber' | 'default' | 'rose'> = {
 }
 
 async function onCancel(b: MyBooking) {
+  if (cancelling.value !== null || filter.value !== 'upcoming') return
+  const request = cancellationGuard.begin()
   actionError.value = ''
   if (!(await confirm(`Отменить запись на «${b.event.title}»?`))) return
+  if (!request.isCurrent() || !items.value.some((item) => item.id === b.id)) return
   cancelling.value = b.id
-  try {
-    await $fetch(`/api/organizations/${orgId.value}/bookings/${b.id}/cancel`, { method: 'POST' })
+  const requestedOrgId = orgId.value
+  const outcome = await runPlayerBookingCancellation(
+    bookingPolicy(b),
+    new Date(),
+    (bookingId) =>
+      $fetch<void>(`/api/organizations/${requestedOrgId}/bookings/${bookingId}/cancel` as string, {
+        method: 'POST',
+      }),
+    request.isCurrent,
+    load,
+  )
+  if (outcome.kind === 'success') {
     haptic('success')
-    await load()
-  } catch (e) {
+  } else if (outcome.kind === 'error') {
     haptic('error')
-    actionError.value = apiErrorMessage(e, 'Не удалось отменить запись')
-  } finally {
-    cancelling.value = null
+    actionError.value = apiErrorMessage(outcome.error, 'Не удалось отменить запись')
+  } else if (outcome.kind === 'blocked') {
+    actionError.value = 'Отменить запись уже нельзя — прошёл дедлайн отмены.'
   }
+  if (request.isCurrent()) cancelling.value = null
+}
+
+function bookingPolicy(booking: MyBooking) {
+  return {
+    id: booking.id,
+    status: booking.status,
+    startsAt: booking.event.startsAt,
+    cancellationDeadlineHours: booking.event.cancellationDeadlineHours,
+  }
+}
+
+function canCancel(booking: MyBooking) {
+  return filter.value === 'upcoming' && canCancelPlayerBooking(bookingPolicy(booking), new Date())
 }
 </script>
 
 <template>
   <div class="min-h-screen pb-10">
     <VtMiniHeader title="Мои записи" :back="`/m/orgs/${orgId}`" />
-    <div class="px-4 pt-3 flex gap-1" role="tablist">
+    <div class="px-4 pt-3 flex gap-1" role="group" aria-label="Период записей">
       <button
         v-for="f in [
           { id: 'upcoming', label: 'Предстоящие' },
@@ -72,8 +132,7 @@ async function onCancel(b: MyBooking) {
         ] as const"
         :key="f.id"
         type="button"
-        role="tab"
-        :aria-selected="filter === f.id"
+        :aria-pressed="filter === f.id"
         class="vt-btn vt-btn--sm flex-1 !rounded-full"
         :class="filter === f.id ? 'vt-btn--ink' : 'text-vt-mute-2'"
         @click="filter = f.id"
@@ -117,10 +176,7 @@ async function onCancel(b: MyBooking) {
             }}</VtChip>
           </NuxtLink>
           <button
-            v-if="
-              filter === 'upcoming' &&
-              ['confirmed', 'pending_payment', 'waitlisted'].includes(b.status)
-            "
+            v-if="canCancel(b)"
             type="button"
             class="vt-btn vt-btn--ghost vt-btn--sm vt-btn--full mt-3"
             :disabled="cancelling === b.id"
