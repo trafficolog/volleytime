@@ -1,3 +1,5 @@
+import type { Ref } from 'vue'
+
 import {
   resolveOrganizerEntry,
   safeAuthRedirect,
@@ -11,17 +13,28 @@ type SignInResult =
   | { kind: 'invalid_code' }
   | { kind: 'load_error' }
 
-export async function completeEmailSignIn(input: {
-  verify: () => Promise<void>
+type ContinuationInput = {
   session: () => Promise<boolean>
   fetchOrgs: () => Promise<readonly AuthOrg[]>
   redirect: unknown
-}): Promise<SignInResult> {
+}
+
+export async function completeEmailSignIn(
+  input: ContinuationInput & {
+    verify: () => Promise<void>
+  },
+): Promise<SignInResult> {
   try {
     await input.verify()
   } catch {
     return { kind: 'invalid_code' }
   }
+  return continueEmailSignIn(input)
+}
+
+export async function continueEmailSignIn(
+  input: ContinuationInput,
+): Promise<Exclude<SignInResult, { kind: 'invalid_code' }>> {
   try {
     if (!(await input.session())) return { kind: 'load_error' }
     const redirect = safeAuthRedirect(input.redirect)
@@ -31,6 +44,25 @@ export async function completeEmailSignIn(input: {
     return entry
   } catch {
     return { kind: 'load_error' }
+  }
+}
+
+export async function switchEmailAccount<T extends string>(input: {
+  step: Ref<T>
+  emailStep: T
+  email: Ref<string>
+  code: Ref<string>
+  error: Ref<string>
+  signOut: () => Promise<void>
+}): Promise<void> {
+  try {
+    await input.signOut()
+    input.email.value = ''
+    input.code.value = ''
+    input.error.value = ''
+    input.step.value = input.emailStep
+  } catch {
+    input.error.value = 'Не удалось выйти из аккаунта. Попробуйте снова.'
   }
 }
 

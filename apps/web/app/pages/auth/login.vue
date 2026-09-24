@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import { type AuthOrg, type OrganizerEntry } from '../../utils/auth-destination'
 import {
-  resolveOrganizerEntry,
-  type AuthOrg,
-  type OrganizerEntry,
-} from '../../utils/auth-destination'
-import { botLink, completeEmailSignIn } from '../../utils/auth-flow'
+  botLink,
+  completeEmailSignIn,
+  continueEmailSignIn,
+  switchEmailAccount,
+} from '../../utils/auth-flow'
 
 useHead({ title: 'Вход — Volley Time' })
 type Step = 'email' | 'code' | 'verifying' | 'choose' | 'no_access' | 'blocked' | 'load_error'
@@ -82,45 +83,63 @@ async function onVerify() {
           body: { email: email.value, otp: code.value },
         })
       },
-      session: async () => {
-        await fetchSession()
-        return Boolean(user.value)
-      },
-      fetchOrgs: async () => {
-        await fetchAll()
-        return orgs.value
-      },
+      session: activeSession,
+      fetchOrgs: organizerOrgs,
       redirect: route.query.redirect,
     })
-    if (result.kind === 'navigate') {
-      await navigateTo(result.to)
-    } else if (result.kind === 'invalid_code') {
-      step.value = 'code'
-      error.value = 'Неверный или просроченный код. Попробуйте снова или запросите новый.'
-    } else if (result.kind === 'load_error') {
-      step.value = 'load_error'
-    } else {
-      entry.value = result
-      step.value = result.kind === 'none' ? 'no_access' : result.kind
-    }
+    await showSignInResult(result)
   } finally {
     submitting.value = false
+  }
+}
+
+async function activeSession(): Promise<boolean> {
+  await fetchSession()
+  return Boolean(user.value)
+}
+
+async function organizerOrgs() {
+  await fetchAll()
+  return orgs.value
+}
+
+async function showSignInResult(result: Awaited<ReturnType<typeof completeEmailSignIn>>) {
+  if (result.kind === 'navigate') await navigateTo(result.to)
+  else if (result.kind === 'invalid_code') {
+    step.value = 'code'
+    error.value = 'Неверный или просроченный код. Попробуйте снова или запросите новый.'
+  } else if (result.kind === 'load_error') step.value = 'load_error'
+  else {
+    entry.value = result
+    step.value = result.kind === 'none' ? 'no_access' : result.kind
   }
 }
 
 async function retryOrganizations() {
   if (submitting.value) return
   submitting.value = true
+  step.value = 'verifying'
   try {
-    await fetchAll()
-    const result = resolveOrganizerEntry(orgs.value)
-    if (result.kind === 'open') await navigateTo(`/m/orgs/${result.org.id}`)
-    else {
-      entry.value = result
-      step.value = result.kind === 'none' ? 'no_access' : result.kind
-    }
+    await showSignInResult(
+      await continueEmailSignIn({
+        session: activeSession,
+        fetchOrgs: organizerOrgs,
+        redirect: route.query.redirect,
+      }),
+    )
   } catch {
     step.value = 'load_error'
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function changeAccount() {
+  if (submitting.value) return
+  submitting.value = true
+  try {
+    await switchEmailAccount({ step, emailStep: 'email', email, code, error, signOut: logout })
+    if (step.value === 'email') entry.value = { kind: 'none' }
   } finally {
     submitting.value = false
   }
@@ -254,7 +273,12 @@ async function chooseOrganization(org: AuthOrg) {
         <p class="text-vt-mute-2">
           Для этого аккаунта нет доступных организаций с ролью владельца или организатора.
         </p>
-        <button type="button" class="vt-btn vt-btn--ghost vt-btn--full" @click="logout">
+        <button
+          type="button"
+          class="vt-btn vt-btn--ghost vt-btn--full"
+          :disabled="submitting"
+          @click="changeAccount"
+        >
           Сменить аккаунт
         </button>
       </section>
