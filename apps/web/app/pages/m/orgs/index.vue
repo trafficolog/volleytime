@@ -39,13 +39,15 @@ function openInvite() {
       </template>
     </VtMiniHeader>
     <main class="px-4 py-4">
-      <SkeletonList v-if="loading" :count="2" />
+      <div v-if="loading" role="status" aria-label="Загружаем группы">
+        <SkeletonList :count="2" />
+      </div>
       <ErrorState v-else-if="loadError" :message="loadError" @retry="load" />
       <EmptyState
         v-else-if="orgs.length === 0"
         icon="users"
-        title="Вы пока не состоите в группах"
-        description="Вступите по ссылке от организатора или создайте свою группу"
+        title="У вас пока нет групп"
+        description="Откройте приглашение от организатора или создайте свою группу."
       >
         <template #action>
           <button type="button" class="vt-btn vt-btn--primary" @click="inviteOpen = true">

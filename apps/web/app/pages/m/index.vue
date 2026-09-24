@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { resolveStartParam } from '@volley-time/shared'
+import { botLink } from '../../utils/auth-flow'
+import { enterMiniApp } from '../../utils/mini-auth-state'
 definePageMeta({ layout: 'miniapp' })
 
 /**
@@ -11,6 +13,9 @@ const { isTelegram, init, authenticate, startParam } = useTelegram()
 const { fetchSession, user } = useAuth()
 const status = ref<'loading' | 'error'>('loading')
 const errorText = ref('')
+const entering = ref(false)
+const runtimeConfig = useRuntimeConfig()
+const telegramUrl = computed(() => botLink(runtimeConfig.public.telegramBotUsername))
 
 async function targetRoute(): Promise<string> {
   const target = resolveStartParam(startParam.value)
@@ -29,40 +34,53 @@ async function targetRoute(): Promise<string> {
   return last && /^\d+$/.test(last) ? `/m/orgs/${last}` : '/m/orgs'
 }
 
-onMounted(async () => {
+async function enter() {
+  if (entering.value) return
+  entering.value = true
+  status.value = 'loading'
+  errorText.value = ''
   init()
   try {
-    if (isTelegram.value) {
-      await authenticate()
+    const result = await enterMiniApp({
+      isTelegram: isTelegram.value,
+      authenticate,
+      fetchSession: async () => {
+        await fetchSession()
+        return Boolean(user.value)
+      },
+      targetRoute,
+    })
+    if (result.kind === 'navigate') {
+      await navigateTo(result.to, { replace: true })
     } else {
-      await fetchSession()
-      if (!user.value) {
-        await navigateTo('/auth/login?redirect=/m/')
-        return
-      }
+      status.value = 'error'
+      errorText.value =
+        result.kind === 'telegram_error'
+          ? 'Не удалось подтвердить вход через Telegram. Откройте приложение из чата с ботом и попробуйте снова.'
+          : 'Не удалось проверить вход. Попробуйте ещё раз.'
     }
-    await navigateTo(await targetRoute(), { replace: true })
-  } catch (e) {
-    status.value = 'error'
-    errorText.value = isTelegram.value
-      ? 'Не удалось войти через Telegram. Перезапустите приложение из чата с ботом.'
-      : 'Не удалось войти. Попробуйте ещё раз.'
-    void e
+  } finally {
+    entering.value = false
   }
-})
+}
+onMounted(enter)
 </script>
 
 <template>
   <main class="flex items-center justify-center min-h-screen px-5">
-    <div v-if="status === 'loading'" class="text-center">
+    <div v-if="status === 'loading'" class="text-center" role="status">
       <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-vt-flame mx-auto mb-3" />
       <p class="text-vt-mute-2 text-sm">Открываем Volley Time…</p>
     </div>
-    <ErrorState
-      v-else
-      :message="errorText"
-      retry-label="Войти по email"
-      @retry="navigateTo('/auth/login?redirect=/m/')"
-    />
+    <div v-else class="w-full max-w-sm text-center space-y-4">
+      <ErrorState :message="errorText" retry-label="Повторить проверку" @retry="enter" />
+      <a
+        v-if="telegramUrl && isTelegram"
+        :href="telegramUrl"
+        rel="noopener"
+        class="vt-btn vt-btn--ghost vt-btn--full"
+        >Открыть бота в Telegram</a
+      >
+    </div>
   </main>
 </template>
