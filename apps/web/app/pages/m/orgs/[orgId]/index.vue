@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import type { Organization, OrganizationMember } from '@volley-time/db'
 import { formatDay, formatShortDate, formatTime } from '@volley-time/shared'
+
 import type { EventListItem } from '~/components/EventCard.vue'
 import { formatMoneyRu } from '~/utils/labels'
 import { canManageOrgSettingsUi, canViewOrgAuditUi } from '~/utils/organization-ui'
+import { playerHomeAccess, projectPlayerHome } from '~/utils/player-home'
+import { createPlayerRequestGuard } from '~/utils/player-request-guard'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
 interface Dashboard {
@@ -30,27 +33,56 @@ const {
   data: orgData,
   error: orgError,
   refresh: refreshOrg,
+  pending: orgLoading,
 } = await useFetch<{
   organization: Organization
   myMember: OrganizationMember
-}>(() => `/api/organizations/${orgId.value}`)
-const org = computed(() => orgData.value?.organization ?? null)
-const me = computed(() => orgData.value?.myMember ?? null)
-const isPending = computed(() => me.value?.status === 'pending')
+}>(() => `/api/organizations/${orgId.value}`, { key: () => `org-home-${orgId.value}` })
+const org = computed(() =>
+  orgData.value?.organization.id === orgId.value ? orgData.value.organization : null,
+)
+const me = computed(() => (org.value ? (orgData.value?.myMember ?? null) : null))
+const access = computed(() => playerHomeAccess(orgId.value, org.value, me.value))
 const canViewAudit = computed(() => canViewOrgAuditUi(me.value))
 const canManageSettings = computed(() => canManageOrgSettingsUi(me.value))
 
-const {
-  data: dash,
-  error: dashError,
-  refresh: refreshDash,
-} = await useFetch<Dashboard>(() => `/api/organizations/${orgId.value}/dashboard`, {
-  immediate: true,
-})
+const dashboard = shallowRef<Dashboard | null>(null)
+const dashboardOrgId = ref<number | null>(null)
+const dashLoading = ref(false)
+const dashError = ref('')
+const dashboardGuard = createPlayerRequestGuard(() => orgId.value)
+const dash = computed(() => (dashboardOrgId.value === orgId.value ? dashboard.value : null))
+const playerHome = computed(() => projectPlayerHome(dash.value?.upcoming ?? [], new Date()))
 
-onMounted(() => {
-  if (import.meta.client) window.localStorage.setItem('vt.lastOrgId', String(orgId.value))
-})
+async function refreshDash() {
+  const requestedOrgId = orgId.value
+  const request = dashboardGuard.begin()
+  dashboard.value = null
+  dashboardOrgId.value = null
+  dashError.value = ''
+  dashLoading.value = true
+  try {
+    const response = await $fetch<Dashboard>(`/api/organizations/${requestedOrgId}/dashboard`)
+    if (!request.isCurrent()) return
+    dashboard.value = response
+    dashboardOrgId.value = requestedOrgId
+  } catch (error) {
+    if (request.isCurrent())
+      dashError.value = apiErrorMessage(error, 'Не удалось загрузить данные группы')
+  } finally {
+    if (request.isCurrent()) dashLoading.value = false
+  }
+}
+await refreshDash()
+watch(orgId, () => void refreshDash())
+
+watch(
+  orgId,
+  (id) => {
+    if (import.meta.client) window.localStorage.setItem('vt.lastOrgId', String(id))
+  },
+  { immediate: true },
+)
 
 const base = computed(() => `/m/orgs/${orgId.value}`)
 </script>
@@ -70,22 +102,32 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
       </template>
     </VtMiniHeader>
 
-    <main class="px-4 py-4 space-y-5">
+    <main class="px-4 py-4 space-y-6">
       <ErrorState v-if="orgError" message="Не удалось открыть группу" @retry="refreshOrg()" />
 
-      <div v-else-if="isPending" class="vt-card p-4" role="status">
+      <SkeletonList v-else-if="orgLoading || access === 'loading'" :count="2" />
+
+      <div v-else-if="access === 'suspended'" class="vt-card p-4" role="status">
+        <VtChip tone="rose" dot>Группа приостановлена</VtChip>
+        <p class="text-sm text-vt-mute-2 mt-2">Запись и покупки сейчас недоступны.</p>
+      </div>
+
+      <div v-else-if="access === 'pending'" class="vt-card p-4" role="status">
         <VtChip tone="amber" dot>Заявка на рассмотрении</VtChip>
         <p class="text-sm text-vt-mute-2 mt-2">
           Организатор получил вашу заявку. Когда её одобрят, откроются события и запись.
         </p>
       </div>
 
+      <ErrorState
+        v-else-if="access === 'denied'"
+        message="Доступ в группу закрыт"
+        @retry="refreshOrg()"
+      />
+
       <template v-else>
-        <ErrorState
-          v-if="dashError"
-          message="Не удалось загрузить данные группы"
-          @retry="refreshDash()"
-        />
+        <ErrorState v-if="dashError" :message="dashError" @retry="refreshDash()" />
+        <SkeletonList v-else-if="dashLoading || !dash" :count="3" />
         <template v-else-if="dash">
           <!-- организатору: деньги -->
           <section v-if="dash.manager" class="grid grid-cols-2 gap-2.5">
@@ -106,6 +148,74 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
               </div>
               <div class="text-xs text-vt-mute-2">баланс группы</div>
             </NuxtLink>
+          </section>
+
+          <section v-if="!dash.isManager" class="space-y-3">
+            <h2 class="text-[30px] leading-none">Ближайшая игра</h2>
+            <div v-if="playerHome.hero" class="grid grid-cols-2 gap-3">
+              <NuxtLink
+                :to="`${base}/events/${playerHome.hero.id}`"
+                class="vt-card vt-card--hero col-span-2 p-5 min-h-52 flex flex-col"
+              >
+                <div class="vt-cap !text-white/75">
+                  {{ formatDay(playerHome.hero.startsAt, tz) }}
+                </div>
+                <div class="vt-mono text-5xl leading-none mt-3">
+                  {{ formatTime(playerHome.hero.startsAt, tz) }}
+                </div>
+                <div class="font-display font-bold text-xl uppercase mt-3">
+                  {{ playerHome.hero.title }}
+                </div>
+                <div
+                  v-if="playerHome.hero.venue || playerHome.hero.locationText"
+                  class="text-sm text-white/75 mt-1"
+                >
+                  {{ playerHome.hero.venue?.name ?? playerHome.hero.locationText }}
+                </div>
+                <div class="mt-auto pt-5">
+                  <div class="h-1.5 rounded-full bg-white/20 overflow-hidden" aria-hidden="true">
+                    <span
+                      class="block h-full rounded-full bg-vt-orange"
+                      :style="{
+                        width: `${Math.min(100, Math.max(0, (playerHome.hero.taken / Math.max(1, playerHome.hero.capacity)) * 100))}%`,
+                      }"
+                    />
+                  </div>
+                  <div class="flex justify-between items-center gap-2 mt-2 text-sm">
+                    <span class="text-white/75">Занято мест</span>
+                    <span class="vt-mono"
+                      >{{ playerHome.hero.taken }}/{{ playerHome.hero.capacity }}</span
+                    >
+                  </div>
+                </div>
+              </NuxtLink>
+              <NuxtLink
+                v-if="dash.subscription"
+                :to="`${base}/subscriptions`"
+                class="vt-card vt-card--warm p-4 min-h-28 flex flex-col justify-between"
+              >
+                <div class="vt-cap">Абонемент</div>
+                <div class="vt-mono text-2xl">
+                  {{ dash.subscription.left }}/{{ dash.subscription.total }}
+                </div>
+                <div class="text-xs text-vt-mute-2">занятий осталось</div>
+              </NuxtLink>
+              <NuxtLink
+                :to="`${base}/bookings`"
+                class="vt-card p-4 min-h-28 flex flex-col justify-between"
+                :class="dash.subscription ? '' : 'col-span-2'"
+              >
+                <VtIcon name="ticket" :size="20" />
+                <div class="font-semibold">Мои записи</div>
+                <div class="text-xs text-vt-mute-2">Предстоящие и прошедшие</div>
+              </NuxtLink>
+            </div>
+            <EmptyState
+              v-else
+              icon="calendar"
+              title="Тренировок пока нет"
+              description="Организатор ещё не опубликовал расписание"
+            />
           </section>
 
           <!-- игроку: мои ближайшие записи и абонемент -->
@@ -151,7 +261,7 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
           </section>
 
           <NuxtLink
-            v-if="org && dash.subscription"
+            v-if="dash.isManager && dash.subscription"
             :to="`${base}/subscriptions`"
             class="vt-card p-4 block"
           >
@@ -180,9 +290,13 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
 
           <section>
             <div class="flex items-center justify-between mb-2">
-              <h2 class="vt-cap">Ближайшие события</h2>
-              <NuxtLink :to="`${base}/events`" class="text-xs font-semibold text-vt-link"
-                >Все</NuxtLink
+              <h2 class="font-display font-bold text-xl uppercase">
+                {{ dash.isManager ? 'Ближайшие события' : 'Расписание' }}
+              </h2>
+              <NuxtLink
+                :to="`${base}/events`"
+                class="text-sm font-semibold text-vt-link min-h-11 inline-flex items-center"
+                >Все события</NuxtLink
               >
             </div>
             <EmptyState v-if="dash.upcoming.length === 0" icon="calendar" title="Событий пока нет">
@@ -192,8 +306,17 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
                 >
               </template>
             </EmptyState>
-            <ul v-else class="space-y-2.5">
-              <li v-for="ev in dash.upcoming.slice(0, 3)" :key="ev.id">
+            <p
+              v-else-if="!dash.isManager && playerHome.schedule.length === 0"
+              class="text-sm text-vt-mute-2"
+            >
+              Других событий пока нет.
+            </p>
+            <ul v-else class="space-y-3">
+              <li
+                v-for="ev in dash.isManager ? dash.upcoming.slice(0, 3) : playerHome.schedule"
+                :key="ev.id"
+              >
                 <EventCard :event="ev" :tz="tz" :to="`${base}/events/${ev.id}`" />
               </li>
             </ul>
