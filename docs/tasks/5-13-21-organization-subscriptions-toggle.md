@@ -2,10 +2,10 @@
 id: '5.13.21'
 phase: '5'
 epic: '5.13'
-status: in_progress
+status: done
 sync_state: synced
 last_reviewed: 2026-09-24
-status_note: 'Локальные критерии и независимое ревью выполнены; карточка остаётся in_progress до PR, CI и merge в main. Реальный Telegram QA остаётся в 8.10.3.'
+status_note: 'PR #39 смёржен в GitHub main (dafb98b); CI PR и main зелёные. Реальный Telegram QA и общий визуальный QA R0.6 остаются в 8.10.3.'
 roles: [BACK, FE, QA]
 depends_on: ['5.13.20', '3.11.2']
 estimated_hours: '8-12'
@@ -39,6 +39,8 @@ tags: [subscriptions, organizations, settings, mvp, redesign]
 - Пять gates (`format:check`, `lint`, `typecheck`, `test`, `build`) зелёные. Визуальный smoke 320/390 px и Telegram QA фиксируются отдельно; tests не выдаются за production-проверку.
 
 ## Локальное свидетельство (2026-09-24)
+
+- PR #39 смёржен в GitHub `main` как `dafb98bb8edfa79f6a6459bcd9cda5c3991bd17e`. Семь task-коммитов перенесены на `origin/main` без изменений патчей (`git range-diff`: 7/7). CI PR #39 и CI merge-коммита `36030724975` завершились успешно; `prod` не обновлялся.
 
 - Схема, миграция `0019` (`DEFAULT true NOT NULL`), owner-only PATCH и аудит проверены интеграционными тестами. Новые план, покупка и запись по абонементу возвращают предметный `409`; cash/transfer/free и ранее оформленные обязательства сохраняются. После повторного включения действующий остаток снова разрешён.
 - После исправления замечаний ревью `pnpm format:check`, `pnpm lint` (0 ошибок; предупреждения вне изменённых файлов), `pnpm typecheck` (6/6), `pnpm test` (86 файлов / 471 тест), `pnpm build` (2/2) выполнены в изолированной локальной ветке.
