@@ -147,7 +147,7 @@ async function submit() {
       </div>
       <button
         type="button"
-        class="text-xs font-semibold text-vt-flame mt-1.5"
+        class="text-xs font-semibold text-vt-link mt-1.5"
         @click="addingVenue = !addingVenue"
       >
         {{ addingVenue ? 'Выбрать из списка' : '+ Новая площадка' }}

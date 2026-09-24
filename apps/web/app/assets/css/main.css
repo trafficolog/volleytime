@@ -118,7 +118,7 @@
   }
   .vt-btn--grass {
     background: var(--vt-grass);
-    color: var(--vt-on-accent);
+    color: var(--vt-on-grass);
   }
   .vt-btn--sm {
     padding: 7px 10px;
@@ -165,7 +165,7 @@
   }
   .vt-chip--flame {
     background: var(--vt-accent-soft);
-    color: var(--vt-flame-deep);
+    color: var(--vt-flame-ink);
     border-color: var(--vt-ring);
   }
   .vt-chip--amber {
@@ -231,7 +231,7 @@
   }
   .vt-avi--grass {
     background: var(--vt-grass);
-    color: var(--vt-on-accent);
+    color: var(--vt-on-grass);
     border-color: transparent;
   }
   .vt-stack {
@@ -257,6 +257,12 @@
     transition:
       border-color 0.12s,
       box-shadow 0.12s;
+  }
+  .vt-field.vt-code {
+    font-family: var(--f-mono);
+  }
+  .vt-field.vt-mono {
+    font-family: var(--f-num);
   }
   .vt-field:focus-visible {
     border-color: var(--vt-focus);

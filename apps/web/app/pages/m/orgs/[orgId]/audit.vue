@@ -105,7 +105,7 @@ function detailsValue(value: unknown): string {
                   v-if="entry.oldValue !== null || entry.newValue !== null"
                   class="mt-2 text-xs"
                 >
-                  <summary class="cursor-pointer font-semibold text-vt-flame">Подробнее</summary>
+                  <summary class="cursor-pointer font-semibold text-vt-link">Подробнее</summary>
                   <pre
                     class="mt-2 p-2 rounded-lg bg-vt-bone-2 overflow-x-auto whitespace-pre-wrap break-words"
                     >{{ detailsValue({ old: entry.oldValue, new: entry.newValue }) }}</pre>

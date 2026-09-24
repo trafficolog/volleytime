@@ -5,7 +5,7 @@ epic: '3.11'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-24
-status_note: 'RED→GREEN и пять локальных gates выполнены; PR/CI/merge и визуальный smoke ещё не подтверждены. Browser loopback недоступен в текущем окружении, полный визуальный QA закреплён за 8.10.3.'
+status_note: 'RED→GREEN, проверка контраста и пять локальных gates выполнены; после review исправлены тёмные ссылки, success-кнопка и типографика полей. Обновлённый PR/CI/merge ещё не подтверждены. Browser loopback недоступен в текущем окружении, полный визуальный QA закреплён за 8.10.3.'
 roles: [FE, QA]
 depends_on: []
 estimated_hours: '4-6'

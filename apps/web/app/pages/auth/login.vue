@@ -147,7 +147,7 @@ async function onVerify() {
           <button
             v-else
             type="button"
-            class="font-semibold text-vt-flame"
+            class="font-semibold text-vt-link"
             :disabled="submitting"
             @click="sendCode"
           >

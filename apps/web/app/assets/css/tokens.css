@@ -16,6 +16,7 @@
 
   --vt-flame: #2437c9;
   --vt-flame-deep: #1a2aa3;
+  --vt-link: #1a2aa3;
   --vt-blue-ink: #1f2e96;
   --vt-orange: #ff6b1f;
   --vt-orange-soft: #ffe9dc;
@@ -40,6 +41,7 @@
   --vt-shadow-float: 0 14px 32px -8px rgba(21, 22, 26, 0.3);
   --vt-shadow-accent: 0 16px 32px -14px rgba(36, 55, 201, 0.55);
   --vt-on-accent: #ffffff;
+  --vt-on-grass: #ffffff;
   --vt-tg-blue: #2aabee;
 
   --r-card: 20px;
@@ -86,6 +88,8 @@
   --vt-rose-ink: #ffa3ad;
   --vt-amber-ink: #ffd07a;
   --vt-flame-ink: color-mix(in oklab, var(--vt-flame) 55%, white);
+  --vt-link: #adb6ff;
+  --vt-on-grass: #15161a;
   --vt-focus: #f2f2f5;
   --vt-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px -10px rgba(0, 0, 0, 0.6);
   --vt-orange-soft: #3a2418;

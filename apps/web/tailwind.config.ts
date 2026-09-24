@@ -21,6 +21,7 @@ export default {
           mute: v('mute'),
           'mute-2': v('mute-2'),
           flame: v('flame'),
+          link: v('link'),
           'flame-deep': v('flame-deep'),
           orange: v('orange'),
           amber: v('amber'),

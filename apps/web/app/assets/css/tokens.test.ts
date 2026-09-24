@@ -7,6 +7,20 @@ const tailwind = readFileSync(new URL('../../../tailwind.config.ts', import.meta
 const nuxt = readFileSync(new URL('../../../nuxt.config.ts', import.meta.url), 'utf8')
 const main = readFileSync(new URL('./main.css', import.meta.url), 'utf8')
 
+function contrastRatio(foreground: string | undefined, background: string | undefined): number {
+  if (!foreground || !background) return 0
+  const luminance = (hex: string) => {
+    const channels = [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16) / 255)
+    const [r = 0, g = 0, b = 0] = channels.map((channel) =>
+      channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
+    )
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+  }
+  const a = luminance(foreground)
+  const b = luminance(background)
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
+}
+
 function declarations(selector: ':root' | '.dark'): Record<string, string> {
   const escaped =
     selector === '.dark' ? '(?:\\.dark\\s*,\\s*\\.vt-dark|\\.dark|\\.vt-dark)' : ':root'
@@ -66,5 +80,30 @@ describe('Bento Bold design token contract', () => {
       '--vt-grass': '#456f34',
       '--vt-rose': '#be2f3f',
     })
+  })
+
+  it('keeps accent links and success buttons readable in both themes', () => {
+    const light = declarations(':root')
+    const dark = { ...light, ...declarations('.dark') }
+    for (const theme of [light, dark]) {
+      expect(contrastRatio(theme['--vt-link'], theme['--vt-paper'])).toBeGreaterThanOrEqual(4.5)
+      expect(contrastRatio(theme['--vt-link'], theme['--vt-bone'])).toBeGreaterThanOrEqual(4.5)
+      expect(contrastRatio(theme['--vt-on-grass'], theme['--vt-grass'])).toBeGreaterThanOrEqual(4.5)
+    }
+    expect(tailwind).toContain("link: v('link')")
+    expect(main).toContain('color: var(--vt-on-grass)')
+    expect(main).toContain('color: var(--vt-flame-ink)')
+    expect(main.match(/color: var\(--vt-on-grass\)/g)).toHaveLength(2)
+  })
+
+  it('keeps OTP fields monospace despite generic field font inheritance', () => {
+    const field = main.indexOf('.vt-field {')
+    const override = main.indexOf('.vt-field.vt-code {')
+    expect(field).toBeGreaterThanOrEqual(0)
+    expect(override).toBeGreaterThan(field)
+    expect(main.slice(override)).toContain('font-family: var(--f-mono)')
+    const numericOverride = main.indexOf('.vt-field.vt-mono {')
+    expect(numericOverride).toBeGreaterThan(field)
+    expect(main.slice(numericOverride)).toContain('font-family: var(--f-num)')
   })
 })
