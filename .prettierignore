@@ -3,6 +3,7 @@ dist
 .nuxt
 .output
 .turbo
+.pnpm-store
 coverage
 pnpm-lock.yaml
 legacy

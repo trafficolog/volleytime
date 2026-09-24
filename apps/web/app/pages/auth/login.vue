@@ -130,7 +130,7 @@ async function onVerify() {
           pattern="[0-9]{6}"
           required
           placeholder="••••••"
-          class="vt-field vt-mono text-center text-xl tracking-[0.5em]"
+          class="vt-field vt-code text-center text-xl tracking-[0.5em]"
         />
         <button
           type="submit"

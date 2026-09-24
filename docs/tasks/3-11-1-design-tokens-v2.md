@@ -2,10 +2,10 @@
 id: '3.11.1'
 phase: '3'
 epic: '3.11'
-status: todo
+status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-24
-status_note: ''
+status_note: 'RED→GREEN и пять локальных gates выполнены; PR/CI/merge и визуальный smoke ещё не подтверждены. Browser loopback недоступен в текущем окружении, полный визуальный QA закреплён за 8.10.3.'
 roles: [FE, QA]
 depends_on: []
 estimated_hours: '4-6'
@@ -20,7 +20,7 @@ tags: [design-system, mvp, redesign]
 
 ## Контекст
 
-Текущий UI использует Space Grotesk/Manrope и тёплые поверхности. [Карта v2](../design/2026-09-23-reference-v2.md) фиксирует финальный слой референса, перекрывающий старый `:root`.
+Текущий UI использует Space Grotesk/Manrope и тёплые поверхности. [Карта v2](../design/2026-09-23-reference-v2.md) фиксирует единые токены очищенного референса.
 
 ## Что должно быть сделано
 
@@ -38,7 +38,7 @@ tags: [design-system, mvp, redesign]
 
 ## Подсказки
 
-- Второй `:root` в архивном `styles.css` — финальный. Не копировать JSX и моковые данные.
+- Очищенный `styles.css` содержит один `:root` и `.vt-dark`. Не копировать JSX и моковые данные.
 
 ## Не делать
 
