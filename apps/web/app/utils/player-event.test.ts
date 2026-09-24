@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { projectPlayerEvent } from './player-event'
+import { playerEventReady, projectPlayerEvent } from './player-event'
 
 const now = new Date('2026-09-24T10:00:00Z')
 const event = {
@@ -15,6 +15,23 @@ const event = {
 const access = { memberActive: true, subscriptionsEnabled: true, hasEligibleSubscription: true }
 
 describe('player event view state', () => {
+  it('blocks actions while current sources refresh or fail, despite retained matching data', () => {
+    const current = {
+      eventMatches: true,
+      organizationMatches: true,
+      eventPending: false,
+      organizationPending: false,
+      eventError: false,
+      organizationError: false,
+    }
+    expect(playerEventReady(current)).toBe(true)
+    expect(playerEventReady({ ...current, eventPending: true })).toBe(false)
+    expect(playerEventReady({ ...current, organizationPending: true })).toBe(false)
+    expect(playerEventReady({ ...current, eventError: true })).toBe(false)
+    expect(playerEventReady({ ...current, organizationError: true })).toBe(false)
+    expect(playerEventReady({ ...current, organizationMatches: false })).toBe(false)
+  })
+
   it('uses booking for a published paid event and only real eligible methods', () => {
     expect(projectPlayerEvent(event, access, now)).toMatchObject({
       action: 'book',
@@ -61,9 +78,10 @@ describe('player event view state', () => {
   )
 
   it('permits rebooking after a cancelled record', () => {
-    expect(
-      projectPlayerEvent({ ...event, myBooking: { status: 'cancelled' } }, access, now).action,
-    ).toBe('book')
+    const view = projectPlayerEvent({ ...event, myBooking: { status: 'cancelled' } }, access, now)
+    expect(view.action).toBe('book')
+    expect(view.hasBooking).toBe(false)
+    expect(view.bookingCard).toMatchObject({ title: 'Запись отменена' })
   })
 
   it('keeps deadline and started-event cancellation restrictions for all statuses', () => {

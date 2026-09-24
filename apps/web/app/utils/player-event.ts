@@ -1,3 +1,57 @@
+export function playerEventReady(sources: {
+  eventMatches: boolean
+  organizationMatches: boolean
+  eventPending: boolean
+  organizationPending: boolean
+  eventError: boolean
+  organizationError: boolean
+}) {
+  return (
+    sources.eventMatches &&
+    sources.organizationMatches &&
+    !sources.eventPending &&
+    !sources.organizationPending &&
+    !sources.eventError &&
+    !sources.organizationError
+  )
+}
+
+const BOOKING_CARDS: Record<
+  string,
+  { tone: 'grass' | 'amber' | 'default'; title: string; text: string }
+> = {
+  confirmed: {
+    tone: 'grass',
+    title: 'Вы записаны',
+    text: 'Место за вами. До встречи на площадке!',
+  },
+  attended: {
+    tone: 'grass',
+    title: 'Вы были на тренировке',
+    text: 'Посещение отмечено организатором.',
+  },
+  no_show: {
+    tone: 'default',
+    title: 'Отмечено: не пришли',
+    text: 'Если это ошибка — напишите организатору.',
+  },
+  pending_payment: {
+    tone: 'amber',
+    title: 'Место забронировано — ждёт оплаты',
+    text: 'Оплатите организатору наличными или переводом, он подтвердит оплату.',
+  },
+  waitlisted: {
+    tone: 'default',
+    title: 'Вы в листе ожидания',
+    text: 'Если кто-то отменит запись, место перейдёт к вам — пришлём уведомление.',
+  },
+  cancelled: {
+    tone: 'default',
+    title: 'Запись отменена',
+    text: 'Если места ещё доступны, можно записаться снова.',
+  },
+}
+
 export function projectPlayerEvent(
   event: {
     status: string
@@ -40,5 +94,12 @@ export function projectPlayerEvent(
     ['confirmed', 'pending_payment', 'waitlisted'].includes(bookingStatus ?? '') &&
     (deadline === null || now <= deadline)
 
-  return { action, paymentMethods, bookingStatus, canCancel }
+  return {
+    action,
+    paymentMethods,
+    bookingStatus,
+    bookingCard: bookingStatus ? (BOOKING_CARDS[bookingStatus] ?? null) : null,
+    hasBooking,
+    canCancel,
+  }
 }

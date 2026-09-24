@@ -40,10 +40,14 @@ const {
   myMember: OrganizationMember
 }>(() => `/api/organizations/${orgId.value}`, { key: () => `org-home-${orgId.value}` })
 const org = computed(() =>
-  orgData.value?.organization.id === orgId.value ? orgData.value.organization : null,
+  !orgError.value && orgData.value?.organization.id === orgId.value
+    ? orgData.value.organization
+    : null,
 )
 const me = computed(() => (org.value ? (orgData.value?.myMember ?? null) : null))
-const access = computed(() => playerHomeAccess(orgId.value, org.value, me.value))
+const access = computed(() =>
+  playerHomeAccess(orgId.value, org.value, me.value, apiErrorCode(orgError.value)),
+)
 const isManager = computed(
   () => me.value?.status === 'active' && ['owner', 'organizer'].includes(me.value.role),
 )
@@ -153,7 +157,11 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
     </header>
 
     <main class="px-4 py-4 space-y-6">
-      <ErrorState v-if="orgError" message="Не удалось открыть группу" @retry="refreshOrg()" />
+      <ErrorState
+        v-if="orgError && access !== 'suspended'"
+        message="Не удалось открыть группу"
+        @retry="refreshOrg()"
+      />
 
       <SkeletonList v-else-if="orgLoading || access === 'loading'" :count="2" />
 

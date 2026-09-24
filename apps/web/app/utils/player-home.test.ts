@@ -67,4 +67,9 @@ describe('player home membership gate', () => {
       'suspended',
     )
   })
+
+  it('recognizes the tenant suspended error before organization details can load', () => {
+    expect(playerHomeAccess(3, null, null, 'organization.suspended')).toBe('suspended')
+    expect(playerHomeAccess(3, null, null, 'organization.archived')).toBe('loading')
+  })
 })

@@ -3,7 +3,7 @@ import type { Event, Organization, OrganizationMember, Subscription } from '@vol
 import { formatDay, formatTime } from '@volley-time/shared'
 
 import { displayName, formatPrice } from '~/utils/labels'
-import { projectPlayerEvent } from '~/utils/player-event'
+import { playerEventReady, projectPlayerEvent } from '~/utils/player-event'
 import { bookingPayload, runPlayerEventAction } from '~/utils/player-event-action'
 import { playerHomeAccess } from '~/utils/player-home'
 import { createPlayerRequestGuard } from '~/utils/player-request-guard'
@@ -55,8 +55,18 @@ const ev = computed(() =>
     : null,
 )
 const roster = computed(() => (ev.value ? (data.value?.roster ?? []) : []))
+const sourcesReady = computed(() =>
+  playerEventReady({
+    eventMatches: !!ev.value,
+    organizationMatches: !!organization.value,
+    eventPending: eventLoading.value,
+    organizationPending: orgLoading.value,
+    eventError: !!loadError.value,
+    organizationError: !!orgError.value,
+  }),
+)
 const isManager = computed(() => {
-  const m = organization.value ? orgData.value?.myMember : null
+  const m = sourcesReady.value ? orgData.value?.myMember : null
   return !!m && m.status === 'active' && ['owner', 'organizer'].includes(m.role)
 })
 const subscriptionsEnabled = computed(() => organization.value?.subscriptionsEnabled ?? null)
@@ -66,7 +76,7 @@ const full = computed(() => !!ev.value && ev.value.taken >= ev.value.capacity)
 const started = computed(() => !!ev.value && new Date(ev.value.startsAt) <= new Date())
 const subs = ref<Subscription[]>([])
 const eventView = computed(() =>
-  ev.value
+  sourcesReady.value && ev.value
     ? projectPlayerEvent(
         ev.value,
         {
@@ -89,43 +99,18 @@ const cancelDeadline = computed(() => {
 })
 const canCancel = computed(() => eventView.value?.canCancel === true)
 
-const MY_STATE: Record<
-  string,
-  { tone: 'grass' | 'amber' | 'default'; title: string; text: string }
-> = {
-  confirmed: {
-    tone: 'grass',
-    title: 'Вы записаны',
-    text: 'Место за вами. До встречи на площадке!',
-  },
-  attended: {
-    tone: 'grass',
-    title: 'Вы были на тренировке',
-    text: 'Посещение отмечено организатором.',
-  },
-  no_show: {
-    tone: 'default',
-    title: 'Отмечено: не пришли',
-    text: 'Если это ошибка — напишите организатору.',
-  },
-  pending_payment: {
-    tone: 'amber',
-    title: 'Место забронировано — ждёт оплаты',
-    text: 'Оплатите организатору наличными или переводом, он подтвердит оплату.',
-  },
-  waitlisted: {
-    tone: 'default',
-    title: 'Вы в листе ожидания',
-    text: 'Если кто-то отменит запись, место перейдёт к вам — пришлём уведомление.',
-  },
-}
-
 // выбор способа
 const sheetOpen = ref(false)
 const submitting = ref(false)
 const actionError = ref('')
 const routeGuard = createPlayerRequestGuard(() => `${orgId.value}:${eventId.value}`)
 const optionsGuard = createPlayerRequestGuard(() => `${orgId.value}:${eventId.value}`)
+
+watch(sourcesReady, (ready) => {
+  if (ready) return
+  optionsGuard.invalidate()
+  sheetOpen.value = false
+})
 
 async function retryPage() {
   await Promise.all([refresh(), refreshNuxtData(`player-event-org-${orgId.value}`)])
@@ -343,11 +328,14 @@ async function cancelMine() {
         <p v-else class="text-sm text-vt-mute-2 mt-3">Пока никто не записался — будьте первым.</p>
       </section>
 
-      <section v-if="my" class="vt-card p-4" role="status" aria-label="Ваша запись">
-        <VtChip :tone="MY_STATE[my.status]?.tone ?? 'default'" dot>{{
-          MY_STATE[my.status]?.title ?? 'Запись'
-        }}</VtChip>
-        <p class="text-sm text-vt-mute-2 mt-2">{{ MY_STATE[my.status]?.text }}</p>
+      <section
+        v-if="my && eventView?.bookingCard"
+        class="vt-card p-4"
+        role="status"
+        aria-label="Ваша запись"
+      >
+        <VtChip :tone="eventView.bookingCard.tone" dot>{{ eventView.bookingCard.title }}</VtChip>
+        <p class="text-sm text-vt-mute-2 mt-2">{{ eventView.bookingCard.text }}</p>
         <button
           v-if="canCancel"
           type="button"
@@ -365,7 +353,7 @@ async function cancelMine() {
         </p>
       </section>
 
-      <p v-if="cancelDeadline && !my && bookable" class="text-xs text-vt-mute-2">
+      <p v-if="cancelDeadline && !eventView?.hasBooking && bookable" class="text-xs text-vt-mute-2">
         Отменить запись можно до {{ formatDay(cancelDeadline, tz) }},
         {{ formatTime(cancelDeadline, tz) }}.
       </p>
@@ -404,7 +392,7 @@ async function cancelMine() {
           {{ eventView?.action === 'waitlist' ? 'Встать в лист ожидания' : 'Записаться' }}
         </button>
       </div>
-      <p v-else-if="started && !my" class="text-sm text-vt-mute-2 text-center">
+      <p v-else-if="started && !eventView?.hasBooking" class="text-sm text-vt-mute-2 text-center">
         Запись закрыта — событие уже началось.
       </p>
     </main>

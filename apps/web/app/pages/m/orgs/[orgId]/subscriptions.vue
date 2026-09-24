@@ -217,7 +217,8 @@ async function retryPage() {
               <button
                 v-if="s.usage.length"
                 type="button"
-                class="text-xs font-semibold text-vt-link mt-2"
+                class="inline-flex min-h-11 items-center text-xs font-semibold text-vt-link mt-2"
+                :aria-expanded="openHistory === s.id"
                 @click="openHistory = openHistory === s.id ? null : s.id"
               >
                 {{

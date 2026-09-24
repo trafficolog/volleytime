@@ -4,7 +4,9 @@ export function playerHomeAccess(
   orgId: number,
   organization: { id: number; status: string } | null,
   member: { status: string } | null,
+  errorCode?: string,
 ) {
+  if (errorCode === 'organization.suspended') return 'suspended'
   if (!organization || organization.id !== orgId) return 'loading'
   if (organization.status === 'suspended') return 'suspended'
   if (member?.status === 'pending') return 'pending'
