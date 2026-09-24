@@ -39,4 +39,16 @@ describe('player route request guard', () => {
     expect(first.isCurrent()).toBe(false)
     expect(second.isCurrent()).toBe(true)
   })
+
+  it('discards an in-flight request after leaving and returning to the same route', () => {
+    let key = 'org:1:event:2'
+    const guard = createPlayerRequestGuard(() => key)
+    const original = guard.begin()
+
+    key = 'org:2:event:3'
+    guard.invalidate()
+    key = 'org:1:event:2'
+
+    expect(original.isCurrent()).toBe(false)
+  })
 })
