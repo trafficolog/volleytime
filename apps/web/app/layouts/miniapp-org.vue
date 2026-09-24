@@ -32,7 +32,7 @@ const tabs = computed<TabItem[]>(() =>
 </script>
 
 <template>
-  <div class="min-h-screen bg-vt-paper text-vt-ink pb-[68px]">
+  <div class="min-h-screen bg-vt-paper text-vt-ink pb-[calc(86px+env(safe-area-inset-bottom))]">
     <OfflineBanner />
     <slot />
     <VtTabBar :items="tabs" />

@@ -20,7 +20,7 @@ onUnmounted(() => cleanup?.())
   <header class="vt-miniheader">
     <div class="flex items-center gap-2.5 min-w-0">
       <NuxtLink
-        v-if="back"
+        v-if="back && !useNativeBack"
         :to="back"
         class="vt-btn vt-btn--ghost vt-btn--sm !px-2"
         aria-label="Назад"

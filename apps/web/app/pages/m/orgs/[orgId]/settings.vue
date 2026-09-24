@@ -173,7 +173,7 @@ async function onArchive() {
           </button>
         </form>
 
-        <section class="vt-card p-4 mt-5 border-vt-rose">
+        <section class="vt-card p-4 mt-5 border border-vt-rose">
           <h2 class="font-semibold text-vt-rose-ink">Архивировать группу</h2>
           <p class="text-sm text-vt-mute-2 mt-1 mb-3">
             Группа перестанет быть активной. Данные и история сохранятся.
