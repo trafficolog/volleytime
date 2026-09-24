@@ -6,6 +6,7 @@ import type { EventListItem } from '~/components/EventCard.vue'
 import { formatMoneyRu } from '~/utils/labels'
 import { canManageOrgSettingsUi, canViewOrgAuditUi } from '~/utils/organization-ui'
 import { playerHomeAccess, projectPlayerHome } from '~/utils/player-home'
+import { playerGroupOptions } from '~/utils/player-navigation'
 import { createPlayerRequestGuard } from '~/utils/player-request-guard'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
@@ -43,8 +44,30 @@ const org = computed(() =>
 )
 const me = computed(() => (org.value ? (orgData.value?.myMember ?? null) : null))
 const access = computed(() => playerHomeAccess(orgId.value, org.value, me.value))
+const isManager = computed(
+  () => me.value?.status === 'active' && ['owner', 'organizer'].includes(me.value.role),
+)
 const canViewAudit = computed(() => canViewOrgAuditUi(me.value))
 const canManageSettings = computed(() => canManageOrgSettingsUi(me.value))
+const { orgs, loading: groupsLoading, fetchAll, selectOrg } = useOrganizations()
+const groupsOpen = ref(false)
+const groupsError = ref('')
+const groupOptions = computed(() => playerGroupOptions(orgs.value, orgId.value))
+
+async function openGroups() {
+  groupsOpen.value = true
+  groupsError.value = ''
+  try {
+    await fetchAll()
+  } catch (error) {
+    groupsError.value = apiErrorMessage(error, 'Не удалось загрузить группы')
+  }
+}
+
+function chooseGroup(group: { id: number; selectable: boolean }) {
+  if (group.selectable) selectOrg(group.id)
+  groupsOpen.value = false
+}
 
 const dashboard = shallowRef<Dashboard | null>(null)
 const dashboardOrgId = ref<number | null>(null)
@@ -89,7 +112,12 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
 
 <template>
   <div class="min-h-screen">
-    <VtMiniHeader :title="org?.name ?? 'Группа'" :sub="org?.city ?? undefined" back="/m/orgs">
+    <VtMiniHeader
+      v-if="isManager"
+      :title="org?.name ?? 'Группа'"
+      :sub="org?.city ?? undefined"
+      back="/m/orgs"
+    >
       <template #right>
         <NuxtLink
           v-if="dash?.isManager"
@@ -101,6 +129,28 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
         </NuxtLink>
       </template>
     </VtMiniHeader>
+    <header v-else class="vt-miniheader">
+      <button
+        type="button"
+        class="flex items-center gap-3 min-w-0 min-h-11 text-left"
+        :disabled="!org"
+        :aria-label="org ? `Выбрать группу. Сейчас ${org.name}` : 'Загрузка группы'"
+        @click="openGroups"
+      >
+        <span class="vt-avi vt-avi--lg !rounded-xl bg-vt-bone" aria-hidden="true">
+          <img src="/logo.png" alt="" class="!object-contain p-1" />
+        </span>
+        <span class="min-w-0">
+          <span class="font-semibold text-[15px] truncate flex items-center gap-1">
+            {{ org?.name ?? 'Группа' }} <VtIcon name="chevron-r" :size="14" class="rotate-90" />
+          </span>
+          <span v-if="org?.city" class="block text-xs text-vt-mute-2 truncate">{{ org.city }}</span>
+        </span>
+      </button>
+      <NuxtLink to="/m/orgs" class="vt-btn vt-btn--ghost vt-btn--sm" aria-label="Мои группы">
+        <VtIcon name="users" :size="18" />
+      </NuxtLink>
+    </header>
 
     <main class="px-4 py-4 space-y-6">
       <ErrorState v-if="orgError" message="Не удалось открыть группу" @retry="refreshOrg()" />
@@ -358,5 +408,39 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
         </template>
       </template>
     </main>
+
+    <VtSheet v-model="groupsOpen" title="Мои группы">
+      <SkeletonList v-if="groupsLoading" :count="2" />
+      <ErrorState v-else-if="groupsError" :message="groupsError" @retry="openGroups" />
+      <ul v-else class="space-y-3">
+        <li v-for="group in groupOptions" :key="group.id">
+          <NuxtLink
+            :to="group.to"
+            class="vt-card p-4 flex items-center gap-3 min-h-11"
+            :aria-current="group.selected ? 'true' : undefined"
+            @click="chooseGroup(group)"
+          >
+            <VtIcon :name="group.selected ? 'check' : 'users'" :size="18" />
+            <span class="min-w-0 flex-1">
+              <span class="block font-semibold truncate">{{ group.name }}</span>
+              <span
+                v-if="group.statusLabel || group.city"
+                class="block text-xs text-vt-mute-2 mt-1"
+              >
+                {{ group.statusLabel ?? group.city }}
+              </span>
+            </span>
+            <VtIcon name="chevron-r" :size="16" />
+          </NuxtLink>
+        </li>
+      </ul>
+      <NuxtLink
+        to="/m/orgs"
+        class="vt-btn vt-btn--ghost vt-btn--full mt-4"
+        @click="groupsOpen = false"
+      >
+        Вступить по приглашению
+      </NuxtLink>
+    </VtSheet>
   </div>
 </template>
