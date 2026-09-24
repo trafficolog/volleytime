@@ -7,6 +7,15 @@ definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 const route = useRoute()
 const orgId = computed(() => Number(route.params.orgId))
 const { confirm } = useTelegram()
+const { data: orgData, error: orgError } = await useFetch<{
+  organization: { id: number; subscriptionsEnabled: boolean }
+}>(() => `/api/organizations/${orgId.value}`)
+const allowCreate = computed(
+  () =>
+    !orgError.value &&
+    orgData.value?.organization.id === orgId.value &&
+    orgData.value.organization.subscriptionsEnabled === true,
+)
 
 const plans = ref<SubscriptionPlan[]>([])
 const loadError = ref('')
@@ -32,6 +41,7 @@ const form = reactive({
 const saving = ref(false)
 const formError = ref('')
 async function create() {
+  if (!allowCreate.value) return
   saving.value = true
   formError.value = ''
   try {
@@ -52,6 +62,9 @@ async function create() {
     saving.value = false
   }
 }
+watch(allowCreate, (allowed) => {
+  if (!allowed) showForm.value = false
+})
 async function archive(p: SubscriptionPlan) {
   if (
     !(await confirm(
@@ -73,14 +86,14 @@ async function archive(p: SubscriptionPlan) {
     <VtMiniHeader title="Планы абонементов" :back="`/m/orgs/${orgId}`" />
     <main class="px-4 py-4 space-y-4">
       <button
-        v-if="!showForm"
+        v-if="allowCreate && !showForm"
         type="button"
         class="vt-btn vt-btn--primary vt-btn--full"
         @click="showForm = true"
       >
         <VtIcon name="plus" :size="16" /> Новый план
       </button>
-      <form v-else class="vt-card p-4 space-y-3" @submit.prevent="create">
+      <form v-else-if="allowCreate" class="vt-card p-4 space-y-3" @submit.prevent="create">
         <div>
           <label class="vt-label" for="pl-name">Название</label>
           <input id="pl-name" v-model="form.name" class="vt-field" required minlength="2" />
@@ -130,12 +143,23 @@ async function archive(p: SubscriptionPlan) {
           </button>
         </div>
       </form>
+      <p v-if="!allowCreate" class="vt-card p-4 text-sm text-vt-mute-2">
+        {{
+          orgData?.organization.subscriptionsEnabled === false
+            ? 'Абонементы выключены в настройках группы. Существующие планы сохранены.'
+            : 'Не удалось проверить настройки группы. Создание плана недоступно.'
+        }}
+      </p>
       <ErrorState v-if="loadError" :message="loadError" @retry="load" />
       <EmptyState
         v-else-if="plans.length === 0"
         icon="ticket"
         title="Планов пока нет"
-        description="Создайте абонемент — игроки смогут купить его в приложении"
+        :description="
+          allowCreate
+            ? 'Создайте абонемент — игроки смогут купить его в приложении'
+            : 'Существующие планы появятся здесь после включения абонементов'
+        "
       />
       <ul v-else class="space-y-2.5">
         <li v-for="p in plans" :key="p.id" class="vt-card p-3.5 flex items-center gap-3">

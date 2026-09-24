@@ -89,6 +89,39 @@ describe('Phase 4 API security (integration)', () => {
     )
   })
 
+  it('only the owner changes subscription availability', async () => {
+    const off = await request('PATCH', `/api/organizations/${orgA}`, {
+      user: ownerA,
+      body: { subscriptionsEnabled: false },
+    })
+    expect(off.status).toBe(200)
+    expect(off.body).toMatchObject({ organization: { subscriptionsEnabled: false } })
+    for (const user of [organizerA, playerA]) {
+      expect(
+        (
+          await request('PATCH', `/api/organizations/${orgA}`, {
+            user,
+            body: { subscriptionsEnabled: true },
+          })
+        ).status,
+      ).toBe(403)
+    }
+    expect(
+      (
+        await request('GET', `/api/organizations/${orgA}`, {
+          user: playerA,
+        })
+      ).body,
+    ).toMatchObject({ organization: { subscriptionsEnabled: false } })
+    expect(
+      (
+        await request('GET', `/api/organizations/${orgA}`, {
+          user: ownerB,
+        })
+      ).status,
+    ).toBe(403)
+  })
+
   it('P1#4: cannot revoke invite of another organization', async () => {
     const invB = await inviteService.create({ userId: ownerB }, { organizationId: orgB })
     const r = await request('POST', `/api/organizations/${orgA}/invites/${invB.id}/revoke`, {

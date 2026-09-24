@@ -91,6 +91,33 @@ describe('subscriptionService (integration)', () => {
     expect(days).toBeLessThan(30.1)
   })
 
+  it('rejects new purchases while off and preserves a pending purchase for confirmation', async () => {
+    const { paymentService } = await import('../payments/service')
+    const plan = await makePlan()
+    const { subscription, paymentId } = await subscriptionService.purchase(
+      { userId: playerId },
+      orgId,
+      plan.id,
+      { method: 'cash' },
+    )
+    await organizationService.update({ userId: ownerId }, orgId, { subscriptionsEnabled: false })
+    await expect(
+      subscriptionService.purchase({ userId: playerId }, orgId, plan.id, { method: 'cash' }),
+    ).rejects.toMatchObject({ code: 'organization.subscriptions_disabled' })
+    await paymentService.confirm({ userId: ownerId }, paymentId!, { orgId })
+    expect((await subscriptionService.getById({ userId: playerId }, subscription.id)).status).toBe(
+      'active',
+    )
+    expect(
+      (await subscriptionService.listMineDetailed({ userId: playerId }, orgId)).map((s) => s.id),
+    ).toContain(subscription.id)
+    await organizationService.update({ userId: ownerId }, orgId, { subscriptionsEnabled: true })
+    expect(
+      (await subscriptionService.consumeSession({ userId: playerId }, orgId, subscription.id))
+        .usedSessions,
+    ).toBe(1)
+  })
+
   it('reject payment cancels only pending subscription (6.8.3)', async () => {
     const { paymentService } = await import('../payments/service')
     const plan = await makePlan()

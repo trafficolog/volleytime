@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import type { Subscription, SubscriptionPlan } from '@volley-time/db'
 import { formatDay, formatShortDate } from '@volley-time/shared'
+
 import { formatPrice } from '~/utils/labels'
+import { subscriptionUiState } from '~/utils/subscription-availability'
+import { createSubscriptionViewLoader } from '~/utils/subscription-view-loader'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
 type MySub = Subscription & {
@@ -14,29 +17,63 @@ const route = useRoute()
 const orgId = computed(() => Number(route.params.orgId))
 const { tz } = useOrgTimezone(orgId)
 const { haptic } = useTelegram()
+const {
+  data: orgData,
+  error: orgError,
+  refresh: refreshOrg,
+} = await useFetch<{
+  organization: { id: number; subscriptionsEnabled: boolean }
+}>(() => `/api/organizations/${orgId.value}`)
 
 const subs = ref<MySub[]>([])
 const plans = ref<SubscriptionPlan[]>([])
 const loading = ref(false)
 const loadError = ref('')
+const availability = computed(() =>
+  subscriptionUiState(
+    orgError.value || orgData.value?.organization.id !== orgId.value
+      ? null
+      : orgData.value.organization.subscriptionsEnabled,
+    orgId.value,
+    subs.value,
+  ),
+)
+
+const loadView = createSubscriptionViewLoader<MySub, SubscriptionPlan>(
+  () => orgId.value,
+  () => availability.value.allowPurchase,
+  async (id) =>
+    (await $fetch<{ subscriptions: MySub[] }>(`/api/organizations/${id}/subscriptions/my`))
+      .subscriptions,
+  async (id) =>
+    (await $fetch<{ plans: SubscriptionPlan[] }>(`/api/organizations/${id}/plans`)).plans,
+)
+let currentLoad: ReturnType<typeof loadView> | null = null
 
 async function load() {
   loading.value = true
   loadError.value = ''
+  const request = loadView()
+  currentLoad = request
   try {
-    const [s, p] = await Promise.all([
-      $fetch<{ subscriptions: MySub[] }>(`/api/organizations/${orgId.value}/subscriptions/my`),
-      $fetch<{ plans: SubscriptionPlan[] }>(`/api/organizations/${orgId.value}/plans`),
-    ])
-    subs.value = s.subscriptions
-    plans.value = p.plans
+    const result = await request
+    if (result.stale) return
+    subs.value = result.subscriptions
+    plans.value = result.plans
   } catch (e) {
-    loadError.value = apiErrorMessage(e, 'Не удалось загрузить абонементы')
+    if (currentLoad === request)
+      loadError.value = apiErrorMessage(e, 'Не удалось загрузить абонементы')
   } finally {
-    loading.value = false
+    if (currentLoad === request) loading.value = false
   }
 }
 await load()
+watch(orgId, () => {
+  subs.value = []
+  plans.value = []
+  void refreshOrg()
+  void load()
+})
 
 const STATUS: Record<string, { tone: 'grass' | 'amber' | 'default' | 'rose'; text: string }> = {
   active: { tone: 'grass', text: 'Активен' },
@@ -63,8 +100,15 @@ const buyOpen = computed({
 })
 const buying = ref(false)
 const buyError = ref('')
+watch(
+  () => availability.value.allowPurchase,
+  (allowed) => {
+    if (!allowed) buyPlan.value = null
+    else void load()
+  },
+)
 async function buy(method: 'cash' | 'transfer') {
-  if (!buyPlan.value) return
+  if (!availability.value.allowPurchase || !buyPlan.value) return
   buying.value = true
   buyError.value = ''
   try {
@@ -97,7 +141,11 @@ async function buy(method: 'cash' | 'transfer') {
             v-if="current.length === 0"
             icon="ticket"
             title="Активных абонементов нет"
-            description="Выберите план ниже"
+            :description="
+              availability.allowPurchase
+                ? 'Выберите план ниже'
+                : 'Ваши покупки и история сохраняются'
+            "
           />
           <ul v-else class="space-y-2.5">
             <li v-for="s in current" :key="s.id" class="vt-card p-4">
@@ -154,7 +202,12 @@ async function buy(method: 'cash' | 'transfer') {
           </ul>
         </section>
 
-        <section>
+        <p v-if="!availability.allowPurchase" class="vt-card p-4 text-sm text-vt-mute-2">
+          Абонементы в этой группе сейчас недоступны для покупки и новых записей. Ваш остаток и
+          история сохраняются.
+        </p>
+
+        <section v-if="availability.allowPurchase">
           <h2 class="vt-cap mb-2">Купить абонемент</h2>
           <EmptyState
             v-if="plans.length === 0"
@@ -198,6 +251,7 @@ async function buy(method: 'cash' | 'transfer') {
     </main>
 
     <VtSheet
+      v-if="availability.allowPurchase"
       v-model="buyOpen"
       :title="buyPlan ? `${buyPlan.name} · ${formatPrice(buyPlan.price, buyPlan.currency)}` : ''"
     >

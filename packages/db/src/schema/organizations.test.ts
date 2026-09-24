@@ -31,6 +31,7 @@ describe('organizations schema (integration)', () => {
     expect(org?.defaultTimezone).toBe('Europe/Minsk')
     expect(org?.defaultMemberStatus).toBe('active')
     expect(org?.publicPageEnabled).toBe(false)
+    expect(org?.subscriptionsEnabled).toBe(true)
   })
 
   it('enforces unique slug', async () => {
