@@ -2,10 +2,10 @@
 id: '3.11.2'
 phase: '3'
 epic: '3.11'
-status: in_progress
+status: done
 sync_state: synced
 last_reviewed: 2026-09-24
-status_note: 'RED→GREEN атомов и review-fix опасной зоны выполнены; browser smoke подтвердил auth redirect и keyboard focus, но проход табов группы требует авторизации и остаётся в 8.10.3. Финальные gates/PR/CI/merge ещё не подтверждены.'
+status_note: 'PR #38 merged в main (78808a3); RED→GREEN, review-fix, пять локальных gates и GitHub CI пройдены. Семантическая навигация и клавиатурный фокус проверены; реальная авторизованная пилотная группа остаётся в 8.10.3.'
 roles: [FE, QA]
 depends_on: ['3.11.1']
 estimated_hours: '6-9'
