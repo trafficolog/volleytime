@@ -19,6 +19,7 @@ import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
 import { EventNotFoundError } from '../events/errors'
 import { collectNotification } from '../notifier/collect'
+import { organizationService } from '../organizations/service'
 import { paymentService } from '../payments/service'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
 import { NoActiveSubscriptionError } from '../subscriptions/errors'
@@ -86,6 +87,10 @@ export const bookingService = {
         throw new EventNotBookableError(
           member?.status === 'pending' ? 'membership pending approval' : 'not a member',
         )
+      }
+
+      if (parsed.method === 'subscription') {
+        await organizationService.requireSubscriptionsEnabled({ ...ctx, db: tx }, orgId)
       }
 
       // 3. существующая бронь (reactivation если cancelled)

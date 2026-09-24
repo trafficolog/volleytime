@@ -16,6 +16,11 @@ export class OrganizationArchivedError extends OrganizationError {
     super('organization.archived', 'Organization is archived')
   }
 }
+export class OrganizationSubscriptionsDisabledError extends OrganizationError {
+  constructor() {
+    super('organization.subscriptions_disabled', 'Subscriptions are disabled for this organization')
+  }
+}
 export class SlugTakenError extends OrganizationError {
   constructor(slug: string) {
     super('organization.slug_taken', `Slug "${slug}" is already taken`)

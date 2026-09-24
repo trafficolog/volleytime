@@ -9,7 +9,8 @@ beforeAll(() => {
 
 describe('handleServiceError (4.9.11)', async () => {
   const { handleServiceError } = await import('./handle-errors')
-  const { OrganizationNotFoundError } = await import('@volley-time/core')
+  const { OrganizationNotFoundError, OrganizationSubscriptionsDisabledError } =
+    await import('@volley-time/core')
 
   const catchErr = (e: unknown) => {
     try {
@@ -39,6 +40,12 @@ describe('handleServiceError (4.9.11)', async () => {
 
   it('domain error keeps mapped status', () => {
     expect(catchErr(new OrganizationNotFoundError(1)).statusCode).toBe(404)
+  })
+
+  it('disabled organization subscriptions map to a conflict with a stable code', () => {
+    const err = catchErr(new OrganizationSubscriptionsDisabledError())
+    expect(err.statusCode).toBe(409)
+    expect(err.data.code).toBe('organization.subscriptions_disabled')
   })
 
   it('http error passes through', () => {

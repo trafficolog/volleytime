@@ -18,6 +18,7 @@ import {
 
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
+import { organizationService } from '../organizations/service'
 import { paymentService } from '../payments/service'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
 import { PlanNotAvailableError } from '../subscription-plans/errors'
@@ -41,6 +42,7 @@ export const subscriptionService = {
     opts: { method: 'cash' | 'transfer' },
   ): Promise<{ subscription: Subscription; paymentId: number | null }> {
     return inTransaction(ctx, async (tx) => {
+      await organizationService.requireSubscriptionsEnabled(tx, orgId)
       const db = getDb(tx)
       const plan = await db.query.subscriptionPlans.findFirst({
         where: and(eq(subscriptionPlans.id, planId), eq(subscriptionPlans.organizationId, orgId)),

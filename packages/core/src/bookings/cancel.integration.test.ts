@@ -256,6 +256,14 @@ describe('bookingService.cancel + promotion (integration)', () => {
     // p3 без абонемента в листе ожидания «с абонементом»
     await bookingService.book({ userId: p3 }, orgId, ev.id, { method: 'subscription' })
 
+    await organizationService.update({ userId: ownerId }, orgId, { subscriptionsEnabled: false })
+    const p4 = await newPlayer()
+    await expect(
+      bookingService.book({ userId: p4 }, orgId, ev.id, {
+        method: 'subscription',
+      }),
+    ).rejects.toMatchObject({ code: 'organization.subscriptions_disabled' })
+
     const { promoted } = await bookingService.cancel({ userId: p1 }, b1.id)
     expect(promoted).toMatchObject({ id: w2.id, status: 'confirmed', subscriptionId: sub2.id })
     expect((await subscriptionService.getById({ userId: p2 }, sub2.id)).usedSessions).toBe(1)

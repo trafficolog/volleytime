@@ -72,6 +72,39 @@ describe('bookingService.book (integration)', () => {
     expect(b.status).toBe('pending_payment')
   })
 
+  it('blocks new subscription bookings while off without affecting cash, transfer, or free', async () => {
+    const paid = await makeEvent({ price: 1500, capacity: 4 })
+    const free = await makeEvent({ price: 0 })
+    const plan = await planService.create(
+      { userId: ownerId },
+      { organizationId: orgId, name: 'Existing', totalSessions: 4, price: 4000 },
+    )
+    const subscriber = await newPlayer()
+    const sub = await subscriptionService.createFromPlan({ userId: subscriber }, orgId, plan.id, {
+      autoActivate: true,
+    })
+    await organizationService.update({ userId: ownerId }, orgId, { subscriptionsEnabled: false })
+    await expect(
+      bookingService.book({ userId: subscriber }, orgId, paid.id, {
+        method: 'subscription',
+        subscriptionId: sub.id,
+      }),
+    ).rejects.toMatchObject({ code: 'organization.subscriptions_disabled' })
+    expect((await subscriptionService.getById({ userId: subscriber }, sub.id)).usedSessions).toBe(0)
+    const cash = await bookingService.book({ userId: await newPlayer() }, orgId, paid.id, {
+      method: 'cash',
+    })
+    const transfer = await bookingService.book({ userId: await newPlayer() }, orgId, paid.id, {
+      method: 'transfer',
+    })
+    const freeBooking = await bookingService.book({ userId: subscriber }, orgId, free.id, {
+      method: 'free',
+    })
+    expect(cash.status).toBe('pending_payment')
+    expect(transfer.status).toBe('pending_payment')
+    expect(freeBooking.status).toBe('confirmed')
+  })
+
   it('full event → waitlisted', async () => {
     const ev = await makeEvent({ capacity: 1, price: 0 })
     const p1 = await newPlayer()
