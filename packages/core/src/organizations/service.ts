@@ -152,7 +152,12 @@ export const organizationService = {
   async update(ctx: ServiceContext, orgId: number, input: UpdateInput): Promise<Organization> {
     const data = UpdateOrganizationInput.parse(input)
     return inTransaction(ctx, async (tx) => {
-      const existing = await this.getById(tx, orgId)
+      const [existing] = await getDb(tx)
+        .select()
+        .from(organizations)
+        .where(eq(organizations.id, orgId))
+        .for('update')
+      if (!existing) throw new OrganizationNotFoundError(orgId)
       if (existing.status === 'archived') throw new OrganizationArchivedError()
 
       const [updated] = await getDb(tx)

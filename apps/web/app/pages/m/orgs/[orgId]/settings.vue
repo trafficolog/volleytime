@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { Organization, OrganizationMember } from '@volley-time/db'
+
+import { organizationSettingsPayload } from '~/utils/organization-settings-payload'
 import { canManageOrgSettingsUi } from '~/utils/organization-ui'
 
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
@@ -45,24 +47,25 @@ const formError = ref('')
 const archiving = ref(false)
 
 async function onSave() {
-  if (!canManage.value || saving.value) return
+  if (!canManage.value || saving.value || !org.value) return
   saving.value = true
   saved.value = false
   formError.value = ''
 
   try {
+    const requestedSubscriptionsEnabled = form.subscriptionsEnabled
+    const subscriptionSettingChanged =
+      requestedSubscriptionsEnabled !== org.value.subscriptionsEnabled
     await $fetch(`/api/organizations/${orgId.value}`, {
       method: 'PATCH',
-      body: {
-        name: form.name.trim(),
-        city: form.city.trim() || null,
-        description: form.description.trim() || null,
-        defaultMemberStatus: form.defaultMemberStatus,
-        subscriptionsEnabled: form.subscriptionsEnabled,
-      },
+      body: organizationSettingsPayload(form, org.value.subscriptionsEnabled),
     })
     await refreshOrg()
-    if (orgError.value || org.value?.subscriptionsEnabled !== form.subscriptionsEnabled) {
+    if (
+      orgError.value ||
+      (subscriptionSettingChanged &&
+        org.value?.subscriptionsEnabled !== requestedSubscriptionsEnabled)
+    ) {
       throw new Error('Organization settings could not be confirmed')
     }
     await fetchAll()

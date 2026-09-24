@@ -4,6 +4,7 @@ import { formatDay, formatShortDate } from '@volley-time/shared'
 
 import { formatPrice } from '~/utils/labels'
 import { subscriptionUiState } from '~/utils/subscription-availability'
+import { createSubscriptionViewLoader } from '~/utils/subscription-view-loader'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
 type MySub = Subscription & {
@@ -38,22 +39,32 @@ const availability = computed(() =>
   ),
 )
 
+const loadView = createSubscriptionViewLoader<MySub, SubscriptionPlan>(
+  () => orgId.value,
+  () => availability.value.allowPurchase,
+  async (id) =>
+    (await $fetch<{ subscriptions: MySub[] }>(`/api/organizations/${id}/subscriptions/my`))
+      .subscriptions,
+  async (id) =>
+    (await $fetch<{ plans: SubscriptionPlan[] }>(`/api/organizations/${id}/plans`)).plans,
+)
+let currentLoad: ReturnType<typeof loadView> | null = null
+
 async function load() {
   loading.value = true
   loadError.value = ''
+  const request = loadView()
+  currentLoad = request
   try {
-    const s = await $fetch<{ subscriptions: MySub[] }>(
-      `/api/organizations/${orgId.value}/subscriptions/my`,
-    )
-    subs.value = s.subscriptions
-    plans.value = availability.value.allowPurchase
-      ? (await $fetch<{ plans: SubscriptionPlan[] }>(`/api/organizations/${orgId.value}/plans`))
-          .plans
-      : []
+    const result = await request
+    if (result.stale) return
+    subs.value = result.subscriptions
+    plans.value = result.plans
   } catch (e) {
-    loadError.value = apiErrorMessage(e, 'Не удалось загрузить абонементы')
+    if (currentLoad === request)
+      loadError.value = apiErrorMessage(e, 'Не удалось загрузить абонементы')
   } finally {
-    loading.value = false
+    if (currentLoad === request) loading.value = false
   }
 }
 await load()
