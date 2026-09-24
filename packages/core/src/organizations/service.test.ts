@@ -1,6 +1,8 @@
 import { closeDb, db, eq, organizationMembers, organizations, users } from '@volley-time/db'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
+import { auditService } from '../audit/service'
+
 import { OrganizationArchivedError, SlugTakenError } from './errors'
 import { organizationService } from './service'
 
@@ -61,6 +63,25 @@ describe('organizationService (integration)', () => {
     const org = await organizationService.create(await ctx(), { name: 'Old Name' })
     const updated = await organizationService.update(await ctx(), org.id, { city: 'Минск' })
     expect(updated.city).toBe('Минск')
+  })
+
+  it('toggles subscriptions without changing an omitted flag and audits the change', async () => {
+    const org = await organizationService.create(await ctx(), { name: 'Toggle Club' })
+    expect(org.subscriptionsEnabled).toBe(true)
+    const off = await organizationService.update(await ctx(), org.id, {
+      subscriptionsEnabled: false,
+    })
+    expect(off.subscriptionsEnabled).toBe(false)
+    const [change] = await auditService.listByOrg(await ctx(), org.id, {
+      action: 'organization.updated',
+      entityType: 'organization',
+    })
+    expect(change?.oldValue).toMatchObject({ subscriptionsEnabled: true })
+    expect(change?.newValue).toMatchObject({ subscriptionsEnabled: false })
+    const renamed = await organizationService.update(await ctx(), org.id, { name: 'Renamed Club' })
+    expect(renamed.subscriptionsEnabled).toBe(false)
+    const on = await organizationService.update(await ctx(), org.id, { subscriptionsEnabled: true })
+    expect(on.subscriptionsEnabled).toBe(true)
   })
 
   it('archives org and blocks update afterwards', async () => {

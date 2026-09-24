@@ -34,6 +34,7 @@ export const organizations = pgTable(
     defaultCurrency: varchar('default_currency', { length: 8 }).notNull().default('BYN'),
     defaultTimezone: varchar('default_timezone', { length: 64 }).notNull().default('Europe/Minsk'),
     publicPageEnabled: boolean('public_page_enabled').notNull().default(false),
+    subscriptionsEnabled: boolean('subscriptions_enabled').notNull().default(true),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
