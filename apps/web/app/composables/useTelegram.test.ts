@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { themeVariables } from './useTelegram'
+import { confirmWithFallback, themeVariables } from './useTelegram'
 
 describe('Telegram theme mapping (8.8.4)', () => {
   it('maps themeParams to design tokens and keeps --tg-* aliases', () => {
@@ -23,5 +23,53 @@ describe('Telegram theme mapping (8.8.4)', () => {
   it('does not override semantic colors', () => {
     const vars = themeVariables({ bg_color: '#fff', button_color: '#000' })
     expect(Object.keys(vars).some((k) => /grass|rose|amber/.test(k))).toBe(false)
+  })
+})
+
+describe('Telegram confirmation fallback (8.10.1)', () => {
+  it('uses the browser dialog when the SDK is loaded outside Telegram', async () => {
+    const result = await confirmWithFallback(
+      'Отменить запись?',
+      {
+        initData: '',
+        isVersionAtLeast: () => true,
+        showConfirm: () => {
+          throw new Error('WebAppMethodUnsupported')
+        },
+      },
+      () => true,
+    )
+
+    expect(result).toBe(true)
+  })
+
+  it('uses the browser dialog when the Telegram client predates popup support', async () => {
+    const result = await confirmWithFallback(
+      'Отменить запись?',
+      {
+        initData: 'signed-init-data',
+        isVersionAtLeast: () => false,
+        showConfirm: () => {
+          throw new Error('WebAppMethodUnsupported')
+        },
+      },
+      () => true,
+    )
+
+    expect(result).toBe(true)
+  })
+
+  it('uses the Telegram response on a supported client', async () => {
+    const result = await confirmWithFallback(
+      'Отменить запись?',
+      {
+        initData: 'signed-init-data',
+        isVersionAtLeast: () => true,
+        showConfirm: (_message, callback) => callback(false),
+      },
+      () => true,
+    )
+
+    expect(result).toBe(false)
   })
 })
