@@ -210,7 +210,7 @@ function expiry(i: InviteRow) {
               <VtChip v-if="i.defaultMemberStatus === 'pending'" tone="amber">с одобрением</VtChip>
               <span class="text-xs text-vt-mute-2 vt-num">{{ usage(i) }} · {{ expiry(i) }}</span>
             </div>
-            <div class="vt-mono text-[11.5px] text-vt-mute-2 mt-2 break-all">
+            <div class="vt-code text-[11.5px] text-vt-mute-2 mt-2 break-all">
               {{ i.deeplinkUrl }}
             </div>
             <div class="flex gap-2 mt-3">

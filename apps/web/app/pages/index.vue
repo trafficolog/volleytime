@@ -33,7 +33,7 @@ useHead({ title: `${APP_NAME} — тренировки и учёт для вол
         </NuxtLink>
       </div>
       <p v-if="botUsername" class="text-xs text-vt-mute-2 mt-6">
-        Нет группы? Создайте её в боте <span class="vt-mono text-vt-ink">@{{ botUsername }}</span> —
+        Нет группы? Создайте её в боте <span class="vt-code text-vt-ink">@{{ botUsername }}</span> —
         займёт минуту.
       </p>
     </div>

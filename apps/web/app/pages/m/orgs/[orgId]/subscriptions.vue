@@ -137,7 +137,7 @@ async function buy(method: 'cash' | 'transfer') {
               <button
                 v-if="s.usage.length"
                 type="button"
-                class="text-xs font-semibold text-vt-flame mt-2"
+                class="text-xs font-semibold text-vt-link mt-2"
                 @click="openHistory = openHistory === s.id ? null : s.id"
               >
                 {{

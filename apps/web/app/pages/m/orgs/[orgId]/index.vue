@@ -181,7 +181,7 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
           <section>
             <div class="flex items-center justify-between mb-2">
               <h2 class="vt-cap">Ближайшие события</h2>
-              <NuxtLink :to="`${base}/events`" class="text-xs font-semibold text-vt-flame"
+              <NuxtLink :to="`${base}/events`" class="text-xs font-semibold text-vt-link"
                 >Все</NuxtLink
               >
             </div>
