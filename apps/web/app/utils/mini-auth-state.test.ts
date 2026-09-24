@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+
 import { enterMiniApp } from './mini-auth-state'
 
 describe('Mini App entry', () => {

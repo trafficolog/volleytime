@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
-import { botLink, completeEmailSignIn } from './auth-flow'
+
 import type { AuthOrg } from './auth-destination'
+import { botLink, completeEmailSignIn } from './auth-flow'
 
 const owner: AuthOrg = {
   id: 7,

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+
 import { resolveOrganizerEntry, safeAuthRedirect, type AuthOrg } from './auth-destination'
 
 const org = (overrides: Partial<AuthOrg> = {}): AuthOrg => ({

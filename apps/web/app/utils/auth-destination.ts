@@ -34,7 +34,7 @@ export function safeAuthRedirect(value: unknown): string | null {
         !decoded.startsWith('/m/') ||
         decoded.includes('\\') ||
         decoded.includes('//') ||
-        /[\u0000-\u001f\u007f]/.test(decoded)
+        [...decoded].some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)
       )
         return null
     }

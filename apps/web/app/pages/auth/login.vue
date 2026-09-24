@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { botLink, completeEmailSignIn } from '../../utils/auth-flow'
 import {
   resolveOrganizerEntry,
   type AuthOrg,
   type OrganizerEntry,
 } from '../../utils/auth-destination'
+import { botLink, completeEmailSignIn } from '../../utils/auth-flow'
 
 useHead({ title: 'Вход — Volley Time' })
 type Step = 'email' | 'code' | 'verifying' | 'choose' | 'no_access' | 'blocked' | 'load_error'
@@ -138,7 +138,7 @@ async function chooseOrganization(org: AuthOrg) {
 
 <template>
   <main class="min-h-screen flex items-center justify-center px-5 py-10" :aria-busy="submitting">
-    <div class="w-full max-w-md vt-card p-6 sm:p-8">
+    <div class="w-full max-w-md vt-card vt-card--raised p-6 sm:p-8">
       <div class="flex items-center gap-2 mb-7">
         <img src="/logo.png" alt="" width="32" height="32" />
         <span class="font-display font-bold tracking-tight">Volley Time</span>
