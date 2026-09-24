@@ -2,10 +2,10 @@
 id: '3.11.1'
 phase: '3'
 epic: '3.11'
-status: in_progress
+status: done
 sync_state: synced
 last_reviewed: 2026-09-24
-status_note: 'RED→GREEN, проверка контраста и пять локальных gates выполнены; после review исправлены тёмные ссылки, success-кнопка и типографика полей. Обновлённый PR/CI/merge ещё не подтверждены. Browser loopback недоступен в текущем окружении, полный визуальный QA закреплён за 8.10.3.'
+status_note: 'PR #37 merged в main (9d8c272); RED→GREEN, контраст, пять локальных gates и GitHub CI пройдены. Сквозной визуальный QA остаётся задачей 8.10.3.'
 roles: [FE, QA]
 depends_on: []
 estimated_hours: '4-6'

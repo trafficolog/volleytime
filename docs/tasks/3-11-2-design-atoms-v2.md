@@ -2,10 +2,10 @@
 id: '3.11.2'
 phase: '3'
 epic: '3.11'
-status: todo
+status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-24
-status_note: ''
+status_note: 'RED→GREEN атомов и review-fix опасной зоны выполнены; browser smoke подтвердил auth redirect и keyboard focus, но проход табов группы требует авторизации и остаётся в 8.10.3. Финальные gates/PR/CI/merge ещё не подтверждены.'
 roles: [FE, QA]
 depends_on: ['3.11.1']
 estimated_hours: '6-9'

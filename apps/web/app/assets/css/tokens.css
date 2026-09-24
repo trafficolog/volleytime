@@ -42,6 +42,9 @@
   --vt-shadow-accent: 0 16px 32px -14px rgba(36, 55, 201, 0.55);
   --vt-on-accent: #ffffff;
   --vt-on-grass: #ffffff;
+  --vt-tabbar-bg: #15161a;
+  --vt-tabbar-idle: #adaeb8;
+  --vt-tabbar-active: #ffffff;
   --vt-tg-blue: #2aabee;
 
   --r-card: 20px;
