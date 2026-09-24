@@ -2,10 +2,10 @@
 id: '3.11.3'
 phase: '3'
 epic: '3.11'
-status: todo
+status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-24
-status_note: ''
+status_note: 'Реализуются web OTP и реальные состояния организаций; итоговые gates и browser smoke ещё не завершены.'
 roles: [FE, QA]
 depends_on: ['3.11.2']
 estimated_hours: '8-12'
