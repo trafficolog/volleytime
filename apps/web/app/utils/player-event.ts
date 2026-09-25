@@ -36,6 +36,23 @@ export function playerEventPageState(
   return playerEventReady(sources) ? 'ready' : 'loading'
 }
 
+export function playerEventLoadErrorNotice(status: number | undefined, rejectionMessage: string) {
+  if (status === 404) {
+    return {
+      message: rejectionMessage
+        ? `${rejectionMessage}. Событие больше недоступно.`
+        : 'Событие больше недоступно.',
+      retry: false,
+      eventsLink: true,
+    }
+  }
+  return {
+    message: rejectionMessage || 'Не удалось открыть событие',
+    retry: true,
+    eventsLink: false,
+  }
+}
+
 const BOOKING_CARDS: Record<
   string,
   { tone: 'grass' | 'amber' | 'default'; title: string; text: string }

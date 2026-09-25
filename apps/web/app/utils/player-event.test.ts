@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   eventCardBookingState,
+  playerEventLoadErrorNotice,
   playerEventPageState,
   playerEventReady,
   projectPlayerEvent,
@@ -20,6 +21,22 @@ const event = {
 const access = { memberActive: true, subscriptionsEnabled: true, hasEligibleSubscription: true }
 
 describe('player event view state', () => {
+  it('keeps the booking rejection visible when a withdrawn event refresh returns 404', () => {
+    expect(playerEventLoadErrorNotice(404, 'Запись на это событие закрыта')).toEqual({
+      message: 'Запись на это событие закрыта. Событие больше недоступно.',
+      retry: false,
+      eventsLink: true,
+    })
+  })
+
+  it('keeps Retry for a transient refresh failure', () => {
+    expect(playerEventLoadErrorNotice(503, 'Эту запись нельзя отменить')).toEqual({
+      message: 'Эту запись нельзя отменить',
+      retry: true,
+      eventsLink: false,
+    })
+  })
+
   it('shows pending or suspended access before the expected 403 event error', () => {
     const sources = {
       eventMatches: false,

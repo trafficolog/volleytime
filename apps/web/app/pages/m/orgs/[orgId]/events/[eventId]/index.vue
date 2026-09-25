@@ -3,7 +3,12 @@ import type { Event, Organization, OrganizationMember, Subscription } from '@vol
 import { formatDay, formatTime } from '@volley-time/shared'
 
 import { displayName, formatPrice } from '~/utils/labels'
-import { playerEventPageState, playerEventReady, projectPlayerEvent } from '~/utils/player-event'
+import {
+  playerEventLoadErrorNotice,
+  playerEventPageState,
+  playerEventReady,
+  projectPlayerEvent,
+} from '~/utils/player-event'
 import {
   bookingPayload,
   runPlayerEventAction,
@@ -114,6 +119,9 @@ const canCancel = computed(() => eventView.value?.canCancel === true)
 const sheetOpen = ref(false)
 const submitting = ref(false)
 const actionError = ref('')
+const loadErrorNotice = computed(() =>
+  playerEventLoadErrorNotice(apiErrorStatus(loadError.value), actionError.value),
+)
 const routeGuard = createPlayerRequestGuard(() => `${orgId.value}:${eventId.value}`)
 const optionsGuard = createPlayerRequestGuard(() => `${orgId.value}:${eventId.value}`)
 
@@ -308,11 +316,18 @@ async function cancelMine() {
         <NuxtLink to="/m/orgs" class="vt-btn vt-btn--ghost mt-4">Мои группы</NuxtLink>
       </div>
     </main>
-    <ErrorState
-      v-else-if="pageState === 'error'"
-      message="Не удалось открыть событие"
-      @retry="retryPage"
-    />
+    <div v-else-if="pageState === 'error'">
+      <ErrorState
+        :message="loadErrorNotice.message"
+        :retry="loadErrorNotice.retry"
+        @retry="retryPage"
+      />
+      <div v-if="loadErrorNotice.eventsLink" class="text-center px-4">
+        <NuxtLink :to="`/m/orgs/${orgId}/events`" class="vt-btn vt-btn--ghost">
+          Все события
+        </NuxtLink>
+      </div>
+    </div>
     <SkeletonList v-else-if="pageState === 'loading' || !ev" :count="3" class="px-4 py-5" />
     <main v-else class="px-4 py-5 space-y-6">
       <section class="vt-card event-hero p-5" aria-labelledby="event-title">
