@@ -1,5 +1,17 @@
 type PaymentMethod = 'free' | 'cash' | 'transfer' | 'subscription'
 
+const staleEventRejections = new Set([
+  'booking.event_not_bookable',
+  'booking.not_cancellable',
+  'booking.deadline_passed',
+  'booking.already_booked',
+  'booking.method_not_allowed',
+])
+
+export function shouldRefreshPlayerEventAfterRejection(code: string | null | undefined): boolean {
+  return code != null && staleEventRejections.has(code)
+}
+
 export function bookingPayload(method: PaymentMethod, subscriptionId?: number) {
   if (method !== 'subscription') return { method }
   if (!Number.isInteger(subscriptionId) || (subscriptionId ?? 0) <= 0) {

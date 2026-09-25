@@ -4,7 +4,11 @@ import { formatDay, formatTime } from '@volley-time/shared'
 
 import { displayName, formatPrice } from '~/utils/labels'
 import { playerEventPageState, playerEventReady, projectPlayerEvent } from '~/utils/player-event'
-import { bookingPayload, runPlayerEventAction } from '~/utils/player-event-action'
+import {
+  bookingPayload,
+  runPlayerEventAction,
+  shouldRefreshPlayerEventAfterRejection,
+} from '~/utils/player-event-action'
 import { playerHomeAccess } from '~/utils/player-home'
 import { createPlayerRequestGuard } from '~/utils/player-request-guard'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
@@ -199,7 +203,12 @@ async function doBook(
   } else if (outcome.kind === 'error') {
     haptic('error')
     actionError.value = apiErrorMessage(outcome.error, 'Не удалось записаться')
-    if (apiErrorCode(outcome.error) === 'booking.already_booked') await refresh()
+    if (
+      request.isCurrent() &&
+      shouldRefreshPlayerEventAfterRejection(apiErrorCode(outcome.error))
+    ) {
+      await retryPage()
+    }
   }
   if (request.isCurrent()) submitting.value = false
 }
@@ -246,6 +255,12 @@ async function cancelMine() {
   } else if (outcome.kind === 'error') {
     haptic('error')
     actionError.value = apiErrorMessage(outcome.error, 'Не удалось отменить запись')
+    if (
+      request.isCurrent() &&
+      shouldRefreshPlayerEventAfterRejection(apiErrorCode(outcome.error))
+    ) {
+      await retryPage()
+    }
   }
   if (request.isCurrent()) submitting.value = false
 }

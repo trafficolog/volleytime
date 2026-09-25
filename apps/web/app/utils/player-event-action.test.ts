@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { bookingPayload, runPlayerEventAction } from './player-event-action'
+import {
+  bookingPayload,
+  runPlayerEventAction,
+  shouldRefreshPlayerEventAfterRejection,
+} from './player-event-action'
 
 describe('player booking request', () => {
   it('sends only the selected MVP payment method and an eligible subscription ID', () => {
@@ -17,6 +21,17 @@ describe('player booking request', () => {
 })
 
 describe('server-backed player mutation', () => {
+  it('refreshes stale event or booking conflicts but not unknown failures', () => {
+    expect(shouldRefreshPlayerEventAfterRejection('booking.event_not_bookable')).toBe(true)
+    expect(shouldRefreshPlayerEventAfterRejection('booking.not_cancellable')).toBe(true)
+    expect(shouldRefreshPlayerEventAfterRejection('booking.deadline_passed')).toBe(true)
+    expect(shouldRefreshPlayerEventAfterRejection('booking.already_booked')).toBe(true)
+    expect(shouldRefreshPlayerEventAfterRejection('booking.method_not_allowed')).toBe(true)
+    expect(shouldRefreshPlayerEventAfterRejection('network.timeout')).toBe(false)
+    expect(shouldRefreshPlayerEventAfterRejection(null)).toBe(false)
+    expect(shouldRefreshPlayerEventAfterRejection(undefined)).toBe(false)
+  })
+
   it('keeps the previous booking after server rejection', async () => {
     let state = 'not booked'
     const outcome = await runPlayerEventAction(
