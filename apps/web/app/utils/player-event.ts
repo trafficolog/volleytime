@@ -52,6 +52,15 @@ const BOOKING_CARDS: Record<
   },
 }
 
+export function eventCardBookingState(status: string | null) {
+  if (status === 'confirmed' || status === 'attended')
+    return { tone: 'grass' as const, text: 'Вы записаны' }
+  if (status === 'pending_payment') return { tone: 'amber' as const, text: 'Ждёт оплаты' }
+  if (status === 'waitlisted') return { tone: 'default' as const, text: 'В листе ожидания' }
+  if (status === 'cancelled') return { tone: 'default' as const, text: 'Запись отменена' }
+  return null
+}
+
 export function projectPlayerEvent(
   event: {
     status: string

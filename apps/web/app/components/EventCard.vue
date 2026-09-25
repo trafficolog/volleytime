@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { formatDay, formatTime } from '@volley-time/shared'
+
 import { formatPrice } from '~/utils/labels'
+import { eventCardBookingState } from '~/utils/player-event'
 
 export interface EventListItem {
   id: number
@@ -21,14 +23,7 @@ export interface EventListItem {
 const props = defineProps<{ event: EventListItem; tz: string; to: string }>()
 const full = computed(() => props.event.taken >= props.event.capacity)
 const left = computed(() => Math.max(0, props.event.capacity - props.event.taken))
-const myChip = computed(() => {
-  const s = props.event.myBooking?.status
-  if (!s) return null
-  if (s === 'confirmed' || s === 'attended') return { tone: 'grass' as const, text: 'Вы записаны' }
-  if (s === 'pending_payment') return { tone: 'amber' as const, text: 'Ждёт оплаты' }
-  if (s === 'waitlisted') return { tone: 'default' as const, text: 'В листе ожидания' }
-  return null
-})
+const myChip = computed(() => eventCardBookingState(props.event.myBooking?.status ?? null))
 </script>
 
 <template>

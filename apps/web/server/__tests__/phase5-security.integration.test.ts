@@ -184,6 +184,35 @@ describe('Phase 5 API security (integration)', () => {
     expect(item).toMatchObject({ taken: 1, waitlist: 1, myBooking: { status: 'waitlisted' } })
   })
 
+  it('8.10.1: cancelled booking is informational in event read models, absent from dashboard upcoming, and rebookable', async () => {
+    const ev = await makeEvent(orgA, ownerA)
+    const booking = await bookingService.book({ userId: player }, orgA, ev.id, { method: 'free' })
+    await bookingService.cancel({ userId: player }, booking.id)
+
+    const detail = await request('GET', `/api/organizations/${orgA}/events/${ev.id}`, {
+      user: player,
+    })
+    expect(detail.status).toBe(200)
+    expect(detail.body).toMatchObject({
+      event: { taken: 0, waitlist: 0, myBooking: { status: 'cancelled' } },
+    })
+
+    const list = await request('GET', `/api/organizations/${orgA}/events`, { user: player })
+    const item = (
+      list.body as { events: { id: number; myBooking: { status: string } | null }[] }
+    ).events.find((row) => row.id === ev.id)
+    expect(item?.myBooking?.status).toBe('cancelled')
+
+    const dashboard = await request('GET', `/api/organizations/${orgA}/dashboard`, { user: player })
+    expect(dashboard.body).toMatchObject({ myBookings: [] })
+
+    await bookingService.book({ userId: player }, orgA, ev.id, { method: 'free' })
+    const rebooked = await request('GET', `/api/organizations/${orgA}/events/${ev.id}`, {
+      user: player,
+    })
+    expect(rebooked.body).toMatchObject({ event: { taken: 1, myBooking: { status: 'confirmed' } } })
+  })
+
   it('6.8.7: expense validation — fractional/negative/unknown category/foreign event rejected', async () => {
     const bad = [
       { category: 'rent', amount: 1.5 },

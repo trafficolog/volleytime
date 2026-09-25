@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { playerEventReady, projectPlayerEvent } from './player-event'
+import { eventCardBookingState, playerEventReady, projectPlayerEvent } from './player-event'
 
 const now = new Date('2026-09-24T10:00:00Z')
 const event = {
@@ -15,6 +15,10 @@ const event = {
 const access = { memberActive: true, subscriptionsEnabled: true, hasEligibleSubscription: true }
 
 describe('player event view state', () => {
+  it('labels a cancelled event-card booking neutrally while leaving no active booking chip for null', () => {
+    expect(eventCardBookingState('cancelled')).toEqual({ tone: 'default', text: 'Запись отменена' })
+    expect(eventCardBookingState(null)).toBeNull()
+  })
   it('blocks actions while current sources refresh or fail, despite retained matching data', () => {
     const current = {
       eventMatches: true,

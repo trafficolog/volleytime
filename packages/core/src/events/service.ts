@@ -15,10 +15,10 @@ import {
   type Event,
 } from '@volley-time/db'
 
-import { collectNotification } from '../notifier/collect'
-import { paymentService } from '../payments/service'
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
+import { collectNotification } from '../notifier/collect'
+import { paymentService } from '../payments/service'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
 import { resolveOrgCurrency } from '../shared/currency'
 import { subscriptionService } from '../subscriptions/service'
@@ -157,13 +157,7 @@ export const eventService = {
         paymentId: bookings.paymentId,
       })
       .from(bookings)
-      .where(
-        and(
-          inArray(bookings.eventId, eventIds),
-          eq(bookings.userId, ctx.userId),
-          ne(bookings.status, 'cancelled'),
-        ),
-      )
+      .where(and(inArray(bookings.eventId, eventIds), eq(bookings.userId, ctx.userId)))
     const venueRows = await db
       .select({ eventId: events.id, name: venues.name, address: venues.address })
       .from(events)
