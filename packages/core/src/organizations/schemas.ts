@@ -21,5 +21,6 @@ export const UpdateOrganizationInput = z.object({
   defaultMemberStatus: z.enum(['active', 'pending']).optional(),
   defaultCurrency: z.string().length(3).optional(),
   defaultTimezone: z.string().max(64).optional(),
+  subscriptionsEnabled: z.boolean().optional(),
 })
 export type UpdateOrganizationInput = z.infer<typeof UpdateOrganizationInput>

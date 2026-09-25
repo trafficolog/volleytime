@@ -50,6 +50,23 @@ describe('planService (integration)', () => {
     expect(p.price).toBe(0)
   })
 
+  it('rejects a new plan while subscriptions are off but retains existing plans', async () => {
+    const existing = await planService.create(
+      { userId: ownerId },
+      { organizationId: orgId, name: 'Existing', totalSessions: 4, price: 4000 },
+    )
+    await organizationService.update({ userId: ownerId }, orgId, { subscriptionsEnabled: false })
+    await expect(
+      planService.create(
+        { userId: ownerId },
+        { organizationId: orgId, name: 'New', totalSessions: 4, price: 4000 },
+      ),
+    ).rejects.toMatchObject({ code: 'organization.subscriptions_disabled' })
+    expect((await planService.listByOrg({ userId: ownerId }, orgId)).map((p) => p.id)).toContain(
+      existing.id,
+    )
+  })
+
   it('lists active plans sorted by price', async () => {
     await planService.create(
       { userId: ownerId },

@@ -134,6 +134,13 @@
       "when": 1789731267835,
       "tag": "0018_ledger_income_categories",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790251168768,
+      "tag": "0019_strange_pet_avengers",
+      "breakpoints": true
     }
   ]
 }

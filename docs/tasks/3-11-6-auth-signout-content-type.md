@@ -5,7 +5,7 @@ epic: '3.11'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-25
-status_note: 'Дефект воспроизведён и исправлен; повторный локальный OTP-flow и пять gates пройдены. Независимое review и GitHub CI ожидаются.'
+status_note: 'Дефект исправлен: локальные OTP-flow и пять gates пройдены, review без блокирующих замечаний. Draft PR #45 зависит от auth PR #41; общий CI и ручной R0.6 gate ещё открыты.'
 roles: [FE, QA]
 depends_on: ['3.11.3']
 estimated_hours: '1-2'
@@ -38,3 +38,4 @@ tags: [auth, otp, bugfix, mvp]
 - RED unit: `useAuth.test.ts` воспроизвёл 415 на POST без JSON — 1 тест упал, тест сохранения состояния при настоящей ошибке прошёл. GREEN: `useAuth().logout()` отправляет `body: {}`, оба теста прошли 2/2.
 - GREEN browser: после повторного реального локального OTP-входа в аккаунт без организаций показан «Нет доступа организатора»; «Сменить аккаунт» вернуло пустую email-форму. Сетевой `POST /api/auth/sign-out` — 200; до исправления он был 415. Тест использовал PostgreSQL и console email-драйвер, не production email/Telegram. В консоли остались только тайм-ауты внешних Google Fonts и Telegram SDK в тестовой сети.
 - 2026-09-25, локальные gates: `pnpm format:check` — pass; `pnpm lint` — pass, 0 ошибок / 23 предупреждения вне задачи; `pnpm typecheck` — 6/6; `pnpm test` — 83 файла / 456 тестов; `pnpm build` — 2/2. `git diff --check` — pass. CI и общий R0.6 gate отдельно.
+- Независимое code review коммита `56f5ff0` не выявило Critical/Important. Минорное замечание: unit-тест проверяет наличие JSON-тела на границе `$fetch`, но не заголовок после сериализации; реальный локальный HTTP 200 зафиксирован отдельно. Draft PR #45 на auth-ветку 3.11.3 содержит только файлы этой задачи. После синхронизации родительской ветки с `main` потребовалось повторно интегрировать её в fix-ветку; CI общего результата ожидается в PR #41 после включения fix.

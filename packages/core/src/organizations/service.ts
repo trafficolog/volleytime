@@ -13,7 +13,12 @@ import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
 
-import { OrganizationArchivedError, OrganizationNotFoundError, SlugTakenError } from './errors'
+import {
+  OrganizationArchivedError,
+  OrganizationNotFoundError,
+  OrganizationSubscriptionsDisabledError,
+  SlugTakenError,
+} from './errors'
 import {
   CreateOrganizationInput,
   UpdateOrganizationInput,
@@ -134,10 +139,25 @@ export const organizationService = {
     return org
   },
 
+  async requireSubscriptionsEnabled(ctx: ServiceContext, orgId: number): Promise<void> {
+    const [org] = await getDb(ctx)
+      .select({ subscriptionsEnabled: organizations.subscriptionsEnabled })
+      .from(organizations)
+      .where(eq(organizations.id, orgId))
+      .for('share')
+    if (!org) throw new OrganizationNotFoundError(orgId)
+    if (!org.subscriptionsEnabled) throw new OrganizationSubscriptionsDisabledError()
+  },
+
   async update(ctx: ServiceContext, orgId: number, input: UpdateInput): Promise<Organization> {
     const data = UpdateOrganizationInput.parse(input)
     return inTransaction(ctx, async (tx) => {
-      const existing = await this.getById(tx, orgId)
+      const [existing] = await getDb(tx)
+        .select()
+        .from(organizations)
+        .where(eq(organizations.id, orgId))
+        .for('update')
+      if (!existing) throw new OrganizationNotFoundError(orgId)
       if (existing.status === 'archived') throw new OrganizationArchivedError()
 
       const [updated] = await getDb(tx)
