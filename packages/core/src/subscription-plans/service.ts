@@ -2,6 +2,7 @@ import { and, eq, subscriptionPlans, type SubscriptionPlan } from '@volley-time/
 
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
+import { organizationService } from '../organizations/service'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
 import { resolveOrgCurrency } from '../shared/currency'
 
@@ -17,6 +18,7 @@ export const planService = {
   async create(ctx: ServiceContext, input: CreateInput): Promise<SubscriptionPlan> {
     const data = CreatePlanInput.parse(input)
     return inTransaction(ctx, async (tx) => {
+      await organizationService.requireSubscriptionsEnabled(tx, data.organizationId)
       const [plan] = await getDb(tx)
         .insert(subscriptionPlans)
         .values({

@@ -190,7 +190,7 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
           </section>
 
           <NuxtLink
-            v-if="dash.subscription"
+            v-if="org && dash.subscription"
             :to="`${base}/subscriptions`"
             class="vt-card p-4 block"
           >
@@ -245,7 +245,11 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
                 <VtIcon name="plus" :size="18" />
                 <div class="mt-1.5 text-xs font-semibold">Событие</div>
               </NuxtLink>
-              <NuxtLink :to="`${base}/plans`" class="vt-card p-3 text-center">
+              <NuxtLink
+                v-if="org?.subscriptionsEnabled === true"
+                :to="`${base}/plans`"
+                class="vt-card p-3 text-center"
+              >
                 <VtIcon name="ticket" :size="18" />
                 <div class="mt-1.5 text-xs font-semibold">Планы</div>
               </NuxtLink>
