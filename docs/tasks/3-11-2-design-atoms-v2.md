@@ -2,10 +2,10 @@
 id: '3.11.2'
 phase: '3'
 epic: '3.11'
-status: in_progress
+status: done
 sync_state: synced
 last_reviewed: 2026-09-25
-status_note: 'Код PR #38 смёржен в main. Дополнительное замечание по индикатору активной вкладки исправлено локально по TDD; пять gates, browser-проверка и review пройдены. PR/CI и merge исправления ещё не завершены. Сквозная visual/Telegram QA остаётся в 8.10.3, production не проверялся.'
+status_note: 'Код атомов из PR #38 и исправление индикатора активной вкладки из PR #42 объединены в main; TDD, пять gates, browser-проверка, независимое review и CI пройдены. Сквозная visual/Telegram QA остаётся в 8.10.3, production не проверялся.'
 roles: [FE, QA]
 depends_on: ['3.11.1']
 estimated_hours: '6-9'
@@ -53,6 +53,8 @@ tags: [design-system, mvp, redesign]
 После исправления индикатора: `pnpm format:check` — pass после удаления только локальных генерированных Playwright YAML; `pnpm lint` — 0 errors, те же 22 warnings; `pnpm typecheck` — 6/6; `pnpm test` — 82 files, 443/443; `pnpm build` — 2/2. Отдельная проверка в Edge на фактических CSS-файлах при ширине 320 px: активная ссылка и соседняя ссылка имеют высоту 58 px, линия активной — 16 × 2 px, у неактивной `content: none`; скриншот `output/playwright/tabbar-indicator-320.png` не входит в коммит.
 
 При смене `data-active` линия перешла на новую активную ссылку, прежняя потеряла её; `aria-current="page"` остался только у новой активной, горизонтальной прокрутки при 320 px нет. Независимое code review не выявило Critical/Important замечаний; минорное замечание об ослабленной проверке `content`/заливки исправлено в тесте, после чего повторно прошли все пять gates.
+
+PR #42: CI на `3864c83` — Build, Lint · Format · Typecheck и Test (unit + integration) прошли. Эта карточка отмечается `done` в том же PR; статус действителен после его merge в `main`.
 
 Browser QA: Edge/Playwright на локальном `127.0.0.1:3101` с тестовой PostgreSQL `volleytime_test`, console-email OTP и группой `QA atoms 2026-09-25` (`/m/orgs/1`). Проверены 390 px overview, 320 px events, клавиатурный вход/навигация и настройки. Режим `.vt-dark` проверен локально как предпросмотр токенов, **не** как реальный Telegram-host QA. При `prefers-reduced-motion: reduce` вычисленные `transition-duration: 0s`, `animation-name: none`. Скриншоты локальной проверки лежат в `output/playwright/atoms-qa-390.png`, `atoms-events-320.png`, `atoms-events-dark-390.png` (не входят в коммит).
 
