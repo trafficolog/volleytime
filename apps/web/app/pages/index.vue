@@ -243,5 +243,6 @@ useHead({
         <small>© {{ new Date().getFullYear() }} Volley Time</small>
       </div>
     </footer>
+    <LandingMotion />
   </div>
 </template>
