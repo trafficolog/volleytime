@@ -2,10 +2,10 @@
 id: '3.11.5'
 phase: '3'
 epic: '3.11'
-status: in_progress
+status: done
 sync_state: synced
 last_reviewed: 2026-09-26
-status_note: 'Регрессия focus-индикатора исправлена, проверена локально и повторным review; повторная CI ожидается.'
+status_note: 'Все дефекты review исправлены и проверены: локальные gates, Edge keyboard/browser QA, независимое review и CI; PR #44 слит только в ветку лендинга.'
 roles: [FE, QA]
 depends_on: ['3.11.4']
 estimated_hours: '2-4'
@@ -42,3 +42,4 @@ tags: [landing, accessibility, review-fix]
 - GREEN №5: локальная белая обводка ссылки организатора подняла тест до 3/3. В Edge после перехода клавишей Tab ссылка стала `activeElement`, соответствовала `:focus-visible`; вычисленные стили показали белую сплошную обводку 3 px на фоне `rgb(31, 46, 150)`. Это локальная браузерная QA, не production-проверка.
 - Повторные локальные gates 2026-09-26: `pnpm format:check` — pass; `pnpm lint` — pass, 0 ошибок/22 прежних предупреждения; `pnpm typecheck` — 6/6; `pnpm test` — 85 файлов/452 теста; `pnpm build` — 2/2; `git diff --check` — pass. Повторная GitHub CI на точном SHA ещё требуется.
 - Повторное независимое review: белая обводка побеждает общий селектор по порядку при равной специфичности; контраст с синей карточкой 11,11:1. По этому исправлению блокеров не осталось; проверка не распространяется на релиз R0.6 целиком.
+- GitHub CI на точном head `c0bed67` (run `36190334923`) завершилась успешно: quality, integration tests и build. PR #44 слит merge-коммитом `be7b62f` только в ветку 3.11.4. Повторная CI этой объединённой ветки на `be7b62f` (run `36190627502`) также прошла все три job. `main` и `prod` не изменены.
