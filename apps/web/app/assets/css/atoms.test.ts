@@ -66,6 +66,16 @@ describe('Bento Bold MVP atoms', () => {
     expect(layout).toContain('pb-[calc(86px+env(safe-area-inset-bottom))]')
   })
 
+  it('marks the active Mini App tab with a shape, not color alone', () => {
+    const indicator = rule(".vt-tabbar [data-active='true']::after")
+    expect(indicator).toContain("content: ''")
+    expect(indicator).toContain('background: currentColor')
+    expect(indicator).toContain('position: absolute')
+    expect(indicator).toContain('bottom: 4px')
+    expect(indicator).toContain('height: 2px')
+    expect(indicator).toContain('width: 16px')
+  })
+
   it('keeps empty and loading states accessible and theme-ready', () => {
     expect(empty).toContain('bg-vt-bone-2')
     expect(empty).not.toContain('border border-vt-stroke')
