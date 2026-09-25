@@ -1,4 +1,5 @@
 .landing {
+  --landing-orange-ink: #a43d0b;
   overflow-x: clip;
   background: var(--vt-paper);
   color: var(--vt-ink);
@@ -23,8 +24,13 @@
 }
 
 .landing :is(a, summary):focus-visible {
-  outline: 3px solid var(--vt-orange);
+  outline: 3px solid var(--vt-focus);
   outline-offset: 4px;
+}
+
+.landing__final :is(a, summary):focus-visible,
+.landing__footer :is(a, summary):focus-visible {
+  outline-color: #fff;
 }
 
 .landing__skip {
@@ -218,7 +224,7 @@
 }
 
 .landing h1 em {
-  color: var(--vt-orange);
+  color: var(--landing-orange-ink);
   font-style: normal;
 }
 
@@ -288,8 +294,12 @@
 
 .landing__nav-section[data-landing-active='true'],
 .landing__footer nav a[data-landing-active='true'] {
-  color: var(--vt-orange);
+  color: var(--landing-orange-ink);
   box-shadow: inset 0 -2px currentColor;
+}
+
+.landing__footer nav a[data-landing-active='true'] {
+  color: #ffad7a;
 }
 
 .landing__hero-art[data-landing-pointer='true'] .landing-preview__phone {
@@ -453,7 +463,7 @@
   padding: 11px 12px;
   border-radius: 10px;
   background: var(--vt-orange);
-  color: #fff;
+  color: #15161a;
   font-size: 10px;
   font-weight: 700;
 }
@@ -727,7 +737,7 @@
 }
 
 .landing__step-list li > span {
-  color: var(--vt-orange);
+  color: var(--landing-orange-ink);
   font-family: var(--f-num);
   font-size: 48px;
   font-weight: 700;
@@ -911,13 +921,12 @@
   }
 
   .landing__nav-section {
-    order: 2;
     flex: 1 1 auto;
   }
 
   .landing__login,
   .landing__header-cta {
-    order: 1;
+    flex: 0 0 auto;
   }
 
   .landing__login {
@@ -1001,7 +1010,6 @@
   }
 
   .landing__nav-section {
-    order: 2;
     white-space: nowrap;
   }
 
@@ -1031,6 +1039,10 @@
 
   .landing h2 {
     font-size: clamp(49px, 11vw, 67px);
+  }
+
+  .landing__section-intro h2 {
+    font-size: clamp(36px, 10.3vw, 67px);
   }
 
   .landing__eyebrow {
@@ -1112,5 +1124,11 @@
     scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce), (pointer: coarse) {
+  .landing__button:hover {
+    transform: none;
   }
 }
