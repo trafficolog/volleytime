@@ -1,3 +1,5 @@
+import { isDeniedOrgError } from './player-home'
+
 export function playerEventReady(sources: {
   eventMatches: boolean
   organizationMatches: boolean
@@ -14,6 +16,24 @@ export function playerEventReady(sources: {
     !sources.eventError &&
     !sources.organizationError
   )
+}
+
+/** Доступ к странице важнее ожидаемого 403 деталей, но не маскирует сбой загрузки группы. */
+export function playerEventPageState(
+  access: string,
+  sources: Parameters<typeof playerEventReady>[0],
+  organizationErrorCode?: string,
+) {
+  if (sources.organizationPending) return 'loading'
+  if (sources.organizationError) {
+    if (access === 'suspended' && organizationErrorCode === 'organization.suspended')
+      return 'suspended'
+    if (access === 'denied' && isDeniedOrgError(organizationErrorCode)) return 'denied'
+    return 'error'
+  }
+  if (access === 'pending' || access === 'suspended' || access === 'denied') return access
+  if (sources.eventError) return 'error'
+  return playerEventReady(sources) ? 'ready' : 'loading'
 }
 
 const BOOKING_CARDS: Record<

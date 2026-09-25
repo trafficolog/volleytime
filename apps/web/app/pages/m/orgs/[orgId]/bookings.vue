@@ -8,6 +8,7 @@ import {
   createPlayerBookingsLoader,
   runPlayerBookingCancellation,
 } from '~/utils/player-bookings-loader'
+import { playerAccessFromApiError } from '~/utils/player-home'
 import { createPlayerRequestGuard } from '~/utils/player-request-guard'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
@@ -22,6 +23,7 @@ const filter = ref<'upcoming' | 'past'>('upcoming')
 const items = ref<MyBooking[]>([])
 const loading = ref(false)
 const loadError = ref('')
+const accessNotice = ref<ReturnType<typeof playerAccessFromApiError>>(null)
 const actionError = ref('')
 const cancelling = ref<number | null>(null)
 const cancellationGuard = createPlayerRequestGuard(() => `${orgId.value}:${filter.value}`)
@@ -47,12 +49,16 @@ async function load() {
   currentLoad = request
   loading.value = true
   loadError.value = ''
+  accessNotice.value = null
   try {
     const result = await request
     if (result.stale) return
     items.value = result.bookings
   } catch (e) {
-    if (currentLoad === request) loadError.value = apiErrorMessage(e, 'Не удалось загрузить записи')
+    if (currentLoad === request) {
+      loadError.value = apiErrorMessage(e, 'Не удалось загрузить записи')
+      accessNotice.value = playerAccessFromApiError(apiErrorCode(e))
+    }
   } finally {
     if (currentLoad === request) loading.value = false
   }
@@ -143,6 +149,7 @@ function canCancel(booking: MyBooking) {
     <main class="px-4 py-3 space-y-3">
       <p v-if="actionError" class="text-sm text-vt-rose-ink" role="alert">{{ actionError }}</p>
       <SkeletonList v-if="loading" :count="2" />
+      <PlayerAccessNotice v-else-if="accessNotice" :access="accessNotice" />
       <ErrorState v-else-if="loadError" :message="loadError" @retry="load" />
       <EmptyState
         v-else-if="items.length === 0"

@@ -37,7 +37,12 @@ const organization = computed(() =>
   data.value?.organization.id === orgId.value ? data.value.organization : null,
 )
 const access = computed(() =>
-  playerHomeAccess(orgId.value, organization.value, data.value?.myMember ?? null),
+  playerHomeAccess(
+    orgId.value,
+    organization.value,
+    data.value?.myMember ?? null,
+    apiErrorCode(error.value),
+  ),
 )
 </script>
 
@@ -45,31 +50,37 @@ const access = computed(() =>
   <div class="min-h-screen">
     <VtMiniHeader title="Профиль" :back="base" />
     <main class="px-4 py-4 space-y-6">
-      <ErrorState v-if="error" message="Не удалось открыть профиль группы" @retry="refresh()" />
+      <ErrorState
+        v-if="error && access !== 'suspended' && access !== 'denied'"
+        message="Не удалось открыть профиль группы"
+        @retry="refresh()"
+      />
       <SkeletonList v-else-if="pending || access === 'loading'" :count="2" />
       <div
-        v-else-if="access === 'pending' || access === 'suspended'"
+        v-else-if="access === 'pending' || access === 'suspended' || access === 'denied'"
         class="vt-card p-4"
         role="status"
       >
-        <VtChip :tone="access === 'suspended' ? 'rose' : 'amber'" dot>
-          {{ access === 'suspended' ? 'Группа приостановлена' : 'Заявка на рассмотрении' }}
+        <VtChip :tone="access === 'pending' ? 'amber' : 'rose'" dot>
+          {{
+            access === 'suspended'
+              ? 'Группа приостановлена'
+              : access === 'denied'
+                ? 'Доступ в группу закрыт'
+                : 'Заявка на рассмотрении'
+          }}
         </VtChip>
         <p class="text-sm text-vt-mute-2 mt-3">
           {{
             access === 'suspended'
               ? 'Доступ к записям сейчас закрыт.'
-              : 'После одобрения заявки откроются записи.'
+              : access === 'denied'
+                ? 'Запись и покупки в этой группе недоступны.'
+                : 'После одобрения заявки откроются записи.'
           }}
         </p>
         <NuxtLink to="/m/orgs" class="vt-btn vt-btn--ghost mt-4">Мои группы</NuxtLink>
       </div>
-      <ErrorState
-        v-else-if="access === 'denied'"
-        message="Доступ в группу закрыт"
-        @retry="refresh()"
-      />
-
       <template v-else>
         <section class="vt-card vt-card--cool p-5">
           <div class="flex items-center gap-3">

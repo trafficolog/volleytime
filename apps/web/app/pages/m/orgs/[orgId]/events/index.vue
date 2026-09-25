@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { OrganizationMember } from '@volley-time/db'
 import type { EventListItem } from '~/components/EventCard.vue'
+import { playerAccessFromApiError } from '~/utils/player-home'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
 const route = useRoute()
@@ -19,10 +20,12 @@ const filter = ref<'upcoming' | 'past'>('upcoming')
 const events = ref<EventListItem[]>([])
 const loading = ref(false)
 const error = ref('')
+const accessNotice = ref<ReturnType<typeof playerAccessFromApiError>>(null)
 
 async function load() {
   loading.value = true
   error.value = ''
+  accessNotice.value = null
   try {
     const data = await $fetch<{ events: EventListItem[] }>(
       `/api/organizations/${orgId.value}/events`,
@@ -31,6 +34,7 @@ async function load() {
     events.value = data.events
   } catch (e) {
     error.value = apiErrorMessage(e, 'Не удалось загрузить события')
+    accessNotice.value = playerAccessFromApiError(apiErrorCode(e))
   } finally {
     loading.value = false
   }
@@ -67,6 +71,7 @@ watch(filter, load)
     </div>
     <main class="px-4 py-3">
       <SkeletonList v-if="loading" :count="3" />
+      <PlayerAccessNotice v-else-if="accessNotice" :access="accessNotice" />
       <ErrorState v-else-if="error" :message="error" @retry="load" />
       <EmptyState
         v-else-if="events.length === 0"

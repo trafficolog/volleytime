@@ -3,7 +3,7 @@ import type { Event, Organization, OrganizationMember, Subscription } from '@vol
 import { formatDay, formatTime } from '@volley-time/shared'
 
 import { displayName, formatPrice } from '~/utils/labels'
-import { playerEventReady, projectPlayerEvent } from '~/utils/player-event'
+import { playerEventPageState, playerEventReady, projectPlayerEvent } from '~/utils/player-event'
 import { bookingPayload, runPlayerEventAction } from '~/utils/player-event-action'
 import { playerHomeAccess } from '~/utils/player-home'
 import { createPlayerRequestGuard } from '~/utils/player-request-guard'
@@ -47,7 +47,12 @@ const organization = computed(() =>
   orgData.value?.organization.id === orgId.value ? orgData.value.organization : null,
 )
 const access = computed(() =>
-  playerHomeAccess(orgId.value, organization.value, orgData.value?.myMember ?? null),
+  playerHomeAccess(
+    orgId.value,
+    organization.value,
+    orgData.value?.myMember ?? null,
+    apiErrorCode(orgError.value),
+  ),
 )
 const ev = computed(() =>
   data.value?.event.id === eventId.value && data.value.event.organizationId === orgId.value
@@ -55,15 +60,17 @@ const ev = computed(() =>
     : null,
 )
 const roster = computed(() => (ev.value ? (data.value?.roster ?? []) : []))
-const sourcesReady = computed(() =>
-  playerEventReady({
-    eventMatches: !!ev.value,
-    organizationMatches: !!organization.value,
-    eventPending: eventLoading.value,
-    organizationPending: orgLoading.value,
-    eventError: !!loadError.value,
-    organizationError: !!orgError.value,
-  }),
+const sourceStatus = computed(() => ({
+  eventMatches: !!ev.value,
+  organizationMatches: !!organization.value,
+  eventPending: eventLoading.value,
+  organizationPending: orgLoading.value,
+  eventError: !!loadError.value,
+  organizationError: !!orgError.value,
+}))
+const sourcesReady = computed(() => playerEventReady(sourceStatus.value))
+const pageState = computed(() =>
+  playerEventPageState(access.value, sourceStatus.value, apiErrorCode(orgError.value)),
 )
 const isManager = computed(() => {
   const m = sourcesReady.value ? orgData.value?.myMember : null
@@ -246,7 +253,10 @@ async function cancelMine() {
 
 <template>
   <div class="min-h-screen" :class="showActionBar ? 'pb-44' : 'pb-24'">
-    <VtMiniHeader :title="ev?.title ?? 'Событие'" :back="`/m/orgs/${orgId}/events`">
+    <VtMiniHeader
+      :title="ev?.title ?? 'Событие'"
+      :back="pageState === 'ready' ? `/m/orgs/${orgId}/events` : '/m/orgs'"
+    >
       <template v-if="isManager && ev" #right>
         <NuxtLink
           :to="`/m/orgs/${orgId}/events/${ev.id}/manage`"
@@ -257,12 +267,38 @@ async function cancelMine() {
       </template>
     </VtMiniHeader>
 
+    <main
+      v-if="pageState === 'pending' || pageState === 'suspended' || pageState === 'denied'"
+      class="px-4 py-5"
+    >
+      <div class="vt-card p-4" role="status">
+        <VtChip :tone="pageState === 'pending' ? 'amber' : 'rose'" dot>
+          {{
+            pageState === 'pending'
+              ? 'Заявка на рассмотрении'
+              : pageState === 'suspended'
+                ? 'Группа приостановлена'
+                : 'Доступ в группу закрыт'
+          }}
+        </VtChip>
+        <p class="text-sm text-vt-mute-2 mt-3">
+          {{
+            pageState === 'pending'
+              ? 'После одобрения заявки откроются события и запись.'
+              : pageState === 'suspended'
+                ? 'Запись и покупки сейчас недоступны.'
+                : 'Для просмотра события нужен доступ к группе.'
+          }}
+        </p>
+        <NuxtLink to="/m/orgs" class="vt-btn vt-btn--ghost mt-4">Мои группы</NuxtLink>
+      </div>
+    </main>
     <ErrorState
-      v-if="orgError || loadError"
+      v-else-if="pageState === 'error'"
       message="Не удалось открыть событие"
       @retry="retryPage"
     />
-    <SkeletonList v-else-if="orgLoading || eventLoading || !ev" :count="3" class="px-4 py-5" />
+    <SkeletonList v-else-if="pageState === 'loading' || !ev" :count="3" class="px-4 py-5" />
     <main v-else class="px-4 py-5 space-y-6">
       <section class="vt-card event-hero p-5" aria-labelledby="event-title">
         <p class="vt-cap event-hero__eyebrow">{{ organization?.name }}</p>
@@ -358,17 +394,6 @@ async function cancelMine() {
         {{ formatTime(cancelDeadline, tz) }}.
       </p>
       <p v-if="actionError" class="text-sm text-vt-rose-ink" role="alert">{{ actionError }}</p>
-      <p v-if="access === 'pending'" class="text-sm text-vt-mute-2">
-        Заявка на вступление в организацию ожидает подтверждения. Запись станет доступна после
-        одобрения.
-      </p>
-      <p v-else-if="access === 'suspended'" class="text-sm text-vt-mute-2">
-        Работа организации приостановлена. Запись пока недоступна.
-      </p>
-      <p v-else-if="access === 'denied'" class="text-sm text-vt-mute-2">
-        Для записи нужно состоять в этой организации.
-      </p>
-
       <!--
         Панель действия над таб-баром (z-30 > z-20) и с отступом на его высоту (Task 5.14.1).
         В Telegram не рендерится: то же действие уже на MainButton.

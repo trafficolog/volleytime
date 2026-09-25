@@ -3,6 +3,7 @@ import type { Subscription, SubscriptionPlan } from '@volley-time/db'
 import { formatDay, formatShortDate } from '@volley-time/shared'
 
 import { formatPrice } from '~/utils/labels'
+import { playerAccessFromApiError } from '~/utils/player-home'
 import { createPlayerRequestGuard } from '~/utils/player-request-guard'
 import {
   subscriptionHistoryLabel,
@@ -38,6 +39,10 @@ const subs = ref<MySub[]>([])
 const plans = ref<SubscriptionPlan[]>([])
 const loading = ref(false)
 const loadError = ref('')
+const loadAccessNotice = ref<ReturnType<typeof playerAccessFromApiError>>(null)
+const accessNotice = computed(
+  () => playerAccessFromApiError(apiErrorCode(orgError.value)) ?? loadAccessNotice.value,
+)
 const availability = computed(() =>
   subscriptionUiState(
     orgError.value || orgData.value?.organization.id !== orgId.value
@@ -62,6 +67,7 @@ let currentLoad: ReturnType<typeof loadView> | null = null
 async function load() {
   loading.value = true
   loadError.value = ''
+  loadAccessNotice.value = null
   const request = loadView()
   currentLoad = request
   try {
@@ -72,8 +78,10 @@ async function load() {
       (plan) => plan.organizationId === orgId.value && plan.status === 'active',
     )
   } catch (e) {
-    if (currentLoad === request)
+    if (currentLoad === request) {
       loadError.value = apiErrorMessage(e, 'Не удалось загрузить абонементы')
+      loadAccessNotice.value = playerAccessFromApiError(apiErrorCode(e))
+    }
   } finally {
     if (currentLoad === request) loading.value = false
   }
@@ -170,6 +178,7 @@ async function retryPage() {
     <VtMiniHeader title="Абонементы" :back="`/m/orgs/${orgId}`" />
     <main class="px-4 py-5 space-y-6">
       <SkeletonList v-if="orgLoading || loading" :count="2" />
+      <PlayerAccessNotice v-else-if="accessNotice" :access="accessNotice" />
       <ErrorState
         v-else-if="orgError || loadError"
         :message="orgError ? 'Не удалось проверить настройки группы' : loadError"

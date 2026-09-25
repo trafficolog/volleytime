@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { EventListItem } from '../components/EventCard.vue'
 
-import { playerHomeAccess, projectPlayerHome } from './player-home'
+import { playerAccessFromApiError, playerHomeAccess, projectPlayerHome } from './player-home'
 
 const now = new Date('2026-09-24T10:00:00Z')
 
@@ -55,6 +55,15 @@ describe('player home event projection', () => {
 })
 
 describe('player home membership gate', () => {
+  it('classifies tenant access failures for direct Mini App routes without swallowing network errors', () => {
+    expect(playerAccessFromApiError('forbidden.pending_approval')).toBe('pending')
+    expect(playerAccessFromApiError('organization.suspended')).toBe('suspended')
+    expect(playerAccessFromApiError('permission.blocked')).toBe('denied')
+    expect(playerAccessFromApiError('permission.not_member')).toBe('denied')
+    expect(playerAccessFromApiError('network.unavailable')).toBeNull()
+    expect(playerAccessFromApiError(undefined)).toBeNull()
+  })
+
   it('fails closed for missing or old-group membership', () => {
     expect(playerHomeAccess(2, { id: 1, status: 'active' }, { status: 'active' })).toBe('loading')
     expect(playerHomeAccess(2, { id: 2, status: 'active' }, null)).toBe('denied')
@@ -72,4 +81,11 @@ describe('player home membership gate', () => {
     expect(playerHomeAccess(3, null, null, 'organization.suspended')).toBe('suspended')
     expect(playerHomeAccess(3, null, null, 'organization.archived')).toBe('loading')
   })
+
+  it.each(['permission.blocked', 'permission.not_member', 'permission.no_longer_member'])(
+    'shows denied access for tenant error %s before group details can load',
+    (code) => {
+      expect(playerHomeAccess(3, null, null, code)).toBe('denied')
+    },
+  )
 })

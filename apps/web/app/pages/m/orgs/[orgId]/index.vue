@@ -158,7 +158,7 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
 
     <main class="px-4 py-4 space-y-6">
       <ErrorState
-        v-if="orgError && access !== 'suspended'"
+        v-if="orgError && access !== 'suspended' && access !== 'denied'"
         message="Не удалось открыть группу"
         @retry="refreshOrg()"
       />
@@ -177,11 +177,11 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
         </p>
       </div>
 
-      <ErrorState
-        v-else-if="access === 'denied'"
-        message="Доступ в группу закрыт"
-        @retry="refreshOrg()"
-      />
+      <div v-else-if="access === 'denied'" class="vt-card p-4" role="status">
+        <VtChip tone="rose" dot>Доступ в группу закрыт</VtChip>
+        <p class="text-sm text-vt-mute-2 mt-2">Запись и покупки в этой группе недоступны.</p>
+        <NuxtLink to="/m/orgs" class="vt-btn vt-btn--ghost mt-4">Мои группы</NuxtLink>
+      </div>
 
       <template v-else>
         <ErrorState v-if="dashError" :message="dashError" @retry="refreshDash()" />

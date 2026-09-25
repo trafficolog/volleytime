@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { eventCardBookingState, playerEventReady, projectPlayerEvent } from './player-event'
+import {
+  eventCardBookingState,
+  playerEventPageState,
+  playerEventReady,
+  projectPlayerEvent,
+} from './player-event'
 
 const now = new Date('2026-09-24T10:00:00Z')
 const event = {
@@ -15,6 +20,66 @@ const event = {
 const access = { memberActive: true, subscriptionsEnabled: true, hasEligibleSubscription: true }
 
 describe('player event view state', () => {
+  it('shows pending or suspended access before the expected 403 event error', () => {
+    const sources = {
+      eventMatches: false,
+      organizationMatches: true,
+      eventPending: false,
+      organizationPending: false,
+      eventError: true,
+      organizationError: false,
+    }
+    expect(playerEventPageState('pending', sources)).toBe('pending')
+    expect(
+      playerEventPageState(
+        'suspended',
+        {
+          ...sources,
+          organizationMatches: false,
+          organizationError: true,
+        },
+        'organization.suspended',
+      ),
+    ).toBe('suspended')
+  })
+
+  it('keeps loading and unrelated failures distinct from access notices', () => {
+    const sources = {
+      eventMatches: true,
+      organizationMatches: true,
+      eventPending: false,
+      organizationPending: false,
+      eventError: false,
+      organizationError: false,
+    }
+    expect(playerEventPageState('active', sources)).toBe('ready')
+    expect(playerEventPageState('pending', { ...sources, organizationPending: true })).toBe(
+      'loading',
+    )
+    expect(playerEventPageState('pending', { ...sources, organizationError: true })).toBe('error')
+    expect(playerEventPageState('active', { ...sources, eventError: true })).toBe('error')
+    expect(
+      playerEventPageState(
+        'suspended',
+        { ...sources, organizationError: true },
+        'network.unavailable',
+      ),
+    ).toBe('error')
+  })
+
+  it('renders denied access from a tenant permission error, not from an unrelated failure', () => {
+    const sources = {
+      eventMatches: false,
+      organizationMatches: false,
+      eventPending: false,
+      organizationPending: false,
+      eventError: true,
+      organizationError: true,
+    }
+    expect(playerEventPageState('denied', sources, 'permission.blocked')).toBe('denied')
+    expect(playerEventPageState('denied', sources, 'network.unavailable')).toBe('error')
+  })
+
   it('labels a cancelled event-card booking neutrally while leaving no active booking chip for null', () => {
     expect(eventCardBookingState('cancelled')).toEqual({ tone: 'default', text: 'Запись отменена' })
     expect(eventCardBookingState(null)).toBeNull()
