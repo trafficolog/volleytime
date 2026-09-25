@@ -33,6 +33,10 @@
   outline-color: #fff;
 }
 
+.landing__role--organizer a:focus-visible {
+  outline-color: #fff;
+}
+
 .landing__skip {
   position: fixed;
   z-index: 100;

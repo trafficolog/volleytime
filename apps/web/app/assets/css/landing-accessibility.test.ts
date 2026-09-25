@@ -52,4 +52,12 @@ describe('landing contrast contract', () => {
     const background = color(declaration('.landing-preview__pill', 'background') ?? '')
     expect(contrastRatio(foreground, background)).toBeGreaterThanOrEqual(4.5)
   })
+
+  it('keeps keyboard focus visible on the blue organizer card', () => {
+    const outline = color(
+      declaration('.landing__role--organizer a:focus-visible', 'outline-color') ?? '',
+    )
+    const background = color(declaration('.landing__role--organizer', 'background') ?? '')
+    expect(contrastRatio(outline, background)).toBeGreaterThanOrEqual(3)
+  })
 })
