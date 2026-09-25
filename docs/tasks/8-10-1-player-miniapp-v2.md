@@ -4,7 +4,7 @@ phase: '8'
 epic: '8.10'
 status: in_progress
 sync_state: synced
-last_reviewed: 2026-09-24
+last_reviewed: 2026-09-25
 status_note: 'Реализация и code review продвигаются по SDD/TDD; visual/functional QA частична, Telegram QA не пройдена.'
 roles: [FE, QA]
 depends_on: ['3.11.2', '5.13.21']
