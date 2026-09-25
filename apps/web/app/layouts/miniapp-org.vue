@@ -4,6 +4,7 @@ import { playerTabs } from '~/utils/player-navigation'
 import { subscriptionUiState, type SubscriptionBalance } from '~/utils/subscription-availability'
 
 /** Layout экранов группы: контент + таб-бар по роли (Task 8.8.12). */
+useHead({ htmlAttrs: { class: 'vt-miniapp-page' } })
 const route = useRoute()
 const orgId = computed(() => Number(route.params.orgId))
 const {
