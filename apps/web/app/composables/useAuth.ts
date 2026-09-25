@@ -21,7 +21,7 @@ export function useAuth() {
   }
 
   async function logout() {
-    await $fetch('/api/auth/sign-out', { method: 'POST' })
+    await $fetch('/api/auth/sign-out', { method: 'POST', body: {} })
     user.value = null
     await navigateTo('/auth/login')
   }
