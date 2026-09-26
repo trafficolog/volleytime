@@ -46,6 +46,8 @@ const loading = ref(false)
 const loadError = ref('')
 const forbidden = ref(false)
 const loadedOrgId = ref<number | null>(null)
+type Kind = 'expense' | 'income'
+const journalType = ref<'all' | Kind>('all')
 let loadVersion = 0
 
 async function load() {
@@ -60,7 +62,9 @@ async function load() {
   try {
     const data = await $fetch<{ balance: Balance; entries: Entry[] }>(
       `/api/organizations/${requestedOrgId}/ledger`,
-      { query: { limit: 200 } },
+      {
+        query: { limit: 200, ...(journalType.value === 'all' ? {} : { type: journalType.value }) },
+      },
     )
     if (version !== loadVersion || requestedOrgId !== orgId.value) return
     balance.value = data.balance
@@ -76,6 +80,7 @@ async function load() {
 }
 await load()
 watch(orgId, () => {
+  journalType.value = 'all'
   sheetKind.value = null
   events.value = []
   formError.value = ''
@@ -104,7 +109,6 @@ const otherCurrencies = computed(() =>
 )
 
 // операция
-type Kind = 'expense' | 'income'
 const sheetKind = ref<Kind | null>(null)
 const sheetOrgId = ref<number | null>(null)
 const sheetOpen = computed({
@@ -278,7 +282,20 @@ function entrySubtitle(e: Entry): string {
             </button>
           </div>
 
-          <h2 class="vt-cap pt-2">Журнал</h2>
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-2">
+            <h2 class="vt-cap">Журнал</h2>
+            <label class="sr-only" for="ledger-type">Тип операций журнала</label>
+            <select
+              id="ledger-type"
+              v-model="journalType"
+              class="vt-field cashbox-journal-filter"
+              @change="load"
+            >
+              <option value="all">Все</option>
+              <option value="income">Доходы</option>
+              <option value="expense">Расходы</option>
+            </select>
+          </div>
 
           <EmptyState v-if="groups.length === 0" icon="chart" title="Операций пока нет" />
           <section v-for="g in groups" :key="g.day">
@@ -391,6 +408,14 @@ function entrySubtitle(e: Entry): string {
 
 .cashbox-form-primary-grid {
   grid-template-columns: minmax(0, 1fr);
+}
+
+.cashbox-journal-filter {
+  width: auto;
+  max-width: 100%;
+  min-height: 44px;
+  padding-block: 8px;
+  font-size: 16px;
 }
 
 @media (min-width: 22rem) {

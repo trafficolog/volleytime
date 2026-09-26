@@ -30,12 +30,22 @@ const entry = {
 }
 let failure = 0
 let entries = [entry]
-const apiFetch = vi.fn(async (url: string, options?: { method?: string; body?: unknown }) => {
-  if (options?.method === 'POST') return {}
-  if (url.endsWith('/events')) return { events: [] }
-  if (failure) throw { statusCode: failure }
-  return { balance, entries }
-})
+const apiFetch = vi.fn(
+  async (
+    url: string,
+    options?: { method?: string; body?: unknown; query?: { type?: string; limit?: number } },
+  ) => {
+    if (options?.method === 'POST') return {}
+    if (url.endsWith('/events')) return { events: [] }
+    if (failure) throw { statusCode: failure }
+    return {
+      balance,
+      entries: entries
+        .filter((item) => !options?.query?.type || item.type === options.query.type)
+        .slice(0, options?.query?.limit ?? 50),
+    }
+  },
+)
 
 vi.stubGlobal('definePageMeta', () => undefined)
 vi.stubGlobal('useRoute', () => route)
@@ -78,6 +88,64 @@ beforeEach(() => {
 })
 
 describe('append-only cashbox', () => {
+  it('makes an older expense reachable after 200 newer incomes through the journal filter', async () => {
+    entries = [
+      ...Array.from({ length: 200 }, (_, index) => ({
+        ...entry,
+        id: 201 - index,
+        type: 'income',
+        category: 'contribution',
+        description: `Новый доход ${index}`,
+      })),
+      { ...entry, description: 'Старый расход', occurredAt: '2026-09-25T10:00:00.000Z' },
+    ]
+    const wrapper = await renderCashbox()
+    expect(wrapper.text()).not.toContain('Старый расход')
+
+    const filter = wrapper.find('#ledger-type')
+    expect(filter.exists()).toBe(true)
+    await filter.setValue('expense')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Старый расход')
+    expect(
+      apiFetch.mock.calls.some(
+        ([url, options]) =>
+          url.endsWith('/ledger') &&
+          options?.query?.type === 'expense' &&
+          options.query.limit === 200,
+      ),
+    ).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('clears a filtered journal on organization switch and ignores its stale response after 403', async () => {
+    const wrapper = await renderCashbox()
+    let resolveStale!: (value: { balance: typeof balance; entries: typeof entries }) => void
+    const stale = new Promise<{ balance: typeof balance; entries: typeof entries }>((resolve) => {
+      resolveStale = resolve
+    })
+    apiFetch.mockImplementationOnce(async () => stale)
+
+    await wrapper.find('#ledger-type').setValue('expense')
+    route.params.orgId = '31'
+    failure = 403
+    await nextTick()
+    await flushPromises()
+    resolveStale({ balance, entries: [{ ...entry, description: 'Чужой расход' }] })
+    await flushPromises()
+
+    expect(
+      apiFetch.mock.calls.some(
+        ([url, options]) => url.includes('/31/ledger') && !options?.query?.type,
+      ),
+    ).toBe(true)
+    expect(wrapper.text()).toContain('Касса доступна организаторам')
+    expect(wrapper.text()).not.toContain('Чужой расход')
+    expect(wrapper.text()).not.toContain('40,00 BYN')
+    wrapper.unmount()
+  })
+
   it('places equal neutral operation actions directly before the day journal', async () => {
     const wrapper = await renderCashbox()
     const actions = wrapper.find('.cashbox-operation-actions')
