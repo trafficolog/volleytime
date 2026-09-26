@@ -5,7 +5,7 @@ epic: '8.10'
 status: todo
 sync_state: synced
 last_reviewed: 2026-09-26
-status_note: 'Границы дизайна согласованы; письменный spec ожидает проверки пользователем. Реализация и QA ещё не начаты.'
+status_note: 'Письменный spec утверждён пользователем 2026-09-26; готовится план. Реализация и QA ещё не начаты.'
 roles: [FE, QA]
 depends_on: ['3.11.2', '5.13.21']
 estimated_hours: '12-18'
@@ -16,11 +16,11 @@ tags: [miniapp, organizer, mvp, redesign]
 
 ## Цель
 
-Привести MVP-потоки организатора к `3 Mini App.html` / `screens-organizer.jsx`.
+Привести MVP-потоки организатора к актуальному `Volley Time Mini App.html` / `screens-organizer.jsx` в границах утверждённого дизайна.
 
 ## Контекст
 
-Референс v2 меняет home, событие/состав, очередь оплат, кассу и форму события. [Карта v2](../design/2026-09-23-reference-v2.md) ограничивает объём MVP. [Дизайн реализации](../superpowers/specs/2026-09-26-organizer-miniapp-v2-design.md) фиксирует согласованное решение и ожидает проверки перед планом. Актуальный живой источник — `D:\ai\freelance\volleyball-volleytime\references\Volley Time Mini App.html`, SHA-256 `88DAEB38162E459DF91FC6280EA6A23F56200C9133B7625BE28E72C07BB7DCB4`; приложение не должно брать бизнес-правила из макета.
+Референс v2 меняет home, событие/состав, очередь оплат, кассу и форму события. [Карта v2](../design/2026-09-23-reference-v2.md) ограничивает объём MVP. [Дизайн реализации](../superpowers/specs/2026-09-26-organizer-miniapp-v2-design.md) фиксирует утверждённое решение; [план](../superpowers/plans/2026-09-26-organizer-miniapp-v2.md) описывает шаги TDD. Актуальный живой источник — `D:\ai\freelance\volleyball-volleytime\references\Volley Time Mini App.html`, SHA-256 `88DAEB38162E459DF91FC6280EA6A23F56200C9133B7625BE28E72C07BB7DCB4`; приложение не должно брать бизнес-правила из макета.
 
 ## Что должно быть сделано
 
