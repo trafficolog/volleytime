@@ -4,7 +4,11 @@ import { formatDay, formatShortDate, formatTime } from '@volley-time/shared'
 
 import type { EventListItem } from '~/components/EventCard.vue'
 import { formatMoneyRu } from '~/utils/labels'
-import { projectOrganizerHome, type OrganizerBalance } from '~/utils/organizer-miniapp'
+import {
+  organizerHomeSubtitle,
+  projectOrganizerHome,
+  type OrganizerBalance,
+} from '~/utils/organizer-miniapp'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
 interface Dashboard {
@@ -42,6 +46,7 @@ const org = computed(() =>
     : null,
 )
 const me = computed(() => orgData.value?.myMember ?? null)
+const headerSubtitle = computed(() => organizerHomeSubtitle(orgId.value, org.value, me.value))
 const isPending = computed(() => me.value?.status === 'pending')
 
 const {
@@ -72,7 +77,7 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
 
 <template>
   <div class="min-h-screen">
-    <VtMiniHeader :title="org?.name ?? 'Группа'" :sub="org?.city ?? undefined" back="/m/orgs">
+    <VtMiniHeader :title="org?.name ?? 'Группа'" :sub="headerSubtitle" back="/m/orgs">
       <template #right>
         <NuxtLink
           v-if="home"

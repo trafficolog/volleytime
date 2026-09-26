@@ -308,7 +308,7 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
       <SkeletonList :count="3" />
     </main>
     <main v-else class="px-4 py-4 space-y-5">
-      <div class="grid grid-cols-3 gap-2 text-center">
+      <div class="manage-stats grid grid-cols-3 gap-2 text-center">
         <div class="vt-card p-2.5">
           <div class="vt-mono font-bold text-lg">{{ ev.taken }}/{{ ev.capacity }}</div>
           <div class="vt-cap !text-[10px]">в составе</div>
@@ -325,7 +325,7 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
         </div>
       </div>
 
-      <div v-if="ev.status === 'draft'" class="vt-card p-3.5 flex items-center gap-3">
+      <div v-if="ev.status === 'draft'" class="manage-draft vt-card p-3.5 flex items-center gap-3">
         <VtChip tone="amber">Черновик</VtChip>
         <span class="text-sm text-vt-mute-2 flex-1">Игроки не видят событие</span>
         <button
@@ -344,7 +344,7 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
       <div
         role="tablist"
         aria-label="Управление событием"
-        class="flex gap-2 border-b border-[var(--vt-stroke)]"
+        class="manage-tabs flex gap-2 border-b border-[var(--vt-stroke)]"
       >
         <button
           :id="`${tabPrefix}-roster-tab`"
@@ -397,9 +397,13 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
             <h2 class="vt-cap mb-2">Состав{{ started ? ' · отметьте посещаемость' : '' }}</h2>
             <EmptyState v-if="inRoster.length === 0" icon="users" title="Никто не записан" />
             <ul v-else class="vt-card divide-y divide-[var(--vt-stroke)] overflow-hidden">
-              <li v-for="b in inRoster" :key="b.id" class="flex items-center gap-3 px-3.5 py-2.5">
+              <li
+                v-for="b in inRoster"
+                :key="b.id"
+                class="roster-row flex items-center gap-3 px-3.5 py-2.5"
+              >
                 <VtAvatar size="sm" :name="displayName(b.user)" :src="b.user.image" />
-                <div class="flex-1 min-w-0">
+                <div class="roster-identity flex-1 min-w-0">
                   <div class="text-[13px] font-semibold truncate">{{ displayName(b.user) }}</div>
                   <div class="text-[11px] text-vt-mute-2">
                     {{
@@ -516,7 +520,7 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
                 </div>
               </div>
             </div>
-            <div v-if="ev.status !== 'cancelled'" class="flex gap-1.5 mt-3">
+            <div v-if="ev.status !== 'cancelled'" class="event-payment-actions flex gap-1.5 mt-3">
               <button
                 type="button"
                 class="vt-btn vt-btn--ghost flex-1"
@@ -540,3 +544,36 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
     </main>
   </div>
 </template>
+
+<style scoped>
+@media (max-width: 200px) {
+  .manage-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .manage-tabs {
+    gap: 0;
+  }
+
+  .manage-tabs button {
+    min-width: 0;
+    flex: 1 1 0;
+    padding-inline: 0.25rem;
+  }
+
+  .manage-draft,
+  .event-payment-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .roster-row {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .roster-identity {
+    flex: 1 1 calc(100% - 40px);
+  }
+}
+</style>

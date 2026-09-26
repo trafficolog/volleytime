@@ -133,13 +133,8 @@ async function act(p: PendingPayment, action: 'confirm' | 'reject') {
         description="Нет платежей, ожидающих подтверждения"
       />
       <template v-else>
-        <section class="vt-card vt-card--warm p-4" aria-label="Сумма ожидающих оплат">
-          <div class="vt-cap">Ждут подтверждения</div>
-          <div class="vt-mono mt-2 text-xl font-bold break-words">{{ totals }}</div>
-          <p class="mt-1 text-xs text-vt-mute-2">Платежей в очереди: {{ items.length }}</p>
-        </section>
-        <ul class="space-y-2.5" aria-label="Ожидающие платежи">
-          <li v-for="p in items" :key="p.id" class="vt-card p-4">
+        <ul class="space-y-2" aria-label="Ожидающие платежи">
+          <li v-for="p in items" :key="p.id" class="vt-card vt-card--raised p-3">
             <div class="flex items-center gap-2.5">
               <VtAvatar :name="displayName(p.user)" :src="p.user.image" />
               <div class="flex-1 min-w-0">

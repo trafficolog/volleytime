@@ -78,6 +78,17 @@ beforeEach(() => {
 })
 
 describe('append-only cashbox', () => {
+  it('places equal neutral operation actions directly before the day journal', async () => {
+    const wrapper = await renderCashbox()
+    const actions = wrapper.find('.cashbox-operation-actions')
+    const buttons = actions.findAll('button')
+    expect(buttons.map((button) => button.text())).toEqual(['Расход', 'Поступление'])
+    expect(buttons.every((button) => button.classes().includes('vt-btn--ghost'))).toBe(true)
+    expect(wrapper.find('[role="tablist"]').exists()).toBe(false)
+    expect(actions.element.nextElementSibling?.textContent).toContain('Журнал')
+    wrapper.unmount()
+  })
+
   it('shows the primary balance and other currency separately with a day journal', async () => {
     const wrapper = await renderCashbox()
     expect(wrapper.text()).toContain('40,00 BYN')

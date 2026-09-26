@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   organizerMenuLinks,
+  organizerHomeSubtitle,
   organizerTabItems,
   pendingPaymentsForEvent,
   playerTabItems,
@@ -121,6 +122,40 @@ describe('organizer Home projection', () => {
   const organization = { id: 7 }
   const member = { role: 'organizer', status: 'active' }
 
+  it('shows the actual active manager role next to the current organization city', () => {
+    expect(
+      organizerHomeSubtitle(
+        7,
+        { id: 7, city: 'Минск' },
+        {
+          organizationId: 7,
+          role: 'owner',
+          status: 'active',
+        },
+      ),
+    ).toBe('Минск · Владелец')
+    expect(
+      organizerHomeSubtitle(
+        7,
+        { id: 7, city: 'Минск' },
+        {
+          organizationId: 7,
+          role: 'organizer',
+          status: 'active',
+        },
+      ),
+    ).toBe('Минск · Организатор')
+  })
+
+  it('does not show a stale or pending manager role in the Home header', () => {
+    const activeOwner = { organizationId: 7, role: 'owner', status: 'active' }
+    expect(organizerHomeSubtitle(8, { id: 7, city: 'Минск' }, activeOwner)).toBeUndefined()
+    expect(organizerHomeSubtitle(8, { id: 8, city: 'Брест' }, activeOwner)).toBe('Брест')
+    expect(
+      organizerHomeSubtitle(7, { id: 7, city: 'Минск' }, { ...activeOwner, status: 'pending' }),
+    ).toBe('Минск')
+  })
+
   it('keeps the real balance currency, separate totals, and the first upcoming event', () => {
     expect(projectOrganizerHome(7, organization, member, dashboard)).toEqual({
       balance: dashboard.manager.balance,
@@ -133,6 +168,22 @@ describe('organizer Home projection', () => {
   it('has no next event when the dashboard has no upcoming events', () => {
     expect(
       projectOrganizerHome(7, organization, member, { ...dashboard, upcoming: [] })?.nextEvent,
+    ).toBeNull()
+  })
+
+  it('does not present a canceled event as the next upcoming event', () => {
+    const canceled = { ...firstEvent, id: 70, status: 'cancelled' }
+    expect(
+      projectOrganizerHome(7, organization, member, {
+        ...dashboard,
+        upcoming: [canceled, firstEvent],
+      })?.nextEvent,
+    ).toBe(firstEvent)
+    expect(
+      projectOrganizerHome(7, organization, member, {
+        ...dashboard,
+        upcoming: [canceled],
+      })?.nextEvent,
     ).toBeNull()
   })
 

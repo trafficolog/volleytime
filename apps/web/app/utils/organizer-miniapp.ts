@@ -1,6 +1,8 @@
 import type { EventListItem } from '../components/EventCard.vue'
 import type { TabItem } from '../components/vt/TabBar.vue'
 
+import { ROLE_LABELS } from './labels'
+
 interface Member {
   role: string
   status: string
@@ -25,6 +27,23 @@ interface OrganizerHomeDashboard {
   manager: { pendingCount: number; balance: OrganizerBalance } | null
 }
 
+export function organizerHomeSubtitle(
+  routeOrgId: number,
+  organization: { id: number; city: string | null } | null,
+  member: (Member & { organizationId: number }) | null,
+): string | undefined {
+  if (!organization || organization.id !== routeOrgId) return undefined
+
+  const city = organization.city?.trim() ?? ''
+  const role =
+    member?.organizationId === routeOrgId &&
+    member.status === 'active' &&
+    ['owner', 'organizer'].includes(member.role)
+      ? ROLE_LABELS[member.role]
+      : null
+  return [city, role].filter(Boolean).join(' · ') || undefined
+}
+
 export function projectOrganizerHome(
   routeOrgId: number,
   organization: { id: number } | null,
@@ -46,7 +65,7 @@ export function projectOrganizerHome(
   return {
     balance: dashboard.manager.balance,
     pendingCount: dashboard.manager.pendingCount,
-    nextEvent: dashboard.upcoming[0] ?? null,
+    nextEvent: dashboard.upcoming.find((event) => event.status !== 'cancelled') ?? null,
     upcoming: dashboard.upcoming,
   }
 }

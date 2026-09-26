@@ -45,7 +45,6 @@ const entries = ref<Entry[]>([])
 const loading = ref(false)
 const loadError = ref('')
 const forbidden = ref(false)
-const filter = ref<'all' | 'income' | 'expense'>('all')
 const loadedOrgId = ref<number | null>(null)
 let loadVersion = 0
 
@@ -61,7 +60,7 @@ async function load() {
   try {
     const data = await $fetch<{ balance: Balance; entries: Entry[] }>(
       `/api/organizations/${requestedOrgId}/ledger`,
-      { query: filter.value === 'all' ? { limit: 200 } : { type: filter.value, limit: 200 } },
+      { query: { limit: 200 } },
     )
     if (version !== loadVersion || requestedOrgId !== orgId.value) return
     balance.value = data.balance
@@ -76,7 +75,6 @@ async function load() {
   }
 }
 await load()
-watch(filter, load)
 watch(orgId, () => {
   sheetKind.value = null
   events.value = []
@@ -275,30 +273,12 @@ function entrySubtitle(e: Entry): string {
             <button type="button" class="vt-btn vt-btn--ghost" @click="openSheet('expense')">
               <VtIcon name="plus" :size="14" /> Расход
             </button>
-            <button type="button" class="vt-btn vt-btn--primary" @click="openSheet('income')">
+            <button type="button" class="vt-btn vt-btn--ghost" @click="openSheet('income')">
               <VtIcon name="plus" :size="14" /> Поступление
             </button>
           </div>
 
-          <h2 class="vt-cap pt-2">Журнал операций</h2>
-          <div class="cashbox-filters flex gap-1" role="tablist" aria-label="Фильтр операций">
-            <button
-              v-for="f in [
-                { id: 'all', label: 'Все' },
-                { id: 'income', label: 'Доходы' },
-                { id: 'expense', label: 'Расходы' },
-              ] as const"
-              :key="f.id"
-              type="button"
-              role="tab"
-              :aria-selected="filter === f.id"
-              class="vt-btn vt-btn--sm flex-1 !rounded-full"
-              :class="filter === f.id ? 'vt-btn--ink' : 'text-vt-mute-2'"
-              @click="filter = f.id"
-            >
-              {{ f.label }}
-            </button>
-          </div>
+          <h2 class="vt-cap pt-2">Журнал</h2>
 
           <EmptyState v-if="groups.length === 0" icon="chart" title="Операций пока нет" />
           <section v-for="g in groups" :key="g.day">
@@ -427,10 +407,6 @@ function entrySubtitle(e: Entry): string {
   .cashbox-balance-breakdown,
   .cashbox-operation-actions {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .cashbox-filters {
-    flex-direction: column;
   }
 }
 </style>
