@@ -17,11 +17,16 @@ interface PendingPayment {
 }
 
 const route = useRoute()
+const router = useRouter()
 const orgId = computed(() => Number(route.params.orgId))
 const eventId = computed(() => Number(route.params.eventId))
 const { tz } = useOrgTimezone(orgId)
 const { confirm, haptic } = useTelegram()
 const routeKey = computed(() => `${orgId.value}:${eventId.value}`)
+function routeStillCurrent(key: string): boolean {
+  const params = router.currentRoute.value.params
+  return key === routeKey.value && key === `${Number(params.orgId)}:${Number(params.eventId)}`
+}
 const {
   data: orgData,
   error: orgError,
@@ -63,6 +68,7 @@ const paymentsError = ref('')
 const actionError = ref('')
 const busy = ref(false)
 const paymentBusy = ref<number | null>(null)
+const mutationBusy = computed(() => busy.value || paymentBusy.value !== null)
 const activeTab = ref<'roster' | 'payments'>('roster')
 const rosterTab = ref<HTMLButtonElement | null>(null)
 const paymentsTab = ref<HTMLButtonElement | null>(null)
@@ -154,7 +160,7 @@ const STATUS_CHIP: Record<string, { tone: 'grass' | 'amber' | 'rose' | 'default'
   }
 
 async function mark(b: EventBookingRow, attended: boolean) {
-  if (!isManager.value || !ev.value || rosterError.value) return
+  if (!isManager.value || !ev.value || rosterError.value || mutationBusy.value) return
   busy.value = true
   actionError.value = ''
   try {
@@ -172,45 +178,50 @@ async function mark(b: EventBookingRow, attended: boolean) {
 }
 
 async function removeBooking(b: EventBookingRow) {
-  if (!isManager.value || !ev.value || rosterError.value) return
-  if (!(await confirm(`Снять ${displayName(b.user)} с события?`))) return
+  if (!isManager.value || !ev.value || rosterError.value || mutationBusy.value) return
+  const key = routeKey.value
   busy.value = true
   actionError.value = ''
   try {
+    if (!(await confirm(`Снять ${displayName(b.user)} с события?`)) || !routeStillCurrent(key))
+      return
     await $fetch(`/api/organizations/${orgId.value}/bookings/${b.id}/cancel`, { method: 'POST' })
-    await Promise.all([loadRoster(), refreshEvent()])
+    if (routeStillCurrent(key)) await Promise.all([loadRoster(), refreshEvent()])
   } catch (e) {
-    actionError.value = apiErrorMessage(e, 'Не удалось снять запись')
+    if (routeStillCurrent(key)) actionError.value = apiErrorMessage(e, 'Не удалось снять запись')
   } finally {
     busy.value = false
   }
 }
 
 async function cancelEvent() {
-  if (!isManager.value || !ev.value || rosterError.value) return
-  if (
-    !(await confirm(
-      'Отменить событие? Все записи будут отменены, абонементы и оплаты — возвращены.',
-    ))
-  )
-    return
+  if (!isManager.value || !ev.value || mutationBusy.value) return
+  const key = routeKey.value
   busy.value = true
   actionError.value = ''
   try {
+    if (
+      !(await confirm(
+        'Отменить событие? Все записи будут отменены, абонементы и оплаты — возвращены.',
+      )) ||
+      !routeStillCurrent(key)
+    )
+      return
     await $fetch(`/api/organizations/${orgId.value}/events/${eventId.value}/cancel`, {
       method: 'POST',
     })
     haptic('success')
-    await Promise.all([loadRoster(), loadPayments(), refreshEvent()])
+    if (routeStillCurrent(key)) await Promise.all([loadRoster(), loadPayments(), refreshEvent()])
   } catch (e) {
-    actionError.value = apiErrorMessage(e, 'Не удалось отменить событие')
+    if (routeStillCurrent(key))
+      actionError.value = apiErrorMessage(e, 'Не удалось отменить событие')
   } finally {
     busy.value = false
   }
 }
 
 async function publish() {
-  if (!isManager.value || !ev.value || rosterError.value) return
+  if (!isManager.value || !ev.value || mutationBusy.value) return
   busy.value = true
   actionError.value = ''
   try {
@@ -227,24 +238,31 @@ async function publish() {
 }
 
 async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject') {
-  if (!isManager.value || !ev.value || paymentsError.value || paymentBusy.value !== null) return
+  if (
+    !isManager.value ||
+    !ev.value ||
+    ev.value.status === 'cancelled' ||
+    paymentsError.value ||
+    mutationBusy.value
+  )
+    return
   const key = routeKey.value
   actionError.value = ''
-  if (action === 'reject') {
-    const ok = await confirm(
-      `Отклонить оплату ${displayName(payment.user)}? Запись будет отменена, место перейдёт следующему в листе ожидания.`,
-    )
-    if (!ok || key !== routeKey.value) return
-  }
   paymentBusy.value = payment.id
   try {
+    if (action === 'reject') {
+      const ok = await confirm(
+        `Отклонить оплату ${displayName(payment.user)}? Запись будет отменена, место перейдёт следующему в листе ожидания.`,
+      )
+      if (!ok || !routeStillCurrent(key)) return
+    }
     await $fetch(`/api/organizations/${orgId.value}/payments/${payment.id}/${action}`, {
       method: 'POST',
     })
     haptic(action === 'confirm' ? 'success' : 'warning')
-    if (key === routeKey.value) await Promise.all([loadPayments(), loadRoster(), refreshEvent()])
+    if (routeStillCurrent(key)) await Promise.all([loadPayments(), loadRoster(), refreshEvent()])
   } catch (e) {
-    if (key !== routeKey.value) return
+    if (!routeStillCurrent(key)) return
     haptic('error')
     if (apiErrorCode(e) === 'payment.not_pending') {
       await Promise.all([loadPayments(), loadRoster(), refreshEvent()])
@@ -253,7 +271,7 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
       actionError.value = apiErrorMessage(e, 'Не удалось обработать платёж')
     }
   } finally {
-    if (key === routeKey.value) paymentBusy.value = null
+    if (routeStillCurrent(key) && paymentBusy.value === payment.id) paymentBusy.value = null
   }
 }
 </script>
@@ -265,10 +283,7 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
       :sub="ev ? `${formatDay(ev.startsAt, tz)}, ${formatTime(ev.startsAt, tz)}` : undefined"
       :back="`/m/orgs/${orgId}/events/${eventId}`"
     >
-      <template
-        v-if="isManager && !rosterError && ev && ev.status !== 'cancelled' && !started"
-        #right
-      >
+      <template v-if="isManager && ev && ev.status !== 'cancelled' && !started" #right>
         <NuxtLink
           :to="`/m/orgs/${orgId}/events/${eventId}/edit`"
           class="vt-btn vt-btn--ghost vt-btn--sm"
@@ -310,16 +325,13 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
         </div>
       </div>
 
-      <div
-        v-if="ev.status === 'draft' && !rosterError"
-        class="vt-card p-3.5 flex items-center gap-3"
-      >
+      <div v-if="ev.status === 'draft'" class="vt-card p-3.5 flex items-center gap-3">
         <VtChip tone="amber">Черновик</VtChip>
         <span class="text-sm text-vt-mute-2 flex-1">Игроки не видят событие</span>
         <button
           type="button"
           class="vt-btn vt-btn--primary vt-btn--sm"
-          :disabled="busy"
+          :disabled="mutationBusy"
           @click="publish"
         >
           Опубликовать
@@ -411,7 +423,7 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
                     type="button"
                     class="vt-btn vt-btn--sm"
                     :class="b.status === 'attended' ? 'vt-btn--grass' : 'vt-btn--ghost'"
-                    :disabled="busy"
+                    :disabled="mutationBusy"
                     aria-label="Был"
                     @click="mark(b, true)"
                   >
@@ -421,7 +433,7 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
                     type="button"
                     class="vt-btn vt-btn--sm"
                     :class="b.status === 'no_show' ? 'vt-btn--danger' : 'vt-btn--ghost'"
-                    :disabled="busy"
+                    :disabled="mutationBusy"
                     aria-label="Не пришёл"
                     @click="mark(b, false)"
                   >
@@ -432,7 +444,7 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
                   v-else-if="!started && ev.status !== 'cancelled'"
                   type="button"
                   class="vt-btn vt-btn--ghost vt-btn--sm !px-2"
-                  :disabled="busy"
+                  :disabled="mutationBusy"
                   aria-label="Снять с события"
                   @click="removeBooking(b)"
                 >
@@ -456,17 +468,16 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
               </li>
             </ol>
           </section>
-
-          <button
-            v-if="ev.status !== 'cancelled' && !started"
-            type="button"
-            class="vt-btn vt-btn--danger vt-btn--full"
-            :disabled="busy"
-            @click="cancelEvent"
-          >
-            Отменить событие
-          </button>
         </template>
+        <button
+          v-if="ev.status !== 'cancelled' && !started"
+          type="button"
+          class="vt-btn vt-btn--danger vt-btn--full"
+          :disabled="mutationBusy"
+          @click="cancelEvent"
+        >
+          Отменить событие
+        </button>
       </div>
 
       <section
@@ -509,7 +520,7 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
               <button
                 type="button"
                 class="vt-btn vt-btn--ghost flex-1"
-                :disabled="paymentBusy !== null"
+                :disabled="mutationBusy"
                 @click="actPayment(p, 'reject')"
               >
                 Отклонить
@@ -517,7 +528,7 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
               <button
                 type="button"
                 class="vt-btn vt-btn--primary flex-[1.6]"
-                :disabled="paymentBusy !== null"
+                :disabled="mutationBusy"
                 @click="actPayment(p, 'confirm')"
               >
                 Подтвердить
