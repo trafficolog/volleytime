@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { Organization, OrganizationMember } from '@volley-time/db'
 import { formatDay, formatShortDate, formatTime } from '@volley-time/shared'
+
 import type { EventListItem } from '~/components/EventCard.vue'
 import { formatMoneyRu } from '~/utils/labels'
-import { canManageOrgSettingsUi, canViewOrgAuditUi } from '~/utils/organization-ui'
+import { projectOrganizerHome, type OrganizerBalance } from '~/utils/organizer-miniapp'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
 interface Dashboard {
@@ -18,7 +19,7 @@ interface Dashboard {
   manager: {
     pendingCount: number
     pendingAmount: number
-    balance: { currency: string; balance: number }
+    balance: OrganizerBalance
   } | null
 }
 
@@ -29,24 +30,38 @@ const { tz } = useOrgTimezone(orgId)
 const {
   data: orgData,
   error: orgError,
+  status: orgStatus,
   refresh: refreshOrg,
 } = await useFetch<{
   organization: Organization
   myMember: OrganizationMember
-}>(() => `/api/organizations/${orgId.value}`)
-const org = computed(() => orgData.value?.organization ?? null)
+}>(() => `/api/organizations/${orgId.value}`, { key: () => `org-home-${orgId.value}` })
+const org = computed(() =>
+  orgStatus.value === 'success' && !orgError.value && orgData.value?.organization.id === orgId.value
+    ? orgData.value.organization
+    : null,
+)
 const me = computed(() => orgData.value?.myMember ?? null)
 const isPending = computed(() => me.value?.status === 'pending')
-const canViewAudit = computed(() => canViewOrgAuditUi(me.value))
-const canManageSettings = computed(() => canManageOrgSettingsUi(me.value))
 
 const {
   data: dash,
   error: dashError,
+  status: dashStatus,
   refresh: refreshDash,
 } = await useFetch<Dashboard>(() => `/api/organizations/${orgId.value}/dashboard`, {
-  immediate: true,
+  key: () => `org-home-dashboard-${orgId.value}`,
 })
+const currentDash = computed(() =>
+  org.value && dashStatus.value === 'success' && !dashError.value ? (dash.value ?? null) : null,
+)
+const home = computed(() =>
+  projectOrganizerHome(orgId.value, org.value, me.value, currentDash.value),
+)
+const activeManager = computed(
+  () =>
+    !!org.value && me.value?.status === 'active' && ['owner', 'organizer'].includes(me.value.role),
+)
 
 onMounted(() => {
   if (import.meta.client) window.localStorage.setItem('vt.lastOrgId', String(orgId.value))
@@ -60,7 +75,7 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
     <VtMiniHeader :title="org?.name ?? 'Группа'" :sub="org?.city ?? undefined" back="/m/orgs">
       <template #right>
         <NuxtLink
-          v-if="dash?.isManager"
+          v-if="home"
           :to="`${base}/invite`"
           class="vt-btn vt-btn--ghost vt-btn--sm"
           aria-label="Пригласить"
@@ -71,7 +86,13 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
     </VtMiniHeader>
 
     <main class="px-4 py-4 space-y-5">
-      <ErrorState v-if="orgError" message="Не удалось открыть группу" @retry="refreshOrg()" />
+      <ErrorState
+        v-if="orgError || (orgStatus === 'success' && !org)"
+        message="Не удалось открыть группу"
+        @retry="refreshOrg()"
+      />
+
+      <SkeletonList v-else-if="!org" :count="3" />
 
       <div v-else-if="isPending" class="vt-card p-4" role="status">
         <VtChip tone="amber" dot>Заявка на рассмотрении</VtChip>
@@ -86,30 +107,104 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
           message="Не удалось загрузить данные группы"
           @retry="refreshDash()"
         />
-        <template v-else-if="dash">
-          <!-- организатору: деньги -->
-          <section v-if="dash.manager" class="grid grid-cols-2 gap-2.5">
-            <NuxtLink :to="`${base}/payments`" class="vt-card p-3.5">
-              <div class="vt-cap">Ждут подтверждения</div>
-              <div class="vt-mono text-2xl font-bold mt-1">{{ dash.manager.pendingCount }}</div>
-              <div class="text-xs text-vt-mute-2">
-                {{ formatMoneyRu(dash.manager.pendingAmount, dash.manager.balance.currency) }}
+        <SkeletonList v-else-if="dashStatus === 'pending'" :count="3" />
+        <template v-else-if="dash && currentDash">
+          <ErrorState
+            v-if="activeManager && !home"
+            message="Не удалось загрузить обзор группы"
+            @retry="refreshDash()"
+          />
+          <template v-if="home">
+            <section aria-label="Обзор организатора">
+              <h2 class="mb-3 text-2xl font-bold">Обзор группы</h2>
+              <div class="organizer-overview-grid grid gap-3">
+                <NuxtLink
+                  :to="`${base}/cashbox`"
+                  class="vt-card vt-card--hero organizer-cash-hero flex min-w-0 flex-col p-4 text-white"
+                >
+                  <span class="vt-cap opacity-75">Касса</span>
+                  <span
+                    class="vt-mono mt-3 text-2xl font-bold break-words"
+                    :class="home.balance.balance < 0 ? 'text-[var(--vt-amber)]' : ''"
+                  >
+                    {{ formatMoneyRu(home.balance.balance, home.balance.currency) }}
+                  </span>
+                  <span class="mt-auto grid grid-cols-2 gap-2 pt-4 text-xs">
+                    <span>
+                      <span class="block opacity-75">Доходы</span>
+                      <span class="vt-mono mt-1 block font-semibold break-words"
+                        >+{{ formatMoneyRu(home.balance.income, home.balance.currency) }}</span
+                      >
+                    </span>
+                    <span>
+                      <span class="block opacity-75">Расходы</span>
+                      <span class="vt-mono mt-1 block font-semibold break-words"
+                        >−{{ formatMoneyRu(home.balance.expense, home.balance.currency) }}</span
+                      >
+                    </span>
+                  </span>
+                </NuxtLink>
+                <NuxtLink
+                  :to="`${base}/payments`"
+                  class="vt-card vt-card--warm flex min-w-0 flex-col justify-between p-4"
+                >
+                  <VtIcon name="wallet" :size="20" />
+                  <span class="mt-3">
+                    <span class="vt-mono block text-3xl font-bold leading-none">{{
+                      home.pendingCount
+                    }}</span>
+                    <span class="mt-1 block text-xs">Ждут подтверждения</span>
+                  </span>
+                </NuxtLink>
+                <NuxtLink
+                  :to="
+                    home.nextEvent
+                      ? `${base}/events/${home.nextEvent.id}/manage`
+                      : `${base}/events/new`
+                  "
+                  class="vt-card flex min-w-0 flex-col justify-between p-4"
+                >
+                  <VtIcon name="calendar" :size="20" />
+                  <span class="mt-3 min-w-0">
+                    <span class="vt-cap block">Ближайшее событие</span>
+                    <span v-if="home.nextEvent" class="mt-1 block text-sm font-bold break-words">{{
+                      home.nextEvent.title
+                    }}</span>
+                    <span v-else class="mt-1 block text-xs text-vt-mute-2">Создать тренировку</span>
+                    <span v-if="home.nextEvent" class="mt-1 block text-xs text-vt-mute-2">
+                      {{ formatDay(home.nextEvent.startsAt, tz) }} ·
+                      {{ formatTime(home.nextEvent.startsAt, tz) }}
+                    </span>
+                  </span>
+                </NuxtLink>
               </div>
-            </NuxtLink>
-            <NuxtLink :to="`${base}/cashbox`" class="vt-card p-3.5">
-              <div class="vt-cap">Касса</div>
-              <div
-                class="vt-mono text-2xl font-bold mt-1"
-                :class="dash.manager.balance.balance < 0 ? 'text-vt-rose-ink' : ''"
+            </section>
+            <nav
+              aria-label="Быстрые действия"
+              class="organizer-quick-actions grid grid-cols-4 gap-2"
+            >
+              <NuxtLink
+                v-for="action in [
+                  { to: `${base}/events/new`, icon: 'plus', label: 'Тренировка' },
+                  { to: `${base}/invite`, icon: 'users', label: 'Пригласить' },
+                  { to: `${base}/cashbox`, icon: 'wallet', label: 'Расход' },
+                  { to: `${base}/members`, icon: 'user', label: 'Игроки' },
+                ]"
+                :key="action.label"
+                :to="action.to"
+                class="flex min-h-18 min-w-0 flex-col items-center gap-1 text-center text-xs font-semibold"
               >
-                {{ formatMoneyRu(dash.manager.balance.balance, dash.manager.balance.currency) }}
-              </div>
-              <div class="text-xs text-vt-mute-2">баланс группы</div>
-            </NuxtLink>
-          </section>
+                <span
+                  class="vt-card flex h-12 w-full max-w-16 items-center justify-center rounded-xl"
+                  ><VtIcon :name="action.icon" :size="20"
+                /></span>
+                <span class="break-words">{{ action.label }}</span>
+              </NuxtLink>
+            </nav>
+          </template>
 
           <!-- игроку: мои ближайшие записи и абонемент -->
-          <section v-if="!dash.isManager || dash.myBookings.length">
+          <section v-if="!dash.isManager">
             <h2 class="vt-cap mb-2">Мои ближайшие записи</h2>
             <ul v-if="dash.myBookings.length" class="space-y-2">
               <li v-for="b in dash.myBookings" :key="b.id">
@@ -151,7 +246,7 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
           </section>
 
           <NuxtLink
-            v-if="org && dash.subscription"
+            v-if="!dash.isManager && org && dash.subscription"
             :to="`${base}/subscriptions`"
             class="vt-card p-4 block"
           >
@@ -178,62 +273,85 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
             />
           </NuxtLink>
 
-          <section>
-            <div class="flex items-center justify-between mb-2">
+          <section v-if="!dash.isManager || home">
+            <div class="organizer-events-heading flex items-center justify-between mb-2">
               <h2 class="vt-cap">Ближайшие события</h2>
-              <NuxtLink :to="`${base}/events`" class="text-xs font-semibold text-vt-link"
+              <NuxtLink
+                :to="`${base}/events`"
+                class="organizer-all-link inline-flex items-center text-xs font-semibold text-vt-link"
                 >Все</NuxtLink
               >
             </div>
             <EmptyState v-if="dash.upcoming.length === 0" icon="calendar" title="Событий пока нет">
-              <template v-if="dash.isManager" #action>
+              <template v-if="home" #action>
                 <NuxtLink :to="`${base}/events/new`" class="vt-btn vt-btn--primary"
                   >Создать событие</NuxtLink
                 >
               </template>
             </EmptyState>
+            <ul v-else-if="home" class="divide-y divide-[var(--vt-stroke)]">
+              <li v-for="ev in home.upcoming" :key="ev.id">
+                <OrganizerEventRow :event="ev" :tz="tz" :to="`${base}/events/${ev.id}/manage`" />
+              </li>
+            </ul>
             <ul v-else class="space-y-2.5">
               <li v-for="ev in dash.upcoming.slice(0, 3)" :key="ev.id">
                 <EventCard :event="ev" :tz="tz" :to="`${base}/events/${ev.id}`" />
               </li>
             </ul>
           </section>
-
-          <section v-if="dash.isManager">
-            <h2 class="vt-cap mb-2">Управление</h2>
-            <nav class="grid grid-cols-3 gap-2.5">
-              <NuxtLink :to="`${base}/events/new`" class="vt-card p-3 text-center">
-                <VtIcon name="plus" :size="18" />
-                <div class="mt-1.5 text-xs font-semibold">Событие</div>
-              </NuxtLink>
-              <NuxtLink
-                v-if="org?.subscriptionsEnabled === true"
-                :to="`${base}/plans`"
-                class="vt-card p-3 text-center"
-              >
-                <VtIcon name="ticket" :size="18" />
-                <div class="mt-1.5 text-xs font-semibold">Планы</div>
-              </NuxtLink>
-              <NuxtLink :to="`${base}/members`" class="vt-card p-3 text-center">
-                <VtIcon name="users" :size="18" />
-                <div class="mt-1.5 text-xs font-semibold">Игроки</div>
-              </NuxtLink>
-              <NuxtLink v-if="canViewAudit" :to="`${base}/audit`" class="vt-card p-3 text-center">
-                <VtIcon name="chart" :size="18" />
-                <div class="mt-1.5 text-xs font-semibold">Журнал</div>
-              </NuxtLink>
-              <NuxtLink
-                v-if="canManageSettings"
-                :to="`${base}/settings`"
-                class="vt-card p-3 text-center"
-              >
-                <VtIcon name="settings" :size="18" />
-                <div class="mt-1.5 text-xs font-semibold">Настройки</div>
-              </NuxtLink>
-            </nav>
-          </section>
         </template>
+        <ErrorState v-else message="Не удалось загрузить данные группы" @retry="refreshDash()" />
       </template>
     </main>
   </div>
 </template>
+
+<style scoped>
+.organizer-overview-grid {
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+}
+
+.organizer-cash-hero {
+  display: flex;
+  flex-direction: column;
+  grid-row: span 2;
+}
+
+.organizer-cash-hero .vt-cap {
+  color: rgb(255 255 255 / 78%);
+}
+
+.organizer-all-link {
+  min-height: 44px;
+}
+
+@media (max-width: 23rem) {
+  .organizer-overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .organizer-cash-hero {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+}
+
+@media (max-width: 200px) {
+  .organizer-overview-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .organizer-quick-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .organizer-events-heading {
+    flex-wrap: wrap;
+  }
+
+  .organizer-events-heading h2 {
+    width: 100%;
+  }
+}
+</style>

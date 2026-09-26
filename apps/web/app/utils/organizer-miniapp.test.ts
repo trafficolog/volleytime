@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { organizerMenuLinks, organizerTabItems, playerTabItems } from './organizer-miniapp'
+import {
+  organizerMenuLinks,
+  organizerTabItems,
+  playerTabItems,
+  projectOrganizerHome,
+} from './organizer-miniapp'
 
 const base = '/m/orgs/7'
 
@@ -45,5 +50,77 @@ describe('organizer Mini App navigation', () => {
       { kind: 'link', to: `${base}/events`, label: 'События', icon: 'calendar', prefix: true },
       { kind: 'link', to: `${base}/bookings`, label: 'Записи', icon: 'ticket' },
     ])
+  })
+})
+
+const firstEvent = {
+  id: 71,
+  title: 'Волейбол в субботу',
+  status: 'draft',
+  startsAt: '2026-09-26T14:00:00.000Z',
+  endsAt: '2026-09-26T16:00:00.000Z',
+  capacity: 12,
+  price: 1500,
+  currency: 'EUR',
+  taken: 4,
+  waitlist: 0,
+  myBooking: null,
+  venue: { name: 'Зал 1' },
+  locationText: null,
+}
+
+const dashboard = {
+  isManager: true,
+  upcoming: [firstEvent, { ...firstEvent, id: 72, title: 'Воскресенье' }],
+  manager: {
+    pendingCount: 3,
+    pendingAmount: 4000,
+    balance: {
+      currency: 'EUR',
+      income: 12500,
+      expense: 3500,
+      balance: 9000,
+      byCurrency: {
+        EUR: { income: 12500, expense: 3500, balance: 9000 },
+        BYN: { income: 800, expense: 100, balance: 700 },
+      },
+    },
+  },
+}
+
+describe('organizer Home projection', () => {
+  const organization = { id: 7 }
+  const member = { role: 'organizer', status: 'active' }
+
+  it('keeps the real balance currency, separate totals, and the first upcoming event', () => {
+    expect(projectOrganizerHome(7, organization, member, dashboard)).toEqual({
+      balance: dashboard.manager.balance,
+      pendingCount: 3,
+      nextEvent: firstEvent,
+      upcoming: dashboard.upcoming,
+    })
+  })
+
+  it('has no next event when the dashboard has no upcoming events', () => {
+    expect(
+      projectOrganizerHome(7, organization, member, { ...dashboard, upcoming: [] })?.nextEvent,
+    ).toBeNull()
+  })
+
+  it('rejects stale organization data and manager balances during a group switch', () => {
+    expect(projectOrganizerHome(8, organization, member, dashboard)).toBeNull()
+    expect(projectOrganizerHome(8, { id: 8 }, member, null)).toBeNull()
+  })
+
+  it('rejects player, pending-manager, and non-manager dashboard data', () => {
+    expect(
+      projectOrganizerHome(7, organization, { role: 'player', status: 'active' }, dashboard),
+    ).toBeNull()
+    expect(
+      projectOrganizerHome(7, organization, { role: 'owner', status: 'pending' }, dashboard),
+    ).toBeNull()
+    expect(
+      projectOrganizerHome(7, organization, member, { ...dashboard, isManager: false }),
+    ).toBeNull()
   })
 })

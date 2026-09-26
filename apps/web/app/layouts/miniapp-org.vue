@@ -71,7 +71,9 @@ function onTabAction(id: 'menu') {
 </script>
 
 <template>
-  <div class="min-h-screen bg-vt-paper text-vt-ink pb-[calc(86px+env(safe-area-inset-bottom))]">
+  <div
+    class="miniapp-org-shell min-h-screen bg-vt-paper text-vt-ink pb-[calc(86px+env(safe-area-inset-bottom))]"
+  >
     <OfflineBanner />
     <slot />
     <VtTabBar

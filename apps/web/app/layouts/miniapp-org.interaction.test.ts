@@ -15,6 +15,7 @@ const route = {
   path: '/m/orgs/7',
 }
 let memberRole: 'owner' | 'player' = 'owner'
+let subscriptionsEnabled = true
 
 vi.stubGlobal('useRoute', () => route)
 vi.stubGlobal('computed', computed)
@@ -27,7 +28,7 @@ vi.stubGlobal('useFetch', (url: () => string) => {
       path.endsWith('/subscriptions/my')
         ? { subscriptions: [] }
         : {
-            organization: { id: 7, subscriptionsEnabled: true },
+            organization: { id: 7, subscriptionsEnabled },
             myMember: { role: memberRole, status: 'active' },
           },
     ),
@@ -36,8 +37,9 @@ vi.stubGlobal('useFetch', (url: () => string) => {
   }
 })
 
-async function renderLayout(role: 'owner' | 'player') {
+async function renderLayout(role: 'owner' | 'player', enabled = true) {
   memberRole = role
+  subscriptionsEnabled = enabled
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
@@ -94,10 +96,18 @@ describe('Mini App layout navigation interaction', () => {
   it('keeps player tabs as navigable links without a menu button', async () => {
     const { wrapper, router } = await renderLayout('player')
     expect(wrapper.find('button[aria-controls="organizer-menu-dialog"]').exists()).toBe(false)
+    expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(4)
     expect(wrapper.find('a[href="/m/orgs/7/events"]').exists()).toBe(true)
     await wrapper.get('a[href="/m/orgs/7/events"]').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.path).toBe('/m/orgs/7/events')
+    wrapper.unmount()
+  })
+
+  it('keeps the three player destinations when subscriptions are disabled', async () => {
+    const { wrapper } = await renderLayout('player', false)
+    expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(3)
+    expect(wrapper.find('button[aria-controls="organizer-menu-dialog"]').exists()).toBe(false)
     wrapper.unmount()
   })
 })

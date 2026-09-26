@@ -1,3 +1,4 @@
+import type { EventListItem } from '../components/EventCard.vue'
 import type { TabItem } from '../components/vt/TabBar.vue'
 
 interface Member {
@@ -8,6 +9,46 @@ interface Member {
 interface MenuLink {
   to: string
   label: string
+}
+
+export interface OrganizerBalance {
+  currency: string
+  income: number
+  expense: number
+  balance: number
+  byCurrency: Record<string, { income: number; expense: number; balance: number }>
+}
+
+interface OrganizerHomeDashboard {
+  isManager: boolean
+  upcoming: EventListItem[]
+  manager: { pendingCount: number; balance: OrganizerBalance } | null
+}
+
+export function projectOrganizerHome(
+  routeOrgId: number,
+  organization: { id: number } | null,
+  member: Member | null,
+  dashboard: OrganizerHomeDashboard | null,
+) {
+  if (
+    !Number.isSafeInteger(routeOrgId) ||
+    routeOrgId <= 0 ||
+    organization?.id !== routeOrgId ||
+    member?.status !== 'active' ||
+    !['owner', 'organizer'].includes(member.role) ||
+    !dashboard?.isManager ||
+    !dashboard.manager
+  ) {
+    return null
+  }
+
+  return {
+    balance: dashboard.manager.balance,
+    pendingCount: dashboard.manager.pendingCount,
+    nextEvent: dashboard.upcoming[0] ?? null,
+    upcoming: dashboard.upcoming,
+  }
 }
 
 export function organizerMenuLinks(

@@ -78,6 +78,13 @@ describe('Bento Bold MVP atoms', () => {
     expect(indicator).toContain('width: 16px')
   })
 
+  it('keeps the five-tab dock accessible in a 160px zoom-equivalent viewport', () => {
+    const zoomRules = css.slice(css.indexOf('@media (max-width: 200px)'))
+    expect(zoomRules).toContain('grid-template-columns: repeat(3, minmax(0, 1fr))')
+    expect(zoomRules).toContain('min-height: 44px')
+    expect(zoomRules).toContain('padding-bottom: calc(110px + env(safe-area-inset-bottom))')
+  })
+
   it('keeps empty and loading states accessible and theme-ready', () => {
     expect(empty).toContain('bg-vt-bone-2')
     expect(empty).not.toContain('border border-vt-stroke')
