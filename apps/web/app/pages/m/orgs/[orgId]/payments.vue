@@ -82,14 +82,14 @@ async function act(p: PendingPayment, action: 'confirm' | 'reject') {
     return
   const actionOrgId = orgId.value
   actionError.value = ''
-  if (action === 'reject') {
-    const ok = await askConfirm(
-      `Отклонить оплату ${displayName(p.user)}? ${p.event ? 'Запись будет отменена, место перейдёт следующему в листе ожидания.' : 'Абонемент не будет активирован.'}`,
-    )
-    if (!ok || actionOrgId !== orgId.value || loadedOrgId.value !== actionOrgId) return
-  }
   busy.value = p.id
   try {
+    if (action === 'reject') {
+      const ok = await askConfirm(
+        `Отклонить оплату ${displayName(p.user)}? ${p.event ? 'Запись будет отменена, место перейдёт следующему в листе ожидания.' : 'Абонемент не будет активирован.'}`,
+      )
+      if (!ok || actionOrgId !== orgId.value || loadedOrgId.value !== actionOrgId) return
+    }
     await $fetch(`/api/organizations/${actionOrgId}/payments/${p.id}/${action}`, { method: 'POST' })
     if (actionOrgId !== orgId.value) return
     haptic(action === 'confirm' ? 'success' : 'warning')

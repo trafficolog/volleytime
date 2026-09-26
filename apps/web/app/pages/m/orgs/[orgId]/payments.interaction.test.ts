@@ -22,6 +22,13 @@ let getFailure = 0
 let postError: string | null = null
 let holdPost = false
 let releasePost: (() => void) | null = null
+let holdConfirmation = false
+let resolveConfirmations: ((value: boolean) => void)[] = []
+const askConfirm = vi.fn(() =>
+  holdConfirmation
+    ? new Promise<boolean>((resolve) => resolveConfirmations.push(resolve))
+    : Promise.resolve(true),
+)
 const apiFetch = vi.fn(async (_url: string, options?: { method?: string }) => {
   if (options?.method === 'POST') {
     if (holdPost) await new Promise<void>((resolve) => (releasePost = resolve))
@@ -35,7 +42,7 @@ const apiFetch = vi.fn(async (_url: string, options?: { method?: string }) => {
 vi.stubGlobal('definePageMeta', () => undefined)
 vi.stubGlobal('useRoute', () => route)
 vi.stubGlobal('useOrgTimezone', () => ({ tz: ref('Europe/Minsk') }))
-vi.stubGlobal('useTelegram', () => ({ confirm: vi.fn(async () => true), haptic: vi.fn() }))
+vi.stubGlobal('useTelegram', () => ({ confirm: askConfirm, haptic: vi.fn() }))
 vi.stubGlobal('computed', computed)
 vi.stubGlobal('ref', ref)
 vi.stubGlobal('watch', watch)
@@ -70,6 +77,9 @@ beforeEach(() => {
   postError = null
   holdPost = false
   releasePost = null
+  holdConfirmation = false
+  resolveConfirmations = []
+  askConfirm.mockClear()
   apiFetch.mockClear()
 })
 
@@ -112,6 +122,40 @@ describe('general pending payment queue', () => {
     expect(apiFetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(1)
     releasePost?.()
     await flushPromises()
+    wrapper.unmount()
+  })
+
+  it('reserves the action before a reject prompt so two prompts cannot post', async () => {
+    pending = [{ ...payment }, { ...payment, id: 12 }]
+    holdConfirmation = true
+    const wrapper = await renderPayments()
+    const rejects = wrapper.findAll('button').filter((button) => button.text() === 'Отклонить')
+    await rejects[0]!.trigger('click')
+    await rejects[1]!.trigger('click')
+    const promptCount = askConfirm.mock.calls.length
+    for (const resolve of resolveConfirmations) resolve(true)
+    await flushPromises()
+    expect(promptCount).toBe(1)
+    expect(apiFetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('releases a canceled reject prompt so the next payment can be acted on', async () => {
+    pending = [{ ...payment }, { ...payment, id: 12 }]
+    holdConfirmation = true
+    const wrapper = await renderPayments()
+    const rejects = wrapper.findAll('button').filter((button) => button.text() === 'Отклонить')
+    await rejects[0]!.trigger('click')
+    resolveConfirmations[0]?.(false)
+    await flushPromises()
+    expect(apiFetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(0)
+    await rejects[1]!.trigger('click')
+    resolveConfirmations[1]?.(true)
+    await flushPromises()
+    expect(askConfirm).toHaveBeenCalledTimes(2)
+    expect(apiFetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toEqual([
+      ['/api/organizations/30/payments/12/reject', { method: 'POST' }],
+    ])
     wrapper.unmount()
   })
 
