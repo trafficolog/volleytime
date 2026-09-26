@@ -210,27 +210,27 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
 
           <section v-if="!dash.isManager" class="space-y-3">
             <h2 class="text-[30px] leading-none">Ближайшая игра</h2>
-            <div v-if="playerHome.hero" class="grid grid-cols-2 gap-3">
+            <div v-if="playerHome.hero" class="grid grid-cols-[1.3fr_1fr] grid-rows-2 gap-3">
               <NuxtLink
                 :to="`${base}/events/${playerHome.hero.id}`"
-                class="vt-card vt-card--hero col-span-2 p-5 min-h-52 flex flex-col"
+                class="vt-card vt-card--hero row-span-2 p-[18px] min-h-48 flex flex-col"
               >
                 <div class="vt-cap !text-white/75">
                   {{ formatDay(playerHome.hero.startsAt, tz) }}
                 </div>
-                <div class="vt-mono text-5xl leading-none mt-3">
+                <div class="vt-mono text-[52px] font-bold leading-[0.9] mt-3">
                   {{ formatTime(playerHome.hero.startsAt, tz) }}
                 </div>
-                <div class="font-display font-bold text-xl uppercase mt-3">
+                <div class="font-semibold text-sm mt-2">
                   {{ playerHome.hero.title }}
                 </div>
                 <div
                   v-if="playerHome.hero.venue || playerHome.hero.locationText"
-                  class="text-sm text-white/75 mt-1"
+                  class="text-xs text-white/75 mt-1"
                 >
                   {{ playerHome.hero.venue?.name ?? playerHome.hero.locationText }}
                 </div>
-                <div class="mt-auto pt-5">
+                <div class="mt-auto pt-4">
                   <div class="h-1.5 rounded-full bg-white/20 overflow-hidden" aria-hidden="true">
                     <span
                       class="block h-full rounded-full bg-vt-orange"
@@ -239,9 +239,9 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
                       }"
                     />
                   </div>
-                  <div class="flex justify-between items-center gap-2 mt-2 text-sm">
+                  <div class="flex justify-between items-center gap-2 mt-2 text-xs">
                     <span class="text-white/75">Занято мест</span>
-                    <span class="vt-mono"
+                    <span class="vt-mono text-[15px] font-bold"
                       >{{ playerHome.hero.taken }}/{{ playerHome.hero.capacity }}</span
                     >
                   </div>
@@ -250,18 +250,18 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
               <NuxtLink
                 v-if="dash.subscription"
                 :to="`${base}/subscriptions`"
-                class="vt-card vt-card--warm p-4 min-h-28 flex flex-col justify-between"
+                class="vt-card vt-card--warm p-4 flex flex-col justify-between"
               >
-                <div class="vt-cap">Абонемент</div>
-                <div class="vt-mono text-2xl">
+                <VtIcon name="ticket" :size="18" class="text-[#a33c08]" />
+                <div class="vt-mono text-[32px] font-bold leading-none mt-1">
                   {{ dash.subscription.left }}/{{ dash.subscription.total }}
                 </div>
                 <div class="text-xs text-vt-mute-2">занятий осталось</div>
               </NuxtLink>
               <NuxtLink
                 :to="`${base}/bookings`"
-                class="vt-card p-4 min-h-28 flex flex-col justify-between"
-                :class="dash.subscription ? '' : 'col-span-2'"
+                class="vt-card p-4 flex flex-col justify-between"
+                :class="dash.subscription ? '' : 'row-span-2'"
               >
                 <VtIcon name="ticket" :size="20" />
                 <div class="font-semibold">Мои записи</div>
@@ -277,7 +277,7 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
           </section>
 
           <!-- игроку: мои ближайшие записи и абонемент -->
-          <section v-if="!dash.isManager || dash.myBookings.length">
+          <section v-if="dash.myBookings.length">
             <h2 class="vt-cap mb-2">Мои ближайшие записи</h2>
             <ul v-if="dash.myBookings.length" class="space-y-2">
               <li v-for="b in dash.myBookings" :key="b.id">
@@ -370,12 +370,17 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
             >
               Других событий пока нет.
             </p>
-            <ul v-else class="space-y-3">
+            <ul v-else :class="dash.isManager ? 'space-y-3' : 'player-schedule'">
               <li
                 v-for="ev in dash.isManager ? dash.upcoming.slice(0, 3) : playerHome.schedule"
                 :key="ev.id"
               >
-                <EventCard :event="ev" :tz="tz" :to="`${base}/events/${ev.id}`" />
+                <EventCard
+                  :event="ev"
+                  :tz="tz"
+                  :to="`${base}/events/${ev.id}`"
+                  :presentation="dash.isManager ? 'card' : 'schedule'"
+                />
               </li>
             </ul>
           </section>

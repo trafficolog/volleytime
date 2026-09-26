@@ -7,7 +7,6 @@ const tabBar = readFileSync(new URL('../../components/vt/TabBar.vue', import.met
 const header = readFileSync(new URL('../../components/vt/MiniHeader.vue', import.meta.url), 'utf8')
 const empty = readFileSync(new URL('../../components/EmptyState.vue', import.meta.url), 'utf8')
 const skeleton = readFileSync(new URL('../../components/SkeletonList.vue', import.meta.url), 'utf8')
-const layout = readFileSync(new URL('../../layouts/miniapp-org.vue', import.meta.url), 'utf8')
 const settings = readFileSync(
   new URL('../../pages/m/orgs/[orgId]/settings.vue', import.meta.url),
   'utf8',
@@ -63,7 +62,6 @@ describe('Bento Bold MVP atoms', () => {
     expect(tabBar).toContain(':aria-current="isActive(t) ? \'page\' : undefined"')
     expect(header).toContain('useBackButton')
     expect(header).toContain('v-if="back && !useNativeBack"')
-    expect(layout).toContain('pb-[calc(86px+env(safe-area-inset-bottom))]')
   })
 
   it('keeps empty and loading states accessible and theme-ready', () => {

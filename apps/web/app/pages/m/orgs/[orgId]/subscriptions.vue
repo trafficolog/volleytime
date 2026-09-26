@@ -198,27 +198,38 @@ async function retryPage() {
             "
           />
           <ul v-else class="space-y-3">
-            <li v-for="s in active" :key="s.id" class="vt-card p-4">
+            <li
+              v-for="s in active"
+              :key="s.id"
+              class="vt-card vt-card--hero player-subscription-hero p-[18px]"
+            >
+              <span class="player-subscription-hero__decor" aria-hidden="true" />
               <div class="flex items-center justify-between gap-2">
-                <span class="font-semibold">{{ s.plan.name }}</span>
+                <span class="font-display font-bold text-2xl">{{ s.plan.name }}</span>
                 <VtChip tone="grass" dot>Активен</VtChip>
               </div>
               <div class="mt-3 flex items-baseline gap-1.5">
-                <span class="vt-mono text-2xl font-bold">{{
+                <span class="vt-mono text-[36px] leading-none font-bold">{{
                   s.totalSessions - s.usedSessions
                 }}</span>
-                <span class="text-sm text-vt-mute-2"
-                  >из {{ s.totalSessions }} занятий осталось</span
-                >
+                <span class="text-sm text-white/75">из {{ s.totalSessions }} занятий осталось</span>
               </div>
-              <VtMeter
-                class="mt-2"
-                :value="s.totalSessions - s.usedSessions"
-                :max="s.totalSessions"
-                tone="grass"
-                label="Остаток"
-              />
-              <p class="text-xs text-vt-mute-2 mt-2">
+              <div
+                class="flex gap-1.5 mt-3.5"
+                role="meter"
+                aria-label="Остаток занятий"
+                :aria-valuenow="s.totalSessions - s.usedSessions"
+                aria-valuemin="0"
+                :aria-valuemax="s.totalSessions"
+              >
+                <span
+                  v-for="session in s.totalSessions"
+                  :key="session"
+                  class="flex-1 h-1.5 rounded-full"
+                  :class="session <= s.usedSessions ? 'bg-white/20' : 'bg-vt-amber'"
+                />
+              </div>
+              <p class="text-xs text-white/75 mt-3">
                 {{
                   s.expiresAt ? `Действует до ${formatShortDate(s.expiresAt, tz)}` : 'Бессрочный'
                 }}
@@ -226,7 +237,7 @@ async function retryPage() {
               <button
                 v-if="s.usage.length"
                 type="button"
-                class="inline-flex min-h-11 items-center text-xs font-semibold text-vt-link mt-2"
+                class="inline-flex min-h-11 items-center text-xs font-semibold text-white mt-2"
                 :aria-expanded="openHistory === s.id"
                 @click="openHistory = openHistory === s.id ? null : s.id"
               >
@@ -234,7 +245,7 @@ async function retryPage() {
                   openHistory === s.id ? 'Скрыть историю' : `История списаний (${s.usage.length})`
                 }}
               </button>
-              <ul v-if="openHistory === s.id" class="mt-2 space-y-1 text-xs text-vt-mute-2">
+              <ul v-if="openHistory === s.id" class="mt-2 space-y-1 text-xs text-white/75">
                 <li v-for="u in s.usage" :key="u.bookingId">
                   {{ formatDay(u.startsAt, tz) }} · {{ u.eventTitle }}
                   <template v-if="u.status === 'no_show'"> · не пришёл</template>

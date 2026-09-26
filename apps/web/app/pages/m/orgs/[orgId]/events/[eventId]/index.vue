@@ -278,6 +278,7 @@ async function cancelMine() {
   <div class="min-h-screen" :class="showActionBar ? 'pb-44' : 'pb-24'">
     <VtMiniHeader
       :title="ev?.title ?? 'Событие'"
+      :sub="ev ? `${formatDay(ev.startsAt, tz)} · ${formatTime(ev.startsAt, tz)}` : undefined"
       :back="pageState === 'ready' ? `/m/orgs/${orgId}/events` : '/m/orgs'"
     >
       <template v-if="isManager && ev" #right>
@@ -330,33 +331,52 @@ async function cancelMine() {
     </div>
     <SkeletonList v-else-if="pageState === 'loading' || !ev" :count="3" class="px-4 py-5" />
     <main v-else class="px-4 py-5 space-y-6">
-      <section class="vt-card event-hero p-5" aria-labelledby="event-title">
-        <p class="vt-cap event-hero__eyebrow">{{ organization?.name }}</p>
-        <h2 id="event-title" class="font-display text-[28px] leading-tight mt-3">{{ ev.title }}</h2>
-        <p v-if="ev.status === 'cancelled'" class="mt-3 text-sm">Событие отменено</p>
-        <p v-else-if="ev.status === 'draft'" class="mt-3 text-sm">Черновик события</p>
-      </section>
-
       <section class="vt-card p-4" aria-label="Дата, место и стоимость">
         <div class="flex items-start justify-between gap-3">
-          <div>
-            <div class="vt-cap">{{ formatDay(ev.startsAt, tz) }}</div>
-            <div class="vt-mono text-2xl font-bold mt-0.5">
-              {{ formatTime(ev.startsAt, tz) }}–{{ formatTime(ev.endsAt, tz) }}
+          <div class="min-w-0 text-xs text-vt-mute-2">
+            <div v-if="ev.venue || ev.locationText" class="flex items-start gap-1.5">
+              <VtIcon name="pin" :size="12" class="shrink-0 mt-0.5" />
+              <span class="break-words min-w-0">{{ ev.venue?.name ?? ev.locationText }}</span>
+            </div>
+            <p v-if="ev.venue?.address" class="mt-1 break-words">{{ ev.venue.address }}</p>
+            <div class="flex items-start gap-1.5 mt-1">
+              <VtIcon name="clock" :size="12" class="shrink-0 mt-0.5" />
+              <span>{{
+                started || ev.status !== 'published'
+                  ? 'Запись закрыта'
+                  : `Начало в ${formatTime(ev.startsAt, tz)}`
+              }}</span>
             </div>
           </div>
-          <div class="text-right">
-            <div class="font-display font-semibold text-lg">
-              {{ formatPrice(ev.price, ev.currency) }}
-            </div>
-          </div>
+          <VtChip v-if="ev.status === 'cancelled'" tone="rose">Событие отменено</VtChip>
+          <VtChip v-else-if="ev.status === 'draft'" tone="amber">Черновик события</VtChip>
+          <VtChip
+            v-else-if="eventView?.hasBooking && eventView.bookingCard"
+            :tone="eventView.bookingCard.tone"
+            dot
+            >{{
+              my?.status === 'pending_payment' ? 'Ждёт оплаты' : eventView.bookingCard.title
+            }}</VtChip
+          >
+          <VtChip v-else-if="started">Запись закрыта</VtChip>
+          <VtChip v-else-if="full" tone="rose">Лист ожидания</VtChip>
+          <VtChip v-else>Места есть</VtChip>
         </div>
-        <div v-if="ev.venue || ev.locationText" class="mt-3 flex items-start gap-2 text-sm">
-          <VtIcon name="pin" :size="16" class="mt-0.5 text-vt-mute" />
+        <div class="vt-divider my-3" />
+        <div class="grid grid-cols-2 gap-2.5">
           <div>
-            <div class="font-medium">{{ ev.venue?.name ?? ev.locationText }}</div>
-            <div v-if="ev.venue?.address" class="text-vt-mute-2 text-xs">
-              {{ ev.venue.address }}
+            <div class="vt-cap text-vt-mute-2">Цена</div>
+            <div class="vt-mono text-base mt-1">{{ formatPrice(ev.price, ev.currency) }}</div>
+          </div>
+          <div>
+            <div class="vt-cap text-vt-mute-2">Длительность</div>
+            <div class="font-semibold text-sm mt-1">
+              {{
+                Math.round(
+                  (new Date(ev.endsAt).getTime() - new Date(ev.startsAt).getTime()) / 60000,
+                )
+              }}
+              мин.
             </div>
           </div>
         </div>
@@ -381,12 +401,12 @@ async function cancelMine() {
           :tone="full ? 'amber' : 'flame'"
           label="Заполненность"
         />
-        <ul
-          v-if="roster.length"
-          class="mt-3 vt-card divide-y divide-[var(--vt-stroke)] overflow-hidden"
-        >
-          <li v-for="(r, i) in roster" :key="r.user.id" class="flex items-center gap-3 px-3.5 py-2">
-            <span class="vt-mono text-[11px] text-vt-mute w-4">{{ i + 1 }}</span>
+        <ul v-if="roster.length" class="mt-3 grid grid-cols-2 gap-1.5">
+          <li
+            v-for="r in roster"
+            :key="r.user.id"
+            class="vt-card flex items-center gap-2 p-2 min-w-0"
+          >
             <VtAvatar size="sm" :name="displayName(r.user)" :src="r.user.image" />
             <span class="text-[13px] flex-1 truncate">{{ displayName(r.user) }}</span>
           </li>
@@ -430,7 +450,7 @@ async function cancelMine() {
       -->
       <div
         v-if="showActionBar"
-        class="fixed inset-x-0 z-30 p-4 bg-vt-paper border-t border-vt-stroke bottom-[calc(52px+env(safe-area-inset-bottom))]"
+        class="player-event-action fixed inset-x-0 z-30 p-4 bg-vt-paper border-t border-vt-stroke"
       >
         <p
           v-if="eventView?.action === 'waitlist'"

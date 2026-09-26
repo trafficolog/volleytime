@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import '~/assets/css/landing-fonts.css'
+
 import type { TabItem } from '~/components/vt/TabBar.vue'
 import { playerTabs } from '~/utils/player-navigation'
 import { subscriptionUiState, type SubscriptionBalance } from '~/utils/subscription-availability'
@@ -60,10 +62,39 @@ const tabs = computed<TabItem[]>(() => {
       ]
     : playerTabs(base.value, availability.value)
 })
+
+// The dock can grow with text zoom; measure it instead of assuming 58 px.
+const shell = useTemplateRef<HTMLElement>('shell')
+const dockHeight = ref(58)
+let dockObserver: ResizeObserver | undefined
+onMounted(() => {
+  dockObserver = new ResizeObserver(([entry]) => {
+    if (entry) dockHeight.value = entry.target.getBoundingClientRect().height
+  })
+  void nextTick(() => {
+    const dock = shell.value?.querySelector('.vt-tabbar')
+    if (dock) dockObserver?.observe(dock)
+  })
+})
+watch(tabs, async () => {
+  await nextTick()
+  dockObserver?.disconnect()
+  const dock = shell.value?.querySelector('.vt-tabbar')
+  if (dock) dockObserver?.observe(dock)
+})
+onUnmounted(() => dockObserver?.disconnect())
 </script>
 
 <template>
-  <div class="min-h-screen bg-vt-paper text-vt-ink pb-[calc(86px+env(safe-area-inset-bottom))]">
+  <div
+    ref="shell"
+    class="min-h-screen bg-vt-paper text-vt-ink"
+    :class="!isManager ? 'vt-player' : undefined"
+    :style="{
+      '--player-dock-height': `${dockHeight}px`,
+      paddingBottom: `calc(${dockHeight}px + 28px + env(safe-area-inset-bottom))`,
+    }"
+  >
     <OfflineBanner />
     <slot />
     <VtTabBar v-if="tabs.length" :items="tabs" />

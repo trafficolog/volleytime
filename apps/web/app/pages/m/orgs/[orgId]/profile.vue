@@ -82,7 +82,7 @@ const access = computed(() =>
         <NuxtLink to="/m/orgs" class="vt-btn vt-btn--ghost mt-4">Мои группы</NuxtLink>
       </div>
       <template v-else>
-        <section class="vt-card vt-card--cool p-5">
+        <section>
           <div class="flex items-center gap-3">
             <VtAvatar
               v-if="user?.name || user?.image"
@@ -94,7 +94,9 @@ const access = computed(() =>
               ><VtIcon name="users" :size="22"
             /></span>
             <div class="min-w-0">
-              <h2 class="text-[26px]">{{ user?.name?.trim() || 'Профиль' }}</h2>
+              <h2 class="!normal-case text-[19px] leading-[1.1]">
+                {{ user?.name?.trim() || 'Профиль' }}
+              </h2>
               <p v-if="organization" class="text-sm text-vt-mute-2 mt-1 truncate">
                 {{ organization.name }}
               </p>
