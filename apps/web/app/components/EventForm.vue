@@ -41,7 +41,7 @@ const form = reactive({
   priceMajor: i ? String(toMajor(i.price)) : '0',
   cancellationDeadlineHours: (i?.cancellationDeadlineHours ?? 6) as number | '',
   description: i?.description ?? '',
-  publish: i ? i.status !== 'draft' : true,
+  publish: i ? i.status === 'published' : true,
 })
 const addingVenue = ref(false)
 const saving = ref(false)
@@ -79,7 +79,7 @@ async function submit() {
       cancellationDeadlineHours:
         form.cancellationDeadlineHours === '' ? null : Number(form.cancellationDeadlineHours),
       description: form.description.trim() || (props.initial ? null : undefined),
-      status: form.publish ? 'published' : 'draft',
+      status: form.publish ? 'published' : i?.status === 'closed' ? 'closed' : 'draft',
     }
     const res = props.initial
       ? await $fetch<{ event: Event }>(
@@ -242,10 +242,14 @@ async function submit() {
       <legend class="mb-3 text-base font-bold text-vt-ink">Публикация</legend>
       <label class="vt-card flex min-h-11 items-center gap-3 px-3 py-2 text-sm">
         <input v-model="form.publish" type="checkbox" class="h-5 w-5 shrink-0" />
-        <span
-          >Опубликовать сразу
-          <span class="text-vt-mute-2">(иначе черновик виден только организаторам)</span></span
-        >
+        <span v-if="initial?.status === 'closed'">
+          Опубликовать снова
+          <span class="text-vt-mute-2">(иначе событие останется закрытым)</span>
+        </span>
+        <span v-else>
+          Опубликовать сразу
+          <span class="text-vt-mute-2">(иначе черновик виден только организаторам)</span>
+        </span>
       </label>
     </fieldset>
     <p v-if="error" id="ev-form-error" class="text-sm text-vt-rose-ink" role="alert">{{ error }}</p>

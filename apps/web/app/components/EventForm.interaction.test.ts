@@ -113,6 +113,47 @@ describe('EventForm payload and state', () => {
     expect(wrapper.get('[role="alert"]').text()).toContain('Сервер не сохранил событие')
   })
 
+  it('keeps a closed event closed when editing its title without publishing it', async () => {
+    const wrapper = await renderForm({
+      id: 71,
+      organizationId: 30,
+      createdByUserId: 9,
+      type: 'training',
+      title: 'Закрытая игра',
+      startsAt: new Date('2026-09-27T16:00:00.000Z'),
+      endsAt: new Date('2026-09-27T18:00:00.000Z'),
+      venueId: null,
+      locationText: null,
+      capacity: 12,
+      price: 0,
+      currency: 'BYN',
+      cancellationDeadlineHours: 6,
+      description: null,
+      status: 'closed',
+      createdAt: new Date('2026-09-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-09-01T00:00:00.000Z'),
+    })
+    expect((wrapper.get('input[type="checkbox"]').element as HTMLInputElement).checked).toBe(false)
+    expect(wrapper.text()).toContain('Опубликовать снова')
+    await fill(wrapper, '#ev-title', 'Закрытая игра, новый зал')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/api/organizations/30/events/71',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: expect.objectContaining({ title: 'Закрытая игра, новый зал', status: 'closed' }),
+      }),
+    )
+    await wrapper.get('input[type="checkbox"]').setValue(true)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(apiFetch).toHaveBeenLastCalledWith(
+      '/api/organizations/30/events/71',
+      expect.objectContaining({ body: expect.objectContaining({ status: 'published' }) }),
+    )
+  })
+
   it('shows the organization subscription setting as text with no event-level control', async () => {
     const wrapper = await renderForm(undefined, false)
     expect(wrapper.text()).toContain('Абонементы отключены в настройках группы')

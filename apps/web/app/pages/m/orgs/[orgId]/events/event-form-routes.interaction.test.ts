@@ -17,9 +17,11 @@ const evData = ref({ event: { id: 71, organizationId: 30, status: 'draft' } })
 const evError = ref<Error | null>(null)
 const evStatus = ref('success')
 const navigateTo = vi.fn()
+const routerRoute = ref({ path: '/m/orgs/30/events/new' })
 
 vi.stubGlobal('definePageMeta', () => undefined)
 vi.stubGlobal('useRoute', () => route)
+vi.stubGlobal('useRouter', () => ({ currentRoute: routerRoute }))
 vi.stubGlobal('navigateTo', navigateTo)
 vi.stubGlobal('useOrgTimezone', () => ({ tz: ref('Europe/Minsk'), load: async () => undefined }))
 vi.stubGlobal('computed', computed)
@@ -30,6 +32,12 @@ vi.stubGlobal('useFetch', (url: () => string) =>
 )
 
 async function renderPage(component: typeof NewEvent | typeof EditEvent) {
+  routerRoute.value = {
+    path:
+      component === NewEvent
+        ? `/m/orgs/${route.params.orgId}/events/new`
+        : `/m/orgs/${route.params.orgId}/events/${route.params.eventId}/edit`,
+  }
   const host = defineComponent({ render: () => h(Suspense, null, { default: () => h(component) }) })
   const wrapper = mount(host, {
     global: {
@@ -103,6 +111,24 @@ describe('event form route access', () => {
     const wrapper = await renderPage(EditEvent)
     const form = wrapper.getComponent({ name: 'EventForm' })
     route.params.eventId = '72'
+    form.vm.$emit('saved', { id: 71, organizationId: 30 })
+    await flushPromises()
+    expect(navigateTo).not.toHaveBeenCalled()
+  })
+
+  it('does not navigate from a delayed create response after leaving for another page in the same organization', async () => {
+    const wrapper = await renderPage(NewEvent)
+    const form = wrapper.getComponent({ name: 'EventForm' })
+    routerRoute.value = { path: '/m/orgs/30/payments' }
+    form.vm.$emit('saved', { id: 72, organizationId: 30 })
+    await flushPromises()
+    expect(navigateTo).not.toHaveBeenCalled()
+  })
+
+  it('does not navigate from a delayed edit response after leaving for the event management page', async () => {
+    const wrapper = await renderPage(EditEvent)
+    const form = wrapper.getComponent({ name: 'EventForm' })
+    routerRoute.value = { path: '/m/orgs/30/events/71/manage' }
     form.vm.$emit('saved', { id: 71, organizationId: 30 })
     await flushPromises()
     expect(navigateTo).not.toHaveBeenCalled()

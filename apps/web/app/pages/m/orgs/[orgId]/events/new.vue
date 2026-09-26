@@ -1,6 +1,7 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 const route = useRoute()
+const router = useRouter()
 const orgId = computed(() => Number(route.params.orgId))
 const {
   data: orgData,
@@ -26,6 +27,7 @@ const canCreate = computed(() => {
 function onSaved(event: { id: number; organizationId: number }) {
   if (!canCreate.value || event.organizationId !== orgId.value) return
   if (Number(route.params.orgId) !== event.organizationId) return
+  if (router.currentRoute.value.path !== `/m/orgs/${event.organizationId}/events/new`) return
   return navigateTo(`/m/orgs/${event.organizationId}/events/${event.id}`)
 }
 </script>

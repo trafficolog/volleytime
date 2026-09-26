@@ -2,6 +2,7 @@
 import type { Event } from '@volley-time/db'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 const route = useRoute()
+const router = useRouter()
 const orgId = computed(() => Number(route.params.orgId))
 const eventId = computed(() => Number(route.params.eventId))
 const routeKey = computed(() => `${orgId.value}:${eventId.value}`)
@@ -45,6 +46,8 @@ function onSaved(event: Event) {
     Number(route.params.orgId) !== event.organizationId ||
     Number(route.params.eventId) !== event.id
   )
+    return
+  if (router.currentRoute.value.path !== `/m/orgs/${event.organizationId}/events/${event.id}/edit`)
     return
   return navigateTo(`/m/orgs/${event.organizationId}/events/${event.id}/manage`)
 }
