@@ -87,3 +87,10 @@ export function playerTabItems(base: string, showSubscriptions: boolean): TabIte
       : []),
   ]
 }
+
+export function pendingPaymentsForEvent<T extends { event?: { id: number } | null }>(
+  payments: readonly T[],
+  eventId: number,
+): T[] {
+  return payments.filter((payment) => payment.event?.id === eventId)
+}

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   organizerMenuLinks,
   organizerTabItems,
+  pendingPaymentsForEvent,
   playerTabItems,
   projectOrganizerHome,
 } from './organizer-miniapp'
@@ -50,6 +51,34 @@ describe('organizer Mini App navigation', () => {
       { kind: 'link', to: `${base}/events`, label: 'События', icon: 'calendar', prefix: true },
       { kind: 'link', to: `${base}/bookings`, label: 'Записи', icon: 'ticket' },
     ])
+  })
+})
+
+describe('event pending payments', () => {
+  const payer = { id: 4, name: 'Ирина' }
+  const eventPayment = {
+    id: 11,
+    amount: 2500,
+    currency: 'BYN',
+    method: 'transfer',
+    user: payer,
+    event: { id: 71, title: 'Волейбол' },
+    plan: null,
+  }
+  const payments = [
+    eventPayment,
+    { ...eventPayment, id: 12, event: { id: 72, title: 'Другая игра' } },
+    { ...eventPayment, id: 13, event: null, plan: { name: 'Абонемент' } },
+  ]
+
+  it('keeps only real payments for the selected event with their actual fields', () => {
+    expect(pendingPaymentsForEvent(payments, 71)).toEqual([eventPayment])
+    expect(pendingPaymentsForEvent(payments, 71)[0]).toBe(eventPayment)
+  })
+
+  it('returns an empty list for an event without pending payments', () => {
+    expect(pendingPaymentsForEvent(payments, 73)).toEqual([])
+    expect(pendingPaymentsForEvent([], 71)).toEqual([])
   })
 })
 
