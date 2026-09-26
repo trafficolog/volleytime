@@ -1,0 +1,52 @@
+// Browser fixture: client-side group isolation only, not real API/Telegram acceptance.
+async (page) => {
+  await page.unrouteAll({ behavior: 'ignoreErrors' })
+  await page.route('https://telegram.org/**', (route) => route.abort())
+  await page.route('https://fonts.googleapis.com/**', (route) => route.abort())
+  const org = (id) => ({ id, name: `Группа ${id}`, city: 'Минск', status: 'active', timezone: 'Europe/Minsk', subscriptionsEnabled: id === 2 })
+  let aDashboardRequests = 0
+  let releaseLateA
+  const lateA = new Promise((resolve) => { releaseLateA = resolve })
+  let lateAStarted
+  const lateARequest = new Promise((resolve) => { lateAStarted = resolve })
+  const event = (id) => ({ id, organizationId: id, title: `Игра группы ${id}`, status: 'published', startsAt: '2026-10-14T17:00:00.000Z', endsAt: '2026-10-14T19:00:00.000Z', capacity: 14, taken: 2, waitlist: 0, price: 1500, currency: 'BYN', myBooking: null, venue: { name: 'Школа №24', address: 'Минск' }, locationText: null, description: null, cancellationHours: 2, allowSubscription: false })
+  await page.route('**/api/**', async (route) => {
+    const path = route.request().url().replace(/^https?:\/\/[^/]+/, '').split('?')[0]
+    let body = {}
+    if (path.endsWith('/get-session')) body = { user: { id: 1, name: 'Артём', email: 'visual-qa@example.test' } }
+    else if (path.endsWith('/organizations')) body = { organizations: [1, 2].map((id) => ({ ...org(id), membershipRole: 'player', membershipStatus: 'active' })) }
+    else if (/\/organizations\/[12]$/.test(path)) body = { organization: org(Number(path.slice(-1))), myMember: { role: 'player', status: 'active' } }
+    else if (path.endsWith('/subscriptions/my')) body = { subscriptions: [] }
+    else if (/\/organizations\/[12]\/dashboard$/.test(path)) {
+      const id = Number(path.match(/organizations\/(\d+)/)[1])
+      if (id === 1 && ++aDashboardRequests === 2) {
+        lateAStarted()
+        await lateA
+      }
+      body = { isManager: false, myBookings: [], subscription: null, upcoming: [event(id)], manager: null }
+    }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('http://localhost:3100/m/orgs/1')
+  await page.getByRole('heading', { name: 'Ближайшая игра' }).waitFor()
+  if (!(await page.getByText('Игра группы 1').count())) throw new Error('Initial A dashboard missing')
+  if (await page.getByRole('navigation', { name: 'Разделы' }).getByRole('link', { name: 'Абонементы' }).count()) throw new Error('Disabled A subscriptions are visible')
+  const choose = async (from, to) => {
+    await page.getByRole('button', { name: `Выбрать группу. Сейчас Группа ${from}` }).click()
+    await page.getByRole('dialog').getByRole('link', { name: new RegExp(`Группа ${to}`) }).click()
+    await page.waitForURL(`**/m/orgs/${to}`)
+  }
+  await choose(1, 2)
+  await page.getByText('Игра группы 2').waitFor()
+  await page.getByRole('navigation', { name: 'Разделы' }).getByRole('link', { name: 'Абонементы' }).waitFor()
+  await choose(2, 1)
+  await Promise.race([lateARequest, page.waitForTimeout(10000).then(() => { throw new Error('Late A request never started') })])
+  // Nuxt keeps the B view mounted while A's page setup is pending.
+  await choose(2, 2)
+  await page.getByText('Игра группы 2').waitFor()
+  releaseLateA()
+  await page.waitForTimeout(800)
+  const observed = await page.evaluate(() => ({ url: location.pathname, body: document.body.innerText }))
+  if (observed.url !== '/m/orgs/2' || !observed.body.includes('Игра группы 2') || observed.body.includes('Игра группы 1') || !observed.body.includes('Абонементы')) throw new Error(`Stale group data: ${JSON.stringify(observed)}`)
+}
