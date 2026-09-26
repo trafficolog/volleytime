@@ -1,0 +1,34 @@
+// Browser fixture: dashboard network error and retry, not real backend acceptance.
+async (page) => {
+  await page.unrouteAll({ behavior: 'ignoreErrors' })
+  await page.route('https://telegram.org/**', (route) => route.abort())
+  await page.route('https://fonts.googleapis.com/**', (route) => route.abort())
+  let dashboardRequests = 0
+  let allowSuccess = false
+  await page.route('**/api/**', async (route) => {
+    const path = route.request().url().replace(/^https?:\/\/[^/]+/, '').split('?')[0]
+    let body = {}
+    let status = 200
+    if (path.endsWith('/get-session')) body = { user: { id: 1, name: 'Артём', email: 'visual-qa@example.test' } }
+    else if (path.endsWith('/organizations/1')) body = { organization: { id: 1, name: 'Группа 1', city: 'Минск', status: 'active', timezone: 'Europe/Minsk', subscriptionsEnabled: false }, myMember: { role: 'player', status: 'active' } }
+    else if (path.endsWith('/subscriptions/my')) body = { subscriptions: [] }
+    else if (path.endsWith('/dashboard')) {
+      dashboardRequests++
+      if (!allowSuccess) {
+        status = 503
+        body = { statusMessage: 'Временная ошибка сервера' }
+      } else body = { isManager: false, myBookings: [], subscription: null, upcoming: [{ id: 1, organizationId: 1, title: 'Игра после повтора', status: 'published', startsAt: '2026-10-14T17:00:00.000Z', endsAt: '2026-10-14T19:00:00.000Z', capacity: 14, taken: 2, waitlist: 0, price: 1500, currency: 'BYN', myBooking: null, venue: { name: 'Школа №24', address: 'Минск' }, locationText: null, description: null, cancellationHours: 2, allowSubscription: false }], manager: null }
+    }
+    await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('http://localhost:3100/m/orgs/1')
+  await page.getByRole('alert').getByText('Временная ошибка сервера').waitFor()
+  if (await page.getByText('Игра после повтора').count()) throw new Error('Stale dashboard data shown on error')
+  const requestsBeforeRetry = dashboardRequests
+  allowSuccess = true
+  await page.getByRole('alert').getByRole('button', { name: 'Повторить' }).click()
+  await page.getByText('Игра после повтора').waitFor()
+  if (await page.getByRole('alert').count()) throw new Error('Error remains after successful retry')
+  if (dashboardRequests <= requestsBeforeRetry) throw new Error(`Retry did not request dashboard: ${dashboardRequests}`)
+}
