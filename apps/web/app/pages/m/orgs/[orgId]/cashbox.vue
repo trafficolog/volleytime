@@ -284,7 +284,7 @@ function entrySubtitle(e: Entry): string {
 
     <VtSheet v-model="sheetOpen" :title="sheetKind === 'expense' ? 'Новый расход' : 'Новый доход'">
       <form class="space-y-3" @submit.prevent="save">
-        <div class="grid grid-cols-2 gap-3">
+        <div class="cashbox-form-primary-grid grid gap-3">
           <div>
             <label class="vt-label" for="lg-cat">Категория</label>
             <select id="lg-cat" v-model="form.category" class="vt-field">
@@ -340,3 +340,15 @@ function entrySubtitle(e: Entry): string {
     </VtSheet>
   </div>
 </template>
+
+<style scoped>
+.cashbox-form-primary-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 22rem) {
+  .cashbox-form-primary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+</style>
