@@ -4,10 +4,10 @@ phase: '8'
 epic: '8.10'
 status: todo
 sync_state: synced
-last_reviewed: 2026-09-24
+last_reviewed: 2026-09-25
 status_note: ''
 roles: [QA, FE]
-depends_on: ['3.11.3', '8.10.1', '8.10.2', '5.15.1', '6.10.1']
+depends_on: ['3.11.3', '3.11.4', '8.10.1', '8.10.2', '5.15.1', '6.10.1']
 estimated_hours: '6-10'
 tags: [qa, mvp, redesign]
 ---
@@ -24,8 +24,8 @@ tags: [qa, mvp, redesign]
 
 ## Что должно быть сделано
 
-1. Собрать матрицу «референс → route → state → screenshot/test» для auth, Mini App игрока/организатора и desktop-организатора.
-2. Пройти визуальный QA 320/390/1280/1440 px, светлую и Telegram-тёмную тему, 200% zoom, клавиатуру и состояния ошибок.
+1. Собрать матрицу «референс → route → state → screenshot/test» для публичного MVP-лендинга, auth, Mini App игрока/организатора и desktop-организатора.
+2. Пройти визуальный QA 320/390/1280/1440 px, светлую и Telegram-тёмную тему, 200% zoom, клавиатуру и состояния ошибок; на лендинге также проверить CTA/якоря/FAQ, reduced motion и отсутствие обещаний будущих функций.
 3. Прогнать пять gates и production-impacting smoke; зафиксировать отдельно ручной Telegram QA и реальную pilot-валидацию.
 
 ## Критерии приёмки
