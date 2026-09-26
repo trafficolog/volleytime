@@ -2,10 +2,10 @@
 id: '3.11.7'
 phase: '3'
 epic: '3.11'
-status: in_progress
+status: done
 sync_state: synced
 last_reviewed: 2026-09-26
-status_note: 'Восстановление, четыре viewport, keyboard/reduced-motion и локальный build-smoke проверены; независимое review без существенных дефектов. CI и интеграция в landing-ветку ожидаются; общий R0.6 QA открыт.'
+status_note: 'Пользователь принял внешний вид; PR #46 слит в landing-ветку как 511b44f. Проверенный head 76b9a87 прошёл все CI jobs; дерево merge совпадает с ним. Общий R0.6 QA и родительская 3.11.4 остаются открытыми.'
 roles: [FE, QA]
 depends_on: ['3.11.4', '3.11.5']
 estimated_hours: '6-10'
@@ -38,6 +38,10 @@ tags: [landing, visual-fidelity, review-fix]
 - Пять gates, независимое review и точный CI head. Задача интегрируется сначала в landing-ветку; не разрешает частичное продвижение R0.6 в main/prod/VPS.
 
 ## Проверка / журнал
+
+- 2026-09-26: пользователь просмотрел локальную production-сборку на `http://127.0.0.1:3005/` и подтвердил: «Да, все отлично можно сливать». Это подтверждение внешнего вида исправления, не native zoom/фоновой вкладки, production email/бота или Telegram QA.
+- Перед merge свежий `pnpm test`: 85 files / 452 tests pass. Точный head `76b9a8704fbdede2014de355c45194c2dcd48bfa` прошёл [CI 36229113553](https://github.com/trafficolog/volleytime/actions/runs/36229113553): Build, Test unit+integration, Lint/Format/Typecheck — success.
+- [PR #46](https://github.com/trafficolog/volleytime/pull/46) слит только в `trafficolog/feat/3.11.4-mvp-landing-v2`, merge `511b44f89d0dd15389fe42d5764b3146a38eba32`. `git diff 76b9a87 511b44f` пуст: итоговое дерево идентично проверенному. Локальная landing-ветка fast-forward; QA-артефакты сохранены. Родительский PR #43 остаётся draft; объединённый head запускает собственный CI. `main`, `prod`, VPS не менялись.
 
 - 2026-09-26: сравнение исходного HTML/CSS и реализации подтвердило дефект. SDD-карточка создана до изменения production-кода; ветка `trafficolog/fix/3.11.7-landing-reference-fidelity` от landing head `af5e063`.
 - Baseline: 3 файла / 9 landing-тестов pass. Browser RED на собранной версии: hero background `transparent` (градиент), телефонов 1, полоса `rgb(21,22,26)`, номер шага 48 px, FAQ radius 0 px; contract ожидает синий hero, 2 телефона, оранжевую полосу, номер 96 px, radius 22 px и закономерно упал `Reference visual contract failed`.
