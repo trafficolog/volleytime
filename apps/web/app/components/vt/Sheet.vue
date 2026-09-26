@@ -1,12 +1,18 @@
 <script setup lang="ts">
 /** Нижний лист (bottom sheet) для выбора действия. */
 const open = defineModel<boolean>({ default: false })
-defineProps<{ title?: string }>()
+defineProps<{ title?: string; id?: string }>()
 </script>
 
 <template>
   <Teleport to="body">
-    <div v-if="open" class="fixed inset-0 z-40 flex items-end" role="dialog" aria-modal="true">
+    <div
+      v-if="open"
+      :id="id"
+      class="fixed inset-0 z-40 flex items-end"
+      role="dialog"
+      aria-modal="true"
+    >
       <button
         type="button"
         class="absolute inset-0 bg-black/40"

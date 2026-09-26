@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 
 import { describe, expect, it } from 'vitest'
 
-const css = readFileSync(new URL('./main.css', import.meta.url), 'utf8')
+const css = readFileSync(new URL('./main.css', import.meta.url), 'utf8').replaceAll('\r\n', '\n')
 const tabBar = readFileSync(new URL('../../components/vt/TabBar.vue', import.meta.url), 'utf8')
 const header = readFileSync(new URL('../../components/vt/MiniHeader.vue', import.meta.url), 'utf8')
 const empty = readFileSync(new URL('../../components/EmptyState.vue', import.meta.url), 'utf8')
@@ -56,8 +56,10 @@ describe('Bento Bold MVP atoms', () => {
     expect(rule('.vt-miniheader')).toContain('border-bottom: 0')
     expect(rule('.vt-tabbar')).toContain('background: var(--vt-tabbar-bg)')
     expect(rule('.vt-tabbar')).toContain('margin: 0 12px 14px')
-    expect(rule('.vt-tabbar a')).toContain('min-height: 58px')
-    expect(rule('.vt-tabbar a:focus-visible')).toContain('outline-color: var(--vt-tabbar-active)')
+    expect(rule('.vt-tabbar a,\n  .vt-tabbar button')).toContain('min-height: 58px')
+    expect(rule('.vt-tabbar a:focus-visible,\n  .vt-tabbar button:focus-visible')).toContain(
+      'outline-color: var(--vt-tabbar-active)',
+    )
     expect(tabBar).toContain('<nav class="vt-tabbar"')
     expect(tabBar).toContain('<NuxtLink')
     expect(tabBar).toContain(':aria-current="isActive(t) ? \'page\' : undefined"')

@@ -342,7 +342,8 @@
     z-index: 20;
     margin: 0 12px 14px;
   }
-  .vt-tabbar a {
+  .vt-tabbar a,
+  .vt-tabbar button {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -352,6 +353,8 @@
     font-size: var(--text-nano);
     font-weight: 600;
     color: var(--vt-tabbar-idle);
+    justify-content: center;
+    cursor: pointer;
   }
   .vt-tabbar [data-active='true'] {
     color: var(--vt-tabbar-active);
@@ -366,7 +369,8 @@
     border-radius: 999px;
     background: currentColor;
   }
-  .vt-tabbar a:focus-visible {
+  .vt-tabbar a:focus-visible,
+  .vt-tabbar button:focus-visible {
     outline-color: var(--vt-tabbar-active);
     outline-offset: -4px;
   }
