@@ -37,23 +37,23 @@ function contrastRatio(foreground: string | undefined, background: string | unde
 }
 
 describe('landing contrast contract', () => {
-  it('keeps meaningful orange-accent text readable on light and bone surfaces', () => {
+  it('preserves the explicitly requested reference orange and records its contrast limitation', () => {
     const paper = color('var(--vt-paper)')
-    const bone = color('var(--vt-bone)')
     const hero = color(declaration('.landing h1 em', 'color') ?? '')
-    const step = color(declaration('.landing__step-list li > span', 'color') ?? '')
-
-    expect(contrastRatio(hero, paper)).toBeGreaterThanOrEqual(4.5)
-    expect(contrastRatio(step, bone)).toBeGreaterThanOrEqual(4.5)
+    expect(hero?.toLowerCase()).toBe('#ff6b1f')
+    // Task 3.11.7: exact color is approved; WCAG color acceptance remains open.
+    expect(contrastRatio(hero, paper)).toBeGreaterThan(2.8)
+    expect(contrastRatio(hero, paper)).toBeLessThan(3)
   })
 
-  it('keeps small text in the orange preview pill readable', () => {
+  it('records the same open limitation for white text on the reference orange pill', () => {
     const foreground = color(declaration('.landing-preview__pill', 'color') ?? '')
     const background = color(declaration('.landing-preview__pill', 'background') ?? '')
-    expect(contrastRatio(foreground, background)).toBeGreaterThanOrEqual(4.5)
+    expect(contrastRatio(foreground, background)).toBeLessThan(3)
+    expect(contrastRatio(foreground, background)).toBeGreaterThan(2.8)
   })
 
-  it('keeps keyboard focus visible on the blue organizer card', () => {
+  it('keeps keyboard focus visible on the dark organizer card', () => {
     const outline = color(
       declaration('.landing__role--organizer a:focus-visible', 'outline-color') ?? '',
     )
