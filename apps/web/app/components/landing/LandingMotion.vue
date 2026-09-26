@@ -176,7 +176,7 @@ onMounted(() => {
       visible: false,
       width: 0,
       height: 0,
-      light: Boolean(host.closest('.landing__final')),
+      light: true,
     })
   }
 

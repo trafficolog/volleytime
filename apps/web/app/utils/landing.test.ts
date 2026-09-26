@@ -28,7 +28,7 @@ describe('MVP landing public contract', () => {
       'faq',
     ])
     expect(landingFaq).toHaveLength(4)
-    expect(landingFeatures).toHaveLength(4)
+    expect(landingFeatures).toHaveLength(6)
     const copy = JSON.stringify([landingFaq, landingFeatures]).toLowerCase()
     for (const claim of ['credits', 'split', '30 минут', 'напоминания по расписанию']) {
       expect(copy).not.toContain(claim)
