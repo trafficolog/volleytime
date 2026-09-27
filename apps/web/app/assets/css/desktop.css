@@ -365,3 +365,110 @@
     min-width: 36rem;
   }
 }
+
+.vt-desktop-form-page,
+.vt-desktop-event-detail {
+  max-width: 68rem;
+}
+
+.vt-desktop-form-page h1,
+.vt-desktop-event-detail h1 {
+  font-family: var(--f-display);
+  font-size: clamp(2rem, 3vw, 2.75rem);
+  font-weight: 700;
+}
+
+.vt-desktop-form-page__card {
+  max-width: 48rem;
+  padding: clamp(1rem, 2vw, 1.75rem);
+}
+
+.vt-desktop-event-detail__stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.vt-desktop-event-detail__stats > div {
+  display: grid;
+  gap: 0.25rem;
+  padding: 1rem;
+}
+
+.vt-desktop-event-detail__stats strong {
+  font-family: var(--f-display);
+  font-size: clamp(1.35rem, 2vw, 2rem);
+  overflow-wrap: anywhere;
+}
+
+.vt-desktop-event-detail__stats span {
+  color: var(--vt-mute-2);
+}
+
+.vt-desktop-event-detail__notice,
+.vt-desktop-event-detail__description,
+.vt-desktop-event-detail__roster {
+  padding: clamp(1rem, 2vw, 1.5rem);
+}
+
+.vt-desktop-event-detail__notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.vt-desktop-event-detail__roster h2 {
+  font-family: var(--f-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.vt-desktop-event-detail__rows {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+}
+
+.vt-desktop-event-detail__rows li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding-block: 0.75rem;
+}
+
+.vt-desktop-event-detail__rows li + li {
+  border-block-start: 1px solid var(--vt-stroke);
+}
+
+.vt-desktop-event-detail__person {
+  display: grid;
+  min-width: 8rem;
+  flex: 1;
+}
+
+.vt-desktop-event-detail__person span {
+  color: var(--vt-mute-2);
+  font-size: 0.875rem;
+}
+
+.vt-desktop-event-detail__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 55rem) {
+  .vt-desktop-event-detail__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 45rem) {
+  .vt-desktop-form-page .grid-cols-2,
+  .vt-desktop-event-detail__stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
