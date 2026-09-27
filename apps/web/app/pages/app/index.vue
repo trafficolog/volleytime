@@ -5,9 +5,10 @@ definePageMeta({ middleware: ['auth'] })
 useHead({ title: 'Мои группы — Volley Time' })
 
 const { orgs, fetchAll } = useOrganizations()
-const route = useRoute()
+const router = useRouter()
 const loading = ref(true)
 const error = ref('')
+const navigating = ref(false)
 let alive = true
 onBeforeUnmount(() => {
   alive = false
@@ -23,18 +24,10 @@ const eligible = computed(() =>
 const active = computed(() => eligible.value.filter((org) => org.status === 'active'))
 
 async function load() {
-  const expectedPath = route.fullPath
   loading.value = true
   error.value = ''
   try {
     await fetchAll()
-    if (
-      alive &&
-      route.fullPath === expectedPath &&
-      active.value.length === 1 &&
-      route.query.choose !== '1'
-    )
-      await navigateTo(`/app/orgs/${active.value[0]!.id}`)
   } catch (e) {
     if (alive) error.value = apiErrorMessage(e, 'Не удалось загрузить группы')
   } finally {
@@ -43,6 +36,24 @@ async function load() {
 }
 
 onMounted(load)
+watch([loading, active, () => router.currentRoute.value.fullPath], async () => {
+  const current = router.currentRoute.value
+  if (
+    !alive ||
+    loading.value ||
+    navigating.value ||
+    current.path !== '/app' ||
+    current.query.choose === '1' ||
+    active.value.length !== 1
+  )
+    return
+  navigating.value = true
+  try {
+    await navigateTo(`/app/orgs/${active.value[0]!.id}`)
+  } finally {
+    navigating.value = false
+  }
+})
 
 function groupLabel(org: OrganizationListItem) {
   return org.status === 'suspended' ? 'Приостановлена' : 'Открыть кабинет'
