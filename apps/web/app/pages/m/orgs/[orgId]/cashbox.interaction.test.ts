@@ -89,6 +89,26 @@ beforeEach(() => {
 })
 
 describe('append-only cashbox', () => {
+  it('shows journal loading until an empty filtered response arrives', async () => {
+    const wrapper = await renderCashbox()
+    let release!: (value: { balance: typeof balance; entries: typeof entries }) => void
+    const pending = new Promise<{ balance: typeof balance; entries: typeof entries }>((resolve) => {
+      release = resolve
+    })
+    apiFetch.mockImplementationOnce(async () => pending)
+
+    await wrapper.get('#ledger-type').setValue('income')
+    await nextTick()
+    expect(wrapper.text()).toContain('Загрузка')
+    expect(wrapper.text()).not.toContain('Операций пока нет')
+
+    release({ balance, entries: [] })
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('Загрузка')
+    expect(wrapper.text()).toContain('Операций пока нет')
+    wrapper.unmount()
+  })
+
   it('keeps the focused filter and operation controls mounted during a same-org refresh', async () => {
     const wrapper = await renderCashbox()
     let release!: (value: { balance: typeof balance; entries: typeof entries }) => void

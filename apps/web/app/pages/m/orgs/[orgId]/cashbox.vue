@@ -304,7 +304,8 @@ function entrySubtitle(e: Entry): string {
             </select>
           </div>
 
-          <EmptyState v-if="groups.length === 0" icon="chart" title="Операций пока нет" />
+          <SkeletonList v-if="loading" :count="2" />
+          <EmptyState v-else-if="groups.length === 0" icon="chart" title="Операций пока нет" />
           <section v-for="g in groups" :key="g.day">
             <div class="flex items-center justify-between mb-1.5 px-1">
               <h2 class="vt-cap">{{ g.day }}</h2>
