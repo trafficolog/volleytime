@@ -277,3 +277,91 @@
     padding-block: 0.75rem;
   }
 }
+
+.vt-desktop-events__controls,
+.vt-desktop-events__filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.vt-desktop-events__controls {
+  justify-content: space-between;
+}
+
+.vt-desktop-events__list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.vt-desktop-events__list li {
+  min-width: 0;
+}
+
+.vt-desktop-calendar {
+  padding: clamp(1rem, 2vw, 1.5rem);
+}
+
+.vt-desktop-calendar h2 {
+  margin-block-end: 1rem;
+  font-family: var(--f-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.vt-desktop-calendar__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.25rem;
+}
+
+.vt-desktop-calendar__grid > div {
+  min-width: 0;
+  padding: 0.4rem;
+}
+
+.vt-desktop-calendar__grid > div:nth-child(-n + 7) {
+  color: var(--vt-mute-2);
+  font-weight: 600;
+}
+
+.vt-desktop-calendar__day {
+  min-height: 5.5rem;
+  border: 1px solid var(--vt-stroke);
+  border-radius: 0.5rem;
+}
+
+.vt-desktop-calendar__day ul {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+}
+
+.vt-desktop-calendar__day a {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 0.75rem;
+  color: var(--vt-link);
+}
+
+@media (max-width: 70rem) {
+  .vt-desktop-events__list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 45rem) {
+  .vt-desktop-calendar {
+    overflow-x: auto;
+  }
+
+  .vt-desktop-calendar__grid {
+    min-width: 36rem;
+  }
+}
