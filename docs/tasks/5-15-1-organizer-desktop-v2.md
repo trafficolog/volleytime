@@ -2,10 +2,10 @@
 id: '5.15.1'
 phase: '5'
 epic: '5.15'
-status: todo
+status: in_progress
 sync_state: synced
-last_reviewed: 2026-09-24
-status_note: ''
+last_reviewed: 2026-09-27
+status_note: 'Implementation and local QA complete; independent branch review and GitHub CI/merge pending. Telegram-host and R0.6 global QA are separate.'
 roles: [FE, QA]
 depends_on: ['3.11.3', '5.13.21']
 estimated_hours: '18-28'
@@ -38,6 +38,15 @@ tags: [web, organizer, mvp, redesign]
 ## Подсказки
 
 - `/m` остаётся Telegram-first; desktop создаётся как отдельная оболочка над теми же API.
+- QA 2026-09-27: в обзоре hero «Касса группы» на 1440 px получился чёрным вместо синего `--vt-blue-ink` из `4 Кабинет организатора.html`. Исправить в этой задаче с RED→GREEN проверкой вычисленного CSS-цвета.
+
+## Локальная проверка 2026-09-27
+
+- SDD/TDD по этапам 1–7: RED→GREEN для доступа, обзора, календаря, действий события, участников, планов и настроек; browser smoke на локальной PostgreSQL. Подробности и команды — в `docs/superpowers/plans/2026-09-27-organizer-desktop-v2.md`.
+- Визуальная сверка с `4 Кабинет организатора.html`: общий стиль, Oswald/Golos, синий hero кассы. RED: вычисленный фон `rgb(21, 22, 26)`; GREEN после исправления: `rgb(31, 46, 150)` (`--vt-blue-ink`). 7 маршрутов проверены на 1440/1280/720/390 px: у документа нет горизонтального переполнения; 720 px соответствует доступной ширине при 200% zoom от 1440 px.
+- Реальные локальные API: создание/публикация/отмена события, управление составом, создание/правка/архивация плана, выключение/включение абонементов, сохранение настроек и архивирование организации. Проверены прямые ссылки, обновление страницы, клавиатура и Escape/focus меню, 503/retry и отказ доступа игроку/чужой группе; Telegram-инвайт проверен с mock API из-за отсутствия локального bot username.
+- Полные gates после визуальной правки: `pnpm format:check` — 0; `pnpm lint` — 0 errors, 21 прежнее warning; `pnpm typecheck` — 6/6; `pnpm test` с PostgreSQL — 94 файла/500 тестов; `pnpm build` — 2/2. Production-сборка локально на порту 3017: owner создал и архивировал тестовую группу; переход на `/app?choose=1` показал пустой список без ошибок Vue. Ранее наблюдавшееся зависание экрана при dev HMR не воспроизвелось.
+- Не заявляются real Telegram-host, production deploy, бэкап/restore и сквозная приёмка R0.6. Для этой задачи ещё нужны независимое review, PR/CI и merge в GitHub `main`; `prod`/VPS остаются без изменений.
 
 ## Не делать
 

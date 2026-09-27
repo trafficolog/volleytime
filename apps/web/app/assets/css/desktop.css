@@ -197,7 +197,7 @@
 }
 
 .vt-desktop-dashboard .vt-card.vt-desktop-dashboard__balance {
-  background: var(--vt-ink);
+  background: var(--vt-blue-ink);
   color: var(--vt-paper);
 }
 
