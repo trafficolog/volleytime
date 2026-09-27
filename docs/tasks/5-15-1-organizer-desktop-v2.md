@@ -2,10 +2,10 @@
 id: '5.15.1'
 phase: '5'
 epic: '5.15'
-status: in_progress
+status: done
 sync_state: synced
 last_reviewed: 2026-09-27
-status_note: 'Implementation and local QA complete; independent branch review and GitHub CI/merge pending. Telegram-host and R0.6 global QA are separate.'
+status_note: 'Task acceptance, independent review and PR #50 CI passed; Telegram-host and R0.6 global QA remain separate.'
 roles: [FE, QA]
 depends_on: ['3.11.3', '5.13.21']
 estimated_hours: '18-28'
@@ -66,6 +66,7 @@ tags: [web, organizer, mvp, redesign]
 - Query RED: после задержанного GET путь оставался `/app` с экраном выбора; GREEN: открывает единственную группу. Также GREEN после уже загруженного chooser; переход `/app` → `/app/orgs/new` во время GET остаётся на форме.
 - Последний delta-review: при сохранённой в `useState` единственной группе и 503 нового GET автопереход не должен скрывать ошибку с повтором. Browser RED→GREEN для cached-list + failed fetch.
 - Cached-list RED: после 503 интерфейс уходил на старую группу `/app/orgs/99`; GREEN: остаётся на `/app` с «Повторить» и не показывает устаревшую группу.
+- GitHub PR #50: CI `Build`, `Lint · Format · Typecheck`, `Test (unit + integration)` прошли на `5f37014` (run `36338423555`); задача готова к merge в `main`. Это не выпуск R0.6 и не production/Telegram QA.
 
 ## Не делать
 
