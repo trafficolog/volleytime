@@ -30,6 +30,9 @@ export default defineNuxtConfig({
   routeRules: {
     // Mini App — SPA mode (Telegram WebApp)
     '/m/**': { ssr: false },
+    // Private organizer cabinet uses the same client-side session flow without Telegram.
+    '/app': { ssr: false },
+    '/app/**': { ssr: false },
   },
   runtimeConfig: {
     betterAuthSecret: '',
