@@ -3,6 +3,7 @@ import type { Organization, OrganizationMember } from '@volley-time/db'
 import { formatDay, formatShortDate, formatTime } from '@volley-time/shared'
 
 import type { EventListItem } from '~/components/EventCard.vue'
+import { groupEntryState, visibleGroup } from '~/utils/group-entry-state'
 import { formatMoneyRu } from '~/utils/labels'
 import { canManageOrgSettingsUi, canViewOrgAuditUi } from '~/utils/organization-ui'
 import { playerHomeAccess, projectPlayerHome } from '~/utils/player-home'
@@ -39,9 +40,10 @@ const {
   organization: Organization
   myMember: OrganizationMember
 }>(() => `/api/organizations/${orgId.value}`, { key: () => `org-home-${orgId.value}` })
-const org = computed(() =>
-  !orgError.value && orgData.value?.organization.id === orgId.value
-    ? orgData.value.organization
+const org = computed(() => visibleGroup(orgData.value?.organization, orgError.value, orgId.value))
+const accessState = computed(() =>
+  orgError.value
+    ? groupEntryState(apiErrorStatus(orgError.value), apiErrorCode(orgError.value))
     : null,
 )
 const me = computed(() => (org.value ? (orgData.value?.myMember ?? null) : null))
@@ -104,9 +106,10 @@ await refreshDash()
 watch(orgId, () => void refreshDash())
 
 watch(
-  orgId,
-  (id) => {
-    if (import.meta.client) window.localStorage.setItem('vt.lastOrgId', String(id))
+  org,
+  (value) => {
+    if (import.meta.client && value && !orgError.value)
+      window.localStorage.setItem('vt.lastOrgId', String(value.id))
   },
   { immediate: true },
 )
@@ -124,7 +127,7 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
     >
       <template #right>
         <NuxtLink
-          v-if="dash?.isManager"
+          v-if="!orgError && org && dash?.isManager"
           :to="`${base}/invite`"
           class="vt-btn vt-btn--ghost vt-btn--sm"
           aria-label="Пригласить"
@@ -161,17 +164,22 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
     </header>
 
     <main class="px-4 py-4 space-y-6">
-      <ErrorState
-        v-if="orgError && access !== 'suspended' && access !== 'denied'"
-        message="Не удалось открыть группу"
-        @retry="refreshOrg()"
-      />
-
-      <SkeletonList v-else-if="orgLoading || access === 'loading'" :count="2" />
-
-      <div v-else-if="access === 'suspended'" class="vt-card p-4" role="status">
+      <section v-if="accessState === 'unauthorized'" class="vt-card p-5 space-y-3">
+        <h1 class="text-xl font-semibold">Нужно войти</h1>
+        <NuxtLink
+          :to="`/auth/login?redirect=${encodeURIComponent(route.fullPath)}`"
+          class="vt-btn vt-btn--primary"
+          >Войти по email</NuxtLink
+        >
+      </section>
+      <div
+        v-else-if="access === 'suspended' || accessState === 'suspended'"
+        class="vt-card p-4"
+        role="status"
+      >
         <VtChip tone="rose" dot>Группа приостановлена</VtChip>
         <p class="text-sm text-vt-mute-2 mt-2">Запись и покупки сейчас недоступны.</p>
+        <NuxtLink to="/m/orgs" class="vt-btn vt-btn--ghost mt-4">Мои группы</NuxtLink>
       </div>
 
       <div v-else-if="access === 'pending'" class="vt-card p-4" role="status">
@@ -181,13 +189,21 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
         </p>
       </div>
 
-      <div v-else-if="access === 'denied'" class="vt-card p-4" role="status">
+      <div
+        v-else-if="access === 'denied' || accessState === 'denied'"
+        class="vt-card p-4"
+        role="status"
+      >
         <VtChip tone="rose" dot>Доступ в группу закрыт</VtChip>
         <p class="text-sm text-vt-mute-2 mt-2">Запись и покупки в этой группе недоступны.</p>
         <NuxtLink to="/m/orgs" class="vt-btn vt-btn--ghost mt-4">Мои группы</NuxtLink>
       </div>
 
-      <template v-else>
+      <ErrorState v-else-if="orgError" message="Не удалось открыть группу" @retry="refreshOrg()" />
+
+      <SkeletonList v-else-if="orgLoading || access === 'loading'" :count="2" />
+
+      <template v-else-if="org">
         <ErrorState v-if="dashError" :message="dashError" @retry="refreshDash()" />
         <SkeletonList v-else-if="dashLoading || !dash" :count="3" />
         <template v-else-if="dash">

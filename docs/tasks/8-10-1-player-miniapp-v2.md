@@ -5,7 +5,7 @@ epic: '8.10'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-27
-status_note: 'Локальные browser/API/DB QA и gates пройдены; native 200% zoom и реальный Telegram-host QA остаются открытыми.'
+status_note: 'Локальные browser/API/DB QA и gates пройдены; конфликт с auth-main разрешён и проверен отдельно. Native 200% zoom и реальный Telegram-host QA остаются открытыми.'
 roles: [FE, QA]
 depends_on: ['3.11.2', '5.13.21']
 estimated_hours: '12-18'
@@ -13,6 +13,23 @@ tags: [miniapp, player, mvp, redesign]
 ---
 
 # Task 8.10.1: Mini App игрока v2
+
+## Интеграция с авторизацией из main, 2026-09-27
+
+После merge `origin/main` (`d083f60`) сохранены одновременно визуальная композиция
+игрока, защита от устаревших ответов при смене группы и состояния доступа из
+3.11.3. Локальная браузерная fixture
+`scripts/qa/player-miniapp-auth-merge.pwcode` проверяет pending, suspended,
+известный и неизвестный 403, 401 и сетевой 503 на живом Vue-маршруте:
+информационные состояния не предлагают ложный Retry, сеть оставляет Retry.
+Сценарии смены группы и повтора dashboard-запроса повторены отдельно. Fixture
+не является реальным Telegram/API QA.
+
+После объединения прошли `pnpm format:check`, `pnpm lint` (0 ошибок, 15
+существующих предупреждений), `pnpm typecheck` (6/6), `pnpm test` (96 файлов,
+548 тестов) и `pnpm build` (2/2). Native 200% zoom не подтверждён:
+`Control++` в автоматизированном headed-браузере не изменил `devicePixelRatio`
+или CSS-ширину. Реальный Telegram-host и общий R0.6 QA остаются открытыми.
 
 ## Цель
 

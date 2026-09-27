@@ -253,9 +253,11 @@ export const eventService = {
 
         // 2. платёж: succeeded -> refund (ledger expense), pending -> cancel
         if (b.paymentId) {
-          const payment = await tx.query.payments.findFirst({
-            where: eq(payments.id, b.paymentId),
-          })
+          const [payment] = await tx
+            .select()
+            .from(payments)
+            .where(eq(payments.id, b.paymentId))
+            .for('update')
           // переходы условные (6.8.1): повторный возврат невозможен даже без лока
           if (payment?.status === 'succeeded' && payment.bookingId === b.id) {
             await paymentService.refund({ ...ctx, db: tx }, payment.id, 'Отмена события')
