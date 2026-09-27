@@ -273,6 +273,15 @@ describe('money races (integration)', () => {
       nextBooking.paymentId!,
       { orgId },
     )
+    await expect(
+      paymentService.cancel(
+        { userId: ownerId, notifications: secondPaymentNotifications },
+        nextBooking.paymentId!,
+        { orgId },
+      ),
+    ).rejects.toThrow(/not pending/i)
+    expect(secondPaymentNotifications).toHaveLength(1)
+    expect(await incomes(nextBooking.paymentId!)).toHaveLength(0)
     await eventService.cancel(
       { userId: ownerId, notifications: secondEventNotifications },
       nextEvent.id,
