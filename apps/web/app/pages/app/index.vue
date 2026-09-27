@@ -41,6 +41,7 @@ watch([loading, active, () => router.currentRoute.value.fullPath], async () => {
   if (
     !alive ||
     loading.value ||
+    error.value ||
     navigating.value ||
     current.path !== '/app' ||
     current.query.choose === '1' ||
