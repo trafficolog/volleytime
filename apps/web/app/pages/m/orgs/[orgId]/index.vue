@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type { Organization, OrganizationMember } from '@volley-time/db'
 import { formatDay, formatShortDate, formatTime } from '@volley-time/shared'
+
 import type { EventListItem } from '~/components/EventCard.vue'
+import { groupEntryState, visibleGroup } from '~/utils/group-entry-state'
 import { formatMoneyRu } from '~/utils/labels'
 import { canManageOrgSettingsUi, canViewOrgAuditUi } from '~/utils/organization-ui'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
@@ -34,8 +36,13 @@ const {
   organization: Organization
   myMember: OrganizationMember
 }>(() => `/api/organizations/${orgId.value}`)
-const org = computed(() => orgData.value?.organization ?? null)
-const me = computed(() => orgData.value?.myMember ?? null)
+const org = computed(() => visibleGroup(orgData.value?.organization, orgError.value, orgId.value))
+const accessState = computed(() =>
+  orgError.value
+    ? groupEntryState(apiErrorStatus(orgError.value), apiErrorCode(orgError.value))
+    : null,
+)
+const me = computed(() => (org.value ? (orgData.value?.myMember ?? null) : null))
 const isPending = computed(() => me.value?.status === 'pending')
 const canViewAudit = computed(() => canViewOrgAuditUi(me.value))
 const canManageSettings = computed(() => canManageOrgSettingsUi(me.value))
@@ -48,19 +55,28 @@ const {
   immediate: true,
 })
 
-onMounted(() => {
-  if (import.meta.client) window.localStorage.setItem('vt.lastOrgId', String(orgId.value))
-})
+watch(
+  org,
+  (value) => {
+    if (import.meta.client && value && !orgError.value)
+      window.localStorage.setItem('vt.lastOrgId', String(value.id))
+  },
+  { immediate: true },
+)
 
 const base = computed(() => `/m/orgs/${orgId.value}`)
 </script>
 
 <template>
   <div class="min-h-screen">
-    <VtMiniHeader :title="org?.name ?? 'Группа'" :sub="org?.city ?? undefined" back="/m/orgs">
+    <VtMiniHeader
+      :title="!orgError && org ? org.name : 'Группа'"
+      :sub="!orgError && org ? (org.city ?? undefined) : undefined"
+      back="/m/orgs"
+    >
       <template #right>
         <NuxtLink
-          v-if="dash?.isManager"
+          v-if="!orgError && org && dash?.isManager"
           :to="`${base}/invite`"
           class="vt-btn vt-btn--ghost vt-btn--sm"
           aria-label="Пригласить"
@@ -71,7 +87,30 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
     </VtMiniHeader>
 
     <main class="px-4 py-4 space-y-5">
-      <ErrorState v-if="orgError" message="Не удалось открыть группу" @retry="refreshOrg()" />
+      <section v-if="accessState === 'denied'" class="vt-card p-5 space-y-3" role="alert">
+        <h1 class="text-xl font-semibold">Доступ к группе закрыт</h1>
+        <p class="text-sm text-vt-mute-2">Эта группа недоступна вашему аккаунту.</p>
+        <NuxtLink to="/m/orgs" class="vt-btn vt-btn--primary">К доступным группам</NuxtLink>
+      </section>
+
+      <section v-else-if="accessState === 'suspended'" class="vt-card p-5 space-y-3" role="alert">
+        <h1 class="text-xl font-semibold">Группа приостановлена</h1>
+        <p class="text-sm text-vt-mute-2">Сейчас открыть эту группу нельзя.</p>
+        <NuxtLink to="/m/orgs" class="vt-btn vt-btn--primary">К доступным группам</NuxtLink>
+      </section>
+
+      <section v-else-if="accessState === 'unauthorized'" class="vt-card p-5 space-y-3">
+        <h1 class="text-xl font-semibold">Нужно войти</h1>
+        <NuxtLink
+          :to="`/auth/login?redirect=${encodeURIComponent(route.fullPath)}`"
+          class="vt-btn vt-btn--primary"
+          >Войти по email</NuxtLink
+        >
+      </section>
+
+      <ErrorState v-else-if="orgError" message="Не удалось открыть группу" @retry="refreshOrg()" />
+
+      <div v-else-if="!org" role="status" class="text-vt-mute-2">Открываем группу…</div>
 
       <div v-else-if="isPending" class="vt-card p-4" role="status">
         <VtChip tone="amber" dot>Заявка на рассмотрении</VtChip>
@@ -80,7 +119,7 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
         </p>
       </div>
 
-      <template v-else>
+      <template v-else-if="org">
         <ErrorState
           v-if="dashError"
           message="Не удалось загрузить данные группы"

@@ -13,15 +13,13 @@ export function useAuth() {
       // и не логируем (Task 3.10.2) — cookie httpOnly и подписана, токен клиенту не нужен
       const data = await $fetch<{ user: User | null }>('/api/auth/get-session')
       user.value = data?.user ?? null
-    } catch {
-      user.value = null
     } finally {
       loading.value = false
     }
   }
 
   async function logout() {
-    await $fetch('/api/auth/sign-out', { method: 'POST' })
+    await $fetch('/api/auth/sign-out', { method: 'POST', body: {} })
     user.value = null
     await navigateTo('/auth/login')
   }
