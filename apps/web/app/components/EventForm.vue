@@ -8,6 +8,7 @@ const props = defineProps<{
   tz: string
   initial?: Event | null
   submitLabel: string
+  canSubmit?: () => boolean
 }>()
 const emit = defineEmits<{ saved: [event: Event] }>()
 
@@ -47,11 +48,13 @@ const saving = ref(false)
 const error = ref('')
 
 async function submit() {
+  if (saving.value || (props.canSubmit && !props.canSubmit())) return
   saving.value = true
   error.value = ''
   try {
     let venueId = form.venueId || undefined
     if (addingVenue.value && form.newVenueName.trim()) {
+      if (props.canSubmit && !props.canSubmit()) return
       const res = await $fetch<{ venue: Venue }>(`/api/organizations/${props.orgId}/venues`, {
         method: 'POST',
         body: { name: form.newVenueName.trim(), address: form.newVenueAddress.trim() || undefined },
@@ -73,6 +76,7 @@ async function submit() {
       description: form.description.trim() || (props.initial ? null : undefined),
       status: form.publish ? 'published' : 'draft',
     }
+    if (props.canSubmit && !props.canSubmit()) return
     const res = props.initial
       ? await $fetch<{ event: Event }>(
           `/api/organizations/${props.orgId}/events/${props.initial.id}`,
@@ -138,8 +142,16 @@ async function submit() {
         <option v-for="v in venues" :key="v.id" :value="v.id">{{ v.name }}</option>
       </select>
       <div v-else class="space-y-2">
-        <input v-model="form.newVenueName" class="vt-field" placeholder="Название зала" />
+        <label class="vt-label" for="ev-new-venue-name">Название площадки</label>
         <input
+          id="ev-new-venue-name"
+          v-model="form.newVenueName"
+          class="vt-field"
+          placeholder="Название зала"
+        />
+        <label class="vt-label" for="ev-new-venue-address">Адрес площадки</label>
+        <input
+          id="ev-new-venue-address"
           v-model="form.newVenueAddress"
           class="vt-field"
           placeholder="Адрес (необязательно)"

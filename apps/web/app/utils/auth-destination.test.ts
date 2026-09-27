@@ -49,6 +49,17 @@ describe('organizer entry policy', () => {
 })
 
 describe('post-login redirect', () => {
+  it('preserves local desktop routes without opening external destinations', () => {
+    expect(safeAuthRedirect('/app')).toBe('/app')
+    expect(safeAuthRedirect('/app?choose=1')).toBe('/app?choose=1')
+    expect(safeAuthRedirect('/app/orgs/7/events')).toBe('/app/orgs/7/events')
+    expect(safeAuthRedirect('/app/%2f%2fevil.test')).toBeNull()
+    expect(safeAuthRedirect('/app/%5cevil.test')).toBeNull()
+    expect(safeAuthRedirect('/app/../auth/login')).toBeNull()
+    expect(safeAuthRedirect('/app/%252e%252e/auth/login')).toBeNull()
+    expect(safeAuthRedirect('/application/orgs/7')).toBeNull()
+  })
+
   it.each([
     '//evil.test',
     '/%2f/evil.test',
