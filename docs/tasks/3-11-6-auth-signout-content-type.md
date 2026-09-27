@@ -2,10 +2,10 @@
 id: '3.11.6'
 phase: '3'
 epic: '3.11'
-status: in_progress
+status: done
 sync_state: synced
 last_reviewed: 2026-09-27
-status_note: 'Дефект исправлен: локальные OTP-flow и пять gates пройдены, review без блокирующих замечаний. PR #45 включён в auth-ветку PR #41; общий CI и ручной R0.6 gate отдельно.'
+status_note: 'Дефект исправлен и локально проверен: OTP-flow, regression test и пять gates прошли; PR #45 включён в auth-ветку PR #41 с зелёным CI. Реальный Telegram и общий R0.6 gate остаются отдельной проверкой.'
 roles: [FE, QA]
 depends_on: ['3.11.3']
 estimated_hours: '1-2'
@@ -40,3 +40,4 @@ tags: [auth, otp, bugfix, mvp]
 - 2026-09-25, локальные gates: `pnpm format:check` — pass; `pnpm lint` — pass, 0 ошибок / 23 предупреждения вне задачи; `pnpm typecheck` — 6/6; `pnpm test` — 83 файла / 456 тестов; `pnpm build` — 2/2. `git diff --check` — pass. CI и общий R0.6 gate отдельно.
 - Независимое code review коммита `56f5ff0` не выявило Critical/Important. Минорное замечание: unit-тест проверяет наличие JSON-тела на границе `$fetch`, но не заголовок после сериализации; реальный локальный HTTP 200 зафиксирован отдельно. Draft PR #45 на auth-ветку 3.11.3 содержит только файлы этой задачи. После синхронизации родительской ветки с `main` потребовалось повторно интегрировать её в fix-ветку; CI общего результата ожидается в PR #41 после включения fix.
 - 2026-09-27: PR #45 уже включён в ветку 3.11.3; формулировка о draft-зависимости выше относится к историческому моменту review. После интеграции текущего GitHub `main` общие gates auth-ветки прошли повторно, а новый CI PR #41 проверяется после публикации head.
+- После публикации head `b2fd505` GitHub CI PR #41 завершился успешно: Build, Lint · Format · Typecheck, Test (unit + integration). Локальные критерии 3.11.6 закрыты; это не означает принятие общего релиза R0.6 на production.
