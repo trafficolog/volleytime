@@ -1,5 +1,14 @@
 import { memberService, organizationService } from '@volley-time/core'
-import { closeDb, db, organizations, payments, users } from '@volley-time/db'
+import {
+  and,
+  closeDb,
+  db,
+  eq,
+  ledgerEntries,
+  organizations,
+  payments,
+  users,
+} from '@volley-time/db'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { createTestApi } from './harness'
@@ -25,8 +34,39 @@ describe('payment history HTTP (integration)', () => {
         .insert(payments)
         .values({ organizationId: orgId, userId: owner, amount: 1000, method: 'cash', status })
   })
-  afterAll(() => closeDb())
+  afterAll(async () => {
+    await db.delete(organizations)
+    await db.delete(users)
+    await closeDb()
+  })
   const url = () => `/api/organizations/${orgId}/payments/history`
+
+  it('allows one concurrent confirmation and records one ledger income', async () => {
+    const pending = await db.query.payments.findFirst({
+      where: and(eq(payments.organizationId, orgId), eq(payments.status, 'pending')),
+    })
+    const target = `/api/organizations/${orgId}/payments/${pending!.id}/confirm`
+    const responses = await Promise.all([
+      request('POST', target, { user: owner }),
+      request('POST', target, { user: owner }),
+    ])
+    expect(responses.map((response) => response.status).sort()).toEqual([200, 409])
+    expect(responses.find((response) => response.status === 409)?.text).toContain(
+      'payment.not_pending',
+    )
+    const incomes = await db
+      .select()
+      .from(ledgerEntries)
+      .where(and(eq(ledgerEntries.paymentId, pending!.id), eq(ledgerEntries.type, 'income')))
+    expect(incomes).toHaveLength(1)
+    expect((await request('POST', target, { user: owner })).status).toBe(409)
+    const history = await request('GET', url() + '?status=succeeded', { user: owner })
+    expect(
+      (history.body as { payments: { id: number }[] }).payments.some(
+        (payment) => payment.id === pending!.id,
+      ),
+    ).toBe(true)
+  })
 
   it('returns all statuses publicly and encodes usable pagination', async () => {
     const first = await request('GET', url() + '?limit=2', { user: owner })

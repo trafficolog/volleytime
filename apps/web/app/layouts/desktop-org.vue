@@ -88,9 +88,13 @@ useHead(() => ({
                     ? 'ticket'
                     : item.key === 'members'
                       ? 'users'
-                      : item.key === 'settings'
-                        ? 'settings'
-                        : 'calendar'
+                      : item.key === 'payments'
+                        ? 'card'
+                        : item.key === 'cashbox'
+                          ? 'wallet'
+                          : item.key === 'settings'
+                            ? 'settings'
+                            : 'calendar'
               "
               :size="18"
             />
