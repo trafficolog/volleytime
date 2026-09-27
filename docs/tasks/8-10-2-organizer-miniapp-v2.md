@@ -5,7 +5,7 @@ epic: '8.10'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-27
-status_note: 'Review-fix 8.10.4 интегрирована; последнее whole-branch замечание о запоздалом подтверждении после ухода с manage закрыто RED→GREEN. Пять gates прошли, включая 506 тестов; браузерная перепроверка guard, native zoom, Telegram-host и общий QA 8.10.3 ещё открыты.'
+status_note: 'Review-fix 8.10.4 интегрирована; последнее whole-branch замечание о запоздалом подтверждении после ухода с manage закрыто RED→GREEN и локальной браузерной перепроверкой. Пять gates прошли, включая 506 тестов; native zoom, Telegram-host и общий QA 8.10.3 ещё открыты.'
 roles: [FE, QA]
 depends_on: ['3.11.2', '5.13.21']
 estimated_hours: '12-18'
@@ -80,7 +80,8 @@ tags: [miniapp, organizer, mvp, redesign]
 ## Финальное review-исправление 2026-09-27
 
 - Независимое whole-branch review после интеграции 8.10.4 нашло один Important-дефект: `routeStillCurrent` проверял только org/event id. Если Telegram-подтверждение разрешалось после ухода с `/manage` на `/edit` того же события или после unmount, старый экземпляр мог отправить POST. Карточка синхронизирована до кода; два mounted RED-теста воспроизвели POST отмены события и отклонения оплаты, затем GREEN прошёл 9/9 после guard по исходному полному live-маршруту и lifecycle страницы.
-- На новой локальной PostgreSQL QA-БД `volleytime_qa_8102_final_20260927` после исправления прошли `pnpm format:check`, `pnpm lint` (0 ошибок, 17 прежних предупреждений), `pnpm typecheck` (6/6), `pnpm test` (91 файл/506 тестов) и `pnpm build` (2/2). Это не заменяет браузерную перепроверку маршрута, native 200% zoom, реальный Telegram-host и общий QA 8.10.3.
+- На новой локальной PostgreSQL QA-БД `volleytime_qa_8102_final_20260927` после исправления прошли `pnpm format:check`, `pnpm lint` (0 ошибок, 17 прежних предупреждений), `pnpm typecheck` (6/6), `pnpm test` (91 файл/506 тестов) и `pnpm build` (2/2). Эти gates не заменяют браузерную перепроверку маршрута, native 200% zoom, реальный Telegram-host и общий QA 8.10.3.
+- Локальный Edge production-preview `127.0.0.1:3143` с authenticated owner и pending payment в QA-группе: после нажатия «Отменить событие» и, отдельно, «Отклонить» платежа Telegram `showConfirm` удерживался тестовым callback; переход по «Изменить» на `/m/orgs/30/events/16/edit` при тех же org/event id, затем `callback(true)` не отправил POST. Для безопасности destructive POST были перехвачены и отменялись браузерным route guard; флаг перехвата остался `false`, журнал запросов содержит только GET. Это браузерная функциональная перепроверка SPA-маршрута, не реальный Telegram-host и не native 200% zoom.
 
 ## Не делать
 
