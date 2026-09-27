@@ -7,6 +7,7 @@ import {
   inArray,
   organizationMembers,
   payments,
+  sql,
   subscriptionPlans,
   subscriptions,
   users,
@@ -326,12 +327,27 @@ export const paymentService = {
   ): Promise<Payment> {
     const db = getDb(ctx)
     return db.transaction(async (tx) => {
+      const organizationId = opts.orgId ?? ctx.organization?.id
+      const paymentConditions = [eq(payments.id, paymentId)]
+      if (organizationId !== undefined) {
+        paymentConditions.push(eq(payments.organizationId, organizationId))
+      }
+      const [bookingEvent] = await tx
+        .select({ eventId: bookings.eventId })
+        .from(payments)
+        .innerJoin(bookings, eq(bookings.id, payments.bookingId))
+        .where(and(...paymentConditions))
+        .limit(1)
+      // Та же последовательность, что у eventService.cancel: сначала событие, потом платёж.
+      if (bookingEvent) {
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(${bookingEvent.eventId})`)
+      }
       const cancelled = await transitionPayment(
         tx,
         paymentId,
         'pending',
         { status: 'cancelled' },
-        opts.orgId ?? ctx.organization?.id,
+        organizationId,
       )
       const payment = cancelled
 

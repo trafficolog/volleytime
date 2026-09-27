@@ -16,6 +16,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { bookingService } from '../bookings/service'
 import { eventService } from '../events/service'
 import { memberService } from '../members/service'
+import { createNotificationCollector } from '../notifier/collect'
 import { organizationService } from '../organizations/service'
 
 import { paymentService } from './service'
@@ -185,6 +186,109 @@ describe('money races (integration)', () => {
       .where(eq(payments.id, nextBooking.paymentId!))
     expect(cancelledPayment?.status).toBe('cancelled')
     expect(await incomes(nextBooking.paymentId!)).toHaveLength(0)
+  })
+
+  it('6.8.14: payment rejection and event cancellation do not deadlock', async () => {
+    const ev = await paidEvent()
+    const b = await bookingService.book({ userId: await newPlayer() }, orgId, ev.id, {
+      method: 'cash',
+    })
+    let unlock!: () => void
+    let locked!: () => void
+    let blockerPid = 0
+    const lockReady = new Promise<void>((resolve) => (locked = resolve))
+    const released = new Promise<void>((resolve) => (unlock = resolve))
+    const blocker = db.transaction(async (tx) => {
+      await tx.select().from(events).where(eq(events.id, ev.id)).for('update')
+      const [session] = await tx.execute(sql`SELECT pg_backend_pid()::int AS pid`)
+      blockerPid = Number(session?.pid)
+      locked()
+      await released
+    })
+    await lockReady
+
+    const eventNotifications = createNotificationCollector()
+    const paymentNotifications = createNotificationCollector()
+    const operations: Promise<unknown>[] = [
+      blocker,
+      eventService.cancel({ userId: ownerId, notifications: eventNotifications }, ev.id),
+    ]
+    const waitForBlocked = async (minimum: number) => {
+      let blocked = 0
+      for (let attempt = 0; attempt < 500; attempt++) {
+        const [state] = await db.execute(sql`WITH RECURSIVE waiting(pid) AS (
+          SELECT pid FROM pg_stat_activity WHERE ${blockerPid} = ANY(pg_blocking_pids(pid))
+          UNION
+          SELECT activity.pid FROM pg_stat_activity AS activity, waiting
+          WHERE waiting.pid = ANY(pg_blocking_pids(activity.pid))
+        ) SELECT count(*)::int AS n FROM waiting`)
+        blocked = Number(state?.n)
+        if (blocked >= minimum) break
+        await new Promise((resolve) => setTimeout(resolve, 10))
+      }
+      expect(blocked).toBeGreaterThanOrEqual(minimum)
+    }
+    let outcomes: PromiseSettledResult<unknown>[] = []
+    try {
+      await waitForBlocked(1)
+      operations.push(
+        paymentService.cancel(
+          { userId: ownerId, notifications: paymentNotifications },
+          b.paymentId!,
+          { orgId },
+        ),
+      )
+      await waitForBlocked(2)
+    } finally {
+      unlock()
+      outcomes = await Promise.allSettled(operations)
+    }
+
+    expect(outcomes[1]?.status).toBe('fulfilled')
+    if (outcomes[2]?.status === 'rejected') {
+      expect(outcomes[2].reason?.cause?.code).not.toBe('40P01')
+      expect(String(outcomes[2].reason?.message)).toMatch(/not pending/i)
+    }
+    const [finishedEvent] = await db.select().from(events).where(eq(events.id, ev.id))
+    const [finishedBooking] = await db.select().from(bookings).where(eq(bookings.id, b.id))
+    const [finishedPayment] = await db.select().from(payments).where(eq(payments.id, b.paymentId!))
+    expect(finishedEvent?.status).toBe('cancelled')
+    expect(finishedBooking?.status).toBe('cancelled')
+    expect(finishedPayment?.status).toBe('cancelled')
+    expect(await incomes(b.paymentId!)).toHaveLength(0)
+    expect(eventNotifications).toHaveLength(1)
+    expect(paymentNotifications).toHaveLength(0)
+
+    const nextEvent = await paidEvent()
+    const nextBooking = await bookingService.book(
+      { userId: await newPlayer() },
+      orgId,
+      nextEvent.id,
+      { method: 'cash' },
+    )
+    const secondPaymentNotifications = createNotificationCollector()
+    const secondEventNotifications = createNotificationCollector()
+    await paymentService.cancel(
+      { userId: ownerId, notifications: secondPaymentNotifications },
+      nextBooking.paymentId!,
+      { orgId },
+    )
+    await eventService.cancel(
+      { userId: ownerId, notifications: secondEventNotifications },
+      nextEvent.id,
+    )
+    const [secondEvent] = await db.select().from(events).where(eq(events.id, nextEvent.id))
+    const [secondBooking] = await db.select().from(bookings).where(eq(bookings.id, nextBooking.id))
+    const [secondPayment] = await db
+      .select()
+      .from(payments)
+      .where(eq(payments.id, nextBooking.paymentId!))
+    expect(secondEvent?.status).toBe('cancelled')
+    expect(secondBooking?.status).toBe('cancelled')
+    expect(secondPayment?.status).toBe('cancelled')
+    expect(await incomes(nextBooking.paymentId!)).toHaveLength(0)
+    expect(secondPaymentNotifications).toHaveLength(1)
+    expect(secondEventNotifications).toHaveLength(0)
   })
 
   it('6.8.4: rejecting payment frees the spot and promotes waitlist', async () => {
