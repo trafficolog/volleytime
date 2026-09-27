@@ -63,6 +63,6 @@ const tabs = computed<TabItem[]>(() =>
   <div class="min-h-screen bg-vt-paper text-vt-ink pb-[calc(86px+env(safe-area-inset-bottom))]">
     <OfflineBanner />
     <slot />
-    <VtTabBar :items="tabs" />
+    <VtTabBar v-if="!orgError && data?.organization?.id === orgId" :items="tabs" />
   </div>
 </template>

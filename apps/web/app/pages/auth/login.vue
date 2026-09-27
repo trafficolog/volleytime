@@ -245,11 +245,13 @@ async function chooseOrganization(org: AuthOrg) {
           <li v-for="org in entry.orgs" :key="org.id">
             <button
               type="button"
-              class="vt-btn vt-btn--ghost vt-btn--full vt-btn--lg justify-between"
+              class="vt-btn vt-btn--ghost vt-btn--full vt-btn--lg flex-col items-start gap-1 whitespace-normal text-left sm:flex-row sm:items-center sm:justify-between"
               @click="chooseOrganization(org)"
             >
-              <span>{{ org.name }}</span
-              ><span v-if="org.status === 'suspended'">Приостановлена</span>
+              <span class="min-w-0 break-words">{{ org.name }}</span>
+              <span v-if="org.status === 'suspended'" class="text-sm text-vt-mute-2 sm:shrink-0"
+                >Приостановлена</span
+              >
             </button>
           </li>
         </ul>
