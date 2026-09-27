@@ -1,7 +1,7 @@
 type DesktopOrg = { id: number; status: string } | null
 type DesktopMember = { role: string; status: string } | null
 
-export type DesktopOrgAccess = 'ready' | 'login' | 'denied' | 'suspended' | 'error'
+export type DesktopOrgAccess = 'ready' | 'login' | 'denied' | 'suspended' | 'archived' | 'error'
 
 export function shouldShowDesktopOrgLoading(
   pending: boolean,
@@ -19,11 +19,13 @@ export function resolveDesktopOrgAccess(
   errorCode?: string,
 ): DesktopOrgAccess {
   if (errorStatus === 401) return 'login'
+  if (errorStatus === 410 && errorCode === 'organization.archived') return 'archived'
   if (errorStatus === 403 && errorCode === 'organization.suspended') return 'suspended'
   if (errorStatus === 403 || errorStatus === 404) return 'denied'
   if (errorStatus) return 'error'
   if (!org) return 'error'
   if (org.id !== requestedId || !member) return 'denied'
+  if (org.status === 'archived') return 'archived'
   if (org.status === 'suspended') return 'suspended'
   if (org.status !== 'active') return 'denied'
   if (member.status !== 'active') return 'denied'

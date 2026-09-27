@@ -23,6 +23,7 @@ const canInvite = computed(
 )
 const invites = ref<InviteRow[]>([])
 const loading = ref(false)
+const loadError = ref('')
 const error = ref('')
 const formError = ref('')
 const copiedId = ref<number | null>(null)
@@ -41,6 +42,7 @@ async function load() {
   const token = ++generation
   const targetOrgId = orgId.value
   loading.value = true
+  loadError.value = ''
   error.value = ''
   invites.value = []
   try {
@@ -51,7 +53,7 @@ async function load() {
     invites.value = result.invites
   } catch (cause) {
     if (!alive || token !== generation || orgId.value !== targetOrgId) return
-    error.value = apiErrorMessage(cause, 'Не удалось загрузить приглашения')
+    loadError.value = apiErrorMessage(cause, 'Не удалось загрузить приглашения')
   } finally {
     if (alive && token === generation) loading.value = false
   }
@@ -237,6 +239,7 @@ async function revoke(invite: InviteRow) {
         <h2 id="desktop-invites-title">Ссылки группы</h2>
         <p v-if="error" role="alert" class="text-vt-rose-ink">{{ error }}</p>
         <SkeletonList v-if="loading" :count="2" />
+        <ErrorState v-else-if="loadError" :message="loadError" @retry="load" />
         <EmptyState v-else-if="invites.length === 0" icon="send" title="Ссылок пока нет" />
         <ul v-else class="space-y-3">
           <li v-for="invite in invites" :key="invite.id" class="vt-card p-4 space-y-3">

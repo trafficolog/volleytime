@@ -31,7 +31,9 @@ describe('desktop organization entry', () => {
   it('distinguishes login, suspension and service errors without exposing the shell', () => {
     expect(resolveDesktopOrgAccess(null, null, 7, 401)).toBe('login')
     expect(resolveDesktopOrgAccess(null, null, 7, 403, 'organization.suspended')).toBe('suspended')
+    expect(resolveDesktopOrgAccess(null, null, 7, 410, 'organization.archived')).toBe('archived')
     expect(resolveDesktopOrgAccess({ id: 7, status: 'suspended' }, owner, 7)).toBe('suspended')
+    expect(resolveDesktopOrgAccess({ id: 7, status: 'archived' }, owner, 7)).toBe('archived')
     expect(resolveDesktopOrgAccess(null, null, 7, 403)).toBe('denied')
     expect(resolveDesktopOrgAccess(null, null, 7, 503)).toBe('error')
     expect(resolveDesktopOrgAccess(null, null, 7)).toBe('error')

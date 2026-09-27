@@ -151,6 +151,11 @@ useHead(() => ({
         <p>Сейчас открыть кабинет этой группы нельзя.</p>
         <NuxtLink to="/app" class="vt-btn vt-btn--ghost">К моим группам</NuxtLink>
       </section>
+      <section v-else-if="access === 'archived'" class="vt-card p-6 space-y-4" role="alert">
+        <h1>Группа архивирована</h1>
+        <p>Кабинет этой группы больше недоступен.</p>
+        <NuxtLink to="/app?choose=1" class="vt-btn vt-btn--ghost">К моим группам</NuxtLink>
+      </section>
       <section v-else-if="access === 'denied'" class="vt-card p-6 space-y-4" role="alert">
         <h1>Нет доступа к кабинету</h1>
         <p>Кабинет доступен владельцу и организатору действующей группы.</p>

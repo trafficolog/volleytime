@@ -90,8 +90,11 @@ async function save() {
     ) {
       throw new Error('Organization settings could not be confirmed')
     }
+    if (!alive || orgId.value !== targetOrgId || route.path !== expectedPath) return
     data.value = confirmed
-    await fetchAll()
+    // The exact GET above confirms the mutation; a failed secondary list refresh
+    // must not turn a successful save into a false failure.
+    await fetchAll().catch(() => undefined)
     if (alive && orgId.value === targetOrgId && route.path === expectedPath) saved.value = true
   } catch (cause) {
     if (alive && orgId.value === targetOrgId && route.path === expectedPath) {
@@ -118,7 +121,8 @@ async function archive() {
   try {
     await $fetch(`/api/organizations/${targetOrgId}/archive`, { method: 'POST' })
     if (!alive || orgId.value !== targetOrgId || route.path !== expectedPath) return
-    await fetchAll()
+    await fetchAll().catch(() => undefined)
+    if (!alive || orgId.value !== targetOrgId || route.path !== expectedPath) return
     await navigateTo('/app?choose=1')
   } catch (cause) {
     if (alive && orgId.value === targetOrgId && route.path === expectedPath) {

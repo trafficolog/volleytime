@@ -8,6 +8,10 @@ const { orgs, fetchAll } = useOrganizations()
 const route = useRoute()
 const loading = ref(true)
 const error = ref('')
+let alive = true
+onBeforeUnmount(() => {
+  alive = false
+})
 const eligible = computed(() =>
   orgs.value.filter(
     (org) =>
@@ -19,16 +23,22 @@ const eligible = computed(() =>
 const active = computed(() => eligible.value.filter((org) => org.status === 'active'))
 
 async function load() {
+  const expectedPath = route.fullPath
   loading.value = true
   error.value = ''
   try {
     await fetchAll()
-    if (active.value.length === 1 && route.query.choose !== '1')
+    if (
+      alive &&
+      route.fullPath === expectedPath &&
+      active.value.length === 1 &&
+      route.query.choose !== '1'
+    )
       await navigateTo(`/app/orgs/${active.value[0]!.id}`)
   } catch (e) {
-    error.value = apiErrorMessage(e, 'Не удалось загрузить группы')
+    if (alive) error.value = apiErrorMessage(e, 'Не удалось загрузить группы')
   } finally {
-    loading.value = false
+    if (alive) loading.value = false
   }
 }
 

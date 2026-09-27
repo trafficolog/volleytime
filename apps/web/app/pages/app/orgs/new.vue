@@ -7,8 +7,14 @@ const name = ref('')
 const city = ref('')
 const submitting = ref(false)
 const error = ref('')
+const route = useRoute()
+let alive = true
+onBeforeUnmount(() => {
+  alive = false
+})
 
 async function submit() {
+  const expectedPath = route.path
   if (submitting.value) return
   if (name.value.trim().length < 2) {
     error.value = 'Название — минимум 2 символа'
@@ -18,9 +24,10 @@ async function submit() {
   error.value = ''
   try {
     const org = await create({ name: name.value.trim(), city: city.value.trim() || undefined })
-    await navigateTo(`/app/orgs/${org.id}`)
+    if (alive && route.path === expectedPath) await navigateTo(`/app/orgs/${org.id}`)
   } catch (e) {
-    error.value = apiErrorMessage(e, 'Не удалось создать группу')
+    if (alive && route.path === expectedPath)
+      error.value = apiErrorMessage(e, 'Не удалось создать группу')
   } finally {
     submitting.value = false
   }
