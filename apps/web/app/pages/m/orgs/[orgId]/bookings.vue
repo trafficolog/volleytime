@@ -164,7 +164,10 @@ function canCancel(booking: MyBooking) {
       </EmptyState>
       <ul v-else class="space-y-2.5">
         <li v-for="b in items" :key="b.id" class="vt-card p-3.5">
-          <NuxtLink :to="`/m/orgs/${orgId}/events/${b.event.id}`" class="flex items-center gap-3">
+          <NuxtLink
+            :to="`/m/orgs/${orgId}/events/${b.event.id}`"
+            class="vt-hit-44 flex items-center gap-3"
+          >
             <div class="w-14 text-center shrink-0">
               <div class="vt-cap !text-[10px]">
                 {{ formatDay(b.event.startsAt, tz).split(',')[0] }}

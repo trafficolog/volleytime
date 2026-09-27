@@ -1,0 +1,65 @@
+// Run in an email-authenticated player browser session against the isolated QA API.
+// This script does not intercept API requests or emulate Telegram-host behavior.
+async (page) => {
+  await page.unrouteAll({ behavior: 'ignoreErrors' })
+  await page.route('https://telegram.org/**', (route) => route.abort())
+  await page.route('https://fonts.googleapis.com/**', (route) => route.abort())
+
+  const screens = [
+    { path: '/m/orgs', title: 'Мои группы', dock: false },
+    { path: '/m/orgs/1', title: 'Ближайшая игра', dock: true },
+    { path: '/m/orgs/1/events', title: 'События', dock: true },
+    { path: '/m/orgs/1/events/1', title: 'Длинное название', dock: true },
+    { path: '/m/orgs/1/bookings', title: 'Мои записи', dock: true },
+    { path: '/m/orgs/1/subscriptions', title: 'Абонементы', dock: true },
+    { path: '/m/orgs/1/profile', title: 'Профиль', dock: true },
+  ]
+  const results = []
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 844 })
+    for (const dark of [false, true]) {
+      for (const screen of screens) {
+        await page.goto(`http://localhost:3142${screen.path}`)
+        await page.getByRole('heading', { name: new RegExp(screen.title, 'i') }).first().waitFor()
+        await page.evaluate((isDark) => {
+          document.documentElement.classList.toggle('vt-dark', isDark)
+        }, dark)
+        const geometry = await page.evaluate((hasDock) => {
+          const root = document.documentElement
+          root.scrollTop = root.scrollHeight
+          const dock = document.querySelector('.vt-tabbar')
+          const main = document.querySelector('main')
+          const undersizedTargets = [...document.querySelectorAll('a, button')]
+            .filter((target) => target.getClientRects().length > 0)
+            .map((target) => {
+              const rect = target.getBoundingClientRect()
+              return {
+                name: (target.getAttribute('aria-label') || target.textContent || '').trim().slice(0, 40),
+                width: Math.round(rect.width),
+                height: Math.round(rect.height),
+              }
+            })
+            .filter((target) => target.width < 44 || target.height < 44)
+          return {
+            noHorizontalOverflow: root.scrollWidth <= innerWidth,
+            scrolledToBottom: root.scrollHeight <= innerHeight || root.scrollTop > 0,
+            mainVisible: !!main && main.getBoundingClientRect().width > 0,
+            dockVisible: !hasDock || (!!dock && dock.getBoundingClientRect().height >= 58),
+            bottomClear:
+              !hasDock ||
+              !main ||
+              main.getBoundingClientRect().bottom <= dock.getBoundingClientRect().top,
+            undersizedTargets,
+          }
+        }, screen.dock)
+        const label = `${width}-${dark ? 'dark' : 'light'}-${screen.path.replaceAll('/', '-') || 'groups'}`
+        results.push({ label, ...geometry })
+        await page.screenshot({ path: `output/playwright/real-${label}.png` })
+        if (Object.values(geometry).some((value) => value === false) || geometry.undersizedTargets.length) {
+          throw new Error(`Real screen geometry failed: ${JSON.stringify(results.at(-1))}`)
+        }
+      }
+    }
+  }
+  console.log(JSON.stringify({ checkedScreens: results.length, failures: [] }))
+}

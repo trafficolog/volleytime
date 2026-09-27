@@ -151,7 +151,11 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
           <span v-if="org?.city" class="block text-xs text-vt-mute-2 truncate">{{ org.city }}</span>
         </span>
       </button>
-      <NuxtLink to="/m/orgs" class="vt-btn vt-btn--ghost vt-btn--sm" aria-label="Мои группы">
+      <NuxtLink
+        to="/m/orgs"
+        class="vt-btn vt-btn--ghost vt-btn--sm vt-hit-44"
+        aria-label="Мои группы"
+      >
         <VtIcon name="users" :size="18" />
       </NuxtLink>
     </header>
@@ -353,7 +357,7 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
               </h2>
               <NuxtLink
                 :to="`${base}/events`"
-                class="text-sm font-semibold text-vt-link min-h-11 inline-flex items-center"
+                class="text-sm font-semibold text-vt-link vt-hit-44 inline-flex items-center"
                 >Все события</NuxtLink
               >
             </div>

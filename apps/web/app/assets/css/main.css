@@ -94,6 +94,10 @@
   .vt-btn:active {
     transform: translateY(1px);
   }
+  .vt-hit-44 {
+    min-width: 44px;
+    min-height: 44px;
+  }
   .vt-btn:disabled,
   .vt-btn[aria-disabled='true'] {
     opacity: 0.4;

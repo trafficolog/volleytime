@@ -28,7 +28,7 @@ async (page) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('http://localhost:3100/m/orgs/1')
+  await page.goto('http://localhost:3142/m/orgs/1')
   await page.getByRole('heading', { name: 'Ближайшая игра' }).waitFor()
   if (!(await page.getByText('Игра группы 1').count())) throw new Error('Initial A dashboard missing')
   if (await page.getByRole('navigation', { name: 'Разделы' }).getByRole('link', { name: 'Абонементы' }).count()) throw new Error('Disabled A subscriptions are visible')

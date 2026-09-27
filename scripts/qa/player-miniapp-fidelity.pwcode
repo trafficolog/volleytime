@@ -88,7 +88,7 @@ async (page) => {
   }
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 })
-    await page.goto('http://localhost:3100/m/orgs/1')
+    await page.goto('http://localhost:3142/m/orgs/1')
     await page.getByRole('heading', { name: 'Ближайшая игра' }).waitFor()
     const home = await page.evaluate(() => {
       const hero = document.querySelector('a.vt-card--hero'),
@@ -108,7 +108,7 @@ async (page) => {
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
     )
     await page.screenshot({ path: `output/playwright/player-home-${width}.png` })
-    await page.goto('http://localhost:3100/m/orgs/1/events/1')
+    await page.goto('http://localhost:3142/m/orgs/1/events/1')
     await page.getByRole('heading', { name: 'Состав' }).waitFor()
     const detail = await page.evaluate(() => {
       const roster = document.querySelector('main ul'),
@@ -130,12 +130,12 @@ async (page) => {
     check(`CTA clear of dock ${width}`, detail.unobstructed)
     check(`Event venue first ${width}`, await page.locator('section[aria-label="Дата, место и стоимость"] > div').first().getByText('Школа №24', { exact: true }).count() === 1)
     await page.screenshot({ path: `output/playwright/player-event-${width}.png` })
-    await page.goto('http://localhost:3100/m/orgs/1/subscriptions')
+    await page.goto('http://localhost:3142/m/orgs/1/subscriptions')
     await page.getByText('8 занятий', { exact: true }).waitFor()
     check(`Subscription hero ${width}`, (await page.locator('main li.vt-card--hero').count()) === 1)
     await page.screenshot({ path: `output/playwright/player-subscriptions-${width}.png` })
   }
-  await page.goto('http://localhost:3100/m/orgs/1')
+  await page.goto('http://localhost:3142/m/orgs/1')
   await page.getByRole('heading', { name: 'Ближайшая игра' }).waitFor()
   const fontReady = await page.evaluate(async () => {
     await document.fonts.ready
@@ -150,7 +150,7 @@ async (page) => {
   for (const width of [320, 390]) {
     await page.setViewportSize({ width, height: 844 })
     for (const screen of ['', '/events/1', '/subscriptions', '/profile']) {
-      await page.goto(`http://localhost:3100/m/orgs/1${screen}`)
+      await page.goto(`http://localhost:3142/m/orgs/1${screen}`)
       await page.locator('.vt-tabbar').waitFor()
       await page.evaluate(() => document.documentElement.classList.add('vt-dark'))
       check(`Dark dock ${width}${screen}`, await page.evaluate(() => getComputedStyle(document.querySelector('.vt-tabbar')).backgroundColor === 'rgb(36, 37, 44)'))
@@ -158,7 +158,7 @@ async (page) => {
       await page.screenshot({ path: `output/playwright/player-dark-${screen.replaceAll('/', '-') || 'home'}-${width}.png` })
     }
   }
-  await page.goto('http://localhost:3100/m/orgs/1/events/1')
+  await page.goto('http://localhost:3142/m/orgs/1/events/1')
   await page.getByRole('button', { name: 'Записаться', exact: true }).waitFor()
   await page.emulateMedia({ reducedMotion: 'reduce' })
   check('Reduced-motion controls', await page.getByRole('button', { name: 'Записаться', exact: true }).evaluate((el) => getComputedStyle(el).transitionDuration === '0s'))
@@ -178,7 +178,7 @@ async (page) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' })
   booking = { id: 1, status: 'pending_payment', method: 'transfer', paymentId: 1 }
   await page.setViewportSize({ width: 320, height: 844 })
-  await page.goto('http://localhost:3100/m/orgs/1/events/1')
+  await page.goto('http://localhost:3142/m/orgs/1/events/1')
   await page.getByRole('heading', { name: 'Состав' }).waitFor()
   check('Pending payment summary fits320', await page.locator('section[aria-label="Дата, место и стоимость"] .vt-chip').evaluate((el) => {
     const chip = el.getBoundingClientRect(), box = el.parentElement.getBoundingClientRect()
