@@ -2,10 +2,10 @@
 id: '6.10.1'
 phase: '6'
 epic: '6.10'
-status: todo
+status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-27
-status_note: ''
+status_note: 'Spec and implementation plan approved; subagent-driven execution started. API history and desktop finance acceptance not yet complete.'
 roles: [BE, FE, QA]
 depends_on: ['5.15.1']
 estimated_hours: '12-16'
