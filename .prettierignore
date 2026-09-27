@@ -10,3 +10,4 @@ legacy
 docs/operations/reviews/*.html
 packages/db/migrations/meta
 .playwright-cli/
+.superpowers/sdd/
