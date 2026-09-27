@@ -18,6 +18,11 @@ interface PendingPayment {
 
 const route = useRoute()
 const router = useRouter()
+const mountedPath = route.fullPath
+let pageActive = true
+onUnmounted(() => {
+  pageActive = false
+})
 const orgId = computed(() => Number(route.params.orgId))
 const eventId = computed(() => Number(route.params.eventId))
 const { tz } = useOrgTimezone(orgId)
@@ -25,7 +30,12 @@ const { confirm, haptic } = useTelegram()
 const routeKey = computed(() => `${orgId.value}:${eventId.value}`)
 function routeStillCurrent(key: string): boolean {
   const params = router.currentRoute.value.params
-  return key === routeKey.value && key === `${Number(params.orgId)}:${Number(params.eventId)}`
+  return (
+    pageActive &&
+    router.currentRoute.value.fullPath === mountedPath &&
+    key === routeKey.value &&
+    key === `${Number(params.orgId)}:${Number(params.eventId)}`
+  )
 }
 const {
   data: orgData,

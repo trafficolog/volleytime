@@ -1,12 +1,23 @@
 // @vitest-environment happy-dom
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { computed, defineComponent, h, nextTick, reactive, ref, Suspense, watch } from 'vue'
+import {
+  computed,
+  defineComponent,
+  h,
+  nextTick,
+  onUnmounted,
+  reactive,
+  ref,
+  Suspense,
+  watch,
+} from 'vue'
 
 import Manage from './manage.vue'
 
-const route = reactive({ params: { orgId: '30', eventId: '71' } })
-const routerRoute = ref({ params: { orgId: '30', eventId: '71' } })
+const managePath = '/m/orgs/30/events/71/manage'
+const route = reactive({ params: { orgId: '30', eventId: '71' }, fullPath: managePath })
+const routerRoute = ref({ params: { orgId: '30', eventId: '71' }, fullPath: managePath })
 const event = {
   id: 71,
   organizationId: 30,
@@ -62,6 +73,7 @@ vi.stubGlobal('computed', computed)
 vi.stubGlobal('ref', ref)
 vi.stubGlobal('watch', watch)
 vi.stubGlobal('nextTick', nextTick)
+vi.stubGlobal('onUnmounted', onUnmounted)
 vi.stubGlobal('$fetch', apiFetch)
 vi.stubGlobal('apiErrorMessage', () => 'Не удалось загрузить состав')
 vi.stubGlobal('apiErrorCode', () => null)
@@ -98,7 +110,8 @@ beforeEach(() => {
   vi.setSystemTime(new Date('2026-09-27T12:00:00.000Z'))
   route.params.orgId = '30'
   route.params.eventId = '71'
-  routerRoute.value = { params: { orgId: '30', eventId: '71' } }
+  route.fullPath = managePath
+  routerRoute.value = { params: { orgId: '30', eventId: '71' }, fullPath: managePath }
   eventData = ref({ event })
   orgData = ref({ organization: { id: 30 }, myMember: { role: 'owner', status: 'active' } })
   rosterFailure = false
@@ -166,12 +179,50 @@ describe('event management interactions', () => {
       .findAll('button')
       .find((button) => button.text() === 'Отменить событие')!
       .trigger('click')
-    routerRoute.value = { params: { orgId: '30', eventId: '72' } }
+    routerRoute.value = {
+      params: { orgId: '30', eventId: '72' },
+      fullPath: '/m/orgs/30/events/72/manage',
+    }
     await nextTick()
     resolveConfirmation?.(true)
     await flushPromises()
     expect(apiFetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toEqual([])
     wrapper.unmount()
+  })
+
+  it('does not cancel the event after leaving manage for edit with the same ids', async () => {
+    const wrapper = await renderManage()
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Отменить событие')!
+      .trigger('click')
+    expect(confirm).toHaveBeenCalled()
+    routerRoute.value = {
+      params: { orgId: '30', eventId: '71' },
+      fullPath: '/m/orgs/30/events/71/edit',
+    }
+    resolveConfirmation?.(true)
+    await flushPromises()
+    expect(apiFetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toEqual([])
+    wrapper.unmount()
+  })
+
+  it('does not reject a payment after the manage page unmounts during confirmation', async () => {
+    paymentsFixture = [payment]
+    const wrapper = await renderManage()
+    await wrapper
+      .findAll('[role="tab"]')
+      .find((tab) => tab.text() === 'Оплаты')!
+      .trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Отклонить')!
+      .trigger('click')
+    expect(confirm).toHaveBeenCalled()
+    wrapper.unmount()
+    resolveConfirmation?.(true)
+    await flushPromises()
+    expect(apiFetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toEqual([])
   })
 
   it('keeps edit, publish, and cancel available when only the roster GET fails', async () => {
