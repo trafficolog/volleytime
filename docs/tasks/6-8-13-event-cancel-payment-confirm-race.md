@@ -2,10 +2,10 @@
 id: '6.8.13'
 phase: '6'
 epic: '6.8'
-status: todo
+status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-26
-status_note: 'Review 8.10.2 выявил правдоподобную серверную гонку; ещё не воспроизведена интеграционным тестом. Требуется отдельная диагностика до исправления.'
+status_note: 'RED подтвердил гонку; блокировка строки платежа в отмене события дала GREEN, повторный конкурентный тест и пять gates пройдены; ожидается независимый review и интеграция задачи.'
 review_ref: 'Task 8.10.2 · event payment review'
 priority: P1
 roles: [BACK, QA]
@@ -40,6 +40,14 @@ tags: [payments, events, concurrency, review-fix]
 ## Подсказки
 
 - Сравнить `packages/core/src/events/service.ts` и `packages/core/src/payments/service.ts` с существующими `money-races.integration.test.ts`; использовать отдельную PostgreSQL-тестовую базу.
+
+## Диагностика 2026-09-27
+
+- На отдельной PostgreSQL QA-БД `volleytime_qa_6813_20260927` тест удержал строку платежа `FOR UPDATE`, дождался ожидающего `confirm`, затем запустил `event.cancel` и дождался обоих ожидающих вызовов по `pg_blocking_pids`. После освобождения строки оба вызова завершились, но событие и бронь стали `cancelled`, платёж остался `succeeded` без возврата. RED: `pnpm exec vitest run --project integration money-races.integration.test.ts -t 6.8.13` — 1 failed, получено `succeeded` вместо `refunded`.
+- Причина: `eventService.cancel` берёт advisory lock события до чтения платежа, а `paymentService.confirm` меняет `pending → succeeded` без этого лока. Прочитав `pending`, отмена ждёт строку; после коммита подтверждения условный `pending → cancelled` уже не меняет её, хотя бронь и событие отменяются. Клиентская блокировка Mini App на этот порядок не влияет.
+- GREEN: чтение платежа в транзакции отмены события выполняется с `FOR UPDATE`; после завершения конкурентного подтверждения отмена видит актуальный `succeeded` и проводит единственный refund. Тот же тест проверяет обратный порядок: после отмены события подтверждение отклоняется, платёж остаётся `cancelled`, ledger пуст.
+- На изолированной БД `volleytime_qa_6813_20260927`: `pnpm exec vitest run --project integration money-races.integration.test.ts -t 6.8.13` — 1/1 pass; 10 последовательных повторов — 10/10 pass; весь `money-races.integration.test.ts` — 10/10 pass.
+- Обязательные gates после исправления: `pnpm format:check` — pass; `pnpm lint` — pass (17 прежних предупреждений); `pnpm typecheck` — 6/6; `pnpm test` — 91 файл, 505 тестов pass; `pnpm build` — 2/2 pass. Репозиторные тесты не заменяют production/runtime и Telegram QA релиза.
 
 ## Не делать
 
