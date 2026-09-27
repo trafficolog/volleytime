@@ -5,7 +5,7 @@ epic: '6.8'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-26
-status_note: 'RED подтвердил гонку; блокировка строки платежа в отмене события дала GREEN, повторный конкурентный тест и пять gates пройдены; ожидается независимый review и интеграция задачи.'
+status_note: 'RED подтвердил гонку; блокировка строки платежа в отмене события дала GREEN, повторный конкурентный тест, пять gates и независимый scoped review пройдены; ожидается локальная интеграция задачи.'
 review_ref: 'Task 8.10.2 · event payment review'
 priority: P1
 roles: [BACK, QA]
@@ -48,6 +48,7 @@ tags: [payments, events, concurrency, review-fix]
 - GREEN: чтение платежа в транзакции отмены события выполняется с `FOR UPDATE`; после завершения конкурентного подтверждения отмена видит актуальный `succeeded` и проводит единственный refund. Тот же тест проверяет обратный порядок: после отмены события подтверждение отклоняется, платёж остаётся `cancelled`, ledger пуст.
 - На изолированной БД `volleytime_qa_6813_20260927`: `pnpm exec vitest run --project integration money-races.integration.test.ts -t 6.8.13` — 1/1 pass; 10 последовательных повторов — 10/10 pass; весь `money-races.integration.test.ts` — 10/10 pass.
 - Обязательные gates после исправления: `pnpm format:check` — pass; `pnpm lint` — pass (17 прежних предупреждений); `pnpm typecheck` — 6/6; `pnpm test` — 91 файл, 505 тестов pass; `pnpm build` — 2/2 pass. Репозиторные тесты не заменяют production/runtime и Telegram QA релиза.
+- Независимый scoped review `41e4a56..4131685` не нашёл замечаний к исправлению. Отдельно отметил существующий потенциально обратный порядок блокировок `paymentService.cancel` и `eventService.cancel`; это другой сценарий и не расширяет patch 6.8.13.
 
 ## Не делать
 
