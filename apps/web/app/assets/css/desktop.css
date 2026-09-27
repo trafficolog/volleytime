@@ -169,3 +169,111 @@
       color 150ms ease;
   }
 }
+
+.vt-desktop-dashboard__heading,
+.vt-desktop-dashboard__section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.vt-desktop-dashboard__heading h1 {
+  font-family: var(--f-display);
+  font-size: clamp(2rem, 3vw, 2.75rem);
+  font-weight: 700;
+}
+
+.vt-desktop-dashboard__stats {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.vt-desktop-dashboard__stats > section,
+.vt-desktop-dashboard__upcoming {
+  padding: clamp(1rem, 2vw, 1.5rem);
+}
+
+.vt-desktop-dashboard .vt-card.vt-desktop-dashboard__balance {
+  background: var(--vt-ink);
+  color: var(--vt-paper);
+}
+
+.vt-desktop-dashboard__balance .vt-cap {
+  color: var(--vt-paper);
+}
+
+.vt-desktop-dashboard__balance-value,
+.vt-desktop-dashboard__pending-count {
+  margin-block: 0.75rem 0.5rem;
+  font-family: var(--f-display);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.vt-desktop-dashboard__section-heading h2 {
+  font-family: var(--f-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.vt-desktop-dashboard__empty {
+  display: grid;
+  justify-items: start;
+  gap: 1rem;
+  padding-block: 1.5rem;
+  color: var(--vt-mute-2);
+}
+
+.vt-desktop-dashboard__event-list {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+}
+
+.vt-desktop-dashboard__event-list li + li {
+  border-block-start: 1px solid var(--vt-stroke);
+}
+
+.vt-desktop-dashboard__event {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 4.5rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.vt-desktop-dashboard__event-text {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+}
+
+.vt-desktop-dashboard__event-text strong,
+.vt-desktop-dashboard__event-text small {
+  overflow-wrap: anywhere;
+}
+
+.vt-desktop-dashboard__event-text small {
+  color: var(--vt-mute-2);
+}
+
+.vt-desktop-dashboard__date,
+.vt-desktop-dashboard__seats {
+  flex: none;
+}
+
+@media (max-width: 45rem) {
+  .vt-desktop-dashboard__stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .vt-desktop-dashboard__event {
+    flex-wrap: wrap;
+    padding-block: 0.75rem;
+  }
+}
