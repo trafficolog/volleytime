@@ -1,6 +1,8 @@
 // Run in an email-authenticated player browser session against the isolated QA API.
 // This script does not intercept API requests or emulate Telegram-host behavior.
 async (page) => {
+  const baseUrl = page.url().match(/^https?:\/\/[^/]+/)?.[0]
+  if (!baseUrl) throw new Error('Open the local QA app URL before running this script')
   await page.unrouteAll({ behavior: 'ignoreErrors' })
   await page.route('https://telegram.org/**', (route) => route.abort())
   await page.route('https://fonts.googleapis.com/**', (route) => route.abort())
@@ -19,7 +21,7 @@ async (page) => {
     await page.setViewportSize({ width, height: 844 })
     for (const dark of [false, true]) {
       for (const screen of screens) {
-        await page.goto(`http://localhost:3142${screen.path}`)
+        await page.goto(`${baseUrl}${screen.path}`)
         await page.getByRole('heading', { name: new RegExp(screen.title, 'i') }).first().waitFor()
         await page.evaluate((isDark) => {
           document.documentElement.classList.toggle('vt-dark', isDark)

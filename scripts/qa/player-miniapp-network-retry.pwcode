@@ -1,5 +1,7 @@
 // Browser fixture: dashboard network error and retry, not real backend acceptance.
 async (page) => {
+  const baseUrl = page.url().match(/^https?:\/\/[^/]+/)?.[0]
+  if (!baseUrl) throw new Error('Open the local QA app URL before running this script')
   await page.unrouteAll({ behavior: 'ignoreErrors' })
   await page.route('https://telegram.org/**', (route) => route.abort())
   await page.route('https://fonts.googleapis.com/**', (route) => route.abort())
@@ -22,7 +24,7 @@ async (page) => {
     await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
   })
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('http://localhost:3142/m/orgs/1')
+  await page.goto(`${baseUrl}/m/orgs/1`)
   await page.getByRole('alert').getByText('Временная ошибка сервера').waitFor()
   if (await page.getByText('Игра после повтора').count()) throw new Error('Stale dashboard data shown on error')
   const requestsBeforeRetry = dashboardRequests

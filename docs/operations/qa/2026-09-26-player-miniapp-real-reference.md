@@ -25,8 +25,8 @@ Event со сводкой места/статуса и цены/длительн
 ## RED → GREEN и браузерная матрица
 
 Сохраняемый CLI regression: `scripts/qa/player-miniapp-fidelity.pwcode`.
-Запуск через `playwright-cli --session SESSION run-code --filename scripts/qa/player-miniapp-fidelity.pwcode`
-из task worktree при доступной собранной версии `http://localhost:3100`.
+Из task worktree сначала открыть собранную версию: `playwright-cli -s=SESSION open http://localhost:3100/m/orgs/1`, затем выполнить `playwright-cli -s=SESSION run-code --filename scripts/qa/player-miniapp-fidelity.pwcode`.
+Эта же последовательность нужна для `player-miniapp-group-race.pwcode`, `player-miniapp-network-retry.pwcode` и `player-miniapp-real-screen-matrix.pwcode`; последнему также нужен email-authenticated player session. Скрипты берут origin уже открытой страницы, поэтому при другом локальном порте меняется только URL команды `open`.
 Артефакты создаются в `output/playwright/`; фикстуры датированы октябрём 2026.
 
 - Начальный RED: 12 расхождений Home/Event/Subscriptions на 320/390 px.

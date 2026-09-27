@@ -8,6 +8,10 @@
 - Worktree задачи; preview `http://localhost:3142`; отдельные PostgreSQL базы
   `volleytime_qa_8101_selfcheck` (браузер/API) и `volleytime_qa_8101_tests`
   (интеграционные тесты). Общие/production базы и порты не менялись.
+- После review воспроизводимости QA-скриптов дополнительный локальный preview
+  временно поднимался на документированном порту `3100`; все четыре сохраняемых
+  скрипта повторены при origin `3100` и `3142`, включая новую email-OTP сессию
+  для real-API матрицы 28/28. Оба preview после проверки остановлены.
 - Живой источник `D:\ai\freelance\volleyball-volleytime\references\Volley Time Mini App.html`,
   SHA-256 `88DAEB38162E459DF91FC6280EA6A23F56200C9133B7625BE28E72C07BB7DCB4`.
   Home и Event открыты в браузере. Прототипные доменные функции за пределами MVP
