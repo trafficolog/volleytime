@@ -5,7 +5,7 @@ epic: '8.10'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-27
-status_note: 'Отдельный RED→GREEN, пять локальных gates и Edge pending/settled QA прошли; независимое ревью без замечаний. Интеграция с 8.10.2 ещё открыта.'
+status_note: 'Отдельный RED→GREEN, Edge pending/settled QA и независимое ревью без замечаний; локальный fast-forward в 8.10.2 выполнен, пять gates на объединённой ветке прошли. PR/merge в main и общая приёмка 8.10.2 ещё открыты.'
 review_ref: 'Task 8.10.2 · final scoped re-review'
 priority: P1
 roles: [FE, QA]
@@ -50,7 +50,7 @@ tags: [miniapp, cashbox, loading, review-fix]
 - Пять gates после правки: `pnpm format:check`, `pnpm lint` (0 ошибок, 17 прежних предупреждений), `pnpm typecheck` (6/6), `pnpm test` (91 файл, 504 теста на отдельной PostgreSQL-БД `volleytime_qa_8104_test_20260927`) и `pnpm build` (2/2) — exit 0.
 - Headed Edge на локальной production-сборке при 320 px и задержанном реальном GET: skeleton журнала виден, пустое состояние скрыто, баланс и фокус select сохранены, горизонтального переполнения нет. После ответа отображаются реальные записи; смоделированный успешный пустой ответ показал пустое состояние без skeleton. Снимок и точные измерения — в локальном git-ignored `.superpowers/sdd/2026-09-27-cashbox-loading/qa-report.md`. Это не Telegram-host QA и не разрешение на релиз.
 - Независимое ревью диапазона `316dffb..b29de5c` не нашло Critical/Important/Minor замечаний; reviewer отдельно прогнал узкий тест 8/8 и проверил сохранённый 320 px снимок. Это подтверждает scoped code readiness, но не закрывает native zoom, Telegram-host QA и общий релиз.
-- Интеграция с 8.10.2 ещё не завершена; `status: in_progress` сохраняется.
+- 2026-09-27 локальный fast-forward `316dffb → c102e48` включил исправление в ветку 8.10.2. На объединённом дереве повторены пять gates: форматирование exit 0, lint exit 0 (17 прежних предупреждений), typecheck 6/6, тесты 91 файл/504 теста, build 2/2; `git diff --check` чистый. `status: in_progress` сохраняется до PR/merge в `main` и приёмки родительской задачи.
 
 ## Не делать
 

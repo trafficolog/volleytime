@@ -5,7 +5,7 @@ epic: '8.10'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-27
-status_note: 'Четыре замечания whole-branch review закрыты RED→GREEN; отдельная review-fix 8.10.4 для состояния загрузки кассы прошла локальные тесты, Edge и независимое ревью, но ещё не интегрирована. Native zoom и Telegram-host QA также открыты; задача не завершена.'
+status_note: 'Четыре замечания whole-branch review закрыты RED→GREEN; review-fix 8.10.4 прошла отдельные тесты, Edge и независимое ревью, затем локальный fast-forward и пять gates объединённой ветки. Native zoom, Telegram-host и общий QA 8.10.3 открыты; задача не завершена.'
 roles: [FE, QA]
 depends_on: ['3.11.2', '5.13.21']
 estimated_hours: '12-18'
