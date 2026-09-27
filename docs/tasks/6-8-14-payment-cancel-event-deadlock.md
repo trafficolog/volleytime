@@ -5,7 +5,7 @@ epic: '6.8'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-27
-status_note: 'RED подтвердил PostgreSQL deadlock 40P01; порядок блокировок выровнен, 10 повторов GREEN, money-races, пять gates и независимый review пройдены; Minor-пробел теста закрыт, ожидается локальная интеграция.'
+status_note: 'RED подтвердил PostgreSQL deadlock 40P01; порядок блокировок выровнен, 10 повторов GREEN, money-races, пять gates и scoped review пройдены; Minor-пробел теста закрыт, main-base ветка ожидает PR/CI.'
 review_ref: 'Task 6.8.13 · scoped concurrency review'
 priority: P1
 roles: [BACK, QA]
@@ -50,3 +50,4 @@ tags: [payments, events, concurrency, review-fix]
 - На изолированной БД `volleytime_qa_6814_20260927`: `pnpm exec vitest run --project integration money-races.integration.test.ts -t 6.8.14` — 1/1 pass; 10 последовательных повторов — 10/10 pass; весь `money-races.integration.test.ts` — 11/11 pass.
 - Обязательные gates: `pnpm format:check` — pass; `pnpm lint` — pass (0 ошибок, 17 прежних предупреждений); `pnpm typecheck` — 6/6; `pnpm test` — 91 файл/508 тестов pass; `pnpm build` — 2/2 pass; `git diff --check` — pass. Локальная PostgreSQL-проверка не заменяет production smoke и реальный Telegram QA релиза.
 - После review-дополнения о повторном отклонении пять gates повторены на итоговом состоянии с теми же результатами (508/508 тестов, build 2/2). Review `8c21f2d..3849b70` не выявил Critical/Important; его единственный Minor касался именно этого отсутствовавшего утверждения, а не production-кода.
+- Для отдельного task PR два коммита 6.8.14 перенесены поверх GitHub `main` после merge 6.8.13 (`3230c31`); diff содержит только эту SDD-карточку, тест и `payments/service.ts`. На новой PostgreSQL QA-БД `volleytime_qa_6814_main_20260927` весь `money-races.integration.test.ts` прошёл 11/11, узкий тест ещё 10 последовательных повторов — 10/10. Пять gates на финальном main-base дереве повторены отдельно от прежних stacked-прогонов: format pass, lint pass (0 ошибок, 22 прежних предупреждения), typecheck 6/6, test 82 файла/445 тестов, build 2/2.
