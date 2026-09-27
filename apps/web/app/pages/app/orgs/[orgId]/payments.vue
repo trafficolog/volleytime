@@ -165,7 +165,7 @@ async function act(payment: PaymentRow, action: 'confirm' | 'reject') {
     if (!live(org, path, epoch)) return
     const conflict = shouldReloadPaymentsAfterError(apiErrorCode(error) ?? null)
     actionError.value = conflict
-      ? 'Платёж уже обработан. Списки обновлены.'
+      ? 'Платёж уже обработан.'
       : errorMessage(error, 'Не удалось обработать оплату. Повторите попытку.')
     if (conflict) await reload()
   } finally {
