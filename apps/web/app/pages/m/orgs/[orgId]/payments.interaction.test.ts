@@ -1,11 +1,22 @@
 // @vitest-environment happy-dom
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { computed, defineComponent, h, nextTick, reactive, ref, Suspense, watch } from 'vue'
+import {
+  computed,
+  defineComponent,
+  h,
+  nextTick,
+  onUnmounted,
+  reactive,
+  ref,
+  Suspense,
+  watch,
+} from 'vue'
 
 import Payments from './payments.vue'
 
-const route = reactive({ params: { orgId: '30' } })
+const route = reactive({ params: { orgId: '30' }, fullPath: '/m/orgs/30/payments' })
+const routerRoute = ref({ params: { orgId: '30' }, fullPath: '/m/orgs/30/payments' })
 const payer = { id: 9, name: 'Игрок', telegramUsername: null, image: null }
 const payment = {
   id: 11,
@@ -29,6 +40,7 @@ const askConfirm = vi.fn(() =>
     ? new Promise<boolean>((resolve) => resolveConfirmations.push(resolve))
     : Promise.resolve(true),
 )
+const haptic = vi.fn()
 const apiFetch = vi.fn(async (_url: string, options?: { method?: string }) => {
   if (options?.method === 'POST') {
     if (holdPost) await new Promise<void>((resolve) => (releasePost = resolve))
@@ -41,11 +53,13 @@ const apiFetch = vi.fn(async (_url: string, options?: { method?: string }) => {
 
 vi.stubGlobal('definePageMeta', () => undefined)
 vi.stubGlobal('useRoute', () => route)
+vi.stubGlobal('useRouter', () => ({ currentRoute: routerRoute }))
 vi.stubGlobal('useOrgTimezone', () => ({ tz: ref('Europe/Minsk') }))
-vi.stubGlobal('useTelegram', () => ({ confirm: askConfirm, haptic: vi.fn() }))
+vi.stubGlobal('useTelegram', () => ({ confirm: askConfirm, haptic }))
 vi.stubGlobal('computed', computed)
 vi.stubGlobal('ref', ref)
 vi.stubGlobal('watch', watch)
+vi.stubGlobal('onUnmounted', onUnmounted)
 vi.stubGlobal('$fetch', apiFetch)
 vi.stubGlobal('apiErrorStatus', (e: { statusCode?: number }) => e.statusCode)
 vi.stubGlobal('apiErrorCode', (e: { code?: string }) => e.code)
@@ -72,6 +86,8 @@ async function renderPayments() {
 
 beforeEach(() => {
   route.params.orgId = '30'
+  route.fullPath = '/m/orgs/30/payments'
+  routerRoute.value = { params: { orgId: '30' }, fullPath: '/m/orgs/30/payments' }
   pending = [{ ...payment }]
   getFailure = 0
   postError = null
@@ -80,6 +96,7 @@ beforeEach(() => {
   holdConfirmation = false
   resolveConfirmations = []
   askConfirm.mockClear()
+  haptic.mockClear()
   apiFetch.mockClear()
 })
 
@@ -157,6 +174,63 @@ describe('general pending payment queue', () => {
       ['/api/organizations/30/payments/12/reject', { method: 'POST' }],
     ])
     wrapper.unmount()
+  })
+
+  it('does not reject for the frozen old page after live-router navigation', async () => {
+    holdConfirmation = true
+    const wrapper = await renderPayments()
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Отклонить')!
+      .trigger('click')
+    routerRoute.value = { params: { orgId: '31' }, fullPath: '/m/orgs/31/payments' }
+    await nextTick()
+    resolveConfirmations[0]?.(true)
+    await flushPromises()
+    expect(apiFetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(0)
+    wrapper.unmount()
+  })
+
+  it('does not mutate the frozen old page after a POST returns on another route', async () => {
+    holdPost = true
+    const wrapper = await renderPayments()
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Подтвердить'))!
+      .trigger('click')
+    expect(apiFetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(1)
+    routerRoute.value = { params: { orgId: '31' }, fullPath: '/m/orgs/31/payments' }
+    await nextTick()
+    releasePost?.()
+    await flushPromises()
+    expect(wrapper.text()).toContain('Игрок')
+    wrapper.unmount()
+  })
+
+  it('does not reject after its page unmounts before the confirmation resolves', async () => {
+    holdConfirmation = true
+    const wrapper = await renderPayments()
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Отклонить')!
+      .trigger('click')
+    wrapper.unmount()
+    resolveConfirmations[0]?.(true)
+    await flushPromises()
+    expect(apiFetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(0)
+  })
+
+  it('does not acknowledge a POST after its page unmounts', async () => {
+    holdPost = true
+    const wrapper = await renderPayments()
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Подтвердить'))!
+      .trigger('click')
+    wrapper.unmount()
+    releasePost?.()
+    await flushPromises()
+    expect(haptic).not.toHaveBeenCalled()
   })
 
   it('refreshes the pending queue after an already processed conflict', async () => {

@@ -67,6 +67,9 @@ const activeManager = computed(
   () =>
     !!org.value && me.value?.status === 'active' && ['owner', 'organizer'].includes(me.value.role),
 )
+const roleMismatch = computed(
+  () => !!currentDash.value && currentDash.value.isManager !== activeManager.value,
+)
 
 onMounted(() => {
   if (import.meta.client) window.localStorage.setItem('vt.lastOrgId', String(orgId.value))
@@ -115,11 +118,11 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
         <SkeletonList v-else-if="dashStatus === 'pending'" :count="3" />
         <template v-else-if="dash && currentDash">
           <ErrorState
-            v-if="activeManager && !home"
+            v-if="roleMismatch || (activeManager && !home)"
             message="Не удалось загрузить обзор группы"
             @retry="refreshDash()"
           />
-          <template v-if="home">
+          <template v-else-if="home">
             <section aria-label="Обзор организатора">
               <h2 class="mb-3 text-2xl font-bold">Обзор группы</h2>
               <div class="organizer-overview-grid grid gap-3">
@@ -209,7 +212,7 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
           </template>
 
           <!-- игроку: мои ближайшие записи и абонемент -->
-          <section v-if="!dash.isManager">
+          <section v-if="!roleMismatch && !dash.isManager">
             <h2 class="vt-cap mb-2">Мои ближайшие записи</h2>
             <ul v-if="dash.myBookings.length" class="space-y-2">
               <li v-for="b in dash.myBookings" :key="b.id">
@@ -251,7 +254,7 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
           </section>
 
           <NuxtLink
-            v-if="!dash.isManager && org && dash.subscription"
+            v-if="!roleMismatch && !dash.isManager && org && dash.subscription"
             :to="`${base}/subscriptions`"
             class="vt-card p-4 block"
           >
@@ -278,7 +281,7 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
             />
           </NuxtLink>
 
-          <section v-if="!dash.isManager || home">
+          <section v-if="!roleMismatch && (!dash.isManager || home)">
             <div class="organizer-events-heading flex items-center justify-between mb-2">
               <h2 class="vt-cap">Ближайшие события</h2>
               <NuxtLink

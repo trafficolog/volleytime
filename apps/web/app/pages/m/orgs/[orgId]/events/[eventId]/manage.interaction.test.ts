@@ -94,6 +94,8 @@ async function renderManage() {
 }
 
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-09-27T12:00:00.000Z'))
   route.params.orgId = '30'
   route.params.eventId = '71'
   routerRoute.value = { params: { orgId: '30', eventId: '71' } }
@@ -110,9 +112,28 @@ beforeEach(() => {
 
 afterEach(() => {
   document.body.innerHTML = ''
+  vi.useRealTimers()
 })
 
 describe('event management interactions', () => {
+  it('offers attendance marking after the event starts and hides future-only controls', async () => {
+    vi.setSystemTime(new Date('2027-09-27T20:00:00.000Z'))
+    const wrapper = await renderManage()
+    expect(wrapper.find('button[aria-label="Был"]').exists()).toBe(true)
+    expect(wrapper.find('button[aria-label="Не пришёл"]').exists()).toBe(true)
+    expect(wrapper.findAll('button').some((button) => button.text() === 'Отменить событие')).toBe(
+      false,
+    )
+    await wrapper.get('button[aria-label="Был"]').trigger('click')
+    await flushPromises()
+    expect(
+      apiFetch.mock.calls.some(
+        ([url, options]) => url.endsWith('/attendance') && options?.method === 'POST',
+      ),
+    ).toBe(true)
+    wrapper.unmount()
+  })
+
   it('does not cancel a different event after the route changes during confirmation', async () => {
     const wrapper = await renderManage()
     const cancel = wrapper.findAll('button').find((button) => button.text() === 'Отменить событие')

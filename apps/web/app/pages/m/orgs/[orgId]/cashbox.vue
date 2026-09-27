@@ -53,11 +53,14 @@ let loadVersion = 0
 async function load() {
   const requestedOrgId = orgId.value
   const version = ++loadVersion
+  const sameOrgRefresh = loadedOrgId.value === requestedOrgId && !forbidden.value
   loading.value = true
   loadError.value = ''
   forbidden.value = false
-  loadedOrgId.value = null
-  balance.value = null
+  if (!sameOrgRefresh) {
+    loadedOrgId.value = null
+    balance.value = null
+  }
   entries.value = []
   try {
     const data = await $fetch<{ balance: Balance; entries: Entry[] }>(
@@ -72,8 +75,12 @@ async function load() {
     loadedOrgId.value = requestedOrgId
   } catch (e) {
     if (version !== loadVersion || requestedOrgId !== orgId.value) return
-    if (apiErrorStatus(e) === 403) forbidden.value = true
-    else loadError.value = apiErrorMessage(e, 'Не удалось загрузить кассу')
+    if (apiErrorStatus(e) === 403) {
+      forbidden.value = true
+      loadedOrgId.value = null
+      balance.value = null
+      entries.value = []
+    } else loadError.value = apiErrorMessage(e, 'Не удалось загрузить кассу')
   } finally {
     if (version === loadVersion) loading.value = false
   }
@@ -132,7 +139,7 @@ const saving = ref(false)
 const formError = ref('')
 
 async function openSheet(kind: Kind) {
-  if (loadedOrgId.value !== orgId.value || loading.value || forbidden.value) return
+  if (loadedOrgId.value !== orgId.value || forbidden.value) return
   const requestedOrgId = orgId.value
   formError.value = ''
   Object.assign(form, {

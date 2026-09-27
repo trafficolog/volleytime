@@ -62,6 +62,7 @@ vi.stubGlobal('apiErrorMessage', () => 'Сбой загрузки')
 async function renderCashbox() {
   const host = defineComponent({ render: () => h(Suspense, null, { default: () => h(Cashbox) }) })
   const wrapper = mount(host, {
+    attachTo: document.body,
     global: {
       stubs: {
         VtMiniHeader: { template: '<header />' },
@@ -88,6 +89,28 @@ beforeEach(() => {
 })
 
 describe('append-only cashbox', () => {
+  it('keeps the focused filter and operation controls mounted during a same-org refresh', async () => {
+    const wrapper = await renderCashbox()
+    let release!: (value: { balance: typeof balance; entries: typeof entries }) => void
+    const pending = new Promise<{ balance: typeof balance; entries: typeof entries }>((resolve) => {
+      release = resolve
+    })
+    apiFetch.mockImplementationOnce(async () => pending)
+    const filter = wrapper.get('#ledger-type')
+    const filterElement = filter.element as HTMLSelectElement
+    filterElement.focus()
+    await filter.setValue('expense')
+    await nextTick()
+    expect(filterElement.isConnected).toBe(true)
+    expect(document.activeElement).toBe(filterElement)
+    expect(wrapper.find('.cashbox-operation-actions').findAll('button')).toHaveLength(2)
+    expect(wrapper.text()).toContain('40,00 BYN')
+    release({ balance, entries: [entry] })
+    await flushPromises()
+    expect(document.activeElement).toBe(filterElement)
+    wrapper.unmount()
+  })
+
   it('makes an older expense reachable after 200 newer incomes through the journal filter', async () => {
     entries = [
       ...Array.from({ length: 200 }, (_, index) => ({

@@ -16,6 +16,7 @@ interface PendingPayment {
 }
 
 const route = useRoute()
+const router = useRouter()
 const orgId = computed(() => Number(route.params.orgId))
 const { tz } = useOrgTimezone(orgId)
 const { confirm: askConfirm, haptic } = useTelegram()
@@ -28,6 +29,19 @@ const busy = ref<number | null>(null)
 const loadedOrgId = ref<number | null>(null)
 const forbidden = ref(false)
 let loadVersion = 0
+let pageActive = true
+onUnmounted(() => {
+  pageActive = false
+})
+
+function isCurrentPage(actionOrgId: number): boolean {
+  return (
+    pageActive &&
+    orgId.value === actionOrgId &&
+    Number(router.currentRoute.value.params.orgId) === actionOrgId &&
+    router.currentRoute.value.fullPath === route.fullPath
+  )
+}
 
 async function load() {
   const requestedOrgId = orgId.value
@@ -78,7 +92,13 @@ function ago(iso: string): string {
 }
 
 async function act(p: PendingPayment, action: 'confirm' | 'reject') {
-  if (busy.value !== null || loadedOrgId.value !== orgId.value || loading.value || forbidden.value)
+  if (
+    busy.value !== null ||
+    loadedOrgId.value !== orgId.value ||
+    loading.value ||
+    forbidden.value ||
+    !isCurrentPage(orgId.value)
+  )
     return
   const actionOrgId = orgId.value
   actionError.value = ''
@@ -88,14 +108,15 @@ async function act(p: PendingPayment, action: 'confirm' | 'reject') {
       const ok = await askConfirm(
         `Отклонить оплату ${displayName(p.user)}? ${p.event ? 'Запись будет отменена, место перейдёт следующему в листе ожидания.' : 'Абонемент не будет активирован.'}`,
       )
-      if (!ok || actionOrgId !== orgId.value || loadedOrgId.value !== actionOrgId) return
+      if (!ok || !isCurrentPage(actionOrgId) || loadedOrgId.value !== actionOrgId) return
     }
+    if (!isCurrentPage(actionOrgId) || loadedOrgId.value !== actionOrgId) return
     await $fetch(`/api/organizations/${actionOrgId}/payments/${p.id}/${action}`, { method: 'POST' })
-    if (actionOrgId !== orgId.value) return
+    if (!isCurrentPage(actionOrgId) || loadedOrgId.value !== actionOrgId) return
     haptic(action === 'confirm' ? 'success' : 'warning')
     items.value = items.value.filter((x) => x.id !== p.id)
   } catch (e) {
-    if (actionOrgId !== orgId.value) return
+    if (!isCurrentPage(actionOrgId) || loadedOrgId.value !== actionOrgId) return
     haptic('error')
     actionError.value =
       apiErrorCode(e) === 'payment.not_pending'
