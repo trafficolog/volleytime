@@ -5,7 +5,7 @@ epic: '8.10'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-27
-status_note: 'Отдельный RED→GREEN и пять локальных gates прошли; Edge подтвердил pending/settled состояния на 320 px. Независимое ревью и интеграция с 8.10.2 ещё открыты.'
+status_note: 'Отдельный RED→GREEN, пять локальных gates и Edge pending/settled QA прошли; независимое ревью без замечаний. Интеграция с 8.10.2 ещё открыта.'
 review_ref: 'Task 8.10.2 · final scoped re-review'
 priority: P1
 roles: [FE, QA]
@@ -49,7 +49,8 @@ tags: [miniapp, cashbox, loading, review-fix]
 - RED-тест на задержанном GET увидел ложное «Операций пока нет» и отсутствие «Загрузка»; после минимальной правки файл `cashbox.interaction.test.ts` прошёл 8/8. Существующие сценарии фокуса, смены организации и 403 остались зелёными.
 - Пять gates после правки: `pnpm format:check`, `pnpm lint` (0 ошибок, 17 прежних предупреждений), `pnpm typecheck` (6/6), `pnpm test` (91 файл, 504 теста на отдельной PostgreSQL-БД `volleytime_qa_8104_test_20260927`) и `pnpm build` (2/2) — exit 0.
 - Headed Edge на локальной production-сборке при 320 px и задержанном реальном GET: skeleton журнала виден, пустое состояние скрыто, баланс и фокус select сохранены, горизонтального переполнения нет. После ответа отображаются реальные записи; смоделированный успешный пустой ответ показал пустое состояние без skeleton. Снимок и точные измерения — в локальном git-ignored `.superpowers/sdd/2026-09-27-cashbox-loading/qa-report.md`. Это не Telegram-host QA и не разрешение на релиз.
-- Независимое ревью отдельной ветки и последующая интеграция с 8.10.2 ещё не завершены; `status: in_progress` сохраняется.
+- Независимое ревью диапазона `316dffb..b29de5c` не нашло Critical/Important/Minor замечаний; reviewer отдельно прогнал узкий тест 8/8 и проверил сохранённый 320 px снимок. Это подтверждает scoped code readiness, но не закрывает native zoom, Telegram-host QA и общий релиз.
+- Интеграция с 8.10.2 ещё не завершена; `status: in_progress` сохраняется.
 
 ## Не делать
 
