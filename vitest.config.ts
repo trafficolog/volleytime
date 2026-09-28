@@ -26,7 +26,12 @@ export default defineConfig({
     projects: [
       {
         plugins: [vue()],
-        resolve: { alias: { '~': fileURLToPath(new URL('./apps/web/app', import.meta.url)) } },
+        resolve: {
+          alias: {
+            '~': fileURLToPath(new URL('./apps/web/app', import.meta.url)),
+            '/logo.png': fileURLToPath(new URL('./apps/web/public/logo.png', import.meta.url)),
+          },
+        },
         test: {
           ...shared,
           name: 'unit',

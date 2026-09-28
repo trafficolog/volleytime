@@ -17,8 +17,10 @@ const botHref = computed(() => telegramBotHref(useRuntimeConfig().public.telegra
 onMounted(async () => {
   try {
     await fetchSession()
-  } finally {
     sessionKnown.value = true
+  } catch {
+    // A retained client user is not server confirmation; keep the anonymous CTA.
+    sessionKnown.value = false
   }
 })
 

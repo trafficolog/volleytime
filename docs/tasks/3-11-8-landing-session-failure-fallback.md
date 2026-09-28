@@ -2,10 +2,10 @@
 id: '3.11.8'
 phase: '3'
 epic: '3.11'
-status: todo
+status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-28
-status_note: 'Minor final-review observation reproduced in Chrome: session API 503 logs a FetchError through the mounted hook; anonymous CTA remains usable. Separate R0.6 resilience task before final release gate.'
+status_note: 'Локальный RED→GREEN, пять gates (124 files / 722 tests), Chrome 503/CTA/FAQ и regression smoke прошли; независимое review без замечаний. До exact-head CI и merge отдельного PR задача in_progress; prod/VPS не меняются.'
 roles: [FE, QA]
 depends_on: ['3.11.4']
 estimated_hours: '1-2'
@@ -39,7 +39,25 @@ tags: [landing, review-fix, resilience]
 
 ## Подсказки
 
+### План проверки 2026-09-28
+
+Причина: `useAuth.fetchSession()` намеренно сохраняет прежнего пользователя и пробрасывает transient-ошибку; лендинг в `finally` ошибочно помечает сессию известной при любом результате. Не менять общий composable. В mounted-тесте использовать настоящий useAuth и подменить только внешний `$fetch`: проверить отказ с пустым/сохранённым user, pending-состояние, успешный user и подтверждённый null. Минимальный фикс оставляет локальный флаг неизвестной сессии на ошибке и выставляет его только после успешного GET. Затем полный PostgreSQL suite, остальные четыре gates, Chrome fixture 503/переход/FAQ и независимое scoped review; отдельный PR/CI/main без изменения prod.
+
 Воспроизведение сохранено в `scripts/qa/landing-session-error.pwcode`; browser `pageerror` недостаточен для проверки, следует читать console error или Vue errorHandler.
+
+Первый запуск mounted harness остановился до тестов: Vite вне Nuxt не разрешает абсолютный public URL `/logo.png`. Test-only alias на реальный public asset допустим для запуска настоящего компонента; runtime-код/изображение не меняются. Это ошибка harness, не RED по продукту.
+
+Mounted RED: 2/5 тестов упали по ожидаемым причинам — `errors` содержит `Error: session unavailable`, а CTA при сохранённом user после отказа API стал `/m/orgs/create` вместо login redirect. Три контрольных pending/success/null сценария прошли. Код лендинга до этого результата не менялся.
+
+### Локальная приёмка 2026-09-28
+
+Минимальный фикс выставляет `sessionKnown` только после успешного GET и оставляет false при отказе. Общий `useAuth`, его сохранение прежнего user на transient failure, auth API и дизайн не менялись. Mounted landing + canonical auth + landing utilities: 3 files / 13 tests pass; независимый reviewer повторил landing/auth 2 files / 10 tests и `git diff --check`, замечаний Critical/Important/Minor нет.
+
+Итоговые пять gates: format pass, lint 0 errors / 12 baseline warnings вне нового теста, typecheck 6/6, PostgreSQL suite 124 files / 722 tests pass, build 2/2. Оба DB URL тестов указывают на отдельную `volleytime_qa_8101_post56`, не на browser fixture DB.
+
+Свежий built preview `http://127.0.0.1:3168/`, Chrome CLI profile `landing318`: `scripts/qa/landing-session-error.pwcode` подтвердил 503 fixture (2 GET), `errors=[]`, `appErrors=[]`, anonymous href, FAQ Enter и переход к login с redirect создания группы. HTTP network 503 ожидаем. Первый preview-запуск во время перезаписи build output получил технический missing-module 500 и не засчитывается: сервер перезапущен после успешного build, затем QA повторена.
+
+`scripts/qa/landing-post-main.pwcode` повторно прошёл 320/390/768/1280/1440 CSS px, session success/null CTA, якорь/FAQ, локальные шрифты, reduced motion/resume/teardown, no-JS SSR/FAQ. Снимки 320/1440 просмотрены. Ранее подтверждённые пользователем native 200% и настоящее background stop/resume не запрашивались заново. Это локальный Chrome QA, не Telegram-host или production delivery. Детали: [отчёт 3.11.8](../operations/qa/2026-09-28-landing-session-fallback.md).
 
 ## Не делать
 
