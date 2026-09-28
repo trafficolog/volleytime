@@ -5,7 +5,7 @@ epic: '8.10'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-28
-status_note: 'Сквозная QA открыта; локальный фикс приглашений 8.10.5 проверен отдельно, его PR/CI/merge и интеграция Mini App ещё не завершены. Это не общий release acceptance.'
+status_note: 'Сквозная QA открыта; фикс приглашений 8.10.5 проверен отдельно и принимается через PR #53 после финального CI/merge. Интеграция Mini App и общий release acceptance не завершены.'
 roles: [QA, FE]
 depends_on: ['3.11.3', '8.10.1', '8.10.2', '5.15.1', '6.10.1', '8.10.5']
 estimated_hours: '6-10'
