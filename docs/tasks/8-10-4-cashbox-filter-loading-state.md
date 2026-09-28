@@ -2,10 +2,10 @@
 id: '8.10.4'
 phase: '8'
 epic: '8.10'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-27
-status_note: 'Отдельный RED→GREEN, Edge pending/settled QA и независимое ревью без замечаний; локальный fast-forward в 8.10.2 выполнен, пять gates на объединённой ветке прошли. PR/merge в main и общая приёмка 8.10.2 ещё открыты.'
+last_reviewed: 2026-09-28
+status_note: 'Принята вместе с родительской 8.10.2 через PR #55 (2086ee4) после отдельного RED→GREEN/review, повторных пяти gates, Edge pending/settled focus QA и CI 36430967186 success. Общий QA R0.6 отдельно открыт.'
 review_ref: 'Task 8.10.2 · final scoped re-review'
 priority: P1
 roles: [FE, QA]
@@ -51,6 +51,10 @@ tags: [miniapp, cashbox, loading, review-fix]
 - Headed Edge на локальной production-сборке при 320 px и задержанном реальном GET: skeleton журнала виден, пустое состояние скрыто, баланс и фокус select сохранены, горизонтального переполнения нет. После ответа отображаются реальные записи; смоделированный успешный пустой ответ показал пустое состояние без skeleton. Снимок и точные измерения — в локальном git-ignored `.superpowers/sdd/2026-09-27-cashbox-loading/qa-report.md`. Это не Telegram-host QA и не разрешение на релиз.
 - Независимое ревью диапазона `316dffb..b29de5c` не нашло Critical/Important/Minor замечаний; reviewer отдельно прогнал узкий тест 8/8 и проверил сохранённый 320 px снимок. Это подтверждает scoped code readiness, но не закрывает native zoom, Telegram-host QA и общий релиз.
 - 2026-09-27 локальный fast-forward `316dffb → c102e48` включил исправление в ветку 8.10.2. На объединённом дереве повторены пять gates: форматирование exit 0, lint exit 0 (17 прежних предупреждений), typecheck 6/6, тесты 91 файл/504 теста, build 2/2; `git diff --check` чистый. `status: in_progress` сохраняется до PR/merge в `main` и приёмки родительской задачи.
+
+## Приёмка в main 2026-09-28
+
+Отдельно проверенный stacked fix принят с родительской задачей 8.10.2 через [PR #55](https://github.com/trafficolog/volleytime/pull/55), merge `2086ee4`. На интегрированном дереве повторены пять gates (112 files/637 tests, typecheck 6/6, lint 0 errors/19 warnings, build 2/2, format pass), whole-branch review без замечаний и задержанный настоящий ledger GET в Edge на 320 CSS px: skeleton без false empty, сохранённые баланс и фокус, затем реальные расходные записи. [CI 36430967186](https://github.com/trafficolog/volleytime/actions/runs/36430967186) success на `ec6493d`; подробности в [QA-отчёте](../operations/qa/2026-09-28-organizer-miniapp-post-main.md). `done` не означает Telegram-host, общий 8.10.3 или production release acceptance; `prod`/VPS не менялись.
 
 ## Не делать
 

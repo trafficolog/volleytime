@@ -46,3 +46,7 @@ FontFaceSet на manage содержит загруженные Golos Text 400/6
 - Просмотрены PNG Home 320 light, manage 320 dark, cashbox 390 dark, new 320 light, payments 320 light, events 390 light, edit 390 dark, menu keyboard 320 light и cashbox pending 320 light. У full-page PNG fixed dock остаётся на координате первого viewport: нахождение dock посередине длинного снимка не доказывает перекрытие submit при прокрутке. Pixel-perfect, все состояния и все веса шрифтов этим не доказаны.
 
 Скрипты/28 PNG и дополнительные captures находятся локально в `output/playwright/miniapp-r06-20260928/`, не являются опубликованными release artifacts. Прежний подтверждённый пользователем Home native 200% не запрашивался повторно. Общий 8.10.3, совместная матрица веток и реальный Telegram после полного кандидата остаются открытыми. `prod`/VPS не менялись.
+
+## Приёмка реализации в main
+
+[PR #55](https://github.com/trafficolog/volleytime/pull/55) принят 2026-09-28 как `2086ee461e3f6ae8554e782e0db25aaf27add39d`, issue #54 закрыт. Head `ec6493d425050632c511af4fab1d02bccdcdd592` прошёл все три jobs [CI 36430967186](https://github.com/trafficolog/volleytime/actions/runs/36430967186); base перед merge `16d7266`, merge state CLEAN. Это закрывает task-local 8.10.2/8.10.4 и source integration приглашений, не общий release/Telegram acceptance. Production branch проверена read-only как `67bbfe89acaac04992b8128d45cb1b40f8acc75c`, не продвигалась.

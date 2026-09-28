@@ -5,7 +5,7 @@ epic: '8.10'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-28
-status_note: 'Organizer post53 интеграция прошла пять gates, whole-branch review и 40 browser cases; 8.10.5 принят в main. Общая совместная матрица R0.6 и Telegram-host acceptance открыты.'
+status_note: 'Organizer 8.10.2 и review-fix 8.10.4 приняты через PR #55 с CI; 8.10.5 уже в main. Player/landing интеграция, общая совместная матрица R0.6 и Telegram-host acceptance открыты.'
 roles: [QA, FE]
 depends_on: ['3.11.3', '8.10.1', '8.10.2', '8.10.4', '8.10.5', '5.15.1', '6.10.1']
 estimated_hours: '6-10'

@@ -219,6 +219,8 @@ Canonical R0 snapshot не изменился: **132 done / 7 in_progress из 1
 
 Для пилота без пользователей (решение 2026-09-27) реальный Telegram-host QA проводится **на production после** контролируемой выкладки полного кандидата R0.6, а не на отдельном тестовом стенде. До выкладки обязательны завершение всех MVP-задач, review, доступный локальный визуальный/функциональный QA и CI. При выкладке — резервная копия БД перед миграциями по runbook; после неё — проверка точного SHA, health/runtime smoke и ручной Telegram QA на тестовых аккаунтах и организации. До успешной полевой проверки выпуск остаётся кандидатом, не окончательно принятым MVP.
 
+2026-09-28 **8.10.2** и отдельно проверенный stacked fix **8.10.4** приняты в main через [PR #55](https://github.com/trafficolog/volleytime/pull/55), merge `2086ee4`, после локальных пяти gates, whole-branch review, 40 browser cases и [CI 36430967186](https://github.com/trafficolog/volleytime/actions/runs/36430967186) success на `ec6493d`. Это не общий release gate: Mini App игрока (PR #47), лендинг (PR #43), их совместная QA и **8.10.3** ещё требуют завершения. `prod` и VPS не менялись.
+
 ---
 
 ## R1 — Automation & Reliability `v0.2.0`

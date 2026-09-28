@@ -2,10 +2,10 @@
 id: '8.10.2'
 phase: '8'
 epic: '8.10'
-status: in_progress
+status: done
 sync_state: synced
 last_reviewed: 2026-09-28
-status_note: 'Интеграция main с 8.10.5 проверена: пять gates, 40 browser cases, whole-branch review без замечаний. Локальный код готов к PR; CI/merge, общий 8.10.3 и Telegram-host acceptance открыты.'
+status_note: 'Принята в main через PR #55 (2086ee4): пять локальных gates, 40 browser cases, whole-branch review без замечаний, CI 36430967186 success на ec6493d. Общий 8.10.3 и Telegram-host acceptance отдельно открыты; prod/VPS не менялись.'
 roles: [FE, QA]
 depends_on: ['3.11.2', '5.13.21']
 estimated_hours: '12-18'
@@ -103,6 +103,10 @@ tags: [miniapp, organizer, mvp, redesign]
 - Свежий Edge production-preview: 28 случаев семи основных маршрутов при **client width** 320/390 light/dark; document/control overflow и pageerror отсутствуют. 12 случаев приглашений 320/390/160 light/dark и обоих copy-state прошли на этой же интегрированной сборке. CSS `.dark`/clipboard fixtures не названы настоящими Telegram themeChanged/copy/share. Девять выбранных PNG просмотрены отдельно, без pixel-perfect заявления.
 - Отдельно повторены задержанный настоящий ledger GET: skeleton без ложного empty, баланс и фокус `ledger-type` сохранены, после ответа показаны реальные расходы; меню Enter/Shift+Tab/Escape и восстановление focus/inert; форма расхода открывается с фокусом `lg-cat` и закрывается без POST. Подпись Home имеет computed white alpha 0,78 × opacity 0,75 на rgb(31 46 150), эффективный WCAG 2 contrast 4,82:1; цвет не изменён. Это один измеренный текстовый контраст, не общий сертификат доступности.
 - Независимое whole-branch review относительно main `16d7266` на интегрированном дереве не нашло Critical/Important/Minor замечаний; новый server/core diff отсутствует. Code readiness не закрывает общий 8.10.3, полную native-zoom/визуальную матрицу других экранов, Telegram-host, deploy или pilot acceptance. PR/CI/merge фиксируются отдельно до статуса `done`.
+
+## Приёмка задачи в GitHub main
+
+2026-09-28 [PR #55](https://github.com/trafficolog/volleytime/pull/55), закрывающий [issue #54](https://github.com/trafficolog/volleytime/issues/54), смёржен как `2086ee461e3f6ae8554e782e0db25aaf27add39d`. Все три jobs [CI 36430967186](https://github.com/trafficolog/volleytime/actions/runs/36430967186) завершились success на проверенном head `ec6493d425050632c511af4fab1d02bccdcdd592`; base перед merge был `16d7266`, merge state CLEAN. Карточка `done` означает приёмку task-local реализации и проверок, включая отдельно проверенную stacked 8.10.4. Это не закрывает общий 8.10.3, полную совместную/native-zoom матрицу, Telegram-host, pilot или release acceptance. `prod` остаётся `67bbfe8` / v0.1.5; VPS не трогали.
 
 ## Не делать
 
