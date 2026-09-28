@@ -12,7 +12,11 @@ vi.stubGlobal('apiErrorMessage', () => 'Сервер не сохранил со�
 vi.stubGlobal('ref', ref)
 vi.stubGlobal('reactive', reactive)
 
-async function renderForm(initial?: Event, subscriptionsEnabled = false) {
+async function renderForm(
+  initial?: Event,
+  subscriptionsEnabled = false,
+  canSubmit?: () => boolean,
+) {
   const host = defineComponent({
     render: () =>
       h(Suspense, null, {
@@ -22,6 +26,7 @@ async function renderForm(initial?: Event, subscriptionsEnabled = false) {
             tz: 'Europe/Minsk',
             initial,
             subscriptionsEnabled,
+            canSubmit,
             submitLabel: 'Сохранить',
           }),
       }),
@@ -168,6 +173,25 @@ describe('EventForm payload and state', () => {
     await flushPromises()
     expect(wrapper.get('[role="alert"]').text()).toContain('цену')
     expect((wrapper.get('#ev-price').element as HTMLInputElement).value).toBe('abc')
+    expect(apiFetch).toHaveBeenCalledTimes(1)
+    await fill(wrapper, '#ev-price', '5,00')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/api/organizations/30/events',
+      expect.objectContaining({ body: expect.objectContaining({ price: 500 }) }),
+    )
+  })
+
+  it('does not send venue or event writes after the route guard becomes false', async () => {
+    let current = true
+    const wrapper = await renderForm(undefined, true, () => current)
+    expect(wrapper.text()).toContain('Абонементы включены в настройках группы')
+    await wrapper.get('button[type="button"]').trigger('click')
+    await fill(wrapper, '#ev-new-venue-name', 'Новый зал')
+    current = false
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
     expect(apiFetch).toHaveBeenCalledTimes(1)
   })
 

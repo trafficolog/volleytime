@@ -8,7 +8,8 @@ const props = defineProps<{
   tz: string
   initial?: Event | null
   submitLabel: string
-  subscriptionsEnabled: boolean
+  subscriptionsEnabled?: boolean
+  canSubmit?: () => boolean
 }>()
 const emit = defineEmits<{ saved: [event: Event] }>()
 
@@ -49,6 +50,7 @@ const error = ref('')
 const priceInput = ref<HTMLInputElement | null>(null)
 
 async function submit() {
+  if (saving.value || (props.canSubmit && !props.canSubmit())) return
   error.value = ''
   const price = String(form.priceMajor).trim().replace(',', '.')
   if (!/^\d+(?:\.\d{1,2})?$/.test(price)) {
@@ -60,6 +62,7 @@ async function submit() {
   try {
     let venueId = form.venueId || undefined
     if (addingVenue.value && form.newVenueName.trim()) {
+      if (props.canSubmit && !props.canSubmit()) return
       const res = await $fetch<{ venue: Venue }>(`/api/organizations/${props.orgId}/venues`, {
         method: 'POST',
         body: { name: form.newVenueName.trim(), address: form.newVenueAddress.trim() || undefined },
@@ -81,6 +84,7 @@ async function submit() {
       description: form.description.trim() || (props.initial ? null : undefined),
       status: form.publish ? 'published' : i?.status === 'closed' ? 'closed' : 'draft',
     }
+    if (props.canSubmit && !props.canSubmit()) return
     const res = props.initial
       ? await $fetch<{ event: Event }>(
           `/api/organizations/${props.orgId}/events/${props.initial.id}`,
@@ -200,7 +204,7 @@ async function submit() {
         </div>
       </div>
       <p class="text-xs text-vt-mute-2">Цена за одно место. 0 — бесплатное событие.</p>
-      <div class="vt-card p-3 text-sm">
+      <div v-if="subscriptionsEnabled !== undefined" class="vt-card p-3 text-sm">
         <p class="font-semibold text-vt-ink">Абонементы группы</p>
         <p class="mt-1 text-vt-mute-2">
           {{

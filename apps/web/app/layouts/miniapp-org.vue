@@ -77,12 +77,13 @@ function onTabAction(id: 'menu') {
     <OfflineBanner />
     <slot />
     <VtTabBar
+      v-if="currentOrg"
       :items="tabs"
       :action-expanded="menuOpen"
       :action-controls="menuDialogId"
       @action="onTabAction"
     />
-    <VtSheet v-if="isManager" :id="menuDialogId" v-model="menuOpen" title="Меню">
+    <VtSheet v-if="currentOrg && isManager" :id="menuDialogId" v-model="menuOpen" title="Меню">
       <nav aria-label="Меню организатора" class="grid gap-1">
         <NuxtLink
           v-for="link in menuLinks"

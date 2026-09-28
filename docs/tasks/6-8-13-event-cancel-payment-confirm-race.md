@@ -49,6 +49,7 @@ tags: [payments, events, concurrency, review-fix]
 - На изолированной БД `volleytime_qa_6813_20260927`: `pnpm exec vitest run --project integration money-races.integration.test.ts -t 6.8.13` — 1/1 pass; 10 последовательных повторов — 10/10 pass; весь `money-races.integration.test.ts` — 10/10 pass.
 - Обязательные gates после исправления: `pnpm format:check` — pass; `pnpm lint` — pass (17 прежних предупреждений); `pnpm typecheck` — 6/6; `pnpm test` — 91 файл, 505 тестов pass; `pnpm build` — 2/2 pass. Репозиторные тесты не заменяют production/runtime и Telegram QA релиза.
 - Независимый scoped review `41e4a56..4131685` не нашёл замечаний к исправлению. Отдельно отметил существующий потенциально обратный порядок блокировок `paymentService.cancel` и `eventService.cancel`; это другой сценарий и не расширяет patch 6.8.13.
+- Для отдельного task PR те же изменения перенесены в самостоятельную ветку от GitHub `main` (`cfe9eb6`) с первоначальной SDD-карточкой до кода. На свежей локальной PostgreSQL-БД `volleytime_qa_6813_main_20260927` focused-тест — 1/1, а пять gates итогового дерева: format pass, lint pass (0 ошибок, 22 прежних предупреждения), typecheck 6/6, test 82 файла/444 теста, build 2/2. Отличие счётчика от stacked-ветки объясняется отсутствием ещё не слитого Mini App кода. Это не production deploy/Telegram QA.
 
 ## Не делать
 

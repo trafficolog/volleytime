@@ -16,6 +16,7 @@ const route = {
 }
 let memberRole: 'owner' | 'player' = 'owner'
 let subscriptionsEnabled = true
+let organizationResponseId = 7
 
 vi.stubGlobal('useRoute', () => route)
 vi.stubGlobal('computed', computed)
@@ -28,7 +29,7 @@ vi.stubGlobal('useFetch', (url: () => string) => {
       path.endsWith('/subscriptions/my')
         ? { subscriptions: [] }
         : {
-            organization: { id: 7, subscriptionsEnabled },
+            organization: { id: organizationResponseId, subscriptionsEnabled },
             myMember: { role: memberRole, status: 'active' },
           },
     ),
@@ -77,6 +78,7 @@ async function renderLayout(role: 'owner' | 'player', enabled = true) {
 
 afterEach(() => {
   document.body.innerHTML = ''
+  organizationResponseId = 7
 })
 
 describe('Mini App layout navigation interaction', () => {
@@ -108,6 +110,15 @@ describe('Mini App layout navigation interaction', () => {
     const { wrapper } = await renderLayout('player', false)
     expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(3)
     expect(wrapper.find('button[aria-controls="organizer-menu-dialog"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('hides tabs and manager menu while the organization response belongs to another group', async () => {
+    organizationResponseId = 8
+    const { wrapper } = await renderLayout('owner')
+    expect(wrapper.find('nav[aria-label="Разделы"]').exists()).toBe(false)
+    expect(wrapper.find('button[aria-controls="organizer-menu-dialog"]').exists()).toBe(false)
+    expect(document.querySelector('#organizer-menu-dialog')).toBeNull()
     wrapper.unmount()
   })
 })

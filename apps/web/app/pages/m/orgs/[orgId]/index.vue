@@ -3,6 +3,7 @@ import type { Organization, OrganizationMember } from '@volley-time/db'
 import { formatDay, formatShortDate, formatTime } from '@volley-time/shared'
 
 import type { EventListItem } from '~/components/EventCard.vue'
+import { groupEntryState, visibleGroup } from '~/utils/group-entry-state'
 import { formatMoneyRu } from '~/utils/labels'
 import {
   organizerHomeSubtitle,
@@ -41,11 +42,16 @@ const {
   myMember: OrganizationMember
 }>(() => `/api/organizations/${orgId.value}`, { key: () => `org-home-${orgId.value}` })
 const org = computed(() =>
-  orgStatus.value === 'success' && !orgError.value && orgData.value?.organization.id === orgId.value
-    ? orgData.value.organization
+  orgStatus.value === 'success'
+    ? visibleGroup(orgData.value?.organization, orgError.value, orgId.value)
     : null,
 )
-const me = computed(() => orgData.value?.myMember ?? null)
+const accessState = computed(() =>
+  orgError.value
+    ? groupEntryState(apiErrorStatus(orgError.value), apiErrorCode(orgError.value))
+    : null,
+)
+const me = computed(() => (org.value ? (orgData.value?.myMember ?? null) : null))
 const headerSubtitle = computed(() => organizerHomeSubtitle(orgId.value, org.value, me.value))
 const isPending = computed(() => me.value?.status === 'pending')
 
@@ -71,9 +77,14 @@ const roleMismatch = computed(
   () => !!currentDash.value && currentDash.value.isManager !== activeManager.value,
 )
 
-onMounted(() => {
-  if (import.meta.client) window.localStorage.setItem('vt.lastOrgId', String(orgId.value))
-})
+watch(
+  org,
+  (value) => {
+    if (import.meta.client && value && !orgError.value)
+      window.localStorage.setItem('vt.lastOrgId', String(value.id))
+  },
+  { immediate: true },
+)
 
 const base = computed(() => `/m/orgs/${orgId.value}`)
 </script>
@@ -94,8 +105,29 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
     </VtMiniHeader>
 
     <main class="px-4 py-4 space-y-5">
+      <section v-if="accessState === 'denied'" class="vt-card p-5 space-y-3" role="alert">
+        <h1 class="text-xl font-semibold">Доступ к группе закрыт</h1>
+        <p class="text-sm text-vt-mute-2">Эта группа недоступна вашему аккаунту.</p>
+        <NuxtLink to="/m/orgs" class="vt-btn vt-btn--primary">К доступным группам</NuxtLink>
+      </section>
+
+      <section v-else-if="accessState === 'suspended'" class="vt-card p-5 space-y-3" role="alert">
+        <h1 class="text-xl font-semibold">Группа приостановлена</h1>
+        <p class="text-sm text-vt-mute-2">Сейчас открыть эту группу нельзя.</p>
+        <NuxtLink to="/m/orgs" class="vt-btn vt-btn--primary">К доступным группам</NuxtLink>
+      </section>
+
+      <section v-else-if="accessState === 'unauthorized'" class="vt-card p-5 space-y-3">
+        <h1 class="text-xl font-semibold">Нужно войти</h1>
+        <NuxtLink
+          :to="`/auth/login?redirect=${encodeURIComponent(route.fullPath)}`"
+          class="vt-btn vt-btn--primary"
+          >Войти по email</NuxtLink
+        >
+      </section>
+
       <ErrorState
-        v-if="orgError || (orgStatus === 'success' && !org)"
+        v-else-if="orgError || (orgStatus === 'success' && !org)"
         message="Не удалось открыть группу"
         @retry="refreshOrg()"
       />
@@ -109,7 +141,7 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
         </p>
       </div>
 
-      <template v-else>
+      <template v-else-if="org">
         <ErrorState
           v-if="dashError"
           message="Не удалось загрузить данные группы"
