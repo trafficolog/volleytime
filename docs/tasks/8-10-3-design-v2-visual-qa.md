@@ -5,7 +5,7 @@ epic: '8.10'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-28
-status_note: 'Player/organizer Mini App и landing 3.11.4 со stacked fixes приняты в main. Отдельная resilience-задача 3.11.8, совместная матрица R0.6 и Telegram-host acceptance открыты. Landing native 200%/фон stop-resume подтверждены пользователем и повторно не запрашиваются.'
+status_note: 'Все implementation-зависимости, включая 3.11.8 (PR #59/#60), приняты в main. Общая матрица создана; Chrome player 41 fixture checks + 28 real-API cases и шесть entry/error states повторены. Остальная совместная QA, release smoke и post-deploy Telegram/pilot acceptance открыты; prod/VPS v0.1.5 не менялись.'
 roles: [QA, FE]
 depends_on:
   ['3.11.3', '3.11.4', '3.11.8', '8.10.1', '8.10.2', '8.10.4', '8.10.5', '5.15.1', '6.10.1']
@@ -26,6 +26,14 @@ tags: [qa, mvp, redesign]
 Частичная [organizer QA 2026-09-28](../operations/qa/2026-09-28-organizer-miniapp-post-main.md) не означает завершения зависимостей/общей приёмки. Фикс 8.10.5 принят в main через PR #53; его локальная интеграция прошла пять gates, независимое whole-branch review без замечаний, 28 основных browser cases и 12 invite cases. Home native 200% подтверждён пользователем; остальные native-zoom и совместная player/organizer/auth/desktop матрица не считаются закрытыми этим результатом.
 
 [Карта v2](../design/2026-09-23-reference-v2.md) задаёт screen matrix и границу будущих релизов.
+
+### Интегрированный проход 2026-09-28
+
+3.11.8 принята в main как `07fb8af` через PR #59, exact-head CI `36476869854` success; документация PR #60 принята как `060ecdf`, CI `36477590297` success. Обе merge tree идентичны соответствующим проверенным head. Начата отдельная `trafficolog/test/8.10.3-r06-integrated-qa` от `060ecdf`. Обновления между проверенной сборкой 3.11.8 и этим main — только четыре документа, runtime-source неизменён.
+
+[Матрица reference → route → state → evidence](../operations/qa/2026-09-28-r06-integrated-matrix.md) отделяет свежий Chrome, прежнюю task acceptance и оставшиеся пункты. План: сначала public/auth + player 320/390 light/dark и ошибки, затем organizer на тех же размерах/темах, desktop 1280/1440 и узкий reflow; отдельно сверить клавиатуру/листы/длинные строки и уже полученные manual evidence. После полного доступного локального прохода — финальные gates/review/CI, controlled prod promotion и отдельный реальный Telegram QA по решению пользователя. Нельзя закрывать общую задачу лишь потому, что все implementation cards done.
+
+Свежий Chrome на built preview `3168`: landing 503/FAQ/CTA и regression smoke прошли; player fidelity 41/41, group-race, network/retry, switcher restricted-group routes и шесть auth/access error states прошли с HTTP fixtures. Штатный email OTP `qa8101-player@example.test`, отдельная QA-БД `volleytime_qa_8101_selfcheck`, настоящий API без interception: 7 экранов × 320/390 × light/dark = 28/28 (overflow, низ страницы/dock, видимые цели ≥44×44). Выборочные PNG Home/Event/Subscriptions/Profile просмотрены. Это не новый полный денежный сценарий, native browser 200% или Telegram themeChanged/host acceptance. Ранее подтверждённые пользователем landing/organizer Home/desktop finance 200% и screen-reader evidence не запрашиваются повторно.
 
 ## Что должно быть сделано
 
