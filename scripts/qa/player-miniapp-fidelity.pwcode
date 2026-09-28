@@ -1,0 +1,197 @@
+async (page) => {
+  const baseUrl = page.url().match(/^https?:\/\/[^/]+/)?.[0]
+  if (!baseUrl) throw new Error('Open the local QA app URL before running this script')
+  await page.unrouteAll({ behavior: 'ignoreErrors' })
+  // Visual fixtures only; not real API/payment/Telegram acceptance.
+  const org = {
+    id: 1,
+    name: 'Volley Time Минск',
+    city: 'Минск',
+    status: 'active',
+    timezone: 'Europe/Minsk',
+    subscriptionsEnabled: true,
+  }
+  const member = { role: 'player', status: 'active' }
+  let booking = null
+  const event = (id) => ({
+    id,
+    organizationId: 1,
+    title: id === 1 ? 'Основа' : 'Открытая игра',
+    status: 'published',
+    startsAt: `2026-10-${id === 1 ? '14' : '16'}T17:00:00.000Z`,
+    endsAt: `2026-10-${id === 1 ? '14' : '16'}T19:00:00.000Z`,
+    capacity: 14,
+    taken: 2,
+    waitlist: 0,
+    price: 1500,
+    currency: 'BYN',
+    myBooking: booking,
+    venue: { name: 'Школа №24', address: 'Минск' },
+    locationText: null,
+    description: null,
+    cancellationHours: 2,
+    allowSubscription: true,
+  })
+  const sub = {
+    id: 1,
+    organizationId: 1,
+    status: 'active',
+    totalSessions: 8,
+    usedSessions: 3,
+    expiresAt: null,
+    plan: { id: 1, name: '8 занятий' },
+    pendingPayment: null,
+    usage: [],
+  }
+  await page.route('**/api/**', async (route) => {
+    const path = route
+      .request()
+      .url()
+      .replace(/^https?:\/\/[^/]+/, '')
+      .split('?')[0]
+    let body
+    if (path.endsWith('/get-session'))
+      body = { user: { id: 1, name: 'Артём', email: 'visual-qa@example.test' } }
+    else if (path.endsWith('/dashboard'))
+      body = {
+        isManager: false,
+        myBookings: [],
+        subscription: { id: 1, left: 5, total: 8, expiresAt: null },
+        upcoming: [event(1), event(2)],
+        manager: null,
+      }
+    else if (path.endsWith('/subscriptions/my')) body = { subscriptions: [sub] }
+    else if (path.endsWith('/plans')) body = { plans: [] }
+    else if (/\/events\/1$/.test(path))
+      body = {
+        event: event(1),
+        roster: [
+          { user: { id: 1, name: 'Артём', image: null, telegramUsername: null }, paid: true },
+          { user: { id: 2, name: 'Мария', image: null, telegramUsername: null }, paid: true },
+        ],
+      }
+    else if (path.endsWith('/organizations/1')) body = { organization: org, myMember: member }
+    else if (path.endsWith('/organizations')) body = { organizations: [{ ...org, membershipRole: 'player', membershipStatus: 'active' }] }
+    else body = {}
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(body),
+    })
+  })
+  await page.route('https://telegram.org/**', (route) => route.abort())
+  await page.route('https://fonts.googleapis.com/**', (route) => route.abort())
+  const failures = []
+  const checks = []
+  const check = (name, value) => {
+    checks.push({ name, passed: !!value })
+    console.log(`${value ? 'PASS' : 'FAIL'} ${name}`)
+    if (!value) failures.push(name)
+  }
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 844 })
+    await page.goto(`${baseUrl}/m/orgs/1`)
+    await page.getByRole('heading', { name: 'Ближайшая игра' }).waitFor()
+    const home = await page.evaluate(() => {
+      const hero = document.querySelector('a.vt-card--hero'),
+        tile = document.querySelector('a[href$="/subscriptions"]')
+      const h = hero.getBoundingClientRect(),
+        t = tile.getBoundingClientRect()
+      const row = document.querySelector('main a[href$="/events/2"]')
+      return {
+        sideBySide: t.left >= h.right && Math.abs(t.top - h.top) < 2 && h.height > t.height * 1.5,
+        rowFlat: getComputedStyle(row).backgroundColor === 'rgba(0, 0, 0, 0)',
+      }
+    })
+    check(`Home bento ${width}`, home.sideBySide)
+    check(`Home schedule flat ${width}`, home.rowFlat)
+    check(
+      `Home overflow ${width}`,
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    )
+    await page.screenshot({ path: `output/playwright/player-home-${width}.png` })
+    await page.goto(`${baseUrl}/m/orgs/1/events/1`)
+    await page.getByRole('heading', { name: 'Состав' }).waitFor()
+    const detail = await page.evaluate(() => {
+      const roster = document.querySelector('main ul'),
+        dock = document.querySelector('.vt-tabbar'),
+        button = [...document.querySelectorAll('button')].find(
+          (b) => b.textContent.trim() === 'Записаться',
+        )
+      return {
+        noHero: !document.querySelector('.event-hero'),
+        rosterColumns: getComputedStyle(roster).gridTemplateColumns.split(' ').length === 2,
+        unobstructed:
+          button &&
+          dock &&
+          button.parentElement.getBoundingClientRect().bottom <= dock.getBoundingClientRect().top,
+      }
+    })
+    check(`Event neutral ${width}`, detail.noHero)
+    check(`Roster two columns ${width}`, detail.rosterColumns)
+    check(`CTA clear of dock ${width}`, detail.unobstructed)
+    check(`Event venue first ${width}`, await page.locator('section[aria-label="Дата, место и стоимость"] > div').first().getByText('Школа №24', { exact: true }).count() === 1)
+    await page.screenshot({ path: `output/playwright/player-event-${width}.png` })
+    await page.goto(`${baseUrl}/m/orgs/1/subscriptions`)
+    await page.getByText('8 занятий', { exact: true }).waitFor()
+    check(`Subscription hero ${width}`, (await page.locator('main li.vt-card--hero').count()) === 1)
+    await page.screenshot({ path: `output/playwright/player-subscriptions-${width}.png` })
+  }
+  await page.goto(`${baseUrl}/m/orgs/1`)
+  await page.getByRole('heading', { name: 'Ближайшая игра' }).waitFor()
+  const fontReady = await page.evaluate(async () => {
+    await document.fonts.ready
+    return document.fonts.check('600 20px Oswald') && document.fonts.check('400 14px "Golos Text"') && [...document.fonts].some((f) => f.family === 'Oswald' && f.status === 'loaded')
+  })
+  check('Local brand fonts loaded with Google unavailable', fontReady)
+  await page.evaluate(() => {
+    const title = document.querySelector('.player-schedule-row .font-semibold')
+    title.textContent = 'ДлинноеНазваниеБезПробелов'.repeat(12)
+  })
+  check('Long schedule title ellipsis', await page.evaluate(() => getComputedStyle(document.querySelector('.player-schedule-row .font-semibold')).textOverflow === 'ellipsis'))
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 844 })
+    for (const screen of ['', '/events/1', '/subscriptions', '/profile']) {
+      await page.goto(`${baseUrl}/m/orgs/1${screen}`)
+      await page.locator('.vt-tabbar').waitFor()
+      await page.evaluate(() => document.documentElement.classList.add('vt-dark'))
+      check(`Dark dock ${width}${screen}`, await page.evaluate(() => getComputedStyle(document.querySelector('.vt-tabbar')).backgroundColor === 'rgb(36, 37, 44)'))
+      check(`Dark overflow ${width}${screen}`, await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+      await page.screenshot({ path: `output/playwright/player-dark-${screen.replaceAll('/', '-') || 'home'}-${width}.png` })
+    }
+  }
+  await page.goto(`${baseUrl}/m/orgs/1/events/1`)
+  await page.getByRole('button', { name: 'Записаться', exact: true }).waitFor()
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  check('Reduced-motion controls', await page.getByRole('button', { name: 'Записаться', exact: true }).evaluate((el) => getComputedStyle(el).transitionDuration === '0s'))
+  check('Measured shell padding clears dock', await page.evaluate(() => {
+    const dock = document.querySelector('.vt-tabbar'), shell = dock.parentElement
+    return parseFloat(getComputedStyle(shell).paddingBottom) >= dock.getBoundingClientRect().height + 28
+  }))
+  await page.getByRole('button', { name: 'Записаться', exact: true }).focus()
+  await page.keyboard.press('Enter')
+  await page.getByRole('dialog').waitFor()
+  check('Payment sheet focuses inside dialog', await page.getByRole('dialog').evaluate((el) => el.contains(document.activeElement)))
+  for (let i = 0; i < 12; i++) await page.keyboard.press('Tab')
+  check('Payment sheet traps keyboard focus', await page.getByRole('dialog').evaluate((el) => el.contains(document.activeElement)))
+  await page.keyboard.press('Escape')
+  await page.getByRole('dialog').waitFor({ state: 'hidden' })
+  check('Sheet restores booking focus', await page.getByRole('button', { name: 'Записаться', exact: true }).evaluate((el) => document.activeElement === el))
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  booking = { id: 1, status: 'pending_payment', method: 'transfer', paymentId: 1 }
+  await page.setViewportSize({ width: 320, height: 844 })
+  await page.goto(`${baseUrl}/m/orgs/1/events/1`)
+  await page.getByRole('heading', { name: 'Состав' }).waitFor()
+  check('Pending payment summary fits320', await page.locator('section[aria-label="Дата, место и стоимость"] .vt-chip').evaluate((el) => {
+    const chip = el.getBoundingClientRect(), box = el.parentElement.getBoundingClientRect()
+    return chip.left >= box.left && chip.right <= box.right && el.scrollWidth <= el.clientWidth
+  }))
+  check('Pending summary preserves venue line', await page.locator('section[aria-label="Дата, место и стоимость"] .vt-chip').evaluate((el) => {
+    const range = document.createRange()
+    range.selectNodeContents(el.previousElementSibling.querySelector('span'))
+    return range.getClientRects().length === 1
+  }))
+  await page.evaluate((report) => { window.__miniappFidelityReport = report }, { checks, failures })
+  console.log(JSON.stringify({ failures }))
+  if (failures.length) throw new Error(`Reference acceptance failed: ${failures.join(', ')}`)
+}

@@ -1,9 +1,13 @@
 <script setup lang="ts">
+import '~/assets/css/landing-fonts.css'
+
 import type { TabItem } from '~/components/vt/TabBar.vue'
-import { organizerMenuLinks, organizerTabItems, playerTabItems } from '~/utils/organizer-miniapp'
+import { organizerMenuLinks, organizerTabItems } from '~/utils/organizer-miniapp'
+import { playerTabs } from '~/utils/player-navigation'
 import { subscriptionUiState, type SubscriptionBalance } from '~/utils/subscription-availability'
 
 /** Layout экранов группы: контент + таб-бар по роли (Task 8.8.12). */
+useHead({ htmlAttrs: { class: 'vt-miniapp-page' } })
 const route = useRoute()
 const orgId = computed(() => Number(route.params.orgId))
 const menuOpen = ref(false)
@@ -13,7 +17,7 @@ const {
   error: orgError,
   refresh: refreshOrg,
 } = await useFetch<{
-  organization: { id: number; subscriptionsEnabled: boolean }
+  organization: { id: number; status: string; subscriptionsEnabled: boolean }
   myMember: { role: string; status: string }
 }>(() => `/api/organizations/${orgId.value}`, { key: () => `org-nav-${orgId.value}` })
 const { data: balanceData, refresh: refreshBalances } = await useFetch<{
@@ -46,10 +50,16 @@ const availability = computed(() =>
   ),
 )
 const isManager = computed(() => {
-  if (!currentOrg.value) return false
+  if (!currentOrg.value || data.value?.organization.status !== 'active') return false
   const m = data.value?.myMember
   return !!m && m.status === 'active' && ['owner', 'organizer'].includes(m.role)
 })
+const isActiveMember = computed(
+  () =>
+    currentOrg.value &&
+    data.value?.organization.status === 'active' &&
+    data.value.myMember?.status === 'active',
+)
 const base = computed(() => `/m/orgs/${orgId.value}`)
 const menuLinks = computed(() =>
   currentOrg.value
@@ -61,23 +71,52 @@ const menuLinks = computed(() =>
     : [],
 )
 const tabs = computed<TabItem[]>(() =>
-  isManager.value
-    ? organizerTabItems(base.value)
-    : playerTabItems(base.value, availability.value.showMenu),
+  !isActiveMember.value
+    ? []
+    : isManager.value
+      ? organizerTabItems(base.value)
+      : playerTabs(base.value, availability.value),
 )
 function onTabAction(id: 'menu') {
   if (id === 'menu' && isManager.value) menuOpen.value = true
 }
+
+// The dock can grow with text zoom; measure it instead of assuming 58 px.
+const shell = useTemplateRef<HTMLElement>('shell')
+const dockHeight = ref(58)
+let dockObserver: ResizeObserver | undefined
+onMounted(() => {
+  dockObserver = new ResizeObserver(([entry]) => {
+    if (entry) dockHeight.value = entry.target.getBoundingClientRect().height
+  })
+  void nextTick(() => {
+    const dock = shell.value?.querySelector('.vt-tabbar')
+    if (dock) dockObserver?.observe(dock)
+  })
+})
+watch(tabs, async () => {
+  await nextTick()
+  dockObserver?.disconnect()
+  const dock = shell.value?.querySelector('.vt-tabbar')
+  if (dock) dockObserver?.observe(dock)
+})
+onUnmounted(() => dockObserver?.disconnect())
 </script>
 
 <template>
   <div
-    class="miniapp-org-shell min-h-screen bg-vt-paper text-vt-ink pb-[calc(86px+env(safe-area-inset-bottom))]"
+    ref="shell"
+    class="miniapp-org-shell min-h-screen bg-vt-paper text-vt-ink"
+    :class="!isManager ? 'vt-player' : undefined"
+    :style="{
+      '--player-dock-height': `${dockHeight}px`,
+      paddingBottom: `calc(${dockHeight}px + 28px + env(safe-area-inset-bottom))`,
+    }"
   >
     <OfflineBanner />
     <slot />
     <VtTabBar
-      v-if="currentOrg"
+      v-if="tabs.length"
       :items="tabs"
       :action-expanded="menuOpen"
       :action-controls="menuDialogId"

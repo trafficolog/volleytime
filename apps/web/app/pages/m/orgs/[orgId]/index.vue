@@ -10,6 +10,10 @@ import {
   projectOrganizerHome,
   type OrganizerBalance,
 } from '~/utils/organizer-miniapp'
+import { playerHomeAccess, projectPlayerHome } from '~/utils/player-home'
+import { playerGroupOptions } from '~/utils/player-navigation'
+import { createPlayerRequestGuard } from '~/utils/player-request-guard'
+
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
 interface Dashboard {
@@ -37,6 +41,7 @@ const {
   error: orgError,
   status: orgStatus,
   refresh: refreshOrg,
+  pending: orgLoading,
 } = await useFetch<{
   organization: Organization
   myMember: OrganizationMember
@@ -52,30 +57,69 @@ const accessState = computed(() =>
     : null,
 )
 const me = computed(() => (org.value ? (orgData.value?.myMember ?? null) : null))
+const access = computed(() =>
+  playerHomeAccess(orgId.value, org.value, me.value, apiErrorCode(orgError.value)),
+)
 const headerSubtitle = computed(() => organizerHomeSubtitle(orgId.value, org.value, me.value))
-const isPending = computed(() => me.value?.status === 'pending')
-
-const {
-  data: dash,
-  error: dashError,
-  status: dashStatus,
-  refresh: refreshDash,
-} = await useFetch<Dashboard>(() => `/api/organizations/${orgId.value}/dashboard`, {
-  key: () => `org-home-dashboard-${orgId.value}`,
-})
-const currentDash = computed(() =>
-  org.value && dashStatus.value === 'success' && !dashError.value ? (dash.value ?? null) : null,
-)
-const home = computed(() =>
-  projectOrganizerHome(orgId.value, org.value, me.value, currentDash.value),
-)
 const activeManager = computed(
   () =>
     !!org.value && me.value?.status === 'active' && ['owner', 'organizer'].includes(me.value.role),
 )
-const roleMismatch = computed(
-  () => !!currentDash.value && currentDash.value.isManager !== activeManager.value,
+const { orgs, loading: groupsLoading, fetchAll, selectOrg } = useOrganizations()
+const groupsOpen = ref(false)
+const groupsError = ref('')
+const groupOptions = computed(() => playerGroupOptions(orgs.value, orgId.value))
+
+async function openGroups() {
+  groupsOpen.value = true
+  groupsError.value = ''
+  try {
+    await fetchAll()
+  } catch (error) {
+    groupsError.value = apiErrorMessage(error, 'Не удалось загрузить группы')
+  }
+}
+
+function chooseGroup(group: { id: number; selectable: boolean }) {
+  if (group.selectable) selectOrg(group.id)
+  groupsOpen.value = false
+}
+
+const dashboard = shallowRef<Dashboard | null>(null)
+const dashboardOrgId = ref<number | null>(null)
+const dashLoading = ref(false)
+const dashError = ref('')
+const dashboardGuard = createPlayerRequestGuard(() => orgId.value)
+const dash = computed(() =>
+  org.value && !dashLoading.value && !dashError.value && dashboardOrgId.value === orgId.value
+    ? dashboard.value
+    : null,
 )
+const playerHome = computed(() => projectPlayerHome(dash.value?.upcoming ?? [], new Date()))
+const home = computed(() => projectOrganizerHome(orgId.value, org.value, me.value, dash.value))
+const roleMismatch = computed(() => !!dash.value && dash.value.isManager !== activeManager.value)
+
+async function refreshDash() {
+  const requestedOrgId = orgId.value
+  const request = dashboardGuard.begin()
+  dashboard.value = null
+  dashboardOrgId.value = null
+  dashError.value = ''
+  dashLoading.value = true
+  try {
+    const response = await $fetch<Dashboard>(`/api/organizations/${requestedOrgId}/dashboard`)
+    if (!request.isCurrent()) return
+    dashboard.value = response
+    dashboardOrgId.value = requestedOrgId
+  } catch (error) {
+    if (request.isCurrent())
+      dashError.value = apiErrorMessage(error, 'Не удалось загрузить данные группы')
+  } finally {
+    if (request.isCurrent()) dashLoading.value = false
+  }
+}
+await refreshDash()
+watch(orgId, () => void refreshDash())
 
 watch(
   org,
@@ -91,7 +135,12 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
 
 <template>
   <div class="min-h-screen">
-    <VtMiniHeader :title="org?.name ?? 'Группа'" :sub="headerSubtitle" back="/m/orgs">
+    <VtMiniHeader
+      v-if="activeManager"
+      :title="org?.name ?? 'Группа'"
+      :sub="headerSubtitle"
+      back="/m/orgs"
+    >
       <template #right>
         <NuxtLink
           v-if="home"
@@ -103,21 +152,35 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
         </NuxtLink>
       </template>
     </VtMiniHeader>
+    <header v-else class="vt-miniheader">
+      <button
+        type="button"
+        class="flex items-center gap-3 min-w-0 min-h-11 text-left"
+        :disabled="!org"
+        :aria-label="org ? `Выбрать группу. Сейчас ${org.name}` : 'Загрузка группы'"
+        @click="openGroups"
+      >
+        <span class="vt-avi vt-avi--lg !rounded-xl bg-vt-bone" aria-hidden="true">
+          <img :src="'/logo.png'" alt="" class="!object-contain p-1" />
+        </span>
+        <span class="min-w-0">
+          <span class="font-semibold text-[15px] truncate flex items-center gap-1">
+            {{ org?.name ?? 'Группа' }} <VtIcon name="chevron-r" :size="14" class="rotate-90" />
+          </span>
+          <span v-if="org?.city" class="block text-xs text-vt-mute-2 truncate">{{ org.city }}</span>
+        </span>
+      </button>
+      <NuxtLink
+        to="/m/orgs"
+        class="vt-btn vt-btn--ghost vt-btn--sm vt-hit-44"
+        aria-label="Мои группы"
+      >
+        <VtIcon name="users" :size="18" />
+      </NuxtLink>
+    </header>
 
-    <main class="px-4 py-4 space-y-5">
-      <section v-if="accessState === 'denied'" class="vt-card p-5 space-y-3" role="alert">
-        <h1 class="text-xl font-semibold">Доступ к группе закрыт</h1>
-        <p class="text-sm text-vt-mute-2">Эта группа недоступна вашему аккаунту.</p>
-        <NuxtLink to="/m/orgs" class="vt-btn vt-btn--primary">К доступным группам</NuxtLink>
-      </section>
-
-      <section v-else-if="accessState === 'suspended'" class="vt-card p-5 space-y-3" role="alert">
-        <h1 class="text-xl font-semibold">Группа приостановлена</h1>
-        <p class="text-sm text-vt-mute-2">Сейчас открыть эту группу нельзя.</p>
-        <NuxtLink to="/m/orgs" class="vt-btn vt-btn--primary">К доступным группам</NuxtLink>
-      </section>
-
-      <section v-else-if="accessState === 'unauthorized'" class="vt-card p-5 space-y-3">
+    <main class="px-4 py-4 space-y-6">
+      <section v-if="accessState === 'unauthorized'" class="vt-card p-5 space-y-3">
         <h1 class="text-xl font-semibold">Нужно войти</h1>
         <NuxtLink
           :to="`/auth/login?redirect=${encodeURIComponent(route.fullPath)}`"
@@ -125,6 +188,32 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
           >Войти по email</NuxtLink
         >
       </section>
+      <div
+        v-else-if="access === 'suspended' || accessState === 'suspended'"
+        class="vt-card p-4"
+        role="status"
+      >
+        <VtChip tone="rose" dot>Группа приостановлена</VtChip>
+        <p class="text-sm text-vt-mute-2 mt-2">Запись и покупки сейчас недоступны.</p>
+        <NuxtLink to="/m/orgs" class="vt-btn vt-btn--ghost mt-4">Мои группы</NuxtLink>
+      </div>
+
+      <div v-else-if="access === 'pending'" class="vt-card p-4" role="status">
+        <VtChip tone="amber" dot>Заявка на рассмотрении</VtChip>
+        <p class="text-sm text-vt-mute-2 mt-2">
+          Организатор получил вашу заявку. Когда её одобрят, откроются события и запись.
+        </p>
+      </div>
+
+      <div
+        v-else-if="access === 'denied' || accessState === 'denied'"
+        class="vt-card p-4"
+        role="status"
+      >
+        <VtChip tone="rose" dot>Доступ в группу закрыт</VtChip>
+        <p class="text-sm text-vt-mute-2 mt-2">Запись и покупки в этой группе недоступны.</p>
+        <NuxtLink to="/m/orgs" class="vt-btn vt-btn--ghost mt-4">Мои группы</NuxtLink>
+      </div>
 
       <ErrorState
         v-else-if="orgError || (orgStatus === 'success' && !org)"
@@ -132,23 +221,12 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
         @retry="refreshOrg()"
       />
 
-      <SkeletonList v-else-if="!org" :count="3" />
-
-      <div v-else-if="isPending" class="vt-card p-4" role="status">
-        <VtChip tone="amber" dot>Заявка на рассмотрении</VtChip>
-        <p class="text-sm text-vt-mute-2 mt-2">
-          Организатор получил вашу заявку. Когда её одобрят, откроются события и запись.
-        </p>
-      </div>
+      <SkeletonList v-else-if="orgLoading || access === 'loading'" :count="2" />
 
       <template v-else-if="org">
-        <ErrorState
-          v-if="dashError"
-          message="Не удалось загрузить данные группы"
-          @retry="refreshDash()"
-        />
-        <SkeletonList v-else-if="dashStatus === 'pending'" :count="3" />
-        <template v-else-if="dash && currentDash">
+        <ErrorState v-if="dashError" :message="dashError" @retry="refreshDash()" />
+        <SkeletonList v-else-if="dashLoading" :count="3" />
+        <template v-else-if="dash">
           <ErrorState
             v-if="roleMismatch || (activeManager && !home)"
             message="Не удалось загрузить обзор группы"
@@ -243,6 +321,74 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
             </nav>
           </template>
 
+          <section v-if="!roleMismatch && !dash.isManager" class="space-y-3">
+            <h2 class="text-[30px] leading-none">Ближайшая игра</h2>
+            <div v-if="playerHome.hero" class="grid grid-cols-[1.3fr_1fr] grid-rows-2 gap-3">
+              <NuxtLink
+                :to="`${base}/events/${playerHome.hero.id}`"
+                class="vt-card vt-card--hero row-span-2 p-[18px] min-h-48 flex flex-col"
+              >
+                <div class="vt-cap !text-white/75">
+                  {{ formatDay(playerHome.hero.startsAt, tz) }}
+                </div>
+                <div class="vt-mono text-[52px] font-bold leading-[0.9] mt-3">
+                  {{ formatTime(playerHome.hero.startsAt, tz) }}
+                </div>
+                <div class="font-semibold text-sm mt-2">
+                  {{ playerHome.hero.title }}
+                </div>
+                <div
+                  v-if="playerHome.hero.venue || playerHome.hero.locationText"
+                  class="text-xs text-white/75 mt-1"
+                >
+                  {{ playerHome.hero.venue?.name ?? playerHome.hero.locationText }}
+                </div>
+                <div class="mt-auto pt-4">
+                  <div class="h-1.5 rounded-full bg-white/20 overflow-hidden" aria-hidden="true">
+                    <span
+                      class="block h-full rounded-full bg-vt-orange"
+                      :style="{
+                        width: `${Math.min(100, Math.max(0, (playerHome.hero.taken / Math.max(1, playerHome.hero.capacity)) * 100))}%`,
+                      }"
+                    />
+                  </div>
+                  <div class="flex justify-between items-center gap-2 mt-2 text-xs">
+                    <span class="text-white/75">Занято мест</span>
+                    <span class="vt-mono text-[15px] font-bold"
+                      >{{ playerHome.hero.taken }}/{{ playerHome.hero.capacity }}</span
+                    >
+                  </div>
+                </div>
+              </NuxtLink>
+              <NuxtLink
+                v-if="dash.subscription"
+                :to="`${base}/subscriptions`"
+                class="vt-card vt-card--warm p-4 flex flex-col justify-between"
+              >
+                <VtIcon name="ticket" :size="18" class="text-[#a33c08]" />
+                <div class="vt-mono text-[32px] font-bold leading-none mt-1">
+                  {{ dash.subscription.left }}/{{ dash.subscription.total }}
+                </div>
+                <div class="text-xs text-vt-mute-2">занятий осталось</div>
+              </NuxtLink>
+              <NuxtLink
+                :to="`${base}/bookings`"
+                class="vt-card p-4 flex flex-col justify-between"
+                :class="dash.subscription ? '' : 'row-span-2'"
+              >
+                <VtIcon name="ticket" :size="20" />
+                <div class="font-semibold">Мои записи</div>
+                <div class="text-xs text-vt-mute-2">Предстоящие и прошедшие</div>
+              </NuxtLink>
+            </div>
+            <EmptyState
+              v-else
+              icon="calendar"
+              title="Тренировок пока нет"
+              description="Организатор ещё не опубликовал расписание"
+            />
+          </section>
+
           <!-- игроку: мои ближайшие записи и абонемент -->
           <section v-if="!roleMismatch && !dash.isManager">
             <h2 class="vt-cap mb-2">Мои ближайшие записи</h2>
@@ -286,7 +432,7 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
           </section>
 
           <NuxtLink
-            v-if="!roleMismatch && !dash.isManager && org && dash.subscription"
+            v-if="!roleMismatch && activeManager && dash.subscription"
             :to="`${base}/subscriptions`"
             class="vt-card p-4 block"
           >
@@ -315,11 +461,13 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
 
           <section v-if="!roleMismatch && (!dash.isManager || home)">
             <div class="organizer-events-heading flex items-center justify-between mb-2">
-              <h2 class="vt-cap">Ближайшие события</h2>
+              <h2 :class="home ? 'vt-cap' : 'font-display font-bold text-xl uppercase'">
+                {{ home ? 'Ближайшие события' : 'Расписание' }}
+              </h2>
               <NuxtLink
                 :to="`${base}/events`"
-                class="organizer-all-link inline-flex items-center text-xs font-semibold text-vt-link"
-                >Все</NuxtLink
+                class="organizer-all-link vt-hit-44 inline-flex items-center text-sm font-semibold text-vt-link"
+                >{{ home ? 'Все' : 'Все события' }}</NuxtLink
               >
             </div>
             <EmptyState v-if="dash.upcoming.length === 0" icon="calendar" title="Событий пока нет">
@@ -329,14 +477,25 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
                 >
               </template>
             </EmptyState>
+            <p
+              v-else-if="!dash.isManager && playerHome.schedule.length === 0"
+              class="text-sm text-vt-mute-2"
+            >
+              Других событий пока нет.
+            </p>
             <ul v-else-if="home" class="divide-y divide-[var(--vt-stroke)]">
               <li v-for="ev in home.upcoming" :key="ev.id">
                 <OrganizerEventRow :event="ev" :tz="tz" :to="`${base}/events/${ev.id}/manage`" />
               </li>
             </ul>
-            <ul v-else class="space-y-2.5">
-              <li v-for="ev in dash.upcoming.slice(0, 3)" :key="ev.id">
-                <EventCard :event="ev" :tz="tz" :to="`${base}/events/${ev.id}`" />
+            <ul v-else class="player-schedule">
+              <li v-for="ev in playerHome.schedule" :key="ev.id">
+                <EventCard
+                  :event="ev"
+                  :tz="tz"
+                  :to="`${base}/events/${ev.id}`"
+                  presentation="schedule"
+                />
               </li>
             </ul>
           </section>
@@ -344,6 +503,40 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
         <ErrorState v-else message="Не удалось загрузить данные группы" @retry="refreshDash()" />
       </template>
     </main>
+
+    <VtSheet v-model="groupsOpen" title="Мои группы">
+      <SkeletonList v-if="groupsLoading" :count="2" />
+      <ErrorState v-else-if="groupsError" :message="groupsError" @retry="openGroups" />
+      <ul v-else class="space-y-3">
+        <li v-for="group in groupOptions" :key="group.id">
+          <NuxtLink
+            :to="group.to"
+            class="vt-card p-4 flex items-center gap-3 min-h-11"
+            :aria-current="group.selected ? 'true' : undefined"
+            @click="chooseGroup(group)"
+          >
+            <VtIcon :name="group.selected ? 'check' : 'users'" :size="18" />
+            <span class="min-w-0 flex-1">
+              <span class="block font-semibold truncate">{{ group.name }}</span>
+              <span
+                v-if="group.statusLabel || group.city"
+                class="block text-xs text-vt-mute-2 mt-1"
+              >
+                {{ group.statusLabel ?? group.city }}
+              </span>
+            </span>
+            <VtIcon name="chevron-r" :size="16" />
+          </NuxtLink>
+        </li>
+      </ul>
+      <NuxtLink
+        to="/m/orgs"
+        class="vt-btn vt-btn--ghost vt-btn--full mt-4"
+        @click="groupsOpen = false"
+      >
+        Вступить по приглашению
+      </NuxtLink>
+    </VtSheet>
   </div>
 </template>
 

@@ -1,0 +1,43 @@
+// Browser fixture for merged auth/player entry states; not Telegram or real API acceptance.
+async (page) => {
+  const baseUrl = page.url().match(/^https?:\/\/[^/]+/)?.[0]
+  if (!baseUrl) throw new Error('Open the local QA app URL first')
+
+  const cases = [
+    { code: 'forbidden.pending_approval', status: 403, text: 'Заявка на рассмотрении' },
+    { code: 'organization.suspended', status: 403, text: 'Группа приостановлена' },
+    { code: 'permission.blocked', status: 403, text: 'Доступ в группу закрыт' },
+    { code: 'permission.other', status: 403, text: 'Доступ в группу закрыт' },
+    { code: 'unauthorized', status: 401, text: 'Нужно войти' },
+    { code: 'internal_error', status: 503, text: 'Не удалось открыть группу' },
+  ]
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  for (const item of cases) {
+    await page.unrouteAll({ behavior: 'ignoreErrors' })
+    await page.route('**/api/**', (route) => {
+      const path = route.request().url().replace(/^https?:\/\/[^/]+/, '').split('?')[0]
+      const ok = path.endsWith('/get-session')
+      return route.fulfill({
+        status: ok ? 200 : item.status,
+        contentType: 'application/json',
+        body: JSON.stringify(ok
+          ? { user: { id: 1, name: 'QA', email: 'qa@example.test' } }
+          : { statusMessage: 'Fixture error', data: { code: item.code } }),
+      })
+    })
+    await page.goto(`${baseUrl}/m/orgs/1`)
+    await page.getByText(item.text, { exact: true }).first().waitFor()
+    if (item.status === 403) {
+      await page.getByRole('link', { name: 'Мои группы' }).first().waitFor()
+      if (await page.getByRole('button', { name: 'Повторить' }).count()) {
+        throw new Error(`False retry for ${item.code}`)
+      }
+    } else if (item.status === 401) {
+      await page.getByRole('link', { name: 'Войти по email' }).waitFor()
+    } else {
+      await page.getByRole('button', { name: 'Повторить' }).waitFor()
+    }
+  }
+  return `Merged auth/player states passed: ${cases.length}`
+}

@@ -13,6 +13,7 @@ interface TelegramWebApp {
   offEvent?: (event: string, cb: () => void) => void
   setHeaderColor?: (color: string) => void
   setBackgroundColor?: (color: string) => void
+  isVersionAtLeast?: (version: string) => boolean
   showConfirm?: (message: string, cb: (ok: boolean) => void) => void
   MainButton: {
     text: string
@@ -70,6 +71,18 @@ export function themeVariables(params: Record<string, string>): Record<string, s
     out[`--tg-${key.replace(/_/g, '-')}`] = value
   }
   return out
+}
+
+/** The SDK can exist outside Telegram or expose popup methods on older clients. */
+export function confirmWithFallback(
+  message: string,
+  webApp: Pick<TelegramWebApp, 'initData' | 'isVersionAtLeast' | 'showConfirm'> | undefined,
+  browserConfirm?: (message: string) => boolean,
+): Promise<boolean> {
+  if (webApp?.initData && webApp.showConfirm && webApp.isVersionAtLeast?.('6.2')) {
+    return new Promise((resolve) => webApp.showConfirm!(message, resolve))
+  }
+  return Promise.resolve(browserConfirm?.(message) ?? false)
 }
 
 export function useTelegram() {
@@ -146,12 +159,13 @@ export function useTelegram() {
     }
   }
 
-  /** Подтверждение действия: Telegram showConfirm, вне Telegram — диалог браузера (5.13.18). */
+  /** Подтверждение действия: Telegram 6.2+ showConfirm, иначе диалог браузера (5.13.18). */
   function confirm(message: string): Promise<boolean> {
-    if (tg?.showConfirm) {
-      return new Promise((resolve) => tg.showConfirm!(message, (ok) => resolve(ok)))
-    }
-    return Promise.resolve(typeof window !== 'undefined' ? window.confirm(message) : false)
+    return confirmWithFallback(
+      message,
+      tg,
+      typeof window !== 'undefined' ? window.confirm.bind(window) : undefined,
+    )
   }
 
   async function authenticate(): Promise<{ isNewUser: boolean } | null> {

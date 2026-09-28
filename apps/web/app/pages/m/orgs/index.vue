@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { parseInviteInput } from '@volley-time/shared'
+import { inviteDestination, playerGroupEntry, playerGroupsEmpty } from '~/utils/player-onboarding'
 definePageMeta({ layout: 'miniapp', middleware: ['auth'] })
 
 const { orgs, loading, fetchAll, selectOrg } = useOrganizations()
+const groupState = computed(() => playerGroupsEmpty(orgs.value))
 const loadError = ref('')
 async function load() {
   loadError.value = ''
@@ -18,14 +19,20 @@ await load()
 const inviteOpen = ref(false)
 const inviteInput = ref('')
 const inviteError = ref('')
+const inviteField = ref<HTMLInputElement | null>(null)
 function openInvite() {
-  const token = parseInviteInput(inviteInput.value)
-  if (!token) {
+  const destination = inviteDestination(inviteInput.value)
+  if (!destination) {
     inviteError.value = 'Не похоже на ссылку-приглашение. Вставьте ссылку из чата группы.'
+    inviteField.value?.focus()
     return
   }
   inviteOpen.value = false
-  navigateTo(`/m/invite/${encodeURIComponent(token)}`)
+  navigateTo(destination)
+}
+
+function openGroup(group: { id: number; status: string; membershipStatus: string }) {
+  if (playerGroupEntry(group).selectable) selectOrg(group.id)
 }
 </script>
 
@@ -38,31 +45,39 @@ function openInvite() {
         </NuxtLink>
       </template>
     </VtMiniHeader>
-    <main class="px-4 py-4">
+    <main class="px-4 py-5 space-y-6">
       <div v-if="loading" role="status" aria-label="Загружаем группы">
         <SkeletonList :count="2" />
       </div>
       <ErrorState v-else-if="loadError" :message="loadError" @retry="load" />
       <EmptyState
-        v-else-if="orgs.length === 0"
+        v-else-if="groupState.empty"
         icon="users"
         title="У вас пока нет групп"
         description="Откройте приглашение от организатора или создайте свою группу."
       >
         <template #action>
-          <button type="button" class="vt-btn vt-btn--primary" @click="inviteOpen = true">
+          <button
+            v-if="groupState.invite"
+            type="button"
+            class="vt-btn vt-btn--primary"
+            @click="inviteOpen = true"
+          >
             У меня есть приглашение
           </button>
-          <NuxtLink to="/m/orgs/create" class="vt-btn vt-btn--ghost">Создать группу</NuxtLink>
+          <NuxtLink v-if="groupState.create" to="/m/orgs/create" class="vt-btn vt-btn--ghost"
+            >Создать группу</NuxtLink
+          >
         </template>
       </EmptyState>
       <template v-else>
+        <h2 class="vt-cap">Ваши группы</h2>
         <ul class="space-y-2.5">
           <li v-for="org in orgs" :key="org.id">
             <NuxtLink
-              :to="`/m/orgs/${org.id}`"
+              :to="playerGroupEntry(org).to"
               class="vt-card p-4 flex items-center gap-3"
-              @click="selectOrg(org.id)"
+              @click="openGroup(org)"
             >
               <img
                 src="/logo.png"
@@ -75,8 +90,12 @@ function openInvite() {
                 <div class="font-semibold truncate">{{ org.name }}</div>
                 <div v-if="org.city" class="text-sm text-vt-mute-2 truncate">{{ org.city }}</div>
               </div>
-              <VtChip v-if="org.membershipStatus === 'pending'" tone="amber">Заявка</VtChip>
-              <VtChip v-else-if="org.status === 'suspended'" tone="rose">Приостановлена</VtChip>
+              <VtChip
+                v-if="playerGroupEntry(org).label"
+                :tone="org.status === 'suspended' ? 'rose' : 'amber'"
+              >
+                {{ playerGroupEntry(org).label }}
+              </VtChip>
               <VtIcon name="chevron-r" :size="16" class="text-vt-mute" />
             </NuxtLink>
           </li>
@@ -96,14 +115,19 @@ function openInvite() {
         <label for="invite" class="vt-label">Ссылка или код приглашения</label>
         <input
           id="invite"
+          ref="inviteField"
           v-model="inviteInput"
           class="vt-field"
           placeholder="https://t.me/…?start=org_…"
           autocomplete="off"
+          :aria-invalid="!!inviteError"
+          :aria-describedby="inviteError ? 'invite-error' : undefined"
           @input="inviteError = ''"
         />
-        <p v-if="inviteError" class="text-sm text-vt-rose-ink" role="alert">{{ inviteError }}</p>
-        <button type="submit" class="vt-btn vt-btn--primary vt-btn--full" :disabled="!inviteInput">
+        <p v-if="inviteError" id="invite-error" class="text-sm text-vt-rose-ink" role="alert">
+          {{ inviteError }}
+        </p>
+        <button type="submit" class="vt-btn vt-btn--primary vt-btn--full">
           Открыть приглашение
         </button>
       </form>

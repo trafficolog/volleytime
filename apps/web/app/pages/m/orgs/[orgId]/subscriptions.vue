@@ -3,7 +3,14 @@ import type { Subscription, SubscriptionPlan } from '@volley-time/db'
 import { formatDay, formatShortDate } from '@volley-time/shared'
 
 import { formatPrice } from '~/utils/labels'
-import { subscriptionUiState } from '~/utils/subscription-availability'
+import { playerAccessFromApiError } from '~/utils/player-home'
+import { createPlayerRequestGuard } from '~/utils/player-request-guard'
+import {
+  subscriptionHistoryLabel,
+  subscriptionSections,
+  subscriptionUiState,
+} from '~/utils/subscription-availability'
+import { runSubscriptionPurchase } from '~/utils/subscription-purchase'
 import { createSubscriptionViewLoader } from '~/utils/subscription-view-loader'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
@@ -20,15 +27,22 @@ const { haptic } = useTelegram()
 const {
   data: orgData,
   error: orgError,
+  pending: orgLoading,
   refresh: refreshOrg,
 } = await useFetch<{
   organization: { id: number; subscriptionsEnabled: boolean }
-}>(() => `/api/organizations/${orgId.value}`)
+}>(() => `/api/organizations/${orgId.value}`, {
+  key: () => `player-subscription-org-${orgId.value}`,
+})
 
 const subs = ref<MySub[]>([])
 const plans = ref<SubscriptionPlan[]>([])
 const loading = ref(false)
 const loadError = ref('')
+const loadAccessNotice = ref<ReturnType<typeof playerAccessFromApiError>>(null)
+const accessNotice = computed(
+  () => playerAccessFromApiError(apiErrorCode(orgError.value)) ?? loadAccessNotice.value,
+)
 const availability = computed(() =>
   subscriptionUiState(
     orgError.value || orgData.value?.organization.id !== orgId.value
@@ -53,41 +67,31 @@ let currentLoad: ReturnType<typeof loadView> | null = null
 async function load() {
   loading.value = true
   loadError.value = ''
+  loadAccessNotice.value = null
   const request = loadView()
   currentLoad = request
   try {
     const result = await request
     if (result.stale) return
     subs.value = result.subscriptions
-    plans.value = result.plans
+    plans.value = result.plans.filter(
+      (plan) => plan.organizationId === orgId.value && plan.status === 'active',
+    )
   } catch (e) {
-    if (currentLoad === request)
+    if (currentLoad === request) {
       loadError.value = apiErrorMessage(e, 'Не удалось загрузить абонементы')
+      loadAccessNotice.value = playerAccessFromApiError(apiErrorCode(e))
+    }
   } finally {
     if (currentLoad === request) loading.value = false
   }
 }
 await load()
-watch(orgId, () => {
-  subs.value = []
-  plans.value = []
-  void refreshOrg()
-  void load()
-})
 
-const STATUS: Record<string, { tone: 'grass' | 'amber' | 'default' | 'rose'; text: string }> = {
-  active: { tone: 'grass', text: 'Активен' },
-  pending: { tone: 'amber', text: 'Ждёт подтверждения оплаты' },
-  exhausted: { tone: 'default', text: 'Использован' },
-  expired: { tone: 'default', text: 'Истёк' },
-  cancelled: { tone: 'rose', text: 'Отменён' },
-}
-const isExpired = (s: MySub) =>
-  s.status === 'active' && !!s.expiresAt && new Date(s.expiresAt) < new Date()
-const current = computed(() =>
-  subs.value.filter((s) => (s.status === 'active' && !isExpired(s)) || s.status === 'pending'),
-)
-const history = computed(() => subs.value.filter((s) => !current.value.includes(s)))
+const sections = computed(() => subscriptionSections(orgId.value, subs.value, new Date()))
+const active = computed(() => sections.value.active)
+const pending = computed(() => sections.value.pending)
+const history = computed(() => sections.value.history)
 const openHistory = ref<number | null>(null)
 
 // покупка
@@ -100,45 +104,91 @@ const buyOpen = computed({
 })
 const buying = ref(false)
 const buyError = ref('')
+const purchaseGuard = createPlayerRequestGuard(
+  () => `${orgId.value}:${availability.value.allowPurchase}`,
+)
+watch(
+  orgId,
+  () => {
+    purchaseGuard.invalidate()
+    subs.value = []
+    plans.value = []
+    openHistory.value = null
+    buyPlan.value = null
+    buyError.value = ''
+    buying.value = false
+    void refreshOrg()
+    void load()
+  },
+  { flush: 'sync' },
+)
 watch(
   () => availability.value.allowPurchase,
   (allowed) => {
-    if (!allowed) buyPlan.value = null
-    else void load()
+    if (!allowed) {
+      purchaseGuard.invalidate()
+      buyPlan.value = null
+      buying.value = false
+    }
+    void load()
   },
+  { flush: 'sync' },
 )
 async function buy(method: 'cash' | 'transfer') {
-  if (!availability.value.allowPurchase || !buyPlan.value) return
-  buying.value = true
-  buyError.value = ''
-  try {
-    await $fetch(`/api/organizations/${orgId.value}/subscriptions`, {
-      method: 'POST',
-      body: { planId: buyPlan.value.id, method },
-    })
-    haptic('success')
-    buyPlan.value = null
+  const request = purchaseGuard.begin()
+  const result = await runSubscriptionPurchase(
+    {
+      orgId: orgId.value,
+      allowPurchase: availability.value.allowPurchase,
+      buying: buying.value,
+      plan: buyPlan.value,
+    },
+    method,
+    (requestedOrgId, planId, paymentMethod) => {
+      buying.value = true
+      buyError.value = ''
+      return $fetch<void>(`/api/organizations/${requestedOrgId}/subscriptions` as string, {
+        method: 'POST',
+        body: { planId, method: paymentMethod },
+      })
+    },
+    request.isCurrent,
+    () => {
+      haptic('success')
+      buyPlan.value = null
+    },
+  )
+  if (result.kind === 'success') {
     await load()
-  } catch (e) {
+  } else if (result.kind === 'error') {
     haptic('error')
-    buyError.value = apiErrorMessage(e, 'Не удалось оформить абонемент')
-  } finally {
-    buying.value = false
+    buyError.value = apiErrorMessage(result.error, 'Не удалось оформить абонемент')
   }
+  if (request.isCurrent()) buying.value = false
+}
+
+async function retryPage() {
+  await refreshOrg()
+  await load()
 }
 </script>
 
 <template>
   <div class="min-h-screen pb-10">
     <VtMiniHeader title="Абонементы" :back="`/m/orgs/${orgId}`" />
-    <main class="px-4 py-4 space-y-5">
-      <SkeletonList v-if="loading" :count="2" />
-      <ErrorState v-else-if="loadError" :message="loadError" @retry="load" />
+    <main class="px-4 py-5 space-y-6">
+      <SkeletonList v-if="orgLoading || loading" :count="2" />
+      <PlayerAccessNotice v-else-if="accessNotice" :access="accessNotice" />
+      <ErrorState
+        v-else-if="orgError || loadError"
+        :message="orgError ? 'Не удалось проверить настройки группы' : loadError"
+        @retry="retryPage"
+      />
       <template v-else>
-        <section>
-          <h2 class="vt-cap mb-2">Мои абонементы</h2>
+        <section aria-labelledby="subscription-balance-title">
+          <h2 id="subscription-balance-title" class="vt-cap mb-3">Мой остаток</h2>
           <EmptyState
-            v-if="current.length === 0"
+            v-if="active.length === 0"
             icon="ticket"
             title="Активных абонементов нет"
             :description="
@@ -147,52 +197,55 @@ async function buy(method: 'cash' | 'transfer') {
                 : 'Ваши покупки и история сохраняются'
             "
           />
-          <ul v-else class="space-y-2.5">
-            <li v-for="s in current" :key="s.id" class="vt-card p-4">
+          <ul v-else class="space-y-3">
+            <li
+              v-for="s in active"
+              :key="s.id"
+              class="vt-card vt-card--hero player-subscription-hero p-[18px]"
+            >
+              <span class="player-subscription-hero__decor" aria-hidden="true" />
               <div class="flex items-center justify-between gap-2">
-                <span class="font-semibold">{{ s.plan.name }}</span>
-                <VtChip :tone="STATUS[s.status]?.tone ?? 'default'" dot>{{
-                  STATUS[s.status]?.text
-                }}</VtChip>
+                <span class="font-display font-bold text-2xl">{{ s.plan.name }}</span>
+                <VtChip tone="grass" dot>Активен</VtChip>
               </div>
-              <template v-if="s.status === 'active'">
-                <div class="mt-3 flex items-baseline gap-1.5">
-                  <span class="vt-mono text-2xl font-bold">{{
-                    s.totalSessions - s.usedSessions
-                  }}</span>
-                  <span class="text-sm text-vt-mute-2"
-                    >из {{ s.totalSessions }} занятий осталось</span
-                  >
-                </div>
-                <VtMeter
-                  class="mt-2"
-                  :value="s.totalSessions - s.usedSessions"
-                  :max="s.totalSessions"
-                  tone="grass"
-                  label="Остаток"
+              <div class="mt-3 flex items-baseline gap-1.5">
+                <span class="vt-mono text-[36px] leading-none font-bold">{{
+                  s.totalSessions - s.usedSessions
+                }}</span>
+                <span class="text-sm text-white/75">из {{ s.totalSessions }} занятий осталось</span>
+              </div>
+              <div
+                class="flex gap-1.5 mt-3.5"
+                role="meter"
+                aria-label="Остаток занятий"
+                :aria-valuenow="s.totalSessions - s.usedSessions"
+                aria-valuemin="0"
+                :aria-valuemax="s.totalSessions"
+              >
+                <span
+                  v-for="session in s.totalSessions"
+                  :key="session"
+                  class="flex-1 h-1.5 rounded-full"
+                  :class="session <= s.usedSessions ? 'bg-white/20' : 'bg-vt-amber'"
                 />
-                <p class="text-xs text-vt-mute-2 mt-2">
-                  {{
-                    s.expiresAt ? `Действует до ${formatShortDate(s.expiresAt, tz)}` : 'Бессрочный'
-                  }}
-                </p>
-              </template>
-              <p v-else-if="s.pendingPayment" class="text-sm text-vt-mute-2 mt-2">
-                Оплатите {{ formatPrice(s.pendingPayment.amount, s.pendingPayment.currency) }}
-                {{ s.pendingPayment.method === 'transfer' ? 'переводом' : 'наличными' }}
-                организатору — абонемент активируется после подтверждения.
+              </div>
+              <p class="text-xs text-white/75 mt-3">
+                {{
+                  s.expiresAt ? `Действует до ${formatShortDate(s.expiresAt, tz)}` : 'Бессрочный'
+                }}
               </p>
               <button
                 v-if="s.usage.length"
                 type="button"
-                class="text-xs font-semibold text-vt-link mt-2"
+                class="inline-flex min-h-11 items-center text-xs font-semibold text-white mt-2"
+                :aria-expanded="openHistory === s.id"
                 @click="openHistory = openHistory === s.id ? null : s.id"
               >
                 {{
                   openHistory === s.id ? 'Скрыть историю' : `История списаний (${s.usage.length})`
                 }}
               </button>
-              <ul v-if="openHistory === s.id" class="mt-2 space-y-1 text-xs text-vt-mute-2">
+              <ul v-if="openHistory === s.id" class="mt-2 space-y-1 text-xs text-white/75">
                 <li v-for="u in s.usage" :key="u.bookingId">
                   {{ formatDay(u.startsAt, tz) }} · {{ u.eventTitle }}
                   <template v-if="u.status === 'no_show'"> · не пришёл</template>
@@ -202,13 +255,33 @@ async function buy(method: 'cash' | 'transfer') {
           </ul>
         </section>
 
+        <section v-if="pending.length" aria-labelledby="subscription-pending-title">
+          <h2 id="subscription-pending-title" class="vt-cap mb-3">Ожидают оплаты</h2>
+          <ul class="space-y-3">
+            <li v-for="s in pending" :key="s.id" class="vt-card p-4">
+              <div class="flex items-center justify-between gap-2">
+                <span class="font-semibold">{{ s.plan.name }}</span>
+                <VtChip tone="amber" dot>Ожидает оплаты</VtChip>
+              </div>
+              <p v-if="s.pendingPayment" class="text-sm text-vt-mute-2 mt-3">
+                Оплатите {{ formatPrice(s.pendingPayment.amount, s.pendingPayment.currency) }}
+                {{ s.pendingPayment.method === 'transfer' ? 'переводом' : 'наличными' }}
+                организатору — абонемент активируется после подтверждения.
+              </p>
+              <p v-else class="text-sm text-vt-mute-2 mt-3">
+                Подтверждение оплаты ожидается у организатора.
+              </p>
+            </li>
+          </ul>
+        </section>
+
         <p v-if="!availability.allowPurchase" class="vt-card p-4 text-sm text-vt-mute-2">
           Абонементы в этой группе сейчас недоступны для покупки и новых записей. Ваш остаток и
           история сохраняются.
         </p>
 
-        <section v-if="availability.allowPurchase">
-          <h2 class="vt-cap mb-2">Купить абонемент</h2>
+        <section v-if="availability.allowPurchase" aria-labelledby="subscription-plans-title">
+          <h2 id="subscription-plans-title" class="vt-cap mb-3">Купить абонемент</h2>
           <EmptyState
             v-if="plans.length === 0"
             icon="ticket"
@@ -231,8 +304,8 @@ async function buy(method: 'cash' | 'transfer') {
           </ul>
         </section>
 
-        <section v-if="history.length">
-          <h2 class="vt-cap mb-2">История</h2>
+        <section v-if="history.length" aria-labelledby="subscription-history-title">
+          <h2 id="subscription-history-title" class="vt-cap mb-3">История</h2>
           <ul class="space-y-2">
             <li
               v-for="s in history"
@@ -241,8 +314,8 @@ async function buy(method: 'cash' | 'transfer') {
             >
               <span class="flex-1 truncate">{{ s.plan.name }}</span>
               <span class="text-xs text-vt-mute-2">{{ s.usedSessions }}/{{ s.totalSessions }}</span>
-              <VtChip :tone="isExpired(s) ? 'default' : (STATUS[s.status]?.tone ?? 'default')">
-                {{ isExpired(s) ? 'Истёк' : STATUS[s.status]?.text }}
+              <VtChip :tone="s.status === 'cancelled' ? 'rose' : 'default'">
+                {{ subscriptionHistoryLabel(s) }}
               </VtChip>
             </li>
           </ul>

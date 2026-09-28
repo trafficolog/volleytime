@@ -1,7 +1,18 @@
 // @vitest-environment happy-dom
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { computed, defineComponent, h, nextTick, ref, Suspense, watch } from 'vue'
+import {
+  computed,
+  defineComponent,
+  h,
+  nextTick,
+  onMounted,
+  onUnmounted,
+  ref,
+  Suspense,
+  useTemplateRef,
+  watch,
+} from 'vue'
 import { createMemoryHistory, createRouter, RouterLink } from 'vue-router'
 
 import Sheet from '../components/vt/Sheet.vue'
@@ -17,11 +28,24 @@ const route = {
 let memberRole: 'owner' | 'player' = 'owner'
 let subscriptionsEnabled = true
 let organizationResponseId = 7
+let organizationStatus = 'active'
 
 vi.stubGlobal('useRoute', () => route)
 vi.stubGlobal('computed', computed)
 vi.stubGlobal('ref', ref)
 vi.stubGlobal('watch', watch)
+vi.stubGlobal('onMounted', onMounted)
+vi.stubGlobal('onUnmounted', onUnmounted)
+vi.stubGlobal('nextTick', nextTick)
+vi.stubGlobal('useTemplateRef', useTemplateRef)
+vi.stubGlobal('useHead', () => undefined)
+vi.stubGlobal(
+  'ResizeObserver',
+  class {
+    observe() {}
+    disconnect() {}
+  },
+)
 vi.stubGlobal('useFetch', (url: () => string) => {
   const path = url()
   return {
@@ -29,7 +53,11 @@ vi.stubGlobal('useFetch', (url: () => string) => {
       path.endsWith('/subscriptions/my')
         ? { subscriptions: [] }
         : {
-            organization: { id: organizationResponseId, subscriptionsEnabled },
+            organization: {
+              id: organizationResponseId,
+              status: organizationStatus,
+              subscriptionsEnabled,
+            },
             myMember: { role: memberRole, status: 'active' },
           },
     ),
@@ -51,6 +79,7 @@ async function renderLayout(role: 'owner' | 'player', enabled = true) {
       { path: '/m/orgs/7/members', component: { template: '<div />' } },
       { path: '/m/orgs/7/cashbox', component: { template: '<div />' } },
       { path: '/m/orgs/7/payments', component: { template: '<div />' } },
+      { path: '/m/orgs/7/profile', component: { template: '<div />' } },
     ],
   })
   await router.push('/m/orgs/7')
@@ -79,6 +108,7 @@ async function renderLayout(role: 'owner' | 'player', enabled = true) {
 afterEach(() => {
   document.body.innerHTML = ''
   organizationResponseId = 7
+  organizationStatus = 'active'
 })
 
 describe('Mini App layout navigation interaction', () => {
@@ -99,10 +129,11 @@ describe('Mini App layout navigation interaction', () => {
     const { wrapper, router } = await renderLayout('player')
     expect(wrapper.find('button[aria-controls="organizer-menu-dialog"]').exists()).toBe(false)
     expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(4)
-    expect(wrapper.find('a[href="/m/orgs/7/events"]').exists()).toBe(true)
-    await wrapper.get('a[href="/m/orgs/7/events"]').trigger('click')
+    expect(wrapper.find('a[href="/m/orgs/7/profile"]').exists()).toBe(true)
+    expect(wrapper.find('a[href="/m/orgs/7/events"]').exists()).toBe(false)
+    await wrapper.get('a[href="/m/orgs/7/profile"]').trigger('click')
     await flushPromises()
-    expect(router.currentRoute.value.path).toBe('/m/orgs/7/events')
+    expect(router.currentRoute.value.path).toBe('/m/orgs/7/profile')
     wrapper.unmount()
   })
 
@@ -119,6 +150,14 @@ describe('Mini App layout navigation interaction', () => {
     expect(wrapper.find('nav[aria-label="Разделы"]').exists()).toBe(false)
     expect(wrapper.find('button[aria-controls="organizer-menu-dialog"]').exists()).toBe(false)
     expect(document.querySelector('#organizer-menu-dialog')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('does not mount the manager menu for a suspended group', async () => {
+    organizationStatus = 'suspended'
+    const { wrapper } = await renderLayout('owner')
+    expect(wrapper.find('nav[aria-label="Разделы"]').exists()).toBe(false)
+    expect(wrapper.findComponent(Sheet).exists()).toBe(false)
     wrapper.unmount()
   })
 })

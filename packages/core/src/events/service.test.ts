@@ -1,6 +1,7 @@
 import { closeDb, db, eq, events, organizations, users } from '@volley-time/db'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
+import { bookingService } from '../bookings/service'
 import { organizationService } from '../organizations/service'
 import { venueService } from '../venues/service'
 
@@ -88,6 +89,27 @@ describe('eventService (integration)', () => {
   it('stores price as minor units', async () => {
     const ev = await eventService.create({ userId: ownerId }, orgId, { ...base(), price: 1500 })
     expect(ev.price).toBe(1500)
+  })
+
+  it('keeps a cancelled myBooking visible without occupying a place and replaces it on rebooking', async () => {
+    const ev = await eventService.create({ userId: ownerId }, orgId, base())
+    const booking = await bookingService.book({ userId: ownerId }, orgId, ev.id, { method: 'free' })
+    await bookingService.cancel({ userId: ownerId }, booking.id)
+
+    const afterCancel = (await eventService.statsFor({ userId: ownerId }, [ev.id])).get(ev.id)!
+    expect(afterCancel).toMatchObject({
+      taken: 0,
+      waitlist: 0,
+      myBooking: { id: booking.id, status: 'cancelled' },
+    })
+
+    await bookingService.book({ userId: ownerId }, orgId, ev.id, { method: 'free' })
+    const afterRebook = (await eventService.statsFor({ userId: ownerId }, [ev.id])).get(ev.id)!
+    expect(afterRebook).toMatchObject({
+      taken: 1,
+      waitlist: 0,
+      myBooking: { id: booking.id, status: 'confirmed' },
+    })
   })
 
   it('updates event fields', async () => {
