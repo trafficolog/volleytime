@@ -4,8 +4,8 @@ phase: '8'
 epic: '8.10'
 status: in_progress
 sync_state: synced
-last_reviewed: 2026-09-27
-status_note: 'Локальные browser/API/DB QA и gates пройдены; конфликт с auth-main разрешён и проверен отдельно. Native 200% zoom и реальный Telegram-host QA остаются открытыми.'
+last_reviewed: 2026-09-28
+status_note: 'Ветка PR #47 объединена с текущим main; повторные локальные gates, Edge browser fixtures и CI зелёные. Native 200% zoom и реальный Telegram-host QA остаются открытыми; не считать задачу или R0.6 принятыми.'
 roles: [FE, QA]
 depends_on: ['3.11.2', '5.13.21']
 estimated_hours: '12-18'
@@ -13,6 +13,12 @@ tags: [miniapp, player, mvp, redesign]
 ---
 
 # Task 8.10.1: Mini App игрока v2
+
+## Сверка с текущим main, 2026-09-28
+
+После merge `origin/main` (`19d373c`) в task-ветку конфликт был только в статусной документации; сохранены свидетельства Mini App игрока и принятая задача desktop-кассы. На объединённом дереве прошли `pnpm format:check`, `pnpm lint` (0 ошибок / 15 предупреждений), `pnpm typecheck` (6/6), `pnpm test` с PostgreSQL (112 файлов / 640 тестов) и `pnpm build` (2/2). Первый одновременный запуск typecheck/build столкнулся на временном `pnpm-lock.yaml` (`EPERM`); после завершения сборки отдельный typecheck прошёл, поэтому параллельный результат не засчитывается как успешный gate. [CI PR #47](https://github.com/trafficolog/volleytime/actions/runs/36409322856) на `9f9ef46` прошёл quality, PostgreSQL tests и build.
+
+Production-preview на отдельной локальной QA-БД открылся в Edge CLI. На объединённом дереве browser fixture проверил 6 состояний auth/access, reference fidelity — 41 проверку без ошибок, сценарии смены группы и сетевого retry завершились с exit 0. Это fixture-проверки клиента; прежний локальный real-API/DB smoke описан ниже и не повторялся целиком после merge. Chromium CLI в текущем окружении получал `ERR_CONNECTION_REFUSED` на локальных портах при доступном с хоста `/api/health`, тогда как Edge CLI открыл тот же URL; этот сбой runner не выдан за дефект приложения. Native 200% zoom и Telegram-host/двухаккаунтная проверка всё ещё отсутствуют; PR остаётся draft, `main`/`prod`/VPS этим merge task-ветки не менялись.
 
 ## Интеграция с авторизацией из main, 2026-09-27
 
