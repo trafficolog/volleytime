@@ -1,5 +1,7 @@
 # 📸 Текущее состояние проекта
 
+> **Дополнение 2026-09-28:** задача 6.10.1 desktop-оплаты/касса принята в [PR #51](https://github.com/trafficolog/volleytime/pull/51): локальные PostgreSQL gates проходят (103 files / 571 tests, lint 0 errors / 21 baseline warnings, typecheck 6/6, format, build 2/2), scoped review не нашёл Critical/Important, [GitHub CI run 36407550559](https://github.com/trafficolog/volleytime/actions/runs/36407550559) прошёл quality, PostgreSQL tests и build. Real local API/browser проверил денежные операции, права, ошибки/retry, уход во время запросов, event pagination, зону New York и клавиатурный фокус кассы. Присланные пользователем скриншоты при заявленном zoom 200% показывают «Оплаты», «Кассу» и открытую форму дохода без явного обрезания; пользователь отдельно сообщил об успешной проверке экранным диктором без детализации диктора/браузера. Подпись hero-баланса исправлена с 2,10:1 до 11,11:1 без изменения синего фона. Статус задачи **done** не означает общий R0.6 acceptance или production/Telegram-host/deploy/backup/monitoring evidence; `prod`/VPS не изменены. Подробности — [карточка 6.10.1](../../tasks/6-10-1-organizer-desktop-finance-v2.md).
+
 > **Self-check 8.10.1, 2026-09-27:** отдельный preview/QA PostgreSQL подтвердил
 > 41 fixture checks, 28 реальных API screen captures (320/390, light/dark),
 > OTP → запись/отмена/лист ожидания/повышение → подтверждение организатором,

@@ -25,15 +25,21 @@ export function resolveOrganizerEntry(orgs: readonly AuthOrg[]): OrganizerEntry 
 }
 
 export function safeAuthRedirect(value: unknown): string | null {
-  if (typeof value !== 'string' || !value.startsWith('/m/')) return null
+  const allowed = (path: string) =>
+    path.startsWith('/m/') ||
+    path === '/app' ||
+    path === '/app?choose=1' ||
+    path.startsWith('/app/')
+  if (typeof value !== 'string' || !allowed(value)) return null
   try {
     let decoded = value
     for (let i = 0; i < 3; i++) {
       decoded = decodeURIComponent(decoded)
       if (
-        !decoded.startsWith('/m/') ||
+        !allowed(decoded) ||
         decoded.includes('\\') ||
         decoded.includes('//') ||
+        decoded.split(/[/?#]/).some((segment) => segment === '.' || segment === '..') ||
         [...decoded].some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)
       )
         return null

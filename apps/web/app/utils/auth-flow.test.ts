@@ -13,6 +13,18 @@ const owner: AuthOrg = {
 }
 
 describe('email sign-in completion', () => {
+  it('returns to the desktop route after email sign-in', async () => {
+    const fetchOrgs = vi.fn(async () => [owner])
+    const result = await completeEmailSignIn({
+      verify: async () => {},
+      session: async () => true,
+      fetchOrgs,
+      redirect: '/app/orgs/7/events',
+    })
+    expect(result).toEqual({ kind: 'navigate', to: '/app/orgs/7/events' })
+    expect(fetchOrgs).not.toHaveBeenCalled()
+  })
+
   it('does not load organizations or navigate after a rejected code', async () => {
     const fetchOrgs = vi.fn(async () => [owner])
     const result = await completeEmailSignIn({
