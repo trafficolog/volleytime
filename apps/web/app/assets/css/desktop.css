@@ -610,6 +610,9 @@
   grid-template-columns: 2fr 1fr 1fr;
   gap: 1rem;
 }
+.vt-desktop-cashbox__stats .vt-card--hero .vt-cap {
+  color: var(--vt-on-accent);
+}
 .vt-desktop-cashbox__stats strong {
   display: block;
   margin-top: 0.5rem;
