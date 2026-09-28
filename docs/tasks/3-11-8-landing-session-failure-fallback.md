@@ -2,10 +2,10 @@
 id: '3.11.8'
 phase: '3'
 epic: '3.11'
-status: in_progress
+status: done
 sync_state: synced
 last_reviewed: 2026-09-28
-status_note: 'Локальный RED→GREEN, пять gates (124 files / 722 tests), Chrome 503/CTA/FAQ и regression smoke прошли; независимое review без замечаний. До exact-head CI и merge отдельного PR задача in_progress; prod/VPS не меняются.'
+status_note: 'RED→GREEN, пять gates (124 files / 722 tests), Chrome 503/CTA/FAQ, review без замечаний и exact-head CI прошли. PR #59 принят в main как 07fb8af; merge tree идентично проверенному head. Общая 8.10.3 и Telegram-host QA отдельно открыты; prod/VPS не менялись.'
 roles: [FE, QA]
 depends_on: ['3.11.4']
 estimated_hours: '1-2'
@@ -58,6 +58,10 @@ Mounted RED: 2/5 тестов упали по ожидаемым причина�
 Свежий built preview `http://127.0.0.1:3168/`, Chrome CLI profile `landing318`: `scripts/qa/landing-session-error.pwcode` подтвердил 503 fixture (2 GET), `errors=[]`, `appErrors=[]`, anonymous href, FAQ Enter и переход к login с redirect создания группы. HTTP network 503 ожидаем. Первый preview-запуск во время перезаписи build output получил технический missing-module 500 и не засчитывается: сервер перезапущен после успешного build, затем QA повторена.
 
 `scripts/qa/landing-post-main.pwcode` повторно прошёл 320/390/768/1280/1440 CSS px, session success/null CTA, якорь/FAQ, локальные шрифты, reduced motion/resume/teardown, no-JS SSR/FAQ. Снимки 320/1440 просмотрены. Ранее подтверждённые пользователем native 200% и настоящее background stop/resume не запрашивались заново. Это локальный Chrome QA, не Telegram-host или production delivery. Детали: [отчёт 3.11.8](../operations/qa/2026-09-28-landing-session-fallback.md).
+
+### Приёмка в main
+
+[PR #59](https://github.com/trafficolog/volleytime/pull/59) смёржен как `07fb8af280263eccba4d9da12e714cc3f3416f69`. [CI 36476869854](https://github.com/trafficolog/volleytime/actions/runs/36476869854) завершил quality, PostgreSQL tests и build успешно на точном head `3595b7fc6c44a833c18e2cd6f78313fee3116c89`. Полное дерево merge совпадает с head (`fd2cae636e1d55253c2e7d2061d5ab67222e95c4`). Это закрывает 3.11.8, не всю 8.10.3/R0.6; origin/prod read-only подтверждён как `67bbfe89acaac04992b8128d45cb1b40f8acc75c`, сервер не менялся.
 
 ## Не делать
 

@@ -32,4 +32,6 @@ Preview, запущенный во время build, один раз верну�
 
 ## Границы
 
-Exact-head GitHub CI и отдельный PR/merge фиксируются после публикации; до них task status остаётся in_progress. Общая 8.10.3, prod/VPS, backup/deploy и настоящий Telegram-host/two-account QA не закрыты. Пользовательские native 200% и фоновая вкладка stop/resume уже записаны в отчёте 3.11.4 и не запрашиваются повторно. Ограничение исходного оранжевого по контрасту не объявляется исправленным.
+[CI 36476869854](https://github.com/trafficolog/volleytime/actions/runs/36476869854) прошёл все три job на точном head `3595b7fc6c44a833c18e2cd6f78313fee3116c89`. [PR #59](https://github.com/trafficolog/volleytime/pull/59) принят в main как `07fb8af280263eccba4d9da12e714cc3f3416f69`; полное дерево merge идентично head (`fd2cae636e1d55253c2e7d2061d5ab67222e95c4`). Task 3.11.8 done.
+
+Общая 8.10.3, prod/VPS, backup/deploy и настоящий Telegram-host/two-account QA не закрыты. Пользовательские native 200% и фоновая вкладка stop/resume уже записаны в отчёте 3.11.4 и не запрашиваются повторно. Ограничение исходного оранжевого по контрасту не объявляется исправленным.

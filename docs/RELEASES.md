@@ -227,6 +227,8 @@ Canonical R0 snapshot не изменился: **132 done / 7 in_progress из 1
 
 2026-09-28 **3.11.4** лендинг принят в main через [PR #43](https://github.com/trafficolog/volleytime/pull/43), merge `1fa662f`: пять локальных gates (123 files / 717 tests), Chrome QA и independent review без блокеров; [CI 36467608712](https://github.com/trafficolog/volleytime/actions/runs/36467608712) success на `e6bfaf3`, дерево merge идентично проверенному. Предыдущая строка о незавершённом PR #43 историческая. Отдельная **3.11.8** и общий **8.10.3** ещё открыты; release readiness и production этим merge не объявляются.
 
+2026-09-28 **3.11.8** принята в main через [PR #59](https://github.com/trafficolog/volleytime/pull/59), merge `07fb8af`: mounted RED→GREEN, пять gates (124 files / 722 tests), Chrome 503 fallback/CTA/FAQ и landing regression, independent review без замечаний; [CI 36476869854](https://github.com/trafficolog/volleytime/actions/runs/36476869854) success на `3595b7f`, полное дерево merge идентично head. Исторические ожидания 3.11.8 выше закрыты. Общая **8.10.3** и post-deploy Telegram-host/pilot acceptance остаются отдельными; `prod`/VPS v0.1.5 не менялись.
+
 ---
 
 ## R1 — Automation & Reliability `v0.2.0`
