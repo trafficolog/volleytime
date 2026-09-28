@@ -221,6 +221,8 @@ Canonical R0 snapshot не изменился: **132 done / 7 in_progress из 1
 
 2026-09-28 **8.10.2** и отдельно проверенный stacked fix **8.10.4** приняты в main через [PR #55](https://github.com/trafficolog/volleytime/pull/55), merge `2086ee4`, после локальных пяти gates, whole-branch review, 40 browser cases и [CI 36430967186](https://github.com/trafficolog/volleytime/actions/runs/36430967186) success на `ec6493d`. Это не общий release gate: Mini App игрока (PR #47), лендинг (PR #43), их совместная QA и **8.10.3** ещё требуют завершения. `prod` и VPS не менялись.
 
+2026-09-28 **8.10.1** Mini App игрока принят в main через [PR #47](https://github.com/trafficolog/volleytime/pull/47), merge `f5a9d41` после пяти локальных gates, independent review без оставшихся замечаний, локальной browser/real-API QA и [CI 36452709192](https://github.com/trafficolog/volleytime/actions/runs/36452709192) success на `ae678dd`. Историческая строка выше о draft PR #47 относится к состоянию до merge. Лендинг PR #43, общий **8.10.3**, native zoom и реальный Telegram-host QA полного кандидата ещё открыты; `prod`/VPS не менялись.
+
 ---
 
 ## R1 — Automation & Reliability `v0.2.0`
