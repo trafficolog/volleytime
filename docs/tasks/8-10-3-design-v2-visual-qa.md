@@ -5,9 +5,9 @@ epic: '8.10'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-28
-status_note: 'Organizer 8.10.2 и review-fix 8.10.4 приняты через PR #55 с CI; 8.10.5 уже в main. Player/landing интеграция, общая совместная матрица R0.6 и Telegram-host acceptance открыты.'
+status_note: 'Player 8.10.1 и organizer 8.10.2 с review-fix 8.10.4/8.10.5 приняты в main. Landing 3.11.4/3.11.5/3.11.7 интегрируется; совместная матрица R0.6 и Telegram-host acceptance открыты.'
 roles: [QA, FE]
-depends_on: ['3.11.3', '8.10.1', '8.10.2', '8.10.4', '8.10.5', '5.15.1', '6.10.1']
+depends_on: ['3.11.3', '3.11.4', '8.10.1', '8.10.2', '8.10.4', '8.10.5', '5.15.1', '6.10.1']
 estimated_hours: '6-10'
 tags: [qa, mvp, redesign]
 ---
@@ -26,8 +26,8 @@ tags: [qa, mvp, redesign]
 
 ## Что должно быть сделано
 
-1. Собрать матрицу «референс → route → state → screenshot/test» для auth, Mini App игрока/организатора и desktop-организатора.
-2. Пройти визуальный QA 320/390/1280/1440 px, светлую и Telegram-тёмную тему, 200% zoom, клавиатуру и состояния ошибок.
+1. Собрать матрицу «референс → route → state → screenshot/test» для публичного MVP-лендинга, auth, Mini App игрока/организатора и desktop-организатора.
+2. Пройти визуальный QA 320/390/1280/1440 px, светлую и Telegram-тёмную тему, 200% zoom, клавиатуру и состояния ошибок; на лендинге также проверить CTA/якоря/FAQ, reduced motion и отсутствие обещаний будущих функций.
 3. Прогнать пять gates и production-impacting smoke; зафиксировать отдельно ручной Telegram QA и реальную pilot-валидацию.
 
 ## Критерии приёмки
