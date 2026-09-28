@@ -1,6 +1,6 @@
 # 8.10.1 — интеграция Player Mini App после organizer main, 2026-09-28
 
-Статус: локальная повторная проверка объединённого дерева; окончательная приёмка R0.6 и Telegram-host QA не заявлены. Ветка `trafficolog/feat/8.10.1-player-miniapp-v2` объединена с `origin/main` `f4c0da2`, содержащим принятые organizer PR #55/#56. `prod` и VPS не менялись.
+Статус: локальная повторная проверка объединённого дерева и приёмка отдельной задачи 8.10.1; окончательная приёмка R0.6 и Telegram-host QA не заявлены. Ветка `trafficolog/feat/8.10.1-player-miniapp-v2` объединена с `origin/main` `f4c0da2`, содержащим принятые organizer PR #55/#56, и затем принята в [PR #47](https://github.com/trafficolog/volleytime/pull/47) как `f5a9d41`. `prod` и VPS не менялись.
 
 ## Изоляция и проверки
 
@@ -25,4 +25,6 @@
 
 Повторное независимое read-only review подтвердило устранение обоих Important и Minor без новых замечаний; reviewer не выдавал свой анализ за исполнение gates или browser QA.
 
-Открыто: финальный CI PR #47, общая визуальная/функциональная приёмка 8.10.3 и native 200% Mini App; реальный Telegram/two-account QA — после контролируемой выкладки полного кандидата на пустой пилотный production. Никакого основания считать R0.6 принятым или выкладывать только 8.10.1 на `prod` этот отчёт не даёт.
+После публикации `ae678dd` GitHub CI [run 36452709192](https://github.com/trafficolog/volleytime/actions/runs/36452709192) завершил успешно все три job: Lint · Format · Typecheck, Test (unit + integration), Build. PR #47 сменил draft на ready и был смёржен в `main` как `f5a9d41`. Точный SHA и состояние merge проверены через GitHub; `origin/prod` остался `67bbfe8`.
+
+Открыто: общая визуальная/функциональная приёмка 8.10.3 и native 200% Mini App; реальный Telegram/two-account QA — после контролируемой выкладки полного кандидата на пустой пилотный production. Никакого основания считать R0.6 принятым или выкладывать только 8.10.1 на `prod` этот отчёт не даёт.

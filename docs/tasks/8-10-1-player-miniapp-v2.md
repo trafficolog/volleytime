@@ -2,10 +2,10 @@
 id: '8.10.1'
 phase: '8'
 epic: '8.10'
-status: in_progress
+status: done
 sync_state: synced
 last_reviewed: 2026-09-28
-status_note: 'Повторная интеграция с main f4c0da2 после принятия организатора: сохранить обе роли в общих Home/layout/events/Sheet и повторить gates, review и browser QA. PR #47 остаётся draft; общий 8.10.3 и Telegram-host отдельно открыты.'
+status_note: 'PR #47 принят в main как f5a9d41 после пяти локальных gates, review без оставшихся замечаний, browser QA и CI 36452709192 на ae678dd. Общий 8.10.3, native zoom и Telegram-host QA полного кандидата остаются открыты; prod/VPS не менялись.'
 roles: [FE, QA]
 depends_on: ['3.11.2', '5.13.21']
 estimated_hours: '12-18'
@@ -13,6 +13,21 @@ tags: [miniapp, player, mvp, redesign]
 ---
 
 # Task 8.10.1: Mini App игрока v2
+
+## Приёмка задачи, 2026-09-28
+
+[PR #47](https://github.com/trafficolog/volleytime/pull/47) принят в `main` как
+`f5a9d41` на проверенном head `ae678dd`. Три job
+[CI 36452709192](https://github.com/trafficolog/volleytime/actions/runs/36452709192)
+прошли; пять локальных gates: форматирование, lint без ошибок (12
+предупреждений), typecheck 6/6, PostgreSQL 120 файлов/708 тестов, сборка
+web/bot 2/2. Whole-branch review и повторная проверка двух исправлений не
+оставили замечаний. Локальный browser и real-API объём указан в
+[отчёте](../operations/qa/2026-09-28-player-post-organizer.md).
+
+`done` относится к отдельной задаче 8.10.1, а не к R0.6: совместная 8.10.3,
+native 200% матрица и реальный Telegram/two-account QA полного кандидата ещё
+открыты. `prod` и VPS этим merge не менялись.
 
 ## Повторная интеграция с организатором, 2026-09-28
 
