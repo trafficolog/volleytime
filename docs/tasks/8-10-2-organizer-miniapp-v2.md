@@ -5,7 +5,7 @@ epic: '8.10'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-28
-status_note: 'main интегрирован; gates 112 файлов/637 тестов записаны. Свежая QA основных маршрутов 320/390 light/dark и Home native 200% зафиксированы; найден overflow приглашений 8.10.5. Общий 8.10.3 и Telegram-host acceptance открыты.'
+status_note: 'Интеграция main с 8.10.5 проверена: пять gates, 40 browser cases, whole-branch review без замечаний. Локальный код готов к PR; CI/merge, общий 8.10.3 и Telegram-host acceptance открыты.'
 roles: [FE, QA]
 depends_on: ['3.11.2', '5.13.21']
 estimated_hours: '12-18'
@@ -97,7 +97,12 @@ tags: [miniapp, organizer, mvp, redesign]
 
 ## Свежая QA после main
 
-[Отчёт 2026-09-28](../operations/qa/2026-09-28-organizer-miniapp-post-main.md) фиксирует проверенные маршруты и ограничения. Переполнение приглашений оформлено отдельной review-fix [8.10.5](./8-10-5-miniapp-invite-actions-reflow.md); исправление ещё не выполнено.
+[Отчёт 2026-09-28](../operations/qa/2026-09-28-organizer-miniapp-post-main.md) фиксирует проверенные маршруты и ограничения. Переполнение приглашений исправлено отдельной [8.10.5](./8-10-5-miniapp-invite-actions-reflow.md), принятой в main через PR #53. При слиянии main `16d7266` исходниковых конфликтов нет; три документационных конфликта разрешены с сохранением QA-отчёта, зависимостей 8.10.3 и принятой карточки 8.10.5.
+
+- Повторные пять gates на объединённом дереве прошли: format exit 0; lint exit 0 (0 ошибок/19 предупреждений); typecheck 6/6; PostgreSQL tests 112 файлов/637 тестов на новой `volleytime_qa_8102_post53_20260928`; build 2/2 (web fresh, bot cache). Первая сборка встретила Windows EBUSY: старый preview удерживал `.output`; после остановки только preview на 3143 повторная сборка прошла, новый preview восстановлен на том же порту. Это ограничение локального процесса, не замаскированная ошибка компиляции.
+- Свежий Edge production-preview: 28 случаев семи основных маршрутов при **client width** 320/390 light/dark; document/control overflow и pageerror отсутствуют. 12 случаев приглашений 320/390/160 light/dark и обоих copy-state прошли на этой же интегрированной сборке. CSS `.dark`/clipboard fixtures не названы настоящими Telegram themeChanged/copy/share. Девять выбранных PNG просмотрены отдельно, без pixel-perfect заявления.
+- Отдельно повторены задержанный настоящий ledger GET: skeleton без ложного empty, баланс и фокус `ledger-type` сохранены, после ответа показаны реальные расходы; меню Enter/Shift+Tab/Escape и восстановление focus/inert; форма расхода открывается с фокусом `lg-cat` и закрывается без POST. Подпись Home имеет computed white alpha 0,78 × opacity 0,75 на rgb(31 46 150), эффективный WCAG 2 contrast 4,82:1; цвет не изменён. Это один измеренный текстовый контраст, не общий сертификат доступности.
+- Независимое whole-branch review относительно main `16d7266` на интегрированном дереве не нашло Critical/Important/Minor замечаний; новый server/core diff отсутствует. Code readiness не закрывает общий 8.10.3, полную native-zoom/визуальную матрицу других экранов, Telegram-host, deploy или pilot acceptance. PR/CI/merge фиксируются отдельно до статуса `done`.
 
 ## Не делать
 

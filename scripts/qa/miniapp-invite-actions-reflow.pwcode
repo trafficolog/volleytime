@@ -1,0 +1,95 @@
+async (page) => {
+  // Run on an authenticated local preview. Real Vue/API; clipboard only is stubbed.
+  const origin = page.url().match(/^https?:\/\/[^/]+/)?.[0]
+  const orgId = page.url().match(/\/m\/orgs\/(\d+)/)?.[1]
+  if (!origin || !orgId || !/^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)) {
+    throw new Error('Open a local authenticated /m/orgs/<id>/invite route first')
+  }
+  const results = []
+  const failures = []
+  for (const clientWidth of [320, 390, 160]) {
+    for (const dark of [false, true]) {
+      await page.setViewportSize({ width: clientWidth, height: 900 })
+      await page.goto(`${origin}/m/orgs/${orgId}/invite`)
+      await page.getByRole('button', { name: 'Копировать', exact: true }).first().waitFor()
+      await page.evaluate(async () => {
+        await document.fonts.ready
+      })
+      const scrollbar = await page.evaluate(() => innerWidth - document.documentElement.clientWidth)
+      await page.setViewportSize({ width: clientWidth + scrollbar, height: 900 })
+      await page.evaluate((value) => document.documentElement.classList.toggle('dark', value), dark)
+      await page.waitForTimeout(200) // CSS button/theme transitions last 150 ms.
+      await page.evaluate(() => {
+        Object.defineProperty(navigator, 'clipboard', {
+          configurable: true,
+          value: { writeText: async () => {} },
+        })
+      })
+      for (const copied of [false, true]) {
+        if (copied) {
+          const copy = page.getByRole('button', { name: 'Копировать', exact: true }).first()
+          await copy.focus()
+          await page.keyboard.press('Enter')
+          await page.getByRole('button', { name: 'Скопировано', exact: true }).first().waitFor()
+          await page.keyboard.press('Tab')
+          if (
+            !(await page
+              .getByRole('button', { name: 'Поделиться', exact: true })
+              .first()
+              .evaluate((button) => button === document.activeElement))
+          )
+            throw new Error('Tab from copy must focus share')
+          await page.keyboard.press('Tab')
+          if (
+            !(await page
+              .getByRole('button', { name: 'Отозвать ссылку', exact: true })
+              .first()
+              .evaluate((button) => button === document.activeElement))
+          )
+            throw new Error('Tab from share must focus revoke')
+        }
+        const geometry = await page.evaluate(() => {
+          const width = document.documentElement.clientWidth
+          return {
+            width,
+            scroll: document.documentElement.scrollWidth,
+            controls: [...document.querySelectorAll('main li button')].map((button) => {
+              const rect = button.getBoundingClientRect()
+              const card = button.closest('li').getBoundingClientRect()
+              return {
+                name: button.getAttribute('aria-label') || button.textContent.trim(),
+                width: rect.width,
+                height: rect.height,
+                fits:
+                  rect.left >= card.left &&
+                  rect.right <= card.right + 0.5 &&
+                  rect.right <= width + 0.5,
+              }
+            }),
+          }
+        })
+        const revoke = geometry.controls.find((control) => control.name === 'Отозвать ссылку')
+        const record = { clientWidth, dark, copied, ...geometry }
+        results.push(record)
+        if (
+          geometry.width !== clientWidth ||
+          geometry.scroll > geometry.width ||
+          geometry.controls.length < 3 ||
+          geometry.controls.some((control) => !control.fits) ||
+          geometry.controls.some(
+            (control) =>
+              control.name !== 'Отозвать ссылку' &&
+              (control.width < 100 || (clientWidth >= 320 && control.height > 44)),
+          ) ||
+          !revoke ||
+          revoke.width < 44 ||
+          revoke.height < 44
+        ) {
+          failures.push(record)
+        }
+      }
+    }
+  }
+  if (failures.length) throw new Error(`Invite reflow failed: ${JSON.stringify(failures)}`)
+  return { passed: results.length, results, clipboard: 'stubbed; no real copy/share/revoke' }
+}
