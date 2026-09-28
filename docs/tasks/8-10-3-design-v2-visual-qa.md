@@ -2,12 +2,12 @@
 id: '8.10.3'
 phase: '8'
 epic: '8.10'
-status: todo
+status: in_progress
 sync_state: synced
-last_reviewed: 2026-09-24
-status_note: ''
+last_reviewed: 2026-09-28
+status_note: 'Organizer post-main QA записана; найдено переполнение приглашений 8.10.5. Общая матрица auth/player/organizer/desktop и release acceptance не завершены.'
 roles: [QA, FE]
-depends_on: ['3.11.3', '8.10.1', '8.10.2', '8.10.4', '5.15.1', '6.10.1']
+depends_on: ['3.11.3', '8.10.1', '8.10.2', '8.10.4', '8.10.5', '5.15.1', '6.10.1']
 estimated_hours: '6-10'
 tags: [qa, mvp, redesign]
 ---
@@ -19,6 +19,8 @@ tags: [qa, mvp, redesign]
 Подтвердить полноту MVP-экранов и состояний относительно архива v2 и отсутствие регрессий.
 
 ## Контекст
+
+Частичная [organizer QA 2026-09-28](../operations/qa/2026-09-28-organizer-miniapp-post-main.md) не означает завершения зависимостей/общей приёмки. До product-fix 8.10.5 кандидат не продвигать.
 
 [Карта v2](../design/2026-09-23-reference-v2.md) задаёт screen matrix и границу будущих релизов.
 
