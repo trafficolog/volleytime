@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 
 import { describe, expect, it } from 'vitest'
 
-const css = readFileSync(new URL('./main.css', import.meta.url), 'utf8')
+const css = readFileSync(new URL('./main.css', import.meta.url), 'utf8').replaceAll('\r\n', '\n')
 const tabBar = readFileSync(new URL('../../components/vt/TabBar.vue', import.meta.url), 'utf8')
 const header = readFileSync(new URL('../../components/vt/MiniHeader.vue', import.meta.url), 'utf8')
 const empty = readFileSync(new URL('../../components/EmptyState.vue', import.meta.url), 'utf8')
@@ -56,8 +56,10 @@ describe('Bento Bold MVP atoms', () => {
     expect(rule('.vt-miniheader')).toContain('border-bottom: 0')
     expect(rule('.vt-tabbar')).toContain('background: var(--vt-tabbar-bg)')
     expect(rule('.vt-tabbar')).toContain('margin: 0 12px 14px')
-    expect(rule('.vt-tabbar a')).toContain('min-height: 58px')
-    expect(rule('.vt-tabbar a:focus-visible')).toContain('outline-color: var(--vt-tabbar-active)')
+    expect(rule('.vt-tabbar a,\n  .vt-tabbar button')).toContain('min-height: 58px')
+    expect(rule('.vt-tabbar a:focus-visible,\n  .vt-tabbar button:focus-visible')).toContain(
+      'outline-color: var(--vt-tabbar-active)',
+    )
     expect(tabBar).toContain('<nav class="vt-tabbar"')
     expect(tabBar).toContain('<NuxtLink')
     expect(tabBar).toContain(':aria-current="isActive(t) ? \'page\' : undefined"')
@@ -74,6 +76,13 @@ describe('Bento Bold MVP atoms', () => {
     expect(indicator).toContain('bottom: 4px')
     expect(indicator).toContain('height: 2px')
     expect(indicator).toContain('width: 16px')
+  })
+
+  it('keeps the five-tab dock accessible in a 160px zoom-equivalent viewport', () => {
+    const zoomRules = css.slice(css.indexOf('@media (max-width: 200px)'))
+    expect(zoomRules).toContain('grid-template-columns: repeat(3, minmax(0, 1fr))')
+    expect(zoomRules).toContain('min-height: 44px')
+    expect(zoomRules).toContain('padding-bottom: calc(110px + env(safe-area-inset-bottom))')
   })
 
   it('keeps empty and loading states accessible and theme-ready', () => {

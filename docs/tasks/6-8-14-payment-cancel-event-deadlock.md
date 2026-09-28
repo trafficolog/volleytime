@@ -5,7 +5,7 @@ epic: '6.8'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-27
-status_note: 'RED подтвердил PostgreSQL deadlock 40P01; порядок блокировок выровнен, 10 повторов GREEN, money-races, пять gates и scoped review пройдены; Minor-пробел теста закрыт, main-base ветка ожидает PR/CI.'
+status_note: 'RED подтвердил PostgreSQL deadlock 40P01; порядок блокировок выровнен, 10 повторов GREEN, money-races, пять gates и scoped review пройдены; задача интегрирована в GitHub main, production не менялся.'
 review_ref: 'Task 6.8.13 · scoped concurrency review'
 priority: P1
 roles: [BACK, QA]

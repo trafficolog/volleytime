@@ -6,6 +6,7 @@ import {
   toMinor,
   zonedInputToDate,
 } from '@volley-time/shared'
+
 import { LEDGER_CATEGORY_LABELS, displayName, formatMoneyRu, label } from '~/utils/labels'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
@@ -44,37 +45,69 @@ const entries = ref<Entry[]>([])
 const loading = ref(false)
 const loadError = ref('')
 const forbidden = ref(false)
-const filter = ref<'all' | 'income' | 'expense'>('all')
+const loadedOrgId = ref<number | null>(null)
+type Kind = 'expense' | 'income'
+const journalType = ref<'all' | Kind>('all')
+let loadVersion = 0
 
 async function load() {
+  const requestedOrgId = orgId.value
+  const version = ++loadVersion
+  const sameOrgRefresh = loadedOrgId.value === requestedOrgId && !forbidden.value
   loading.value = true
   loadError.value = ''
+  forbidden.value = false
+  if (!sameOrgRefresh) {
+    loadedOrgId.value = null
+    balance.value = null
+  }
+  entries.value = []
   try {
     const data = await $fetch<{ balance: Balance; entries: Entry[] }>(
-      `/api/organizations/${orgId.value}/ledger`,
-      { query: filter.value === 'all' ? { limit: 200 } : { type: filter.value, limit: 200 } },
+      `/api/organizations/${requestedOrgId}/ledger`,
+      {
+        query: { limit: 200, ...(journalType.value === 'all' ? {} : { type: journalType.value }) },
+      },
     )
+    if (version !== loadVersion || requestedOrgId !== orgId.value) return
     balance.value = data.balance
     entries.value = data.entries
+    loadedOrgId.value = requestedOrgId
   } catch (e) {
-    if (apiErrorStatus(e) === 403) forbidden.value = true
-    else loadError.value = apiErrorMessage(e, 'Не удалось загрузить кассу')
+    if (version !== loadVersion || requestedOrgId !== orgId.value) return
+    if (apiErrorStatus(e) === 403) {
+      forbidden.value = true
+      loadedOrgId.value = null
+      balance.value = null
+      entries.value = []
+    } else loadError.value = apiErrorMessage(e, 'Не удалось загрузить кассу')
   } finally {
-    loading.value = false
+    if (version === loadVersion) loading.value = false
   }
 }
 await load()
-watch(filter, load)
+watch(orgId, () => {
+  journalType.value = 'all'
+  sheetKind.value = null
+  events.value = []
+  formError.value = ''
+  void load()
+})
 
 /** Группировка по дню операции в TZ организации. */
 const groups = computed(() => {
-  const map = new Map<string, { day: string; items: Entry[]; net: number }>()
+  const map = new Map<
+    string,
+    { day: string; items: Entry[]; netByCurrency: Record<string, number> }
+  >()
   for (const e of entries.value) {
     const key = formatShortDate(e.occurredAt, tz.value)
-    if (!map.has(key)) map.set(key, { day: formatDay(e.occurredAt, tz.value), items: [], net: 0 })
+    if (!map.has(key))
+      map.set(key, { day: formatDay(e.occurredAt, tz.value), items: [], netByCurrency: {} })
     const g = map.get(key)!
     g.items.push(e)
-    if (e.currency === balance.value?.currency) g.net += e.type === 'income' ? e.amount : -e.amount
+    g.netByCurrency[e.currency] =
+      (g.netByCurrency[e.currency] ?? 0) + (e.type === 'income' ? e.amount : -e.amount)
   }
   return [...map.values()]
 })
@@ -83,12 +116,15 @@ const otherCurrencies = computed(() =>
 )
 
 // операция
-type Kind = 'expense' | 'income'
 const sheetKind = ref<Kind | null>(null)
+const sheetOrgId = ref<number | null>(null)
 const sheetOpen = computed({
   get: () => sheetKind.value !== null,
   set: (v) => {
-    if (!v) sheetKind.value = null
+    if (!v) {
+      sheetKind.value = null
+      sheetOrgId.value = null
+    }
   },
 })
 const events = ref<EventOption[]>([])
@@ -103,6 +139,8 @@ const saving = ref(false)
 const formError = ref('')
 
 async function openSheet(kind: Kind) {
+  if (loadedOrgId.value !== orgId.value || forbidden.value) return
+  const requestedOrgId = orgId.value
   formError.value = ''
   Object.assign(form, {
     category: kind === 'expense' ? 'rent' : 'contribution',
@@ -112,21 +150,32 @@ async function openSheet(kind: Kind) {
     eventId: '',
   })
   sheetKind.value = kind
+  sheetOrgId.value = requestedOrgId
   if (events.value.length === 0) {
     try {
-      events.value = (
-        await $fetch<{ events: EventOption[] }>(`/api/organizations/${orgId.value}/events`, {
+      const data = await $fetch<{ events: EventOption[] }>(
+        `/api/organizations/${requestedOrgId}/events`,
+        {
           query: { filter: 'all', limit: 30 },
-        })
-      ).events
+        },
+      )
+      if (requestedOrgId === orgId.value) events.value = data.events
     } catch {
-      events.value = []
+      if (requestedOrgId === orgId.value) events.value = []
     }
   }
 }
 
 async function save() {
-  if (!sheetKind.value) return
+  if (
+    !sheetKind.value ||
+    saving.value ||
+    sheetOrgId.value !== orgId.value ||
+    loadedOrgId.value !== orgId.value
+  )
+    return
+  const actionOrgId = orgId.value
+  const kind = sheetKind.value
   formError.value = ''
   const major = Number(String(form.amountMajor).replace(',', '.'))
   if (!Number.isFinite(major) || major <= 0) {
@@ -135,7 +184,7 @@ async function save() {
   }
   saving.value = true
   try {
-    await $fetch(`/api/organizations/${orgId.value}/ledger/${sheetKind.value}`, {
+    await $fetch(`/api/organizations/${actionOrgId}/ledger/${kind}`, {
       method: 'POST',
       body: {
         category: form.category,
@@ -147,10 +196,13 @@ async function save() {
         eventId: form.eventId || undefined,
       },
     })
+    if (actionOrgId !== orgId.value) return
     haptic('success')
     sheetKind.value = null
+    sheetOrgId.value = null
     await load()
   } catch (e) {
+    if (actionOrgId !== orgId.value) return
     haptic('error')
     formError.value = apiErrorMessage(e, 'Не удалось сохранить операцию')
   } finally {
@@ -185,70 +237,86 @@ function entrySubtitle(e: Entry): string {
         <SkeletonList v-if="loading && !balance" :count="2" />
         <ErrorState v-else-if="loadError" :message="loadError" @retry="load" />
         <template v-else-if="balance">
-          <section class="vt-card p-4">
+          <section
+            class="vt-card vt-card--hero cashbox-balance-hero p-5 text-white"
+            aria-label="Баланс кассы"
+          >
             <div class="vt-cap">Баланс</div>
             <div
-              class="vt-mono text-3xl font-bold mt-1"
-              :class="balance.balance < 0 ? 'text-vt-rose-ink' : 'text-vt-ink'"
+              class="vt-mono text-3xl font-bold mt-2 break-words"
+              :class="balance.balance < 0 ? 'text-[var(--vt-amber)]' : ''"
             >
               {{ formatMoneyRu(balance.balance, balance.currency) }}
             </div>
-            <div class="grid grid-cols-2 gap-3 mt-3 text-sm">
+            <div class="cashbox-balance-breakdown grid grid-cols-2 gap-3 mt-5 text-sm">
               <div>
-                <div class="text-xs text-vt-mute-2">Доходы</div>
-                <div class="vt-mono font-semibold text-vt-grass-ink">
+                <div class="text-xs opacity-75">Доходы</div>
+                <div class="vt-mono font-semibold break-words">
                   +{{ formatMoneyRu(balance.income, balance.currency) }}
                 </div>
               </div>
               <div>
-                <div class="text-xs text-vt-mute-2">Расходы</div>
-                <div class="vt-mono font-semibold text-vt-rose-ink">
+                <div class="text-xs opacity-75">Расходы</div>
+                <div class="vt-mono font-semibold break-words">
                   −{{ formatMoneyRu(balance.expense, balance.currency) }}
                 </div>
               </div>
             </div>
-            <p v-for="[cur, b] in otherCurrencies" :key="cur" class="text-xs text-vt-mute-2 mt-2">
-              В {{ cur }}: {{ formatMoneyRu(b.balance, cur) }}
+          </section>
+
+          <section v-if="otherCurrencies.length" class="vt-card p-4" aria-label="Другие валюты">
+            <h2 class="vt-cap">Другие валюты</h2>
+            <p
+              v-for="[cur, b] in otherCurrencies"
+              :key="cur"
+              class="vt-mono mt-2 text-sm font-semibold"
+            >
+              {{ formatMoneyRu(b.balance, cur) }}
+              <span class="block text-xs font-normal text-vt-mute-2">
+                Доходы +{{ formatMoneyRu(b.income, cur) }} · Расходы −{{
+                  formatMoneyRu(b.expense, cur)
+                }}
+              </span>
             </p>
           </section>
 
-          <div class="grid grid-cols-2 gap-2">
+          <div class="cashbox-operation-actions grid grid-cols-2 gap-2">
             <button type="button" class="vt-btn vt-btn--ghost" @click="openSheet('expense')">
               <VtIcon name="plus" :size="14" /> Расход
             </button>
             <button type="button" class="vt-btn vt-btn--ghost" @click="openSheet('income')">
-              <VtIcon name="plus" :size="14" /> Доход
+              <VtIcon name="plus" :size="14" /> Поступление
             </button>
           </div>
 
-          <div class="flex gap-1" role="tablist">
-            <button
-              v-for="f in [
-                { id: 'all', label: 'Все' },
-                { id: 'income', label: 'Доходы' },
-                { id: 'expense', label: 'Расходы' },
-              ] as const"
-              :key="f.id"
-              type="button"
-              role="tab"
-              :aria-selected="filter === f.id"
-              class="vt-btn vt-btn--sm flex-1 !rounded-full"
-              :class="filter === f.id ? 'vt-btn--ink' : 'text-vt-mute-2'"
-              @click="filter = f.id"
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-2">
+            <h2 class="vt-cap">Журнал</h2>
+            <label class="sr-only" for="ledger-type">Тип операций журнала</label>
+            <select
+              id="ledger-type"
+              v-model="journalType"
+              class="vt-field cashbox-journal-filter"
+              @change="load"
             >
-              {{ f.label }}
-            </button>
+              <option value="all">Все</option>
+              <option value="income">Доходы</option>
+              <option value="expense">Расходы</option>
+            </select>
           </div>
 
-          <EmptyState v-if="groups.length === 0" icon="chart" title="Операций пока нет" />
+          <SkeletonList v-if="loading" :count="2" />
+          <EmptyState v-else-if="groups.length === 0" icon="chart" title="Операций пока нет" />
           <section v-for="g in groups" :key="g.day">
             <div class="flex items-center justify-between mb-1.5 px-1">
               <h2 class="vt-cap">{{ g.day }}</h2>
-              <span
-                class="vt-mono text-xs"
-                :class="g.net < 0 ? 'text-vt-rose-ink' : 'text-vt-grass-ink'"
-              >
-                {{ g.net < 0 ? '−' : '+' }}{{ formatMoneyRu(Math.abs(g.net), balance.currency) }}
+              <span class="flex flex-wrap justify-end gap-x-2">
+                <span
+                  v-for="[currency, net] in Object.entries(g.netByCurrency)"
+                  :key="currency"
+                  class="vt-mono text-xs"
+                  :class="net < 0 ? 'text-vt-rose-ink' : 'text-vt-grass-ink'"
+                  >{{ net < 0 ? '−' : '+' }}{{ formatMoneyRu(Math.abs(net), currency) }}</span
+                >
               </span>
             </div>
             <ul class="vt-card divide-y divide-[var(--vt-stroke)] overflow-hidden">
@@ -284,7 +352,7 @@ function entrySubtitle(e: Entry): string {
 
     <VtSheet v-model="sheetOpen" :title="sheetKind === 'expense' ? 'Новый расход' : 'Новый доход'">
       <form class="space-y-3" @submit.prevent="save">
-        <div class="grid grid-cols-2 gap-3">
+        <div class="cashbox-form-primary-grid grid gap-3">
           <div>
             <label class="vt-label" for="lg-cat">Категория</label>
             <select id="lg-cat" v-model="form.category" class="vt-field">
@@ -340,3 +408,38 @@ function entrySubtitle(e: Entry): string {
     </VtSheet>
   </div>
 </template>
+
+<style scoped>
+.cashbox-balance-hero .vt-cap {
+  color: rgb(255 255 255 / 78%);
+}
+
+.cashbox-form-primary-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.cashbox-journal-filter {
+  width: auto;
+  max-width: 100%;
+  min-height: 44px;
+  padding-block: 8px;
+  font-size: 16px;
+}
+
+@media (min-width: 22rem) {
+  .cashbox-form-primary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 200px) {
+  .cashbox-balance-hero > .vt-mono {
+    font-size: 1.25rem;
+  }
+
+  .cashbox-balance-breakdown,
+  .cashbox-operation-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+</style>
