@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { dateToZonedInput, formatDay, zonedInputToDate } from '@volley-time/shared'
+import { DEFAULT_TIMEZONE, formatDay, zonedInputToDate } from '@volley-time/shared'
 
 import {
   canSubmitDesktopLedgerAction,
   desktopBalanceRows,
+  desktopLedgerFormTime,
   DESKTOP_EXPENSE_CATEGORIES,
   DESKTOP_INCOME_CATEGORIES,
   parseDesktopLedgerAmount,
@@ -36,7 +37,11 @@ interface EventOption {
 }
 const route = useRoute()
 const orgId = computed(() => Number(route.params.orgId))
-const { tz } = useOrgTimezone(orgId)
+const timezone = ref<string | null>(null)
+const timezoneLoading = ref(true)
+const timezoneError = ref('')
+const formTimezone = ref<string | null>(null)
+const tz = computed(() => timezone.value ?? DEFAULT_TIMEZONE)
 const request = useRequestFetch()
 const balance = ref<LedgerBalance | null>(null)
 const entries = ref<Entry[]>([])
@@ -67,7 +72,8 @@ const categories = computed(() =>
 let active = true,
   generation = 0,
   loadToken = 0,
-  eventToken = 0
+  eventToken = 0,
+  timezoneToken = 0
 function live(org: number, path: string, epoch: number) {
   return active && orgId.value === org && route.path === path && generation === epoch
 }
@@ -128,15 +134,46 @@ async function loadEvents() {
     if (live(org, path, epoch) && token === eventToken) eventsLoading.value = false
   }
 }
+async function loadTimezone() {
+  const org = orgId.value,
+    path = route.path,
+    epoch = generation,
+    token = ++timezoneToken
+  timezone.value = null
+  timezoneLoading.value = true
+  timezoneError.value = ''
+  kind.value = null
+  formTimezone.value = null
+  try {
+    const result = await request<{ organization: { defaultTimezone: string } }>(
+      `/api/organizations/${org}`,
+    )
+    const zone = result.organization.defaultTimezone
+    if (!zone) throw new Error('Missing organization timezone')
+    new Intl.DateTimeFormat('ru-RU', { timeZone: zone }).format(new Date())
+    if (live(org, path, epoch) && token === timezoneToken) timezone.value = zone
+  } catch (error) {
+    if (live(org, path, epoch) && token === timezoneToken) {
+      message(error, '')
+      timezoneError.value =
+        'Не удалось загрузить часовой пояс группы. Повторите попытку перед добавлением операции.'
+    }
+  } finally {
+    if (live(org, path, epoch) && token === timezoneToken) timezoneLoading.value = false
+  }
+}
 function openForm(next: 'income' | 'expense') {
-  if (saving.value) return
+  if (saving.value || timezoneLoading.value) return
+  const time = desktopLedgerFormTime(new Date(), timezone.value)
+  if (!time) return
+  formTimezone.value = time.timezone
   kind.value = next
   formError.value = ''
   amountError.value = ''
   Object.assign(form, {
     category: next === 'income' ? 'contribution' : 'rent',
     amount: '',
-    occurredAt: dateToZonedInput(new Date(), tz.value),
+    occurredAt: time.occurredAt,
     description: '',
     eventId: '',
   })
@@ -150,6 +187,9 @@ async function save() {
   if (
     !active ||
     !action ||
+    !formTimezone.value ||
+    formTimezone.value !== timezone.value ||
+    timezoneLoading.value ||
     accessStatus.value ||
     !canSubmitDesktopLedgerAction(
       route.path,
@@ -178,7 +218,7 @@ async function save() {
         amount,
         description: form.description.trim() || undefined,
         occurredAt: form.occurredAt
-          ? zonedInputToDate(form.occurredAt, tz.value).toISOString()
+          ? zonedInputToDate(form.occurredAt, formTimezone.value).toISOString()
           : undefined,
         eventId: form.eventId ? Number(form.eventId) : undefined,
       },
@@ -201,6 +241,10 @@ watch(
   () => route.path,
   () => {
     generation++
+    timezone.value = null
+    formTimezone.value = null
+    timezoneError.value = ''
+    timezoneLoading.value = true
     balance.value = null
     entries.value = []
     events.value = []
@@ -222,16 +266,24 @@ watch(
       eventId: '',
     })
     if (filter.value !== 'all') filter.value = 'all'
-    if (route.path === `/app/orgs/${orgId.value}/cashbox`) void load()
+    if (route.path === `/app/orgs/${orgId.value}/cashbox`) {
+      void load()
+      void loadTimezone()
+    }
   },
 )
 onBeforeUnmount(() => {
   active = false
   generation++
+  timezone.value = null
+  formTimezone.value = null
   balance.value = null
   entries.value = []
   events.value = []
   kind.value = null
+})
+onMounted(() => {
+  void loadTimezone()
 })
 await load()
 </script>
@@ -248,14 +300,14 @@ await load()
         <button
           class="vt-btn vt-btn--ghost"
           type="button"
-          :disabled="saving"
+          :disabled="saving || !timezone || timezoneLoading"
           @click="openForm('expense')"
         >
           Добавить расход</button
         ><button
           class="vt-btn vt-btn--primary"
           type="button"
-          :disabled="saving"
+          :disabled="saving || !timezone || timezoneLoading"
           @click="openForm('income')"
         >
           <VtIcon name="plus" :size="16" /> Добавить доход
@@ -274,6 +326,10 @@ await load()
     </section>
     <template v-else>
       <p v-if="loading" role="status">Загружаем кассу…</p>
+      <p v-if="timezoneLoading" role="status">
+        Загружаем часовой пояс группы перед добавлением операций…
+      </p>
+      <ErrorState v-if="timezoneError" :message="timezoneError" @retry="loadTimezone" />
       <ErrorState v-if="loadError" :message="loadError" @retry="load" />
       <template v-if="balance">
         <section class="vt-desktop-cashbox__stats" aria-label="Баланс основной валюты">
@@ -395,7 +451,7 @@ await load()
           title="Операций пока нет"
           description="Подтверждённые оплаты и ручные операции появятся здесь. Попробуйте другой тип или добавьте операцию."
         />
-        <ul v-if="entries.length" class="vt-desktop-cashbox__journal vt-card">
+        <ul v-if="entries.length && timezone" class="vt-desktop-cashbox__journal vt-card">
           <li v-for="entry in entries" :key="entry.id">
             <time :datetime="entry.occurredAt" class="text-sm text-vt-mute">{{
               formatDay(entry.occurredAt, tz)

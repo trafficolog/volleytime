@@ -1,3 +1,4 @@
+import { zonedInputToDate } from '@volley-time/shared'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -6,9 +7,29 @@ import {
   DESKTOP_EXPENSE_CATEGORIES,
   DESKTOP_INCOME_CATEGORIES,
   parseDesktopLedgerAmount,
+  desktopLedgerFormTime,
 } from './desktop-cashbox'
 
 describe('desktop cashbox', () => {
+  it('waits for a delayed real timezone and preserves the form instant across differing offsets', async () => {
+    const now = new Date('2026-09-28T12:00:00.000Z')
+    let timezone: string | null = null
+    let resolve!: (zone: string) => void
+    const loaded = new Promise<string>((done) => {
+      resolve = done
+    })
+    expect(desktopLedgerFormTime(now, timezone)).toBeNull()
+    resolve('America/New_York')
+    timezone = await loaded
+    const time = desktopLedgerFormTime(now, timezone)!
+    expect(time).toEqual({ occurredAt: '2026-09-28T08:00', timezone: 'America/New_York' })
+    expect(zonedInputToDate(time.occurredAt, time.timezone).toISOString()).toBe(
+      '2026-09-28T12:00:00.000Z',
+    )
+  })
+  it('does not initialize monetary time after a failed timezone load', () => {
+    expect(desktopLedgerFormTime(new Date('2026-09-28T12:00:00Z'), null)).toBeNull()
+  })
   it.each([
     ['1,25', 125],
     ['1.2', 120],

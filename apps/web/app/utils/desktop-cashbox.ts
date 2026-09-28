@@ -1,4 +1,8 @@
-import { toMinor } from '@volley-time/shared'
+import { dateToZonedInput, toMinor } from '@volley-time/shared'
+
+export function desktopLedgerFormTime(now: Date, timezone: string | null) {
+  return timezone ? { occurredAt: dateToZonedInput(now, timezone), timezone } : null
+}
 
 export interface CurrencyBalanceRow {
   currency: string

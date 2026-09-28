@@ -45,6 +45,8 @@ Shell поставляет 5.15.1. Денежные переходы уже ес
 
 ## Находки review 2026-09-27
 
+- Review кассы 2026-09-28: форма форматирует дату через fallback timezone до загрузки зоны организации, а сохранение интерпретирует введённое через уже обновлённую зону. До инициализации/отправки формы нужна подтверждённая зона текущей организации; сбой её получения не должен молча отправлять время в fallback. RED с задержанной загрузкой отличающейся зоны → GREEN, повторное review и gates.
+
 - Self-review кассы: нулевые баланс/доход/расход должны отображаться денежной суммой с валютой, а не «Бесплатно». Проверить RED/GREEN в браузере. Изолировать очистку новых history fixtures после интеграционных тестов, чтобы последующие auth tests не падали на FK организации.
 
 - Desktop payments использует `useOrgTimezone`: запоздалый ответ группы A сейчас может записаться под текущим ID группы B. В рамках критерия изоляции состояния добавить RED-тест A→B, захватывать ID запроса для записи кэша, затем GREEN и повторное review.
@@ -55,7 +57,8 @@ Shell поставляет 5.15.1. Денежные переходы уже ес
 - Cashbox helper RED отсутствующего модуля → GREEN 15/15; browser RED нулевых сумм «Бесплатно» → GREEN «0,00 BYN» через денежный formatter.
 - Пять gates зелёные: format:check; lint (0 errors, 21 baseline warnings); typecheck (6/6); test с PostgreSQL (101 files, 563 tests); build (2/2). Task 1 history core/HTTP + financial smoke: 3 files, 18 tests.
 - Real local API/browser: manual income125/expense25minor → balance100; timezone conversion; duplicate submit1POST; foreign event404; assistant read/write403; cashbox/payments401/404/503+retry; cashbox1280/1440/390; delayed org-param GET and mutation navigation on both pages, no stale destination state. Nuxt changes page instance on org-param transition; literal same-instance browser reuse is not asserted.
-- Открыто: independent whole-branch review, PR/CI/merge; actual browser200%zoom (CLI shortcuts не меняют zoom), screen-reader QA и own-event dropdown selection. Telegram-host/production/VPS/backup/monitoring/real-group validation не проводились. Статус остаётся in_progress.
+- Correction timezone: browser RED подтвердил сдвиг7часов при delayed New York response; касса теперь ждёт подтверждённую зону и сохраняет её вместе с формой. GREEN: delayed differing zone, failed load + native retry и route leave while loading; scoped unit17/17. Повторные пять gates зелёные, полный suite101files/565tests; shared timezone consumers не менялись.
+- Открыто: independent whole-branch review, PR/CI/merge; actual browser200%zoom (CLI shortcuts не меняют zoom), screen-reader QA. Own-event dropdown проверен realAPI: selected event12 совпадает с записью кассы, foreign event13 не предлагается. Telegram-host/production/VPS/backup/monitoring/real-group validation не проводились. Статус остаётся in_progress.
 
 ## Не делать
 
