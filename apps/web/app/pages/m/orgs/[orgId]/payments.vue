@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { formatDay } from '@volley-time/shared'
-import { displayName, formatPrice } from '~/utils/labels'
+
+import { PAYMENT_METHOD_LABELS, displayName, formatPrice, label } from '~/utils/labels'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
 interface PendingPayment {
@@ -15,6 +16,7 @@ interface PendingPayment {
 }
 
 const route = useRoute()
+const router = useRouter()
 const orgId = computed(() => Number(route.params.orgId))
 const { tz } = useOrgTimezone(orgId)
 const { confirm: askConfirm, haptic } = useTelegram()
@@ -24,24 +26,53 @@ const loading = ref(false)
 const loadError = ref('')
 const actionError = ref('')
 const busy = ref<number | null>(null)
+const loadedOrgId = ref<number | null>(null)
+const forbidden = ref(false)
+let loadVersion = 0
+let pageActive = true
+onUnmounted(() => {
+  pageActive = false
+})
+
+function isCurrentPage(actionOrgId: number): boolean {
+  return (
+    pageActive &&
+    orgId.value === actionOrgId &&
+    Number(router.currentRoute.value.params.orgId) === actionOrgId &&
+    router.currentRoute.value.fullPath === route.fullPath
+  )
+}
 
 async function load() {
+  const requestedOrgId = orgId.value
+  const version = ++loadVersion
   loading.value = true
   loadError.value = ''
+  forbidden.value = false
+  loadedOrgId.value = null
+  items.value = []
   try {
-    items.value = (
-      await $fetch<{ payments: PendingPayment[] }>(`/api/organizations/${orgId.value}/payments`)
-    ).payments
+    const data = await $fetch<{ payments: PendingPayment[] }>(
+      `/api/organizations/${requestedOrgId}/payments`,
+    )
+    if (version !== loadVersion || requestedOrgId !== orgId.value) return
+    items.value = data.payments
+    loadedOrgId.value = requestedOrgId
   } catch (e) {
-    loadError.value =
-      apiErrorStatus(e) === 403
-        ? 'Подтверждать оплаты могут организаторы'
-        : apiErrorMessage(e, 'Не удалось загрузить платежи')
+    if (version !== loadVersion || requestedOrgId !== orgId.value) return
+    forbidden.value = apiErrorStatus(e) === 403
+    loadError.value = forbidden.value
+      ? 'Подтверждать оплаты могут организаторы'
+      : apiErrorMessage(e, 'Не удалось загрузить платежи')
   } finally {
-    loading.value = false
+    if (version === loadVersion) loading.value = false
   }
 }
 await load()
+watch(orgId, () => {
+  actionError.value = ''
+  void load()
+})
 
 const totals = computed(() => {
   const by: Record<string, number> = {}
@@ -61,19 +92,31 @@ function ago(iso: string): string {
 }
 
 async function act(p: PendingPayment, action: 'confirm' | 'reject') {
+  if (
+    busy.value !== null ||
+    loadedOrgId.value !== orgId.value ||
+    loading.value ||
+    forbidden.value ||
+    !isCurrentPage(orgId.value)
+  )
+    return
+  const actionOrgId = orgId.value
   actionError.value = ''
-  if (action === 'reject') {
-    const ok = await askConfirm(
-      `Отклонить оплату ${displayName(p.user)}? ${p.event ? 'Запись будет отменена, место перейдёт следующему в листе ожидания.' : 'Абонемент не будет активирован.'}`,
-    )
-    if (!ok) return
-  }
   busy.value = p.id
   try {
-    await $fetch(`/api/organizations/${orgId.value}/payments/${p.id}/${action}`, { method: 'POST' })
+    if (action === 'reject') {
+      const ok = await askConfirm(
+        `Отклонить оплату ${displayName(p.user)}? ${p.event ? 'Запись будет отменена, место перейдёт следующему в листе ожидания.' : 'Абонемент не будет активирован.'}`,
+      )
+      if (!ok || !isCurrentPage(actionOrgId) || loadedOrgId.value !== actionOrgId) return
+    }
+    if (!isCurrentPage(actionOrgId) || loadedOrgId.value !== actionOrgId) return
+    await $fetch(`/api/organizations/${actionOrgId}/payments/${p.id}/${action}`, { method: 'POST' })
+    if (!isCurrentPage(actionOrgId) || loadedOrgId.value !== actionOrgId) return
     haptic(action === 'confirm' ? 'success' : 'warning')
     items.value = items.value.filter((x) => x.id !== p.id)
   } catch (e) {
+    if (!isCurrentPage(actionOrgId) || loadedOrgId.value !== actionOrgId) return
     haptic('error')
     actionError.value =
       apiErrorCode(e) === 'payment.not_pending'
@@ -90,7 +133,9 @@ async function act(p: PendingPayment, action: 'confirm' | 'reject') {
   <div class="min-h-screen pb-10">
     <VtMiniHeader
       title="Ожидают подтверждения"
-      :sub="items.length ? `${items.length} · ожидается ${totals}` : undefined"
+      :sub="
+        loadedOrgId === orgId && items.length ? `${items.length} · ожидается ${totals}` : undefined
+      "
       :back="`/m/orgs/${orgId}`"
     />
     <main class="px-4 py-3 space-y-3">
@@ -108,48 +153,58 @@ async function act(p: PendingPayment, action: 'confirm' | 'reject') {
         title="Всё подтверждено"
         description="Нет платежей, ожидающих подтверждения"
       />
-      <ul v-else class="space-y-2.5">
-        <li v-for="p in items" :key="p.id" class="vt-card p-3.5">
-          <div class="flex items-center gap-2.5">
-            <VtAvatar :name="displayName(p.user)" :src="p.user.image" />
-            <div class="flex-1 min-w-0">
-              <div class="flex items-baseline justify-between gap-2">
-                <span class="text-sm font-semibold truncate">{{ displayName(p.user) }}</span>
-                <span class="vt-mono font-bold">{{ formatPrice(p.amount, p.currency) }}</span>
-              </div>
-              <div class="text-xs text-vt-mute-2 truncate">
-                <template v-if="p.event"
-                  >{{ p.event.title }} · {{ formatDay(p.event.startsAt, tz) }}</template
-                >
-                <template v-else-if="p.plan">Абонемент «{{ p.plan.name }}»</template>
+      <template v-else>
+        <ul class="space-y-2" aria-label="Ожидающие платежи">
+          <li v-for="p in items" :key="p.id" class="vt-card vt-card--raised p-3">
+            <div class="flex items-center gap-2.5">
+              <VtAvatar :name="displayName(p.user)" :src="p.user.image" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-baseline justify-between gap-2">
+                  <span class="text-sm font-semibold truncate">{{ displayName(p.user) }}</span>
+                  <span class="vt-mono font-bold">{{ formatPrice(p.amount, p.currency) }}</span>
+                </div>
+                <div class="text-xs text-vt-mute-2 truncate">
+                  <template v-if="p.event"
+                    >{{ p.event.title }} · {{ formatDay(p.event.startsAt, tz) }}</template
+                  >
+                  <template v-else-if="p.plan">Абонемент «{{ p.plan.name }}»</template>
+                </div>
               </div>
             </div>
-          </div>
-          <div class="flex items-center gap-1.5 mt-2.5">
-            <VtChip>{{ p.method === 'transfer' ? 'Перевод' : 'Наличные' }}</VtChip>
-            <VtChip v-if="p.plan" tone="flame">Абонемент</VtChip>
-            <span class="ml-auto text-[11px] text-vt-mute-2">{{ ago(p.createdAt) }}</span>
-          </div>
-          <div class="flex gap-1.5 mt-3">
-            <button
-              type="button"
-              class="vt-btn vt-btn--ghost flex-1"
-              :disabled="busy === p.id"
-              @click="act(p, 'reject')"
-            >
-              Отклонить
-            </button>
-            <button
-              type="button"
-              class="vt-btn vt-btn--primary flex-[1.6]"
-              :disabled="busy === p.id"
-              @click="act(p, 'confirm')"
-            >
-              <VtIcon name="check" :size="14" /> Подтвердить
-            </button>
-          </div>
-        </li>
-      </ul>
+            <div class="flex items-center gap-1.5 mt-2.5">
+              <VtChip>{{ label(PAYMENT_METHOD_LABELS, p.method) }}</VtChip>
+              <VtChip v-if="p.plan" tone="flame">Абонемент</VtChip>
+              <span class="ml-auto text-[11px] text-vt-mute-2">{{ ago(p.createdAt) }}</span>
+            </div>
+            <div class="payment-actions flex gap-1.5 mt-3">
+              <button
+                type="button"
+                class="vt-btn vt-btn--ghost flex-1"
+                :disabled="busy !== null || loadedOrgId !== orgId"
+                @click="act(p, 'reject')"
+              >
+                Отклонить
+              </button>
+              <button
+                type="button"
+                class="vt-btn vt-btn--primary flex-[1.6]"
+                :disabled="busy !== null || loadedOrgId !== orgId"
+                @click="act(p, 'confirm')"
+              >
+                <VtIcon name="check" :size="14" /> Подтвердить
+              </button>
+            </div>
+          </li>
+        </ul>
+      </template>
     </main>
   </div>
 </template>
+
+<style scoped>
+@media (max-width: 200px) {
+  .payment-actions {
+    flex-direction: column;
+  }
+}
+</style>
