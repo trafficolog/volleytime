@@ -32,7 +32,7 @@ export function playerGroupOptions(
           : group.membershipStatus === 'pending'
             ? 'Заявка на рассмотрении'
             : null,
-      to: selectable ? `/m/orgs/${group.id}` : '/m/orgs',
+      to: `/m/orgs/${group.id}`,
       selected: group.id === selectedId,
     }
   })

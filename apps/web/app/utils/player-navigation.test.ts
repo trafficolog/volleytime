@@ -34,7 +34,7 @@ describe('group switcher choices', () => {
     { id: 3, name: 'Группа В', city: null, status: 'suspended', membershipStatus: 'active' },
   ] as const
 
-  it('lets an active member switch only to active groups', () => {
+  it('selects only active groups while linking restricted groups to their informational pages', () => {
     expect(playerGroupOptions(groups, 1).map((group) => group.selectable)).toEqual([
       true,
       false,
@@ -42,8 +42,8 @@ describe('group switcher choices', () => {
     ])
     expect(playerGroupOptions(groups, 1).map((group) => group.to)).toEqual([
       '/m/orgs/1',
-      '/m/orgs',
-      '/m/orgs',
+      '/m/orgs/2',
+      '/m/orgs/3',
     ])
   })
 

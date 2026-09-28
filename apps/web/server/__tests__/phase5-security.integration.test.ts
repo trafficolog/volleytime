@@ -276,6 +276,43 @@ describe('Phase 5 API security (integration)', () => {
     expect(ob.upcoming.find((e) => e.id === ev.id)?.taken).toBe(1)
   })
 
+  it('8.10.1: player dashboard limits published events after excluding cancelled ones', async () => {
+    for (let hour = 1; hour <= 5; hour++) {
+      const cancelled = await makeEvent(orgA, ownerA, {
+        startsAt: future(hour),
+        endsAt: future(hour + 1),
+      })
+      await db
+        .update(eventsTable)
+        .set({ status: 'cancelled' })
+        .where(eq(eventsTable.id, cancelled.id))
+    }
+    const published = await makeEvent(orgA, ownerA, {
+      startsAt: future(7),
+      endsAt: future(8),
+    })
+
+    const playerDashboard = await request('GET', `/api/organizations/${orgA}/dashboard`, {
+      user: player,
+    })
+    expect(playerDashboard.status).toBe(200)
+    expect(
+      (playerDashboard.body as { upcoming: { id: number; status: string }[] }).upcoming.map(
+        (event) => [event.id, event.status],
+      ),
+    ).toEqual([[published.id, 'published']])
+
+    const ownerDashboard = await request('GET', `/api/organizations/${orgA}/dashboard`, {
+      user: ownerA,
+    })
+    expect(ownerDashboard.status).toBe(200)
+    expect(
+      (ownerDashboard.body as { upcoming: { status: string }[] }).upcoming.map(
+        (event) => event.status,
+      ),
+    ).toEqual(Array(5).fill('cancelled'))
+  })
+
   afterAll(async () => {
     await db.delete(organizations)
     await db.delete(users)

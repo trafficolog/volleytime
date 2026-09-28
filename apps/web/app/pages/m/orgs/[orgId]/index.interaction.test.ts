@@ -46,6 +46,16 @@ const dashData = ref({
 const refreshDash = vi.fn()
 const fetchDashboard = vi.fn<() => Promise<unknown>>(async () => dashData.value)
 const orgError = ref<{ statusCode: number; data?: { code: string } } | null>(null)
+const groupList = ref<
+  {
+    id: number
+    name: string
+    city: string | null
+    status: string
+    membershipStatus: string
+  }[]
+>([])
+const selectGroup = vi.fn()
 
 vi.stubGlobal('definePageMeta', () => undefined)
 vi.stubGlobal('useRoute', () => route)
@@ -62,10 +72,10 @@ vi.stubGlobal('onMounted', onMounted)
 vi.stubGlobal('watch', watch)
 vi.stubGlobal('$fetch', fetchDashboard)
 vi.stubGlobal('useOrganizations', () => ({
-  orgs: ref([]),
+  orgs: groupList,
   loading: ref(false),
   fetchAll: vi.fn(),
-  selectOrg: vi.fn(),
+  selectOrg: selectGroup,
 }))
 vi.stubGlobal('apiErrorStatus', (error: { statusCode: number }) => error.statusCode)
 vi.stubGlobal('apiErrorCode', (error: { data?: { code: string } } | null) => error?.data?.code)
@@ -77,9 +87,43 @@ afterEach(() => {
   fetchDashboard.mockClear()
   orgError.value = null
   orgData.value.myMember.role = 'owner'
+  groupList.value = []
+  selectGroup.mockClear()
 })
 
 describe('organizer Home', () => {
+  it('links pending and suspended switcher choices to their informational pages without selecting them', async () => {
+    orgData.value.myMember.role = 'player'
+    groupList.value = [
+      { id: 31, name: 'Ожидание', city: null, status: 'active', membershipStatus: 'pending' },
+      {
+        id: 32,
+        name: 'Приостановлена',
+        city: null,
+        status: 'suspended',
+        membershipStatus: 'active',
+      },
+    ]
+    const wrapper = mount(HomeHost, {
+      global: {
+        stubs: {
+          NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
+          VtSheet: { template: '<div><slot /></div>' },
+          VtIcon: { template: '<span />' },
+          VtChip: { template: '<span><slot /></span>' },
+          EmptyState: { template: '<span />' },
+        },
+      },
+    })
+    await flushPromises()
+    for (const id of [31, 32]) {
+      const link = wrapper.get(`a[href="/m/orgs/${id}"]`)
+      await link.trigger('click')
+    }
+    expect(selectGroup).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
   it('shows the server retry message for a transient player dashboard error', async () => {
     orgData.value.myMember.role = 'player'
     fetchDashboard.mockRejectedValueOnce({
