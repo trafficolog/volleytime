@@ -1,0 +1,56 @@
+// Browser fixture for group-switcher access routes after organizer/player merge.
+// Run after opening the local production preview in Playwright CLI.
+async (page) => {
+  const baseUrl = page.url().match(/^https?:\/\/[^/]+/)?.[0]
+  if (!baseUrl) throw new Error('Open the local QA app URL first')
+  await page.unrouteAll({ behavior: 'ignoreErrors' })
+  await page.setViewportSize({ width: 390, height: 844 })
+  const groups = [
+    { id: 1, name: 'Активная', city: 'Минск', status: 'active', membershipStatus: 'active', membershipRole: 'player' },
+    { id: 2, name: 'Ожидание', city: null, status: 'active', membershipStatus: 'pending', membershipRole: 'player' },
+    { id: 3, name: 'Приостановлена', city: null, status: 'suspended', membershipStatus: 'active', membershipRole: 'player' },
+  ]
+  await page.route('**/api/**', async (route) => {
+    const path = route.request().url().replace(/^https?:\/\/[^/]+/, '').split('?')[0]
+    let status = 200
+    let body
+    if (path.endsWith('/get-session')) body = { user: { id: 1, name: 'QA', email: 'qa@example.test' } }
+    else if (path.endsWith('/organizations')) body = { organizations: groups }
+    else if (path.endsWith('/organizations/1')) body = {
+      organization: { id: 1, name: 'Активная', city: 'Минск', status: 'active', subscriptionsEnabled: false },
+      myMember: { role: 'player', status: 'active' },
+    }
+    else if (path.endsWith('/organizations/2')) {
+      status = 403
+      body = { statusMessage: 'Pending', data: { code: 'forbidden.pending_approval' } }
+    } else if (path.endsWith('/organizations/3')) {
+      status = 403
+      body = { statusMessage: 'Suspended', data: { code: 'organization.suspended' } }
+    } else if (path.endsWith('/dashboard')) body = {
+      isManager: false, myBookings: [], subscription: null, upcoming: [], manager: null,
+    }
+    else body = {}
+    await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  for (const [id, label, notice] of [
+    [2, 'Ожидание', 'Заявка на рассмотрении'],
+    [3, 'Приостановлена', 'Группа приостановлена'],
+  ]) {
+    await page.goto(`${baseUrl}/m/orgs/1`)
+    await page.getByRole('button', { name: /Выбрать группу/ }).click()
+    const option = page.getByRole('dialog', { name: 'Мои группы' }).getByRole('link', { name: new RegExp(label) })
+    if (await option.getAttribute('href') !== `/m/orgs/${id}`) throw new Error(`Wrong group ${id} URL`)
+    await option.click()
+    await page.waitForURL(`${baseUrl}/m/orgs/${id}`)
+    await page.getByText(notice, { exact: true }).first().waitFor()
+    if (await page.getByRole('button', { name: 'Повторить' }).count()) throw new Error(`False retry for ${id}`)
+    if (await page.getByRole('button', { name: 'Записаться' }).count()) throw new Error(`Booking leaked for ${id}`)
+  }
+  await page.goto(`${baseUrl}/m/orgs/1/profile`)
+  await page.getByRole('heading', { name: 'Мои группы' }).waitFor()
+  for (const id of [2, 3]) {
+    const option = page.getByRole('link', { name: id === 2 ? /Ожидание/ : /Приостановлена/ })
+    if (await option.getAttribute('href') !== `/m/orgs/${id}`) throw new Error(`Wrong profile group ${id} URL`)
+  }
+  return 'Switcher and Profile restricted-group information routes passed'
+}

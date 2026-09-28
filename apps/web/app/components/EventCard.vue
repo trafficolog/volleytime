@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { formatDay, formatTime } from '@volley-time/shared'
+
 import { formatPrice } from '~/utils/labels'
+import { eventCardBookingState } from '~/utils/player-event'
 
 export interface EventListItem {
   id: number
@@ -18,21 +20,52 @@ export interface EventListItem {
   locationText: string | null
 }
 
-const props = defineProps<{ event: EventListItem; tz: string; to: string }>()
+const props = withDefaults(
+  defineProps<{
+    event: EventListItem
+    tz: string
+    to: string
+    presentation?: 'card' | 'schedule'
+  }>(),
+  { presentation: 'card' },
+)
+const calendarDay = computed(() =>
+  new Intl.DateTimeFormat('ru-RU', { day: 'numeric', timeZone: props.tz }).format(
+    new Date(props.event.startsAt),
+  ),
+)
+const weekday = computed(() =>
+  new Intl.DateTimeFormat('ru-RU', { weekday: 'short', timeZone: props.tz }).format(
+    new Date(props.event.startsAt),
+  ),
+)
 const full = computed(() => props.event.taken >= props.event.capacity)
 const left = computed(() => Math.max(0, props.event.capacity - props.event.taken))
-const myChip = computed(() => {
-  const s = props.event.myBooking?.status
-  if (!s) return null
-  if (s === 'confirmed' || s === 'attended') return { tone: 'grass' as const, text: 'Вы записаны' }
-  if (s === 'pending_payment') return { tone: 'amber' as const, text: 'Ждёт оплаты' }
-  if (s === 'waitlisted') return { tone: 'default' as const, text: 'В листе ожидания' }
-  return null
-})
+const myChip = computed(() => eventCardBookingState(props.event.myBooking?.status ?? null))
 </script>
 
 <template>
-  <NuxtLink :to="to" class="vt-card p-3.5 flex gap-3">
+  <NuxtLink v-if="presentation === 'schedule'" :to="to" class="player-schedule-row">
+    <div class="w-11 shrink-0 text-center">
+      <div class="vt-mono text-[28px] leading-none">{{ calendarDay }}</div>
+      <div class="text-[11px] text-vt-mute-2 mt-1">{{ weekday }}</div>
+    </div>
+    <div class="flex-1 min-w-0">
+      <div class="font-semibold text-[15px] truncate">{{ event.title }}</div>
+      <div class="text-[12.5px] text-vt-mute-2 mt-0.5 truncate">
+        {{ formatTime(event.startsAt, tz) }}
+        <template v-if="event.venue || event.locationText">
+          · {{ event.venue?.name ?? event.locationText }}
+        </template>
+      </div>
+      <div v-if="event.price > 0" class="text-[11px] text-vt-mute-2 mt-1">
+        {{ formatPrice(event.price, event.currency) }}
+      </div>
+    </div>
+    <VtChip v-if="myChip" :tone="myChip.tone">{{ myChip.text }}</VtChip>
+    <VtChip v-else :tone="full ? 'amber' : 'grass'">{{ event.taken }}/{{ event.capacity }}</VtChip>
+  </NuxtLink>
+  <NuxtLink v-else :to="to" class="vt-card p-3.5 flex gap-3">
     <div class="w-14 shrink-0 text-center">
       <div class="vt-cap !text-[10px]">{{ formatDay(event.startsAt, tz).split(',')[0] }}</div>
       <div class="vt-mono font-bold text-lg leading-tight">

@@ -225,6 +225,35 @@ describe('bookingService.book (integration)', () => {
     expect(mine[0]).toHaveProperty('event')
   })
 
+  it('excludes cancelled rows before the upcoming dashboard limit without changing the default list', async () => {
+    const pid = await newPlayer()
+    for (let i = 0; i < 4; i++) {
+      const ev = await eventService.create({ userId: ownerId }, orgId, {
+        title: `Тренировка ${i}`,
+        startsAt: future(24 + i),
+        endsAt: futureEnd(26 + i),
+        capacity: 2,
+      })
+      const booking = await bookingService.book({ userId: pid }, orgId, ev.id, { method: 'free' })
+      if (i < 3) await bookingService.cancel({ userId: pid }, booking.id)
+    }
+
+    const defaultList = await bookingService.listMyBookings({ userId: pid }, orgId, 'upcoming', {
+      limit: 3,
+    })
+    expect(defaultList.map((booking) => booking.status)).toEqual([
+      'cancelled',
+      'cancelled',
+      'cancelled',
+    ])
+
+    const dashboardList = await bookingService.listMyBookings({ userId: pid }, orgId, 'upcoming', {
+      limit: 3,
+      excludeCancelled: true,
+    })
+    expect(dashboardList.map((booking) => booking.event.title)).toEqual(['Тренировка 3'])
+  })
+
   it('markAttendance sets attended/no_show', async () => {
     const ev = await makeEvent()
     const pid = await newPlayer()

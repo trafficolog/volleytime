@@ -8,6 +8,7 @@ import {
   eq,
   events,
   inArray,
+  ne,
   organizationMembers,
   payments,
   sql,
@@ -319,12 +320,13 @@ export const bookingService = {
     ctx: ServiceContext,
     orgId: number,
     filter: 'upcoming' | 'past' | 'all' = 'upcoming',
-    page: { limit?: number; offset?: number } = {},
+    page: { limit?: number; offset?: number; excludeCancelled?: boolean } = {},
   ) {
     const { limit, offset } = PageInput.parse(page)
     const db = getDb(ctx)
     const now = new Date()
     const conds = [eq(bookings.organizationId, orgId), eq(bookings.userId, ctx.userId)]
+    if (page.excludeCancelled) conds.push(ne(bookings.status, 'cancelled'))
     if (filter === 'upcoming') conds.push(gte(events.startsAt, now))
     if (filter === 'past') conds.push(lt(events.startsAt, now))
     const ids = await db

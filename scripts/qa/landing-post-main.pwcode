@@ -1,0 +1,98 @@
+// Browser smoke for 3.11.4 after integrating current main. Open local built preview first.
+// Uses only a local auth-session fixture for the authenticated CTA; not Telegram/prod QA.
+async (page) => {
+  const baseUrl = page.url().match(/^https?:\/\/[^/]+/)?.[0]
+  if (!baseUrl) throw new Error('Open the local production preview first')
+  await page.unrouteAll({ behavior: 'ignoreErrors' })
+  await page.context().clearCookies()
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto(baseUrl)
+  await page.locator('.landing__header-cta[href*="/auth/login"]').waitFor()
+  const anonymousHref = await page.locator('.landing__header-cta').getAttribute('href')
+  if (!anonymousHref?.includes('redirect=%2Fm%2Forgs%2Fcreate')) throw new Error('Anonymous CTA loses create redirect')
+  if (await page.locator('main h1').count() !== 1 || await page.locator('main').count() !== 1) throw new Error('Landing landmarks/heading changed')
+  if (await page.locator('.landing__feature').count() !== 6 || await page.locator('.landing__step-list li').count() !== 3) throw new Error('Reference composition changed')
+  if (await page.locator('a[href="https://t.me/volleytimeby_bot"]').count() < 1) throw new Error('Bot link differs from configured pilot bot')
+  const hrefs = await page.locator('a[href]').evaluateAll((links) => links.map((link) => link.getAttribute('href')))
+  if (hrefs.some((href) => href === '#' || href?.includes('/credits'))) throw new Error('Dead/future link exposed')
+  const widths = [320, 390, 768, 1280, 1440]
+  for (const width of widths) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto(baseUrl)
+    await page.locator('.landing__header-cta[href*="/auth/login"]').waitFor()
+    const geometry = await page.evaluate(() => {
+      const cta = document.querySelector('.landing__actions .landing__button')
+      const box = cta.getBoundingClientRect()
+      return {
+        overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        ctaWithin: box.left >= -1 && box.right <= innerWidth + 1,
+        ctaVisible: box.width > 0 && box.height > 0,
+      }
+    })
+    if (geometry.overflow > 1 || !geometry.ctaWithin || !geometry.ctaVisible) throw new Error(`Landing geometry failed at ${width}: ${JSON.stringify(geometry)}`)
+  }
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(baseUrl)
+  await page.getByRole('link', { name: /Как это работает/ }).first().click()
+  if (!page.url().endsWith('#how-it-works')) throw new Error('Steps anchor failed')
+  const stepsTop = await page.locator('#how-it-works').evaluate((node) => node.getBoundingClientRect().top)
+  if (stepsTop < 0) throw new Error('Sticky header obscures steps anchor')
+  const faq = page.locator('.landing__faq details').first()
+  await faq.locator('summary').press('Enter')
+  if (!(await faq.evaluate((node) => node.open))) throw new Error('Keyboard FAQ failed')
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.reload()
+  await page.getByRole('heading', { level: 1 }).waitFor()
+  if (await page.locator('.landing').getAttribute('data-landing-running') === 'true') throw new Error('Reduced-motion particles still running')
+  await page.locator('.landing__faq details summary').first().press('Enter')
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await page.locator('.landing__header-cta').waitFor()
+  const fontReady = await page.evaluate(async () => {
+    await document.fonts.ready
+    const faces = [...document.fonts]
+    return document.fonts.check('700 20px Oswald')
+      && document.fonts.check('400 14px "Golos Text"')
+      && faces.some((face) => face.family === 'Oswald' && face.weight === '700' && face.status === 'loaded')
+      && faces.some((face) => face.family === 'Golos Text' && face.weight === '400' && face.status === 'loaded')
+  })
+  if (!fontReady) throw new Error('Local landing fonts not loaded')
+  await page.route('**/api/auth/get-session', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ user: { id: 1, email: 'landing-qa@example.test' } }),
+  }))
+  await page.reload()
+  await page.locator('.landing__header-cta[href="/m/orgs/create"]').waitFor()
+  await page.unrouteAll({ behavior: 'ignoreErrors' })
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto(baseUrl)
+  await page.locator('.landing[data-landing-running="true"]').waitFor()
+  if (await page.locator('[data-landing-canvas] canvas').count() !== 2) throw new Error('Expected two motion canvases')
+  await page.locator('.landing__hero-art[data-landing-pointer="true"]').waitFor()
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.locator('.landing[data-landing-running="false"]').waitFor()
+  if (await page.locator('.landing__hero-art').getAttribute('data-landing-pointer')) throw new Error('Reduced motion retains pointer listener')
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  await page.locator('.landing[data-landing-running="true"]').waitFor()
+  await page.locator('.landing__login').click()
+  await page.waitForURL('**/auth/login')
+  if (await page.locator('[data-landing-canvas] canvas').count()) throw new Error('Motion canvas survived route teardown')
+  const ssrContext = await page.context().browser().newContext({ javaScriptEnabled: false, viewport: { width: 390, height: 844 } })
+  try {
+    const ssr = await ssrContext.newPage()
+    await ssr.goto(baseUrl)
+    if (await ssr.locator('main h1').count() !== 1 || await ssr.locator('.landing__faq details').count() !== 4) throw new Error('SSR content missing without JavaScript')
+    await ssr.locator('.landing__faq summary').first().click()
+    if (!(await ssr.locator('.landing__faq details').first().evaluate((node) => node.open))) throw new Error('Native FAQ failed without JavaScript')
+    if (!(await ssr.locator('.landing__header-cta').getAttribute('href'))?.includes('redirect=%2Fm%2Forgs%2Fcreate')) throw new Error('SSR anonymous CTA loses redirect')
+  } finally {
+    await ssrContext.close()
+  }
+  await page.goto(baseUrl)
+  for (const width of [320, 1440]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.evaluate(() => document.fonts.ready)
+    await page.screenshot({ path: `output/playwright/landing43-post-main-${width}.png`, fullPage: true })
+  }
+  return `Landing post-main smoke passed at ${widths.join('/')}; anonymous/auth CTA, anchors, FAQ, reduced motion, fonts, MVP links, motion resume/teardown and no-JS SSR passed`
+}

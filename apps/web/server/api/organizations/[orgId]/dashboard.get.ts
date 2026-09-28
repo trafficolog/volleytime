@@ -16,9 +16,14 @@ export default defineApiHandler(async (event) => {
   const isManager = canManageContent(event.context.member ?? null)
 
   const [myBookings, mySubs, upcoming] = await Promise.all([
-    bookingService.listMyBookings(ctx, orgId, 'upcoming', { limit: 3 }),
+    bookingService.listMyBookings(ctx, orgId, 'upcoming', { limit: 3, excludeCancelled: true }),
     subscriptionService.listMine(ctx, orgId),
-    eventService.list(ctx, orgId, { filter: 'upcoming', limit: 5 }, { includeDrafts: isManager }),
+    eventService.list(
+      ctx,
+      orgId,
+      { filter: 'upcoming', limit: 5, ...(!isManager && { status: 'published' as const }) },
+      { includeDrafts: isManager },
+    ),
   ])
   const stats = await eventService.statsFor(
     ctx,

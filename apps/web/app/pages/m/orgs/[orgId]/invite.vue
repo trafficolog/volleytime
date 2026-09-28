@@ -213,21 +213,25 @@ function expiry(i: InviteRow) {
             <div class="vt-code text-[11.5px] text-vt-mute-2 mt-2 break-all">
               {{ i.deeplinkUrl }}
             </div>
-            <div class="flex gap-2 mt-3">
-              <button type="button" class="vt-btn vt-btn--ghost vt-btn--sm flex-1" @click="copy(i)">
+            <div class="flex flex-wrap gap-2 mt-3">
+              <button
+                type="button"
+                class="vt-btn vt-btn--ghost vt-btn--sm flex-[1_1_128px] min-w-[44px] whitespace-normal [overflow-wrap:anywhere]"
+                @click="copy(i)"
+              >
                 <VtIcon name="copy" :size="14" />
                 {{ copiedId === i.id ? 'Скопировано' : 'Копировать' }}
               </button>
               <button
                 type="button"
-                class="vt-btn vt-btn--primary vt-btn--sm flex-1"
+                class="vt-btn vt-btn--primary vt-btn--sm flex-[1_1_128px] min-w-[44px] whitespace-normal [overflow-wrap:anywhere]"
                 @click="share(i)"
               >
                 <VtIcon name="tg" :size="14" /> Поделиться
               </button>
               <button
                 type="button"
-                class="vt-btn vt-btn--danger vt-btn--sm"
+                class="vt-btn vt-btn--danger vt-btn--sm min-w-[44px]"
                 :disabled="revoking === i.id"
                 aria-label="Отозвать ссылку"
                 @click="revoke(i)"

@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import type { InvitePreview } from '@volley-time/core'
+
 import { ROLE_LABELS, displayName, label } from '~/utils/labels'
+import { inviteScreenState } from '~/utils/player-onboarding'
+import { createPlayerRequestGuard } from '~/utils/player-request-guard'
 definePageMeta({ layout: 'miniapp', middleware: ['auth'] })
 
 const route = useRoute()
@@ -9,22 +12,22 @@ const token = computed(() => String(route.params.token))
 const {
   data,
   error: loadError,
+  pending: loading,
   refresh,
-} = await useFetch<InvitePreview>(() => `/api/invites/${encodeURIComponent(token.value)}`)
+} = await useFetch<InvitePreview>(() => `/api/invites/${encodeURIComponent(token.value)}`, {
+  key: () => `player-invite-${token.value}`,
+})
 const preview = computed(() => data.value)
 const org = computed(() => preview.value?.organization ?? null)
-const mine = computed(() => preview.value?.myMembership ?? null)
 
-type ScreenState = 'invite' | 'member' | 'applied' | 'invalid' | 'blocked'
-const joined = ref<'active' | 'pending' | null>(null)
-const state = computed<ScreenState>(() => {
-  if (joined.value === 'pending') return 'applied'
-  if (mine.value?.status === 'active') return 'member'
-  if (mine.value?.status === 'pending') return 'applied'
-  if (mine.value?.status === 'blocked') return 'blocked'
-  if (!preview.value || preview.value.status !== 'valid') return 'invalid'
-  return 'invite'
-})
+const joined = ref<{ token: string; status: 'active' | 'pending' } | null>(null)
+const state = computed(() =>
+  inviteScreenState(
+    token.value,
+    loading.value || loadError.value ? null : (preview.value ?? null),
+    joined.value,
+  ),
+)
 
 const INVALID_REASON: Record<string, string> = {
   revoked: 'Организатор отозвал эту ссылку.',
@@ -36,29 +39,47 @@ const INVALID_REASON: Record<string, string> = {
 const joining = ref(false)
 const joinError = ref('')
 const { haptic, isTelegram, useMainButton } = useTelegram()
+const joinGuard = createPlayerRequestGuard(() => token.value)
+
+watch(
+  token,
+  () => {
+    joinGuard.invalidate()
+    joined.value = null
+    joining.value = false
+    joinError.value = ''
+  },
+  { flush: 'sync' },
+)
 
 async function join() {
+  if (joining.value || state.value !== 'invite' || !org.value) return
+  const requestedToken = token.value
+  const requestedOrgId = org.value.id
+  const request = joinGuard.begin()
   joining.value = true
   joinError.value = ''
   try {
     const res = await $fetch<{ member: { status: 'active' | 'pending' } }>(
-      `/api/invites/${encodeURIComponent(token.value)}/redeem`,
+      `/api/invites/${encodeURIComponent(requestedToken)}/redeem`,
       { method: 'POST' },
     )
+    if (!request.isCurrent()) return
     haptic('success')
-    if (res.member.status === 'active' && org.value) {
-      await navigateTo(`/m/orgs/${org.value.id}`)
+    if (res.member.status === 'active') {
+      await navigateTo(`/m/orgs/${requestedOrgId}`)
     } else {
-      joined.value = 'pending'
+      joined.value = { token: requestedToken, status: 'pending' }
     }
   } catch (e) {
+    if (!request.isCurrent()) return
     haptic('error')
     const code = apiErrorCode(e)
     if (code === 'member.already_exists') await refresh()
     else if (code?.startsWith('invite.')) await refresh()
     else joinError.value = apiErrorMessage(e, 'Не удалось вступить. Попробуйте ещё раз.')
   } finally {
-    joining.value = false
+    if (request.isCurrent()) joining.value = false
   }
 }
 
@@ -75,7 +96,7 @@ function syncMainButton() {
   )
 }
 onMounted(syncMainButton)
-watch(state, syncMainButton)
+watch([state, () => preview.value?.requiresApproval, isTelegram], syncMainButton)
 onUnmounted(() => mainButtonCleanup?.())
 
 const extraMembers = computed(() =>
@@ -96,12 +117,13 @@ const membersLabel = computed(() => {
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col px-5 py-6">
+  <main class="min-h-screen flex flex-col px-5 py-6">
     <div class="text-center pb-4">
       <span class="vt-chip"><VtIcon name="tg" :size="11" /> Приглашение</span>
     </div>
 
-    <ErrorState v-if="loadError" message="Не удалось открыть приглашение" @retry="refresh()" />
+    <SkeletonList v-if="loading" :count="2" />
+    <ErrorState v-else-if="loadError" message="Не удалось открыть приглашение" @retry="refresh()" />
 
     <template v-else-if="state === 'invalid' || state === 'blocked'">
       <EmptyState
@@ -110,7 +132,7 @@ const membersLabel = computed(() => {
         :description="
           state === 'blocked'
             ? 'Организатор ограничил ваш доступ. Свяжитесь с ним, если это ошибка.'
-            : INVALID_REASON[preview?.status ?? 'not_found']
+            : (INVALID_REASON[preview?.status ?? 'not_found'] ?? 'Данные приглашения недоступны.')
         "
       >
         <template #action>
@@ -186,8 +208,8 @@ const membersLabel = computed(() => {
           <template v-if="preview?.requiresApproval">
             В группу вступают после одобрения организатором.
           </template>
-          Вступая, вы сможете записываться на тренировки, видеть состав и оплачивать участие
-          абонементом или организатору.
+          Вступая, вы сможете записываться на тренировки, видеть состав и выбирать доступный способ
+          оплаты.
           <template v-if="preview?.roleToAssign && preview.roleToAssign !== 'player'">
             Роль в группе: {{ label(ROLE_LABELS, preview.roleToAssign).toLowerCase() }}.
           </template>
@@ -195,6 +217,7 @@ const membersLabel = computed(() => {
         <p v-if="joinError" class="mt-3 text-sm text-vt-rose-ink" role="alert">{{ joinError }}</p>
         <div class="mt-auto pt-5 flex flex-col gap-2">
           <button
+            v-if="!isTelegram"
             type="button"
             class="vt-btn vt-btn--primary vt-btn--lg vt-btn--full"
             :disabled="joining"
@@ -212,5 +235,5 @@ const membersLabel = computed(() => {
         </div>
       </template>
     </template>
-  </div>
+  </main>
 </template>

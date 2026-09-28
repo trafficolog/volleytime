@@ -5,7 +5,10 @@ dist
 .turbo
 .pnpm-store
 coverage
+output/playwright
 pnpm-lock.yaml
 legacy
 docs/operations/reviews/*.html
 packages/db/migrations/meta
+.playwright-cli/
+.superpowers/sdd/

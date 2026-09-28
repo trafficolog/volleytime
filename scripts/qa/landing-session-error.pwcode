@@ -1,0 +1,19 @@
+// Read-only local reproduction for the final-review resilience observation.
+async (page) => {
+  const baseUrl = page.url().match(/^https?:\/\/[^/]+/)?.[0]
+  if (!baseUrl?.startsWith('http://127.0.0.1:')) throw new Error('Local QA only')
+  const errors = []
+  const onError = (error) => errors.push(error.message)
+  page.on('pageerror', onError)
+  await page.route('**/api/auth/get-session', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ message: 'Local QA session unavailable' }) }))
+  try {
+    await page.goto(baseUrl)
+    await page.waitForEvent('pageerror', { timeout: 5000 }).catch(() => null)
+    const href = await page.locator('.landing__header-cta').getAttribute('href')
+    return { errors, href, title: await page.title() }
+  } finally {
+    page.off('pageerror', onError)
+    await page.unrouteAll({ behavior: 'ignoreErrors' })
+    await page.goto(baseUrl)
+  }
+}

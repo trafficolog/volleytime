@@ -22,7 +22,7 @@ onUnmounted(() => cleanup?.())
       <NuxtLink
         v-if="back && !useNativeBack"
         :to="back"
-        class="vt-btn vt-btn--ghost vt-btn--sm !px-2"
+        class="vt-btn vt-btn--ghost vt-btn--sm vt-hit-44 !px-2"
         aria-label="Назад"
       >
         <VtIcon name="chevron-l" :size="16" />
