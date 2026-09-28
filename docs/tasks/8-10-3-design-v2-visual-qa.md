@@ -2,12 +2,12 @@
 id: '8.10.3'
 phase: '8'
 epic: '8.10'
-status: todo
+status: in_progress
 sync_state: synced
-last_reviewed: 2026-09-24
-status_note: ''
+last_reviewed: 2026-09-28
+status_note: 'Сквозная QA открыта; локальный фикс приглашений 8.10.5 проверен отдельно, его PR/CI/merge и интеграция Mini App ещё не завершены. Это не общий release acceptance.'
 roles: [QA, FE]
-depends_on: ['3.11.3', '8.10.1', '8.10.2', '5.15.1', '6.10.1']
+depends_on: ['3.11.3', '8.10.1', '8.10.2', '5.15.1', '6.10.1', '8.10.5']
 estimated_hours: '6-10'
 tags: [qa, mvp, redesign]
 ---
@@ -35,6 +35,10 @@ tags: [qa, mvp, redesign]
 - Пять gates зелёные; статус release readiness обновлён по фактам.
 
 ## Подсказки
+
+### Локальная регрессия приглашений 2026-09-28
+
+При post-main organizer QA обнаружен overflow действий `/m/orgs/30/invite`; исправление оформлено отдельной [8.10.5](./8-10-5-miniapp-invite-actions-reflow.md). Его итоговый browser regression прошёл 12/12 (client width 320/390/160, light/dark, оба состояния копирования), клавиатурный Tab copy → share → revoke и цель отзыва 44×44. PNG 320/160 light/dark просмотрены, пять gates и scoped review без блокирующих замечаний. Эти результаты относятся к строке действий приглашения, не закрывают остальные строки матрицы, native zoom или Telegram-host. PR/CI/merge фиксируются в карточке 8.10.5 отдельно.
 
 - Скриншоты будущих фаз не входят в MVP-матрицу.
 
