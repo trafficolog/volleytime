@@ -5,7 +5,7 @@ epic: '8.10'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-28
-status_note: 'Все implementation-зависимости, включая 3.11.8 (PR #59/#60), приняты в main. Общая матрица создана; Chrome player 41 fixture checks + 28 real-API cases и шесть entry/error states повторены. Остальная совместная QA, release smoke и post-deploy Telegram/pilot acceptance открыты; prod/VPS v0.1.5 не менялись.'
+status_note: 'Исходные implementation-зависимости приняты в main. Player 41 fixture + 28 real-API cases, шесть access/error states; owner 48 Mini App + 44 desktop geometry cases и клавиатура повторены. Прямой auth/desktop теряет референсные шрифты без Google Fonts: отдельная 3.11.9 ещё не исправлена. Общая visual QA/release gates и post-deploy Telegram/pilot acceptance открыты; prod/VPS не менялись.'
 roles: [QA, FE]
 depends_on:
   ['3.11.3', '3.11.4', '3.11.8', '8.10.1', '8.10.2', '8.10.4', '8.10.5', '5.15.1', '6.10.1']
@@ -36,6 +36,8 @@ tags: [qa, mvp, redesign]
 Свежий Chrome на built preview `3168`: landing 503/FAQ/CTA и regression smoke прошли; player fidelity 41/41, group-race, network/retry, switcher restricted-group routes и шесть auth/access error states прошли с HTTP fixtures. Штатный email OTP `qa8101-player@example.test`, отдельная QA-БД `volleytime_qa_8101_selfcheck`, настоящий API без interception: 7 экранов × 320/390 × light/dark = 28/28 (overflow, низ страницы/dock, видимые цели ≥44×44). Выборочные PNG Home/Event/Subscriptions/Profile просмотрены. Это не новый полный денежный сценарий, native browser 200% или Telegram themeChanged/host acceptance. Ранее подтверждённые пользователем landing/organizer Home/desktop finance 200% и screen-reader evidence не запрашиваются повторно.
 
 ## Что должно быть сделано
+
+Дополнительный Chrome owner-проход: 12 Mini App routes × 320/390 × light/dark и 11 desktop routes × 1280/1440/720/390 дали 92 geometry cases без overflow/pageerrors. Штатный owner OTP показал выбор двух организаций. Cashbox real GET loading→empty сохраняет баланс/фокус; Menu/expense focus trap/Escape/restore и event tabs ArrowRight/Home прошли без POST. При визуальном просмотре подтверждён отдельный дефект [3.11.9](./3-11-9-global-local-reference-fonts.md): auth/desktop direct entry зависит от внешнего Google CSS и при его недоступности даёт FontFaceSet=[]/fallback. Сквозная visual acceptance не закрывается geometry pass. Карточка/план созданы до исправления; общий QA остаётся in_progress. Подробные routes, состояния и ограничения — в [интегрированной матрице](../operations/qa/2026-09-28-r06-integrated-matrix.md).
 
 1. Собрать матрицу «референс → route → state → screenshot/test» для публичного MVP-лендинга, auth, Mini App игрока/организатора и desktop-организатора.
 2. Пройти визуальный QA 320/390/1280/1440 px, светлую и Telegram-тёмную тему, 200% zoom, клавиатуру и состояния ошибок; на лендинге также проверить CTA/якоря/FAQ, reduced motion и отсутствие обещаний будущих функций.

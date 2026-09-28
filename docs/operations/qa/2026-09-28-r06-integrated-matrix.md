@@ -1,6 +1,6 @@
 # R0.6 / 8.10.3 — интегрированная матрица QA
 
-Статус: **частичный сквозной проход**, не готовность deploy и не окончательная приёмка R0.6. Ветка `trafficolog/test/8.10.3-r06-integrated-qa` от main `060ecdf27d65cbef88e077d620400c49f5b89b73`. Все implementation-зависимости 8.10.3 done; общий QA должен проверять их совместную работу.
+Статус: **частичный сквозной проход**, не готовность deploy и не окончательная приёмка R0.6. Ветка `trafficolog/test/8.10.3-r06-integrated-qa` от main `060ecdf27d65cbef88e077d620400c49f5b89b73`. Первоначальные implementation-зависимости 8.10.3 done; текущая QA обнаружила отдельный шрифтовой дефект [3.11.9](../../tasks/3-11-9-global-local-reference-fonts.md), который ещё не исправлен.
 
 ## Источники и окружение
 
@@ -46,6 +46,31 @@
 
 ## Свежие результаты 2026-09-28
 
+### Дополнительный owner / desktop проход
+
+Следующая таблица уточняет **O**-ячейки исходного checkpoint выше: геометрические и read-only состояния уже повторены; операции прежней task QA остаются **P**, а не выданы за новые POST. Полная auth/desktop visual acceptance остаётся **O** до 3.11.9.
+
+| Поверхность / routes                                                                                 | Свежий результат                                                                                                                                                                                                                             | Что не закрывает                                                                                                                |
+| ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Organizer Home, events, manage, payments, cashbox, new/edit, members, plans, settings, audit, invite | **F** 12 routes × 320/390 × light/dark = 48: overflow/видимость main/alerts/tabindex/dock-bottom; real API после owner OTP                                                                                                                   | Не повтор всех мутаций, не native200 каждого экрана, не Telegram-host                                                           |
+| Organizer event manage                                                                               | **F** реальные пустые roster/payments panels, click tabs; ArrowRight/Home дают selected/focused/roving tabindex0                                                                                                                             | Confirm/reject/cancel и delayed Telegram confirm остаются **P/T**, не выполнялись заново                                        |
+| Organizer cashbox / menu / expense sheet                                                             | **F** удержанный real GET expense: skeleton, focus `ledger-type`, сохранённый 115,00 BYN, без ложной пустоты; после ответа корректный empty. Menu Enter/Shift+Tab/Escape, focus/inert restore; expense `lg-cat`/Escape/restore; mutations=[] | Нет новых income/expense POST или server money acceptance                                                                       |
+| Organizer invite/settings/plans/audit                                                                | **F** реальные read-only формы/список плана/журнал/empty invite; светлая/тёмная матрица                                                                                                                                                      | Copy/share/revoke и toggle/create/archive остаются **P**, настоящая доставка **T**                                              |
+| Desktop Home, events/detail/new/edit, members, plans, settings, invite, payments, cashbox            | **F** 11 routes × 1280/1440/720/390 = 44 geometry cases без overflow/alerts/pageerrors                                                                                                                                                       | Google заблокирован: fallback-шрифт. Это **не** визуальная приёмка; нужна повторная матрица с реально loaded faces после 3.11.9 |
+| Auth owner OTP / выбор группы                                                                        | **F** normal request/verify → две организации → действующий desktop/Mini App owner                                                                                                                                                           | Responsive/error state матрица остаётся **O** до исправления font delivery                                                      |
+
+`output/playwright/r06-owner-matrix.pwcode` завершился `cases=92, failures=[], pageErrors=[]` на текущем runtime. API interception отсутствует, кроме внешних Google/Telegram ресурсов; browser DB и accounts синтетические. Owner `qa8101-owner@example.test` вошёл через штатную форму, не SQL/session bypass. До screenshots сначала `document.fonts.ready`; однако пустой FontFaceSet тоже разрешает ready — поэтому геометрический pass не используется как font pass.
+
+PNG Home320/390, manage320/390 dark, cashbox dark, new320, invite320, plans390 dark, settings320, members390 dark, audit320 просмотрены; отдельно live HTML через read-only reference server `3169` (организатор Home/event). На 390 сохраняется hero слева и две плитки справа с согласованной заменой credits на ближайшее событие; на 320 действует ранее реализованный reflow. Длинные реальные названия переносятся, dock не блокирует достижимый низ страницы. Desktop Home1440/cashbox1280 просмотрены, но выявленная подмена шрифта мешает их visual acceptance.
+
+Первый dark screenshot был снят в середине 150ms CSS-перехода: временно светлая ghost-кнопка не является дефектом палитры. Диагностика после settling показала `background rgb(26,27,32)`, text `rgb(242,242,245)`, token bone `#1a1b20`. Harness дополнен ожиданием конечных `CSSTransition.finished`; повтор всей матрицы снова дал `cases=92, failures=[], pageErrors=[]`. Settled PNG cashbox/members/plans/manage 390 dark дополнительно просмотрены, ghost-кнопки используют тёмную поверхность и светлый текст. Palette evidence относится к этим settled кадрам, не начальному промежуточному PNG.
+
+Для manage дополнительно снят `r06-manage-dark-stable.png` с `animations: 'disabled'` (конечные переходы fast-forward только для статичного QA-кадра) и измерена сама ссылка «Изменить»: background `rgb(26,27,32)`, color `rgb(242,242,245)`. Она также использует правильную settled палитру. Это проверка состояния, не приёмка настоящей анимации/Telegram themeChanged.
+
+**3.11.9 — подтверждённый дефект:** прямой auth/desktop с заблокированным Google CSS даёт `document.fonts=[]`, хотя computed family содержит Oswald. Снятие блокировки на desktop даёт реальные loaded Golos/Oswald. Local `landing-fonts.css` подключён только в landing/Mini App layouts, не глобально. Карточка и scoped-план созданы до production-кода; изменения шрифтов/дизайна не выполнялись, исправление ждёт согласования. Общий QA и deploy остаются открыты.
+
+### Предыдущий player / landing проход
+
 Команды — Playwright CLI Chrome, `-s=landing318 run-code --filename scripts/qa/<script>.pwcode`:
 
 1. `landing-session-error` и `landing-post-main`: pass; подробно в [3.11.8 QA](2026-09-28-landing-session-fallback.md).
@@ -59,7 +84,7 @@
 
 ## Открытые пункты и порядок
 
-1. Завершить **O**-ячейки auth/organizer/desktop на этой общей сборке, сравнить применимые состояния с живыми HTML и screenshot mappings; при дефекте сначала отдельная SDD-карточка и RED/GREEN.
+1. Выполнить согласованный scoped-план **3.11.9** с RED→GREEN, пятью gates/review/CI; затем повторить auth/desktop visual матрицу с фактически loaded Oswald/Golos. Organizer read-only 48 cases и клавиатура повторены, остальные операции отделены от прежней **P** QA. Оставшиеся **O**-ячейки ошибок/invite/entry и release smoke закрываются по факту, не по общему geometry count.
 2. Свести narrow/long-text/error/loading/keyboard и manual zoom evidence по фактическому охвату. Ранее присланные 200% landing, organizer Home, desktop finance и сообщение об экранном дикторе не запрашивать повторно. Не выдавать viewport resize или эти отдельные снимки за native200 каждого маршрута либо Telegram/WebView.
 3. Финальные пять gates и локальный release smoke/review/точный CI после полного доступного QA. Уже пройдены gates 3.11.8 (124 files/722 tests), CI PR #59/#60 и main; это не заменяет итоговую сквозную приёмку.
 4. Только затем controlled main→prod fast-forward и Actions bundle deploy, backup до migrations, точный SHA/health/runtime smoke по runbook. **Prod и VPS сейчас не менялись**, origin/prod `67bbfe89acaac04992b8128d45cb1b40f8acc75c` / v0.1.5.
