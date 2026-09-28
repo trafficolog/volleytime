@@ -2,10 +2,10 @@
 id: '3.11.4'
 phase: '3'
 epic: '3.11'
-status: in_progress
+status: done
 sync_state: synced
 last_reviewed: 2026-09-28
-status_note: 'Интегрирован main 38c9b05; пять gates, Chrome browser smoke и independent review без блокеров пройдены. Native 200% и реальная фоновая вкладка stop/resume подтверждены пользователем. Minor session-error logging выделен в 3.11.8 перед общим R0.6 gate. Ожидается новый точный CI/merge PR #43; prod/VPS не менялись.'
+status_note: 'Принята в main через PR #43 (1fa662f): пять gates, Chrome smoke, independent review без блокеров и CI 36467608712 success на e6bfaf3. Native 200% и реальный фон stop/resume подтверждены пользователем. Отдельная 3.11.8 и общий R0.6/Telegram gate остаются открытыми; prod/VPS не менялись.'
 roles: [FE, QA]
 depends_on: ['3.11.2']
 estimated_hours: '12-18'
@@ -59,6 +59,8 @@ Telegram QA до выпуска полного кандидата.
 - Нативный `<details>/<summary>` подходит для FAQ; canvas и декоративный макет скрываются от accessibility tree, а смысловые подписи остаются обычным HTML.
 
 ## TDD / QA журнал
+
+- 2026-09-28: [CI 36467608712](https://github.com/trafficolog/volleytime/actions/runs/36467608712) прошёл все три job на точном head `e6bfaf3c13ea04f00cea417c68785f1ab07ee8ac`. [PR #43](https://github.com/trafficolog/volleytime/pull/43) принят merge-коммитом `1fa662fbe8159859fa04d9a7f6ad49c1e6d5db50`; полное дерево merge идентично проверенному head (`git diff e6bfaf3 origin/main` пуст). Task acceptance закрыта отдельно от R0.6 release readiness: 3.11.8, общий 8.10.3 и реальный Telegram-host QA остаются открытыми, `prod`/VPS не менялись. Исторические ожидания CI/merge и ручных проверок ниже не являются текущими blockers задачи.
 
 - 2026-09-28: объединённое дерево с `main` `38c9b05` прошло пять gates (123 files / 717 tests на отдельной QA-БД, lint 0 errors / 12 baseline warnings, typecheck 6/6, build 2/2), Chrome matrix 320/390/768/1280/1440, auth CTA fixture, reduced motion, canvas teardown и no-JS SSR/FAQ. Просмотрены итоговые снимки 320/1440. Независимое review не нашло Critical/Important; Minor session-error logging оформлен отдельно в 3.11.8, не является блокером main-интеграции лендинга. [Подробный отчёт](../operations/qa/2026-09-28-landing-post-main.md). Новый GitHub CI и merge ещё не заявляются.
 

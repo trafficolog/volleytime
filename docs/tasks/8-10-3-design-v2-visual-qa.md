@@ -5,9 +5,10 @@ epic: '8.10'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-28
-status_note: 'Player 8.10.1 и organizer 8.10.2 с review-fix 8.10.4/8.10.5 приняты в main. Landing 3.11.4/3.11.5/3.11.7 интегрируется; совместная матрица R0.6 и Telegram-host acceptance открыты.'
+status_note: 'Player/organizer Mini App и landing 3.11.4 со stacked fixes приняты в main. Отдельная resilience-задача 3.11.8, совместная матрица R0.6 и Telegram-host acceptance открыты. Landing native 200%/фон stop-resume подтверждены пользователем и повторно не запрашиваются.'
 roles: [QA, FE]
-depends_on: ['3.11.3', '3.11.4', '8.10.1', '8.10.2', '8.10.4', '8.10.5', '5.15.1', '6.10.1']
+depends_on:
+  ['3.11.3', '3.11.4', '3.11.8', '8.10.1', '8.10.2', '8.10.4', '8.10.5', '5.15.1', '6.10.1']
 estimated_hours: '6-10'
 tags: [qa, mvp, redesign]
 ---
@@ -19,6 +20,8 @@ tags: [qa, mvp, redesign]
 Подтвердить полноту MVP-экранов и состояний относительно архива v2 и отсутствие регрессий.
 
 ## Контекст
+
+2026-09-28: landing 3.11.4 принят в main через PR #43 (`1fa662f`), CI `36467608712` success на `e6bfaf3`, дерево merge идентично проверенному. [Повторная landing QA](../operations/qa/2026-09-28-landing-post-main.md) фиксирует Chrome matrix, no-JS SSR/FAQ, motion/reduced-motion/teardown и пользовательский zoom 200%/реальный фон stop-resume; эти ручные пункты не требуют повторного запроса. Minor session failure fallback выделен в 3.11.8 до общего R0.6 gate. Эти свидетельства не закрывают всю сквозную матрицу и реальный Telegram-host QA.
 
 Частичная [organizer QA 2026-09-28](../operations/qa/2026-09-28-organizer-miniapp-post-main.md) не означает завершения зависимостей/общей приёмки. Фикс 8.10.5 принят в main через PR #53; его локальная интеграция прошла пять gates, независимое whole-branch review без замечаний, 28 основных browser cases и 12 invite cases. Home native 200% подтверждён пользователем; остальные native-zoom и совместная player/organizer/auth/desktop матрица не считаются закрытыми этим результатом.
 

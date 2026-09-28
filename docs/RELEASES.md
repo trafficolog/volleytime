@@ -225,6 +225,8 @@ Canonical R0 snapshot не изменился: **132 done / 7 in_progress из 1
 
 2026-09-28 **8.10.1** Mini App игрока принят в main через [PR #47](https://github.com/trafficolog/volleytime/pull/47), merge `f5a9d41` после пяти локальных gates, independent review без оставшихся замечаний, локальной browser/real-API QA и [CI 36452709192](https://github.com/trafficolog/volleytime/actions/runs/36452709192) success на `ae678dd`. Историческая строка выше о draft PR #47 относится к состоянию до merge. Лендинг PR #43, общий **8.10.3** и реальный Telegram-host QA полного кандидата ещё открыты; `prod`/VPS не менялись. Для лендинга native 200% zoom и настоящая фоновая вкладка stop/resume подтверждены пользователем; интеграция с main прошла локальные пять gates и Chrome QA. Minor resilience-находка оформлена отдельно как **3.11.8** (управляемый fallback ошибки сессии), до итогового R0.6 gate, без расширения функций MVP.
 
+2026-09-28 **3.11.4** лендинг принят в main через [PR #43](https://github.com/trafficolog/volleytime/pull/43), merge `1fa662f`: пять локальных gates (123 files / 717 tests), Chrome QA и independent review без блокеров; [CI 36467608712](https://github.com/trafficolog/volleytime/actions/runs/36467608712) success на `e6bfaf3`, дерево merge идентично проверенному. Предыдущая строка о незавершённом PR #43 историческая. Отдельная **3.11.8** и общий **8.10.3** ещё открыты; release readiness и production этим merge не объявляются.
+
 ---
 
 ## R1 — Automation & Reliability `v0.2.0`

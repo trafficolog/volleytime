@@ -33,4 +33,4 @@ Final integrated-tree review: Critical/Important отсутствуют; landing
 
 ## Границы
 
-Точный новый GitHub CI/merge фиксируется после публикации этого дерева. Общая 8.10.3 ещё открыта. `prod`/VPS остаются v0.1.5; deploy/backup/health и ручной Telegram/two-account QA полного кандидата этой локальной QA не доказаны.
+[CI 36467608712](https://github.com/trafficolog/volleytime/actions/runs/36467608712) прошёл все три job на `e6bfaf3c13ea04f00cea417c68785f1ab07ee8ac`. [PR #43](https://github.com/trafficolog/volleytime/pull/43) принят в main как `1fa662fbe8159859fa04d9a7f6ad49c1e6d5db50`; полное дерево merge идентично проверенному head. Общая 8.10.3 и отдельная 3.11.8 ещё открыты. `prod`/VPS остаются v0.1.5; deploy/backup/health и ручной Telegram/two-account QA полного кандидата этой локальной QA не доказаны.
