@@ -5,7 +5,7 @@ epic: '8.10'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-28
-status_note: 'Ветка PR #47 объединена с текущим main; повторные локальные gates, Edge browser fixtures и CI зелёные. Native 200% zoom и реальный Telegram-host QA остаются открытыми; не считать задачу или R0.6 принятыми.'
+status_note: 'Повторная интеграция с main f4c0da2 после принятия организатора: сохранить обе роли в общих Home/layout/events/Sheet и повторить gates, review и browser QA. PR #47 остаётся draft; общий 8.10.3 и Telegram-host отдельно открыты.'
 roles: [FE, QA]
 depends_on: ['3.11.2', '5.13.21']
 estimated_hours: '12-18'
@@ -13,6 +13,12 @@ tags: [miniapp, player, mvp, redesign]
 ---
 
 # Task 8.10.1: Mini App игрока v2
+
+## Повторная интеграция с организатором, 2026-09-28
+
+В main приняты 8.10.2/8.10.4 (PR #55/#56), актуальный base `f4c0da2`. Разрешить конфликты общих Home, списка событий, layout и Sheet без выбора целиком одной стороны: сохранить player composition/profile/conditional subscriptions/group switcher и manager composition/five-item menu/access-state. Общий Sheet сохраняет обе проверенные клавиатурные гарантии: фокус видимых доступных controls, Tab/Escape, inert/restore и cleanup. Не менять API или доменные правила ради интеграции.
+
+Проверки интеграции: mounted сценарии обеих ролей и устаревшего ответа группы, shared Sheet focus/lifecycle, существующие player state/race tests, пять gates на отдельной PostgreSQL-БД и свежие player browser scripts на собранном коде. Добавленный integration regression сначала выполняется против принятого main (без отсутствующего player поведения) как RED; затем против объединённого дерева как GREEN. Native-zoom полной совместной матрицы остаётся 8.10.3, реальный Telegram — после контролируемой выкладки полного кандидата согласно решению пользователя 2026-09-27. Никакого продвижения prod/VPS этим task merge.
 
 ## Сверка с текущим main, 2026-09-28
 
