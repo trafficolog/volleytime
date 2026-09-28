@@ -20,7 +20,11 @@ describe('payment history (integration)', () => {
     userId = user!.id
     orgId = (await organizationService.create({ userId }, { name: 'History' })).id
   })
-  afterAll(() => closeDb())
+  afterAll(async () => {
+    await db.delete(organizations)
+    await db.delete(users)
+    await closeDb()
+  })
 
   it('includes each status, filters it, isolates tenants and exposes only public fields', async () => {
     for (const status of ['pending', 'succeeded', 'cancelled', 'refunded'] as const) {
