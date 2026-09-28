@@ -37,11 +37,7 @@ interface EventOption {
 }
 const route = useRoute()
 const orgId = computed(() => Number(route.params.orgId))
-const timezone = ref<string | null>(null)
-const timezoneLoading = ref(true)
-const timezoneError = ref('')
 const formTimezone = ref<string | null>(null)
-const tz = computed(() => timezone.value ?? DEFAULT_TIMEZONE)
 const request = useRequestFetch()
 const balance = ref<LedgerBalance | null>(null)
 const entries = ref<Entry[]>([])
@@ -53,6 +49,9 @@ const kind = ref<'income' | 'expense' | null>(null)
 const events = ref<EventOption[]>([])
 const eventsLoading = ref(false)
 const eventsError = ref('')
+const eventFilter = ref<'upcoming' | 'past'>('upcoming')
+const eventsOffset = ref(0)
+const eventsHaveMore = ref(false)
 const saving = ref(false)
 const formError = ref('')
 const amountError = ref('')
@@ -72,8 +71,7 @@ const categories = computed(() =>
 let active = true,
   generation = 0,
   loadToken = 0,
-  eventToken = 0,
-  timezoneToken = 0
+  eventToken = 0
 function live(org: number, path: string, epoch: number) {
   return active && orgId.value === org && route.path === path && generation === epoch
 }
@@ -88,6 +86,13 @@ function message(error: unknown, fallback: string) {
   }
   return apiErrorMessage(error, fallback)
 }
+const {
+  timezone,
+  loading: timezoneLoading,
+  error: timezoneError,
+  load: fetchTimezone,
+} = useDesktopFinanceTimezone(orgId, (error) => message(error, ''))
+const tz = computed(() => timezone.value ?? DEFAULT_TIMEZONE)
 async function load() {
   const org = orgId.value,
     path = route.path,
@@ -112,18 +117,30 @@ async function load() {
     if (live(org, path, epoch) && token === loadToken) loading.value = false
   }
 }
-async function loadEvents() {
+async function loadEvents(more = false) {
+  if (!kind.value || (more && (eventsLoading.value || !eventsHaveMore.value))) return
   const org = orgId.value,
     path = route.path,
     epoch = generation,
-    token = ++eventToken
+    token = ++eventToken,
+    selectedFilter = eventFilter.value,
+    offset = more ? eventsOffset.value : 0
+  if (!more) {
+    events.value = []
+    eventsOffset.value = 0
+    eventsHaveMore.value = false
+  }
   eventsLoading.value = true
   eventsError.value = ''
   try {
     const result = await request<{ events: EventOption[] }>(`/api/organizations/${org}/events`, {
-      query: { filter: 'all', limit: 30 },
+      query: { filter: selectedFilter, limit: 30, offset },
     })
-    if (live(org, path, epoch) && token === eventToken) events.value = result.events
+    if (live(org, path, epoch) && token === eventToken && kind.value) {
+      events.value = more ? [...events.value, ...result.events] : result.events
+      eventsOffset.value = offset + result.events.length
+      eventsHaveMore.value = result.events.length === 30
+    }
   } catch (error) {
     if (live(org, path, epoch) && token === eventToken)
       eventsError.value = message(
@@ -135,32 +152,9 @@ async function loadEvents() {
   }
 }
 async function loadTimezone() {
-  const org = orgId.value,
-    path = route.path,
-    epoch = generation,
-    token = ++timezoneToken
-  timezone.value = null
-  timezoneLoading.value = true
-  timezoneError.value = ''
   kind.value = null
   formTimezone.value = null
-  try {
-    const result = await request<{ organization: { defaultTimezone: string } }>(
-      `/api/organizations/${org}`,
-    )
-    const zone = result.organization.defaultTimezone
-    if (!zone) throw new Error('Missing organization timezone')
-    new Intl.DateTimeFormat('ru-RU', { timeZone: zone }).format(new Date())
-    if (live(org, path, epoch) && token === timezoneToken) timezone.value = zone
-  } catch (error) {
-    if (live(org, path, epoch) && token === timezoneToken) {
-      message(error, '')
-      timezoneError.value =
-        'Не удалось загрузить часовой пояс группы. Повторите попытку перед добавлением операции.'
-    }
-  } finally {
-    if (live(org, path, epoch) && token === timezoneToken) timezoneLoading.value = false
-  }
+  await fetchTimezone()
 }
 function openForm(next: 'income' | 'expense') {
   if (saving.value || timezoneLoading.value) return
@@ -177,7 +171,8 @@ function openForm(next: 'income' | 'expense') {
     description: '',
     eventId: '',
   })
-  void loadEvents()
+  if (eventFilter.value !== 'upcoming') eventFilter.value = 'upcoming'
+  else void loadEvents()
 }
 async function save() {
   const org = orgId.value,
@@ -237,6 +232,10 @@ async function save() {
 watch(filter, () => {
   void load()
 })
+watch(eventFilter, () => {
+  form.eventId = ''
+  if (kind.value) void loadEvents()
+})
 watch(
   () => route.path,
   () => {
@@ -248,6 +247,9 @@ watch(
     balance.value = null
     entries.value = []
     events.value = []
+    eventsOffset.value = 0
+    eventsHaveMore.value = false
+    eventFilter.value = 'upcoming'
     kind.value = null
     saving.value = false
     loading.value = false
@@ -293,7 +295,7 @@ await load()
     <header class="vt-desktop-page-heading">
       <div>
         <p class="vt-desktop-eyebrow">Финансы группы</p>
-        <h1>Касса</h1>
+        <h1 tabindex="-1">Касса</h1>
         <p class="text-sm text-vt-mute">Баланс и последние движения денег</p>
       </div>
       <div v-if="balance && !accessStatus" class="vt-desktop-cashbox__actions">
@@ -395,6 +397,11 @@ await load()
                 type="datetime-local"
                 class="vt-field" /></label
             ><label
+              >Период событий<select v-model="eventFilter" class="vt-field">
+                <option value="upcoming">Предстоящие</option>
+                <option value="past">Прошедшие</option>
+              </select></label
+            ><label
               >Событие (необязательно)<select
                 v-model="form.eventId"
                 class="vt-field"
@@ -415,7 +422,20 @@ await load()
             </label>
           </fieldset>
           <p v-if="eventsLoading" role="status">Загружаем события…</p>
-          <ErrorState v-if="eventsError" :message="eventsError" @retry="loadEvents" />
+          <ErrorState
+            v-if="eventsError"
+            :message="eventsError"
+            @retry="loadEvents(events.length > 0)"
+          />
+          <button
+            v-if="eventsHaveMore"
+            type="button"
+            class="vt-btn vt-btn--ghost"
+            :disabled="eventsLoading || saving"
+            @click="loadEvents(true)"
+          >
+            {{ eventsLoading ? 'Загружаем…' : 'Показать ещё события' }}
+          </button>
           <p v-if="formError" role="alert" class="text-vt-rose-ink">{{ formError }}</p>
           <div class="vt-desktop-cashbox__actions">
             <button

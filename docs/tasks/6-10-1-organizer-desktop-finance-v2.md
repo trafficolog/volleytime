@@ -5,7 +5,7 @@ epic: '6.10'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-28
-status_note: 'API history, desktop payments/cashbox implemented; local five gates and financial smoke pass. Independent whole-branch review, CI and actual 200% zoom/manual QA remain; acceptance is not complete.'
+status_note: 'API history and desktop payments/cashbox implemented; final review fixes and local five gates pass. Focused rereview, CI, actual 200% zoom and manual QA remain; acceptance is not complete.'
 roles: [BE, FE, QA]
 depends_on: ['5.15.1']
 estimated_hours: '12-16'
@@ -45,6 +45,10 @@ Shell поставляет 5.15.1. Денежные переходы уже ес
 
 ## Находки review 2026-09-27
 
+- Финальное review 2026-09-28: список события кассы не должен навсегда ограничиваться 30 старейшими. Через существующие `filter=upcoming|past`, `limit=30`, `offset` дать ближайшие/последние события и явное продолжение к более старым/дальним, сохранив own-org/lifecycle guards. RED: более 30 событий, выбор и запись операции с событием за первой страницей → GREEN.
+- Финальное review 2026-09-28: даты оплат требуют подтверждённой зоны текущей организации; при задержке/ошибке загрузки не показывать fallback Europe/Minsk как фактическую зону, показать состояние/повтор. RED с America/New_York и `2026-09-28T00:30:00Z`, ошибкой и retry → GREEN.
+- Финальное review 2026-09-28: добавить фокусируемость заголовка кассы (`tabindex="-1"`) для существующего shell handoff; проверить клавиатурный фокус после перехода.
+
 - Review кассы 2026-09-28: форма форматирует дату через fallback timezone до загрузки зоны организации, а сохранение интерпретирует введённое через уже обновлённую зону. До инициализации/отправки формы нужна подтверждённая зона текущей организации; сбой её получения не должен молча отправлять время в fallback. RED с задержанной загрузкой отличающейся зоны → GREEN, повторное review и gates.
 
 - Self-review кассы: нулевые баланс/доход/расход должны отображаться денежной суммой с валютой, а не «Бесплатно». Проверить RED/GREEN в браузере. Изолировать очистку новых history fixtures после интеграционных тестов, чтобы последующие auth tests не падали на FK организации.
@@ -59,6 +63,7 @@ Shell поставляет 5.15.1. Денежные переходы уже ес
 - Real local API/browser: manual income125/expense25minor → balance100; timezone conversion; duplicate submit1POST; foreign event404; assistant read/write403; cashbox/payments401/404/503+retry; cashbox1280/1440/390; delayed org-param GET and mutation navigation on both pages, no stale destination state. Nuxt changes page instance on org-param transition; literal same-instance browser reuse is not asserted.
 - Correction timezone: browser RED подтвердил сдвиг7часов при delayed New York response; касса теперь ждёт подтверждённую зону и сохраняет её вместе с формой. GREEN: delayed differing zone, failed load + native retry и route leave while loading; scoped unit17/17. Повторные пять gates зелёные, полный suite101files/565tests; shared timezone consumers не менялись.
 - Открыто: independent whole-branch review, PR/CI/merge; actual browser200%zoom (CLI shortcuts не меняют zoom), screen-reader QA. Own-event dropdown проверен realAPI: selected event12 совпадает с записью кассы, foreign event13 не предлагается. Telegram-host/production/VPS/backup/monitoring/real-group validation не проводились. Статус остаётся in_progress.
+- Финальный fix wave review: browser RED подтвердил недоступность `upcoming35` после первых 30 старейших событий, неверный `28 сент.` для New York после metadata 503 и отсутствие фокуса на `h1` кассы. GREEN: переключение upcoming/past и `offset=30` позволило записать операции, связанные с 35-м событием в каждом периоде; задержка/503 зоны скрывают даты до подтверждения, retry показывает `27 сент.`; клавиатурный переход фокусирует `h1`. Дополнительно проверены filter/race/reset, continuation 503/retry, foreign-event 404, 1280/1440/390 px и очистка QA fixtures. После fix wave все пять локальных gates: format:check, lint (0 errors, 21 baseline warnings), typecheck (6/6), PostgreSQL test (102 files / 570 tests), build (2/2), exit 0. Focused rereview, actual 200% zoom, screen-reader QA, PR/CI/merge и внешний QA остаются открытыми; статус in_progress.
 
 ## Не делать
 

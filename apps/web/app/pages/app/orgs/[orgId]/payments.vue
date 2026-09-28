@@ -31,7 +31,6 @@ interface PaymentRow {
 
 const route = useRoute()
 const orgId = computed(() => Number(route.params.orgId))
-const { tz } = useOrgTimezone(orgId)
 const request = useRequestFetch()
 const pendingItems = ref<PaymentRow[]>([])
 const historyItems = ref<PaymentRow[]>([])
@@ -63,6 +62,13 @@ function errorMessage(error: unknown, fallback: string) {
       ? 'Нет доступа к оплатам этой группы.'
       : apiErrorMessage(error, fallback)
 }
+
+const {
+  timezone: tz,
+  loading: timezoneLoading,
+  error: timezoneError,
+  load: loadTimezone,
+} = useDesktopFinanceTimezone(orgId, (error) => errorMessage(error, ''))
 
 async function loadPending() {
   const org = orgId.value,
@@ -191,13 +197,17 @@ watch(
     accessStatus.value = undefined
     busy.value = null
     if (status.value !== 'all') status.value = 'all'
-    if (route.path === `/app/orgs/${orgId.value}/payments`) void reload()
+    if (route.path === `/app/orgs/${orgId.value}/payments`) {
+      void reload()
+      void loadTimezone()
+    }
   },
 )
 onBeforeUnmount(() => {
   active = false
   generation++
 })
+onMounted(() => void loadTimezone())
 await reload()
 </script>
 
@@ -226,6 +236,8 @@ await reload()
       <NuxtLink v-else to="/app?choose=1" class="vt-btn vt-btn--ghost">К моим группам</NuxtLink>
     </section>
     <template v-else>
+      <p v-if="timezoneLoading" role="status">Загружаем часовой пояс группы для дат оплат…</p>
+      <ErrorState v-if="timezoneError" :message="timezoneError" @retry="loadTimezone" />
       <section
         class="space-y-4"
         aria-labelledby="pending-payments-heading"
@@ -253,14 +265,15 @@ await reload()
             <div class="vt-desktop-payment-context">
               <h3>{{ displayName(payment.user) }}</h3>
               <p>{{ paymentTargetLabel(payment) }}</p>
-              <p v-if="payment.event" class="text-xs text-vt-mute">
+              <p v-if="payment.event && tz" class="text-xs text-vt-mute">
                 {{ formatDay(payment.event.startsAt, tz) }}
               </p>
             </div>
             <div class="vt-desktop-payment-amount">
               <strong class="vt-mono">{{ formatPrice(payment.amount, payment.currency) }}</strong>
               <p class="text-xs text-vt-mute">
-                {{ paymentMethodLabel(payment.method) }} · {{ formatDay(payment.createdAt, tz) }}
+                {{ paymentMethodLabel(payment.method)
+                }}<template v-if="tz"> · {{ formatDay(payment.createdAt, tz) }}</template>
               </p>
             </div>
             <div class="vt-desktop-payment-actions">
@@ -331,7 +344,7 @@ await reload()
             <div class="vt-desktop-payment-context">
               <h3>{{ displayName(payment.user) }}</h3>
               <p>{{ paymentTargetLabel(payment) }}</p>
-              <p class="text-xs text-vt-mute">
+              <p v-if="tz" class="text-xs text-vt-mute">
                 Создан {{ formatDay(payment.createdAt, tz)
                 }}<template v-if="payment.confirmedAt">
                   · Подтверждён {{ formatDay(payment.confirmedAt, tz) }}</template
