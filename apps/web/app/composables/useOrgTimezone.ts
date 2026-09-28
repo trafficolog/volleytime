@@ -7,12 +7,13 @@ export function useOrgTimezone(orgId: Ref<number> | number) {
   const tz = computed(() => cache.value[id.value] ?? DEFAULT_TIMEZONE)
 
   async function load() {
-    if (cache.value[id.value]) return
+    const requestedId = id.value
+    if (cache.value[requestedId]) return
     try {
       const data = await $fetch<{ organization: { defaultTimezone: string } }>(
-        `/api/organizations/${id.value}`,
+        `/api/organizations/${requestedId}`,
       )
-      cache.value = { ...cache.value, [id.value]: data.organization.defaultTimezone }
+      cache.value = { ...cache.value, [requestedId]: data.organization.defaultTimezone }
     } catch {
       // оставляем зону по умолчанию
     }

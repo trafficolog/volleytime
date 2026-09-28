@@ -54,15 +54,27 @@ describe('desktop navigation', () => {
       'events',
       'members',
       'plans',
+      'payments',
+      'cashbox',
       'settings',
     ])
     expect(desktopNavItems(7, false).map((item) => item.key)).toEqual([
       'overview',
       'events',
       'members',
+      'payments',
+      'cashbox',
       'settings',
     ])
     expect(desktopNavItems(7, false)[0]?.to).toBe('/app/orgs/7')
+    for (const enabled of [true, false]) {
+      expect(desktopNavItems(8, enabled).find((item) => item.key === 'payments')?.to).toBe(
+        '/app/orgs/8/payments',
+      )
+      expect(desktopNavItems(8, enabled).find((item) => item.key === 'cashbox')?.to).toBe(
+        '/app/orgs/8/cashbox',
+      )
+    }
   })
 
   it('rejects a mutation after route or organization changes', () => {

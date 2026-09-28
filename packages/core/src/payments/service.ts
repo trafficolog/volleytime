@@ -22,6 +22,7 @@ import { collectNotification } from '../notifier/collect'
 import { getDb, type ServiceContext } from '../shared/context'
 
 import { PaymentNotFoundError, PaymentNotPendingError, PaymentNotSucceededError } from './errors'
+import { listPaymentHistory } from './history'
 
 /**
  * Условный переход статуса платежа (Task 6.8.1): `WHERE status = from [AND organization_id]`.
@@ -123,6 +124,7 @@ async function notifyOrganizersAboutPending(
 }
 
 export const paymentService = {
+  listHistory: listPaymentHistory,
   /** Создать pending-платёж для брони (cash/transfer). Вызывается внутри tx из booking. */
   async createForBooking(
     ctx: ServiceContext,
