@@ -2,10 +2,10 @@
 id: '6.10.1'
 phase: '6'
 epic: '6.10'
-status: in_progress
+status: done
 sync_state: synced
 last_reviewed: 2026-09-28
-status_note: 'API history and desktop payments/cashbox implemented; user-supplied 200% screenshots cover both pages and the cashbox form. Hero caption contrast fix passes RED/GREEN, local five gates, scoped review and CI; screen-reader/manual QA and merge remain open.'
+status_note: 'Desktop finance acceptance completed: 200% screenshots, local API/browser QA, user-confirmed screen-reader check, scoped review, five gates and PR #51 CI. R0.6 global/Telegram QA and production remain separate.'
 roles: [BE, FE, QA]
 depends_on: ['5.15.1']
 estimated_hours: '12-16'
@@ -69,6 +69,7 @@ Shell поставляет 5.15.1. Денежные переходы уже ес
 - Дополнительная локальная проверка в IAB при узком окне: переход «Оплаты» → «Касса» фокусирует `h1`; «Добавить доход» раскрывает форму, где категория, сумма, сегменты даты/времени, период, событие, описание, «Отменить» и «Записать операцию» проходят естественным Tab-порядком и имеют имена в accessibility tree. Низ формы и обе кнопки доступны вертикальной прокруткой; отмена с клавиатуры закрыла форму без записи. Это не проверка с реальным экранным диктором и не actual browser zoom 200% для формы.
 - Контраст подписи hero-карточки: Vitest RED `2.0977 < 4.5`, локальный CSS override только для кассы, GREEN `1/1`; в живом браузере `rgb(255,255,255)` на неизменённом `rgb(31,46,150)` = 11,11:1, подпись визуально читается. `pnpm format:check`, `pnpm lint` (0 errors, baseline warnings), `pnpm typecheck` (6/6), `pnpm build` (2/2) прошли. Первая попытка полного `pnpm test` пересеклась со вторым параллельным прогоном на общей PostgreSQL и дала 5 FK/race failures; после завершения конкурирующих процессов самостоятельный последовательный прогон `pnpm test` прошёл: 103 files / 571 tests. Это не screen-reader QA.
 - Scoped review `f205a06..adbd10b`: Critical/Important не найдены; Minor — тест контраста читает CSS-правила, но не весь DOM/cascade. Текущее computed style отдельно проверено в живом браузере; добавление нового браузерного раннера для одного правила отложено по YAGNI, ограничение зафиксировано. GitHub CI [run 36407188570](https://github.com/trafficolog/volleytime/actions/runs/36407188570) на `adbd10b` прошёл build, quality и PostgreSQL unit/integration. PR остаётся draft; manual screen-reader QA и merge открыты.
+- Пользователь 2026-09-28 сообщил: «экранный диктор проверен — всё корректно». Точный диктор/браузер и шаги не указаны; фиксируем как предоставленный пользователем результат ручной проверки, не как собственный инструментальный прогон. Скриншоты при заявленном zoom 200% и локальные browser/API проверки зафиксированы выше. Повторные пять локальных gates на `0ae74b3`: `pnpm format:check`, `pnpm lint` (0 errors / 21 baseline warnings), `pnpm typecheck` (6/6), `pnpm test` с PostgreSQL (103 files / 571 tests), `pnpm build` (2/2) прошли. [GitHub CI run 36407550559](https://github.com/trafficolog/volleytime/actions/runs/36407550559) на `0ae74b3` прошёл quality, PostgreSQL tests и build. Критерии задачи приняты; глобальный R0.6, Telegram-host и production QA не подтверждаются этой задачей.
 
 ## Не делать
 
