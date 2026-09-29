@@ -12,6 +12,9 @@ const localBuildScriptPath = fileURLToPath(
 const backupScriptPath = fileURLToPath(
   new URL('../../../../scripts/backup-local.sh', import.meta.url),
 )
+const imageBundleScriptPath = fileURLToPath(
+  new URL('../../../../scripts/deploy-image-bundle.sh', import.meta.url),
+)
 
 describe('local release backup contract', () => {
   it('creates a private validated atomic dump with bounded retention', () => {
@@ -29,22 +32,28 @@ describe('local release backup contract', () => {
     expect(script).toContain('tail -n "+$((KEEP + 1))"')
   })
 
-  it('stops both deploy paths on a backup failure before migration', () => {
+  it('stops the image-bundle and GHCR paths on backup failure before migration', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
     const localBuild = readFileSync(localBuildScriptPath, 'utf8')
+    const imageBundle = readFileSync(imageBundleScriptPath, 'utf8')
     const workflowBackup = workflow.indexOf('bash .deploy/scripts/backup-local.sh')
     const workflowMigrate = workflow.indexOf('run --rm migrate')
     const localBackup = localBuild.indexOf('bash .deploy/scripts/backup-local.sh')
     const localAdvance = localBuild.indexOf('release-bundle.sh advance')
     const localMigrate = localBuild.indexOf('run --rm migrate')
 
-    expect(workflow).toContain(
-      "source: '.env.production,release.bundle,scripts/release-bundle.sh,scripts/deploy-local-build.sh,scripts/backup-local.sh'",
-    )
+    expect(workflow).toContain('scripts/backup-local.sh')
+    expect(workflow).toContain('deploy-image-bundle.sh deploy')
     expect(workflowBackup).toBeGreaterThan(-1)
     expect(workflowMigrate).toBeGreaterThan(workflowBackup)
     expect(localBackup).toBeGreaterThan(-1)
     expect(localAdvance).toBeGreaterThan(localBackup)
     expect(localMigrate).toBeGreaterThan(localBackup)
+    const imageBackup = imageBundle.indexOf('bash "$helper_dir/backup-local.sh"')
+    const imageAdvance = imageBundle.indexOf('release-bundle.sh" advance')
+    const imageMigrate = imageBundle.indexOf('run --rm --no-build migrate')
+    expect(imageBackup).toBeGreaterThan(imageBundle.indexOf('verify-release-images.sh'))
+    expect(imageAdvance).toBeGreaterThan(imageBackup)
+    expect(imageMigrate).toBeGreaterThan(imageAdvance)
   })
 })

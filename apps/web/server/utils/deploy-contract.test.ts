@@ -211,9 +211,10 @@ describe('fallback deployment contract', () => {
 
     expect(workflow).toContain('branches: [prod]')
     expect(workflow).not.toContain('branches: [main]')
-    expect(workflow).toContain('git bundle create release.bundle HEAD')
-    expect(workflow).toContain("source: '.env.production,release.bundle")
-    expect(workflow).toContain('deploy-bundle .deploy/release.bundle ${{ github.sha }}')
+    expect(workflow).toContain('git bundle create "$stage/release.bundle" HEAD')
+    expect(workflow).toContain(
+      'bash .deploy/incoming/${{ github.sha }}/scripts/deploy-image-bundle.sh deploy',
+    )
     expect(script).not.toContain('git fetch origin prod')
     expect(script).not.toContain('git pull --ff-only')
     expect(script).toContain('bash .deploy/scripts/release-bundle.sh verify')
@@ -222,30 +223,31 @@ describe('fallback deployment contract', () => {
     expect(runbook).toContain('Do not develop directly in `prod`')
   })
 
-  it('uses local bundle builds automatically while keeping GHCR as a manual alternative', () => {
+  it('uses image bundles automatically while keeping GHCR as a manual alternative', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
 
     expect(workflow).toContain('deployment_mode:')
     expect(workflow).toContain('- ghcr')
-    expect(workflow).toContain('- local-build')
+    expect(workflow).toContain('- image-bundle')
+    expect(workflow).not.toContain('- local-build')
     expect(workflow).toContain("github.event_name == 'push'")
     expect(workflow).toContain("inputs.deployment_mode == 'ghcr'")
-    expect(workflow).toContain("inputs.deployment_mode == 'local-build'")
-    expect(workflow).toContain('Deploy verified bundle over SSH')
-    expect(workflow).toContain('scripts/deploy-local-build.sh deploy-bundle')
+    expect(workflow).toContain("inputs.deployment_mode == 'image-bundle'")
+    expect(workflow).toContain('Activate image bundle over SSH')
+    expect(workflow).not.toContain('scripts/deploy-local-build.sh deploy-bundle')
   })
 
-  it('gives long-running local-build deploy and rollback bounded SSH timeouts', () => {
+  it('bounds image transfer, activation, confirmation and rollback', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
-    const deployStep = workflow.match(
-      /- name: Deploy verified bundle over SSH[\s\S]*?(?=\n {6}- name:)/,
-    )?.[0]
-    const rollbackStep = workflow.match(
-      /- name: Rollback local build on failed smoke[\s\S]*?(?=\n {6}- name:|\n {2}[a-z-]+:|$)/,
-    )?.[0]
-
-    expect(deployStep).toContain('command_timeout: 30m')
-    expect(rollbackStep).toContain('command_timeout: 30m')
+    for (const name of [
+      'Upload image bundle',
+      'Activate image bundle over SSH',
+      'Confirm synthetic smoke over SSH',
+      'Rollback image bundle after controlled smoke failure',
+    ]) {
+      const step = workflow.match(new RegExp(`- name: ${name}[\\s\\S]*?(?=\\n {6}- name:|$)`))?.[0]
+      expect(step, name).toMatch(/timeout:|command_timeout:/)
+    }
   })
 
   it('local-build deploy records the previous revision and migrates before starting services', () => {
@@ -384,11 +386,13 @@ describe('production env deployment contract', () => {
     expect(result.stderr).not.toContain(requiredEnv.BOT_INTERNAL_SECRET)
   })
 
-  it('installs secrets before pull, migrate and up in the deploy workflow', () => {
+  it('installs secrets before remote image activation and preserves GHCR ordering', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
     const prepare = workflow.indexOf('Prepare production env')
     const upload = workflow.indexOf('appleboy/scp-action@v1')
-    const install = workflow.indexOf('install -m 600')
+    const ghcrInstall = workflow.indexOf('install -m 600 .deploy/.env.production .env')
+    const install = workflow.indexOf('install -m 600 .deploy/incoming/')
+    const activate = workflow.indexOf('deploy-image-bundle.sh deploy')
     const pull = workflow.indexOf('docker compose -f docker-compose.prod.yml')
     const migrate = workflow.indexOf('run --rm migrate')
     const up = workflow.indexOf('up -d')
@@ -396,8 +400,59 @@ describe('production env deployment contract', () => {
     expect(prepare).toBeGreaterThan(-1)
     expect(upload).toBeGreaterThan(prepare)
     expect(install).toBeGreaterThan(upload)
-    expect(pull).toBeGreaterThan(install)
+    expect(activate).toBeGreaterThan(install)
+    expect(ghcrInstall).toBeGreaterThan(upload)
+    expect(pull).toBeGreaterThan(ghcrInstall)
     expect(migrate).toBeGreaterThan(pull)
     expect(up).toBeGreaterThan(migrate)
+  })
+})
+
+describe('image bundle workflow contract', () => {
+  it('binds prod source and all release artifacts to the exact checked-out SHA', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    expect(workflow).toContain('ref: ${{ github.sha }}')
+    expect(workflow).toContain('node scripts/require-prod-ref.mjs')
+    expect(workflow).toContain('test "$(git rev-parse HEAD)" = "${{ github.sha }}"')
+    expect(workflow).toContain(
+      'bash scripts/package-release-images.sh "${{ github.sha }}" "$stage"',
+    )
+    expect(workflow).toContain('git bundle create "$stage/release.bundle" HEAD')
+    expect(workflow).toContain('EXPECTED_RELEASE: ${{ github.sha }}')
+    expect(workflow).not.toContain('docker system prune')
+  })
+
+  it('packages before secrets, stages privately, transfers separately and confirms only after smoke', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const packageAt = workflow.indexOf('bash scripts/package-release-images.sh')
+    const secretAt = workflow.indexOf('node scripts/render-production-env.mjs')
+    const stageAt = workflow.indexOf('install -d -m 700 /opt/volleytime/.deploy/incoming/')
+    const uploadAt = workflow.indexOf('Upload image bundle')
+    const activateAt = workflow.indexOf('Activate image bundle over SSH')
+    const smokeAt = workflow.indexOf('node scripts/smoke.mjs')
+    const confirmAt = workflow.indexOf('deploy-image-bundle.sh confirm-smoke')
+    expect(packageAt).toBeGreaterThan(-1)
+    expect(secretAt).toBeGreaterThan(packageAt)
+    expect(stageAt).toBeGreaterThan(secretAt)
+    expect(uploadAt).toBeGreaterThan(stageAt)
+    expect(activateAt).toBeGreaterThan(uploadAt)
+    expect(smokeAt).toBeGreaterThan(activateAt)
+    expect(confirmAt).toBeGreaterThan(smokeAt)
+    expect(workflow).toContain('chmod 600 .deploy/incoming/${{ github.sha }}/.env.production')
+    expect(workflow).toContain('SMOKE_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}')
+    expect(workflow).toContain('BOT_INTERNAL_SECRET: ${{ secrets.BOT_INTERNAL_SECRET }}')
+    expect(workflow).toContain('SMOKE_TG_ID:?synthetic smoke user is required')
+    expect(workflow).toContain('BOT_INTERNAL_SECRET:?synthetic smoke cleanup secret is required')
+  })
+
+  it('rolls back only a confirmed activation after controlled smoke failure', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    expect(workflow).toContain("steps.activate.outcome == 'success'")
+    expect(workflow).toContain("steps.smoke.outputs.controlled_failure == 'true'")
+    expect(workflow).toContain('deploy-image-bundle.sh rollback ${{ github.sha }}')
+    expect(workflow).toContain("steps.rollback.outcome == 'failure'")
+    expect(workflow).toContain('Existing SHA staging requires a manual recovery checkpoint')
+    expect(workflow).toContain('manual recovery checkpoint')
+    expect(workflow).not.toContain('Rollback local build on failed smoke')
   })
 })

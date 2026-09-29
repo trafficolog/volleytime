@@ -18,6 +18,7 @@ const rootFile = (path: string) => fileURLToPath(new URL(`../../../../${path}`, 
 const compose = readFileSync(rootFile('docker-compose.prod.yml'), 'utf8')
 const workflow = readFileSync(rootFile('.github/workflows/deploy.yml'), 'utf8')
 const localBuild = readFileSync(rootFile('scripts/deploy-local-build.sh'), 'utf8')
+const imageBundle = readFileSync(rootFile('scripts/deploy-image-bundle.sh'), 'utf8')
 const smoke = readFileSync(rootFile('scripts/smoke.mjs'), 'utf8')
 const tempDirs: string[] = []
 const bash =
@@ -48,7 +49,10 @@ describe('production release identity contract', () => {
     expect(localBuild).toContain('MIGRATOR_IMAGE=volleytime-migrator:${release_sha}')
     expect(localBuild).toContain('RELEASE_VERSION=${release_sha}')
     expect(localBuild).toContain('write_release_manifest "$candidate_manifest" "$expected_sha"')
-    expect(workflow).toContain('RELEASE_VERSION=${{ github.sha }}')
+    expect(imageBundle).toContain('RELEASE_VERSION=%s')
+    expect(imageBundle).toContain('"$sha" "$sha" "$sha" "$sha"')
+    expect(imageBundle).toContain('write_manifest "$wanted" "$manifest"')
+    expect(workflow).toContain('deploy-image-bundle.sh deploy')
   })
 
   it('preserves the previous manifest before installing a different candidate', () => {

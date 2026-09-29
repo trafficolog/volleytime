@@ -28,6 +28,10 @@ const verifyScript = fileURLToPath(
 const deployScript = fileURLToPath(
   new URL('../../../../scripts/deploy-image-bundle.sh', import.meta.url),
 )
+const workflow = readFileSync(
+  fileURLToPath(new URL('../../../../.github/workflows/deploy.yml', import.meta.url)),
+  'utf8',
+)
 const bash = process.platform === 'win32' ? 'C:\\Program Files\\Git\\bin\\bash.exe' : 'bash'
 const dirs: string[] = []
 const shellPath = (path: string) =>
@@ -646,6 +650,16 @@ printf '{"status":"ok","db":"ok","auth":"ok","release":"%s"}\\n' "$sha"
 }
 
 describe('image bundle activation', () => {
+  it('uses the staged helper CLI and confirms only after external smoke', () => {
+    const deploy = workflow.indexOf('deploy-image-bundle.sh deploy .deploy/incoming/')
+    const smoke = workflow.indexOf('node scripts/smoke.mjs')
+    const confirm = workflow.indexOf('deploy-image-bundle.sh confirm-smoke ${{ github.sha }}')
+    expect(deploy).toBeGreaterThan(-1)
+    expect(smoke).toBeGreaterThan(deploy)
+    expect(confirm).toBeGreaterThan(smoke)
+    expect(workflow).toContain('deploy-image-bundle.sh rollback ${{ github.sha }}')
+  })
+
   it('activates with helpers staged outside the old tracked checkout', () => {
     const f = activationFixture()
     expect(existsSync(join(f.repo, 'scripts', 'verify-release-images.sh'))).toBe(false)
