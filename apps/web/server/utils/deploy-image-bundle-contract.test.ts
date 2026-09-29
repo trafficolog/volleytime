@@ -22,6 +22,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 const script = fileURLToPath(
   new URL('../../../../scripts/package-release-images.sh', import.meta.url),
 )
+const verifyScript = fileURLToPath(
+  new URL('../../../../scripts/verify-release-images.sh', import.meta.url),
+)
 const bash = process.platform === 'win32' ? 'C:\\Program Files\\Git\\bin\\bash.exe' : 'bash'
 const dirs: string[] = []
 const shellPath = (path: string) =>
@@ -243,5 +246,252 @@ describe('runner image bundle packaging', () => {
     const result = f.run()
     expect(result.status, result.stderr).toBe(0)
     expect(f.commands()).toContain('build --platform linux/amd64')
+  })
+})
+
+function verifyFixture() {
+  const root = mkdtempSync(join(tmpdir(), 'volleytime-verify-images-'))
+  dirs.push(root)
+  const staging = join(root, 'staging')
+  const content = join(root, 'content')
+  const bin = join(root, 'bin')
+  mkdirSync(staging)
+  mkdirSync(content)
+  mkdirSync(bin)
+  const sha = 'a'.repeat(40)
+  const images = ['web', 'bot', 'migrator'].map((name) => `volleytime-${name}:${sha}`)
+  const manifest = images.map((image, index) => ({
+    Config: `config${index}.json`,
+    RepoTags: [image],
+    Layers: [`layer${index}/layer.tar`],
+  }))
+  writeFileSync(join(content, 'manifest.json'), JSON.stringify(manifest))
+  images.forEach((_image, index) => {
+    writeFileSync(
+      join(content, `config${index}.json`),
+      JSON.stringify({
+        architecture: 'amd64',
+        config: { Labels: { 'org.opencontainers.image.revision': sha } },
+      }),
+    )
+    mkdirSync(join(content, `layer${index}`))
+    writeFileSync(join(content, `layer${index}`, 'layer.tar'), 'layer')
+  })
+  const archive = join(staging, 'release-images.tar.gz')
+  const makeArchive = () => {
+    const result = spawnSync('tar', ['-czf', archive, '-C', content, '.'], { encoding: 'utf8' })
+    expect(result.status, result.stderr).toBe(0)
+  }
+  const makeMeta = (changes: Record<string, string> = {}) => {
+    const bytes = readFileSync(archive)
+    const fields = {
+      RELEASE_SHA: sha,
+      ARCHIVE_SHA256: createHash('sha256').update(bytes).digest('hex'),
+      ARCHIVE_BYTES: String(bytes.length),
+      UNPACKED_BYTES: String(gunzipSync(bytes).length),
+      WEB_IMAGE: images[0],
+      BOT_IMAGE: images[1],
+      MIGRATOR_IMAGE: images[2],
+      ...changes,
+    }
+    writeFileSync(
+      join(staging, 'release-images.meta'),
+      Object.entries(fields)
+        .map(([key, value]) => `${key}=${value}`)
+        .join('\n') + '\n',
+    )
+  }
+  makeArchive()
+  makeMeta()
+  const calls = join(root, 'calls.log')
+  writeFileSync(
+    join(bin, 'docker'),
+    `#!/usr/bin/env bash
+printf '%s\\n' "$*" >> "$CALLS"
+case "$1 $2" in
+  'info --format') printf '%s\\n' "$DOCKER_ROOT" ;;
+  'load -i') exit 0 ;;
+  'image inspect')
+    tag="\${@: -1}"
+    printf '%s|%s|%s\\n' "\${FAKE_ARCH:-amd64}" "\${FAKE_REVISION:-$RELEASE_SHA}" "\${FAKE_TAG:-$tag}"
+    ;;
+esac
+`,
+  )
+  writeFileSync(
+    join(bin, 'df'),
+    `#!/usr/bin/env bash
+printf 'df %s\\n' "\${FAKE_AVAILABLE_KIB:-9999999}" >> "$CALLS"
+printf 'Filesystem 1024-blocks Used Available Capacity Mounted on\\n/dev/test 9999999 1 %s 1%% /\\n' "\${FAKE_AVAILABLE_KIB:-9999999}"
+`,
+  )
+  chmodSync(join(bin, 'docker'), 0o755)
+  chmodSync(join(bin, 'df'), 0o755)
+  const state = join(root, 'live-state')
+  writeFileSync(state, 'old release')
+  const run = (overrides: Record<string, string> = {}, expectedSha = sha) =>
+    spawnSync(bash, [shellPath(verifyScript), shellPath(staging), expectedSha], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: `${shellPath(bin)}:/usr/bin:/mingw64/bin:${process.env.PATH ?? ''}`,
+        CALLS: shellPath(calls),
+        DOCKER_ROOT: shellPath(root),
+        DF_BIN: shellPath(join(bin, 'df')),
+        RELEASE_SHA: sha,
+        PYTHON_BIN: process.platform === 'win32' ? 'python' : 'python3',
+        ...overrides,
+      },
+    })
+  const commands = () => (existsSync(calls) ? readFileSync(calls, 'utf8') : '')
+  return {
+    root,
+    staging,
+    content,
+    sha,
+    images,
+    archive,
+    state,
+    makeArchive,
+    makeMeta,
+    run,
+    commands,
+  }
+}
+
+describe('staged image bundle verification', () => {
+  it('loads a verified archive and inspects all three imported images without touching live state', () => {
+    const f = verifyFixture()
+    const result = f.run()
+    expect(result.status, result.stderr).toBe(0)
+    expect(f.commands()).toContain('load -i')
+    for (const image of f.images) expect(f.commands()).toContain(` ${image}\n`)
+    expect(f.commands().match(/image inspect/g) ?? []).toHaveLength(3)
+    expect(f.commands()).not.toMatch(/compose|prune|build|backup/)
+    expect(readFileSync(f.state, 'utf8')).toBe('old release')
+  })
+
+  it.each([
+    [
+      'truncated archive',
+      (f: ReturnType<typeof verifyFixture>) => {
+        const truncated = readFileSync(f.archive).subarray(0, 30)
+        writeFileSync(f.archive, truncated)
+        const metadata = readFileSync(join(f.staging, 'release-images.meta'), 'utf8')
+          .replace(
+            /^ARCHIVE_SHA256=.*$/m,
+            `ARCHIVE_SHA256=${createHash('sha256').update(truncated).digest('hex')}`,
+          )
+          .replace(/^ARCHIVE_BYTES=.*$/m, `ARCHIVE_BYTES=${truncated.length}`)
+        writeFileSync(join(f.staging, 'release-images.meta'), metadata)
+      },
+    ],
+    [
+      'wrong archive hash',
+      (f: ReturnType<typeof verifyFixture>) => f.makeMeta({ ARCHIVE_SHA256: 'b'.repeat(64) }),
+    ],
+    [
+      'wrong release SHA',
+      (f: ReturnType<typeof verifyFixture>) => f.makeMeta({ RELEASE_SHA: 'b'.repeat(40) }),
+    ],
+    [
+      'wrong metadata tag',
+      (f: ReturnType<typeof verifyFixture>) =>
+        f.makeMeta({ WEB_IMAGE: `volleytime-web:${'b'.repeat(40)}` }),
+    ],
+    [
+      'wrong archived architecture',
+      (f: ReturnType<typeof verifyFixture>) => {
+        writeFileSync(
+          join(f.content, 'config0.json'),
+          JSON.stringify({
+            architecture: 'arm64',
+            config: { Labels: { 'org.opencontainers.image.revision': f.sha } },
+          }),
+        )
+        f.makeArchive()
+        f.makeMeta()
+      },
+    ],
+    [
+      'wrong archived revision',
+      (f: ReturnType<typeof verifyFixture>) => {
+        writeFileSync(
+          join(f.content, 'config0.json'),
+          JSON.stringify({
+            architecture: 'amd64',
+            config: { Labels: { 'org.opencontainers.image.revision': 'b'.repeat(40) } },
+          }),
+        )
+        f.makeArchive()
+        f.makeMeta()
+      },
+    ],
+    [
+      'wrong archived tag',
+      (f: ReturnType<typeof verifyFixture>) => {
+        const manifest = JSON.parse(
+          readFileSync(join(f.content, 'manifest.json'), 'utf8'),
+        ) as Array<{ RepoTags: string[] }>
+        manifest[0].RepoTags = [`volleytime-web:${'b'.repeat(40)}`]
+        writeFileSync(join(f.content, 'manifest.json'), JSON.stringify(manifest))
+        f.makeArchive()
+        f.makeMeta()
+      },
+    ],
+    [
+      'unrecognized metadata key',
+      (f: ReturnType<typeof verifyFixture>) =>
+        writeFileSync(
+          join(f.staging, 'release-images.meta'),
+          readFileSync(join(f.staging, 'release-images.meta'), 'utf8') + 'EXTRA=1\n',
+        ),
+    ],
+  ])('rejects %s before docker load', (_name, mutate) => {
+    const f = verifyFixture()
+    mutate(f)
+    const result = f.run()
+    expect(result.status, `${result.stdout}\n${result.stderr}\n${f.commands()}`).not.toBe(0)
+    expect(f.commands()).not.toContain('load -i')
+    expect(f.commands()).not.toMatch(/compose|prune|build|backup/)
+    expect(readFileSync(f.state, 'utf8')).toBe('old release')
+  })
+
+  it('treats metadata shell syntax as inert data', () => {
+    const f = verifyFixture()
+    const marker = join(f.root, 'injected')
+    const meta = join(f.staging, 'release-images.meta')
+    writeFileSync(
+      meta,
+      readFileSync(meta, 'utf8').replace(
+        /^WEB_IMAGE=.*$/m,
+        `WEB_IMAGE=$(touch ${shellPath(marker)})`,
+      ),
+    )
+    const result = f.run()
+    expect(result.status).not.toBe(0)
+    expect(existsSync(marker)).toBe(false)
+    expect(f.commands()).not.toContain('load -i')
+  })
+
+  it('rejects insufficient disk space before docker load', () => {
+    const f = verifyFixture()
+    const result = f.run({ FAKE_AVAILABLE_KIB: '1' })
+    expect(result.status, `${result.stdout}\n${result.stderr}\n${f.commands()}`).not.toBe(0)
+    expect(f.commands()).not.toContain('load -i')
+    expect(readFileSync(f.state, 'utf8')).toBe('old release')
+  })
+
+  it.each([
+    ['architecture', { FAKE_ARCH: 'arm64' }],
+    ['revision', { FAKE_REVISION: 'b'.repeat(40) }],
+    ['tag', { FAKE_TAG: `volleytime-web:${'b'.repeat(40)}` }],
+  ])('rejects loaded %s mismatch without activation', (_name, env) => {
+    const f = verifyFixture()
+    const result = f.run(env)
+    expect(result.status).not.toBe(0)
+    expect(f.commands()).toContain('load -i')
+    expect(f.commands()).not.toMatch(/compose|prune|build|backup/)
+    expect(readFileSync(f.state, 'utf8')).toBe('old release')
   })
 })
