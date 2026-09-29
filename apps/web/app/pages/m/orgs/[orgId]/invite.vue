@@ -24,11 +24,13 @@ const isOwner = computed(() => me.value?.role === 'owner' && me.value.status ===
 const invites = ref<InviteRow[]>([])
 const loading = ref(false)
 const loadError = ref('')
+const revokeError = ref('')
 
 async function load() {
   if (!canInvite.value) return
   loading.value = true
   loadError.value = ''
+  revokeError.value = ''
   try {
     const data = await $fetch<{ invites: InviteRow[] }>(`/api/organizations/${orgId.value}/invites`)
     invites.value = data.invites
@@ -103,7 +105,7 @@ async function revoke(i: InviteRow) {
     await $fetch(`/api/organizations/${orgId.value}/invites/${i.id}/revoke`, { method: 'POST' })
     await load()
   } catch (e) {
-    loadError.value = apiErrorMessage(e, 'Не удалось отозвать ссылку')
+    revokeError.value = apiErrorMessage(e, 'Не удалось отозвать ссылку')
   } finally {
     revoking.value = null
   }
@@ -193,6 +195,7 @@ function expiry(i: InviteRow) {
         </form>
 
         <h2 class="vt-cap">Активные ссылки</h2>
+        <p v-if="revokeError" class="text-sm text-vt-rose-ink" role="alert">{{ revokeError }}</p>
         <SkeletonList v-if="loading" :count="2" />
         <ErrorState v-else-if="loadError" :message="loadError" @retry="load" />
         <EmptyState

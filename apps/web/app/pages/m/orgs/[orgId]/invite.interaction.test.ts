@@ -162,4 +162,30 @@ describe('Mini App invite load recovery', () => {
       ['/api/organizations/30/invites'],
     ])
   })
+
+  // A revoke POST failure must not turn the successful list into a GET failure.
+  it('keeps loaded invite actions visible after a failed revoke POST', async () => {
+    apiFetch.mockResolvedValueOnce({ invites: [invite] }).mockRejectedValueOnce({
+      statusCode: 503,
+      data: { statusMessage: 'Отзыв ссылки временно недоступен' },
+    })
+    const page = await renderInvite()
+    await page.get('button[aria-label="Отозвать ссылку"]').trigger('click')
+    await flushPromises()
+
+    expect(page.get('[role="alert"]').text()).toContain('Отзыв ссылки временно недоступен')
+    expect(page.get('ul li').text()).toContain(invite.deeplinkUrl)
+    expect(page.findAll('ul button').map((button) => button.text())).toEqual([
+      'Копировать',
+      'Поделиться',
+      '',
+    ])
+    expect(page.get('button[aria-label="Отозвать ссылку"]').attributes('disabled')).toBeUndefined()
+    expect(page.findAll('button').map((button) => button.text())).not.toContain('Повторить')
+    expect(page.text()).not.toContain('Активных ссылок нет')
+    expect(apiFetch.mock.calls).toEqual([
+      ['/api/organizations/30/invites'],
+      ['/api/organizations/30/invites/11/revoke', { method: 'POST' }],
+    ])
+  })
 })
