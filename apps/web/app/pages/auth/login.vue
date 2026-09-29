@@ -4,6 +4,7 @@ import {
   botLink,
   completeEmailSignIn,
   continueEmailSignIn,
+  formatOtpResendCountdown,
   switchEmailAccount,
 } from '../../utils/auth-flow'
 
@@ -42,7 +43,7 @@ function startResendTimer() {
   }, 1000)
 }
 onUnmounted(() => clearInterval(timer))
-const resendLabel = computed(() => `0:${String(resendIn.value).padStart(2, '0')}`)
+const resendLabel = computed(() => formatOtpResendCountdown(resendIn.value))
 
 async function sendCode() {
   if (submitting.value || !email.value) return

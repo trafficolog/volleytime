@@ -69,3 +69,8 @@ export async function switchEmailAccount<T extends string>(input: {
 export function botLink(username: string | undefined): string | null {
   return username && /^[A-Za-z0-9_]{5,32}$/.test(username) ? `https://t.me/${username}` : null
 }
+
+export function formatOtpResendCountdown(seconds: number): string {
+  const minutes = Math.floor(seconds / 60)
+  return `${minutes}:${String(seconds % 60).padStart(2, '0')}`
+}

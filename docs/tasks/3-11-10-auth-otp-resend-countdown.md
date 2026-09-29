@@ -5,7 +5,7 @@ epic: '3.11'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-29
-status_note: 'Chrome 200% QA 8.10.3 выявил начальное «Повтор через 0:60» после настоящего локального запроса OTP; RED→GREEN, пять gates, visual recheck, review и CI ещё ожидаются.'
+status_note: 'Chrome 200% QA 8.10.3 выявил начальное «Повтор через 0:60». RED 4 fail → GREEN 14/14; пять gates (125 файлов/731 тест), built Chrome 200% 1:00→0:59, local health/session smoke и независимый re-review без блокеров прошли. Exact-head CI/PR/main ещё ожидаются; production не менялся.'
 review_ref: '8.10.3 · Chrome 200% auth code state'
 priority: P2
 roles: [FE, QA]
@@ -22,7 +22,7 @@ tags: [auth, otp, ui, review-fix]
 
 ## Контекст
 
-В локальном Chrome при штатном page zoom 200% после успешного запроса тестового OTP экран `/auth/login` сразу показывает «Повтор через 0:60». Причина в `resendLabel`: текущие 60 секунд форматируются постоянным префиксом `0:`. На следующем тике `0:59` уже допустимо. Это найдено в [сквозном QA R0.6](../operations/qa/2026-09-29-native-200-auth-player.md); сервер и production не затронуты.
+В локальном Chrome при штатном page zoom 200% после успешного запроса тестового OTP экран `/auth/login` сразу показывает «Повтор через 0:60». Причина в `resendLabel`: текущие 60 секунд форматируются постоянным префиксом `0:`. На следующем тике `0:59` уже допустимо. Это найдено в сквозном QA R0.6 / 8.10.3 на отдельной QA-ветке; отчёт с остальными экранами войдёт в её собственный PR. Сервер и production не затронуты.
 
 ## Что должно быть сделано
 
@@ -39,6 +39,12 @@ tags: [auth, otp, ui, review-fix]
 ## Подсказки
 
 В `apps/web/app/pages/auth/login.vue` старт `resendIn = 60` уже корректен. Исправление ограничено форматированием подписи; существующие тесты `apps/web/app/utils/auth-flow.test.ts` подходят для чистой функции без таймеров в unit-тесте.
+
+### Проверка 2026-09-29
+
+- После SDD commit `5f76fc2` четыре RED-кейса (`60`, `59`, `1`, `0`) упали из-за отсутствующего форматтера. Минимальная реализация дала 14/14 в `auth-flow.test.ts`; стартовое значение, интервал, запросы OTP и сервер не менялись.
+- Все пять gates на ветке: `format:check` success; `lint` 0 errors/12 существовавших warnings; `typecheck` 6/6; `test` 125 файлов/731 тест; `build` 2/2. Независимый scoped review и focused re-review не нашли Critical/Important; исправлена замеченная в карточке ссылка на ещё не смёрженный QA-отчёт.
+- Built preview `http://127.0.0.1:3167/` на отдельной локальной QA-БД: настоящий тестовый запрос OTP, штатный Chrome page zoom **200%** (`zoomLevel=2`, `devicePixelRatio=2`, CSS viewport 712×402), сразу «Повтор через 1:00», затем `0:59`, ширина документа 704 ≤ 712. Просмотрен низ экрана с resend; код не сохранялся в отчёте. `pnpm smoke` прошёл health и auth/get-session; Telegram/webhook намеренно не проверялись этим task smoke.
 
 ## Не делать
 
