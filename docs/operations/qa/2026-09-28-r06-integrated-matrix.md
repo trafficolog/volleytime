@@ -52,6 +52,10 @@
 
 ## Результаты 2026-09-28 — исторический checkpoint
 
+### Дополнительное обновление 2026-09-29: entry / invite / error-retry
+
+[Свежий отчёт](2026-09-29-entry-invite-error-states.md): **60/60** entry/invite/group states на 320/390 light/dark; четыре отрицательных initData получили 401 от real local API и правильный bot link. Error/retry: **41/41** recovery к real local GET 200 (20 Mini App + 21 desktop), без POST. Отдельные **4/4 RED** organizer Mini App invite выявили ложный empty и отсутствие retry при 503; оформлена [8.10.6](../../tasks/8-10-6-miniapp-invite-load-retry.md) до кода. Эти F-результаты закрывают перечисленные entry/invite/error ячейки, но общий 8.10.3/release smoke и остальные targeted primary-route error/role checks остаются открыты. Prod/VPS не менялись; T после полного кандидата сохраняется.
+
 ### Дополнительный owner / desktop проход
 
 Следующая таблица уточняет **O**-ячейки исходного checkpoint выше: геометрические и read-only состояния уже повторены; операции прежней task QA остаются **P**, а не выданы за новые POST. Полная auth/desktop visual acceptance остаётся **O** до 3.11.9.
