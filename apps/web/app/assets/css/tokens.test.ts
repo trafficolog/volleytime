@@ -62,8 +62,8 @@ describe('Bento Bold design token contract', () => {
       '--r-btn': '14px',
       '--s-4': '16px',
     })
-    expect(nuxt).toContain('family=Oswald')
-    expect(nuxt).toContain('family=Golos+Text')
+    expect(nuxt).toContain("'~/assets/css/landing-fonts.css'")
+    expect(nuxt).not.toMatch(/fonts\.(googleapis|gstatic)\.com/)
     expect(nuxt).not.toMatch(/Space\+Grotesk|family=Manrope/)
     expect(tailwind).toContain("display: ['var(--f-display)']")
     expect(tailwind).toContain("body: ['var(--f-body)']")

@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import '~/assets/css/landing-fonts.css'
-
 import type { TabItem } from '~/components/vt/TabBar.vue'
 import { organizerMenuLinks, organizerTabItems } from '~/utils/organizer-miniapp'
 import { playerTabs } from '~/utils/player-navigation'
