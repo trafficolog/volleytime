@@ -5,7 +5,7 @@ epic: '8.10'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-29
-status_note: 'Локальный bounded fix отделяет loading/error/empty/list существующим ErrorState и GET-повтором. Mounted Vue RED воспроизвёл ложный empty и отсутствие retry; GREEN 4/4, полный PostgreSQL suite 125 файлов/726 тестов. Chrome, независимое review, PR/CI и merge main ещё ожидаются; задача остаётся in_progress.'
+status_note: 'Bounded fix прошёл Vue RED→GREEN 4/4 и пять gates (125 files/726 tests); Chrome error/retry 45/45, scoped invite 320/390 light/dark, Enter/44px и real local GET200; failed-revoke recovery fixture 4/4. Task review approved; whole-branch review, exact CI/PR и main ещё ожидаются. Общий 8.10.3 и Telegram-host отдельно открыты.'
 review_ref: '8.10.3 / 2026-09-29 error-state QA'
 priority: P2
 roles: [FE, QA]
@@ -46,6 +46,8 @@ tags: [miniapp, invitations, resilience, review-fix]
 - Пять gates, независимое review и exact-head CI проходят до merge main; общий 8.10.3 остаётся отдельным gate.
 
 ## Подсказки
+
+[Отчёт 2026-09-29](../operations/qa/2026-09-29-miniapp-invite-load-retry.md): baseline 722, expected mounted RED4fail → GREEN4pass, финальный suite726; пять gates, Chrome и локальный smoke на точном implementation SHA. Настоящие Telegram/production/backup не заявляются.
 
 - Поверхность: `apps/web/app/pages/m/orgs/[orgId]/invite.vue`.
 - Working pattern: `apps/web/app/pages/app/orgs/[orgId]/invite.vue`, блок списка активных приглашений.
