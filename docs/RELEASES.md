@@ -207,7 +207,9 @@ Canonical R0 snapshot не изменился: **132 done / 7 in_progress из 1
 
 ---
 
-## R0.6 — MVP UI refresh `v0.1.6` (план)
+## R0.6 — MVP UI refresh `v0.1.6` (кандидат; локальная QA принята)
+
+2026-09-29 **локальный predeploy gate принят**: [PR #68](https://github.com/trafficolog/volleytime/pull/68), `main=32d7c4f`, exact-head [CI 36552036320](https://github.com/trafficolog/volleytime/actions/runs/36552036320) success, tree merge/head совпадает. 8.10.3 и все MVP implementation dependencies done; доступны продвижение проверенного main после его CI, reviewed fast-forward prod и Actions deploy по runbook. До реального Telegram/pilot после выкладки кандидат **не** считается окончательно принятым релизом. Старые ожидания ниже сохранены как история.
 
 2026-09-29 **8.10.3 локальный release gate**: объединённый runtime `1a063e5` (равен main `99cae3a`) прошёл пять gates 125/731, exact-SHA local synthetic smoke и independent re-review без Critical/Important. Полный [F/P/T closure-map](./operations/qa/2026-09-28-r06-integrated-matrix.md) сохраняет scope и ограничения visual QA. PR/exact-head CI QA-ветки ещё ожидаются; это не production deploy и не окончательная Telegram/pilot acceptance.
 
