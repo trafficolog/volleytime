@@ -209,6 +209,8 @@ Canonical R0 snapshot не изменился: **132 done / 7 in_progress из 1
 
 ## R0.6 — MVP UI refresh `v0.1.6` (план)
 
+2026-09-29 в ходе сквозного QA выделена дополнительная [8.10.6](./tasks/8-10-6-miniapp-invite-load-retry.md): ошибка GET приглашений organizer Mini App должна показывать retry, не ложный empty. Четыре Chrome RED на 320/390 light/dark, исправление согласовано как отдельная SDD-TDD задача до итогового R0.6 gate. Эта запись не означает принятия фикса или готовности deploy; prod/VPS не менялись.
+
 2026-09-29 **3.11.9** принята через [PR #61](https://github.com/trafficolog/volleytime/pull/61), merge `b4c9630`: существующие локальные Oswald/Golos глобально доступны на прямом auth/desktop entry. Browser RED → GREEN (семь весов/local 200/кириллица, без Google), пять gates (124 files / 722 tests), owner 103/103, auth 15/15, landing 5/5 и независимые task/whole-branch review прошли; [CI 36523981993](https://github.com/trafficolog/volleytime/actions/runs/36523981993) success на точном `67ef8c6`, полное дерево merge идентично head. [Отчёт](./operations/qa/2026-09-29-global-local-reference-fonts.md). Общая **8.10.3**, полный release gate и post-deploy Telegram-host acceptance остаются открыты; prod/VPS не менялись.
 
 Дополнение 2026-09-26: [3.11.7 — соответствие лендинга исходному референсу](./tasks/3-11-7-landing-reference-fidelity.md) закрывает замечания к визуальному переносу 3.11.4. Входит в R0.6 до общего QA: точная палитра, исходные шрифты/композиция и локальная поставка шрифтов. Пользовательский выбор точных цветов не означает WCAG-приёмку исходного оранжевого; ограничение контраста фиксируется отдельно.
