@@ -4,11 +4,22 @@ phase: '8'
 epic: '8.10'
 status: in_progress
 sync_state: synced
-last_reviewed: 2026-09-28
-status_note: 'Исходные implementation-зависимости приняты в main. Player 41 fixture + 28 real-API cases, шесть access/error states; owner 48 Mini App + 44 desktop geometry cases и клавиатура повторены. Прямой auth/desktop теряет референсные шрифты без Google Fonts: отдельная 3.11.9 ещё не исправлена. Общая visual QA/release gates и post-deploy Telegram/pilot acceptance открыты; prod/VPS не менялись.'
+last_reviewed: 2026-09-29
+status_note: 'Implementation-зависимости и font-fix 3.11.9 приняты в main. После исправления повторены 48 Mini App + 55 desktop cases с loaded fonts, auth 15 и landing 5, клавиатура/loading. Checkpoint сохранён и main интегрирован без runtime delta. Оставшиеся entry/invite/error states, финальный release smoke и post-deploy Telegram/pilot открыты; prod/VPS не менялись.'
 roles: [QA, FE]
 depends_on:
-  ['3.11.3', '3.11.4', '3.11.8', '8.10.1', '8.10.2', '8.10.4', '8.10.5', '5.15.1', '6.10.1']
+  [
+    '3.11.3',
+    '3.11.4',
+    '3.11.8',
+    '3.11.9',
+    '8.10.1',
+    '8.10.2',
+    '8.10.4',
+    '8.10.5',
+    '5.15.1',
+    '6.10.1',
+  ]
 estimated_hours: '6-10'
 tags: [qa, mvp, redesign]
 ---
@@ -20,6 +31,8 @@ tags: [qa, mvp, redesign]
 Подтвердить полноту MVP-экранов и состояний относительно архива v2 и отсутствие регрессий.
 
 ## Контекст
+
+2026-09-29: [3.11.9](./3-11-9-global-local-reference-fonts.md) принята в main через PR #61/#62; main `c946142` объединён с сохранённым checkpoint `c0883fc` как `12b6c96`. Документные конфликты разрешены без потери QA evidence; runtime diff с main отсутствует. [Повторная font/visual QA](../operations/qa/2026-09-29-global-local-reference-fonts.md): 48 Mini App + 55 desktop cases с фактически loaded faces, auth 15/15, landing 5/5, реальные read-only organizer controls, пять gates (124/722), независимые review и точный CI. Историческое замечание о font-delivery ниже закрыто; оставшиеся entry/invite/error states и итоговый release smoke ещё не приняты. Это не общий R0.6 gate и не Telegram-host acceptance.
 
 2026-09-28: landing 3.11.4 принят в main через PR #43 (`1fa662f`), CI `36467608712` success на `e6bfaf3`, дерево merge идентично проверенному. [Повторная landing QA](../operations/qa/2026-09-28-landing-post-main.md) фиксирует Chrome matrix, no-JS SSR/FAQ, motion/reduced-motion/teardown и пользовательский zoom 200%/реальный фон stop-resume; эти ручные пункты не требуют повторного запроса. Minor session failure fallback выделен в 3.11.8 до общего R0.6 gate. Эти свидетельства не закрывают всю сквозную матрицу и реальный Telegram-host QA.
 

@@ -1,6 +1,6 @@
 # R0.6 / 8.10.3 — интегрированная матрица QA
 
-Статус: **частичный сквозной проход**, не готовность deploy и не окончательная приёмка R0.6. Ветка `trafficolog/test/8.10.3-r06-integrated-qa` от main `060ecdf27d65cbef88e077d620400c49f5b89b73`. Первоначальные implementation-зависимости 8.10.3 done; текущая QA обнаружила отдельный шрифтовой дефект [3.11.9](../../tasks/3-11-9-global-local-reference-fonts.md), который ещё не исправлен.
+Статус: **частичный сквозной проход**, не готовность deploy и не окончательная приёмка R0.6. Ветка `trafficolog/test/8.10.3-r06-integrated-qa` начата от main `060ecdf`; checkpoint `c0883fc` сохранён. 2026-09-29 интегрирован принятый main `c946142` как `12b6c96`, документные конфликты разрешены, runtime diff с main отсутствует. Implementation-зависимости и обнаруженный в этой QA font-fix [3.11.9](../../tasks/3-11-9-global-local-reference-fonts.md) теперь done.
 
 ## Источники и окружение
 
@@ -8,9 +8,9 @@
 
 - Живой `references/Volley Time Mini App.html`, SHA-256 `88DAEB38162E459DF91FC6280EA6A23F56200C9133B7625BE28E72C07BB7DCB4`; актуальный hash повторно проверен. Карта `references/README.md` связывает `01–03/05–07-miniapp` с экранами; эти документы — визуальные референсы, не бизнес-правила.
 - `references/0 Лендинг.html`, SHA-256 `AAF3F05A75F35715FF8C9E90F590BFE9B017C47FAD9F4D19D910B139B271E32F`; для desktop/auth — `4 Кабинет организатора.html` / `6 Авторизация.html`, карта v2 и принятые SDD-задачи.
-- Chrome CLI `landing318`, built Nuxt `http://127.0.0.1:3168/`. Runtime source соответствует проверенному fix-head `3595b7f`; до main `060ecdf` менялись только четыре документа, что подтверждено `git diff --name-only`.
+- Chrome CLI `landing318` и runtime `3595b7f` использовались 2026-09-28. После 3.11.9 — Chrome `fonts3119`, новый built Nuxt `http://127.0.0.1:3168/`, runtime source `67ef8c6`, принятый в main; последующие `c946142` / `12b6c96` не меняют apps/packages/scripts. Preview остановлен до пересборки; browser DB сохранена.
 - PostgreSQL browser/API `volleytime_qa_8101_selfcheck`; integration suite отдельно `volleytime_qa_8101_post56`. Console-email, только синтетические QA-аккаунты. Production credentials/данные и VPS не использовались.
-- **F** — свежий проход на этой сборке. **P** — принятая отдельная task QA, её результаты сохранены, но не выданы за новый полный интегрированный проход. **O** — доступная локальная совместная проверка ещё открыта. **T** — реальный Telegram/pilot после controlled deploy; не предусловие выкладки полного кандидата.
+- **F** — свежий проход на указанной для него сборке/дате. **P** — принятая отдельная task QA, её результаты сохранены, но не выданы за новый полный интегрированный проход. **O** — доступная локальная совместная проверка ещё открыта. **T** — реальный Telegram/pilot после controlled deploy; не предусловие выкладки полного кандидата.
 
 ## Reference → route → state → evidence
 
@@ -44,7 +44,13 @@
 | Desktop оплаты                    | `/app/orgs/{org}/payments`                         | pending/actions + history четыре статуса/filter/continuation/timezone              | **P** 6.10.1 real API/browser, native200 скриншоты и screen-reader пользователя; **O** совместный повтор без переноса fixed/pending данных между org                                        |
 | Desktop 04-cabinet: касса         | `/app/orgs/{org}/cashbox`                          | валютные суммы / journal / append-only формы / timezone / event pagination         | **P** 6.10.1 real API/browser и user manual; contrast caption11.11:1; **O** совместный повтор                                                                                               |
 
-## Свежие результаты 2026-09-28
+## Обновление 2026-09-29 после 3.11.9
+
+[Полное evidence 3.11.9](2026-09-29-global-local-reference-fonts.md): browser RED → GREEN на четырёх fresh direct-entry contexts, на каждом семь loaded/local200 faces с кириллицей и без Google. Owner matrix **103/103** (48 Mini App light/dark + 55 desktop, включая 320), auth **15/15** (email/code/invalid/load-error/choice × 320/390/720), landing **5/5** и organizer keyboard/loading controls повторены на corrected runtime. Representative PNG просмотрены; это больше не geometry pass с fallback font. Для строк матрицы выше закрыты font-delivery blocker, owner read-only reflow и перечисленные auth-состояния; остальные error/invite/entry/release-smoke пункты остаются открытыми.
+
+Пять gates, independent task/whole-branch review без новых замечаний и [CI 36523981993](https://github.com/trafficolog/volleytime/actions/runs/36523981993) прошли; PR #61 merge `b4c9630`, docs PR #62 merge `c946142`. Native 200%/screen reader/фон не переобъявляются новым browser evidence. Prod/VPS не менялись. Ни предыдущие POST из **P**, ни общий 8.10.3/R0.6, ни Telegram-host не объявляются принятыми этими counts.
+
+## Результаты 2026-09-28 — исторический checkpoint
 
 ### Дополнительный owner / desktop проход
 
@@ -84,7 +90,7 @@ PNG Home320/390, manage320/390 dark, cashbox dark, new320, invite320, plans390 d
 
 ## Открытые пункты и порядок
 
-1. Выполнить согласованный scoped-план **3.11.9** с RED→GREEN, пятью gates/review/CI; затем повторить auth/desktop visual матрицу с фактически loaded Oswald/Golos. Organizer read-only 48 cases и клавиатура повторены, остальные операции отделены от прежней **P** QA. Оставшиеся **O**-ячейки ошибок/invite/entry и release smoke закрываются по факту, не по общему geometry count.
+1. **3.11.9 закрыта**; повторная auth/desktop/Mini App матрица с реально loaded faces описана выше. Закрыть оставшиеся **O**-ячейки ошибок/invite/entry и release smoke по факту, не по общему geometry count. Остальные операции прежней task QA остаются **P** до целевого повторения; доступный локальный QA не подменяет post-deploy Telegram-host.
 2. Свести narrow/long-text/error/loading/keyboard и manual zoom evidence по фактическому охвату. Ранее присланные 200% landing, organizer Home, desktop finance и сообщение об экранном дикторе не запрашивать повторно. Не выдавать viewport resize или эти отдельные снимки за native200 каждого маршрута либо Telegram/WebView.
 3. Финальные пять gates и локальный release smoke/review/точный CI после полного доступного QA. Уже пройдены gates 3.11.8 (124 files/722 tests), CI PR #59/#60 и main; это не заменяет итоговую сквозную приёмку.
 4. Только затем controlled main→prod fast-forward и Actions bundle deploy, backup до migrations, точный SHA/health/runtime smoke по runbook. **Prod и VPS сейчас не менялись**, origin/prod `67bbfe89acaac04992b8128d45cb1b40f8acc75c` / v0.1.5.
