@@ -25,6 +25,9 @@ const script = fileURLToPath(
 const verifyScript = fileURLToPath(
   new URL('../../../../scripts/verify-release-images.sh', import.meta.url),
 )
+const deployScript = fileURLToPath(
+  new URL('../../../../scripts/deploy-image-bundle.sh', import.meta.url),
+)
 const bash = process.platform === 'win32' ? 'C:\\Program Files\\Git\\bin\\bash.exe' : 'bash'
 const dirs: string[] = []
 const shellPath = (path: string) =>
@@ -493,5 +496,306 @@ describe('staged image bundle verification', () => {
     expect(f.commands()).toContain('load -i')
     expect(f.commands()).not.toMatch(/compose|prune|build|backup/)
     expect(readFileSync(f.state, 'utf8')).toBe('old release')
+  })
+})
+
+function activationFixture() {
+  const root = mkdtempSync(join(tmpdir(), 'volleytime-activate-images-'))
+  dirs.push(root)
+  const repo = join(root, 'repo')
+  const staging = join(root, 'staging')
+  const bin = join(root, 'bin')
+  mkdirSync(join(repo, '.deploy', 'scripts'), { recursive: true })
+  mkdirSync(staging)
+  mkdirSync(bin)
+  const git = (...args: string[]) => {
+    const result = spawnSync('git', args, { cwd: repo, encoding: 'utf8' })
+    expect(result.status, result.stderr).toBe(0)
+    return result.stdout.trim()
+  }
+  git('init', '-b', 'prod')
+  git('config', 'user.name', 'Volley Time Test')
+  git('config', 'user.email', 'test@volleytime.invalid')
+  writeFileSync(join(repo, '.gitignore'), '.deploy/\n.env.images*\n.env\n')
+  writeFileSync(join(repo, 'source'), 'old\n')
+  git('add', '.')
+  git('commit', '-m', 'old')
+  const old = git('rev-parse', 'HEAD')
+  writeFileSync(join(repo, 'source'), 'candidate\n')
+  git('commit', '-am', 'candidate')
+  const candidate = git('rev-parse', 'HEAD')
+  writeFileSync(join(repo, 'source'), 'next\n')
+  git('commit', '-am', 'next')
+  const next = git('rev-parse', 'HEAD')
+  git('bundle', 'create', join(staging, 'release.bundle'), 'prod')
+  git('reset', '--hard', candidate)
+  const manifest = (sha: string) =>
+    `WEB_IMAGE=volleytime-web:${sha}\nBOT_IMAGE=volleytime-bot:${sha}\nMIGRATOR_IMAGE=volleytime-migrator:${sha}\nRELEASE_VERSION=${sha}\n`
+  writeFileSync(join(repo, '.env'), 'DB_PASSWORD=fake\n')
+  writeFileSync(join(repo, 'docker-compose.prod.yml'), 'services: {}\n')
+  writeFileSync(join(repo, '.env.images'), manifest(candidate))
+  writeFileSync(join(repo, '.env.images.previous'), manifest(old))
+  writeFileSync(join(repo, '.deploy', 'previous-git-sha'), `${old}\n`)
+  copyFileSync(deployScript, join(repo, '.deploy', 'scripts', 'deploy-image-bundle.sh'))
+  copyFileSync(
+    fileURLToPath(new URL('../../../../scripts/release-bundle.sh', import.meta.url)),
+    join(repo, '.deploy', 'scripts', 'release-bundle.sh'),
+  )
+  const calls = join(root, 'calls.log')
+  const live = join(root, 'live')
+  const partialWeb = join(root, 'partial-web')
+  const healthCalls = join(root, 'health-calls')
+  writeFileSync(live, old)
+  writeFileSync(
+    join(bin, 'docker'),
+    `#!/usr/bin/env bash
+printf '%s\\n' "docker $*" >> "$CALLS"
+case "$1 $2" in
+  'inspect --format')
+    name="\${@: -1}"
+    case "$name" in
+      vt_web|vt_bot) service="\${name#vt_}"; sha="$(cat "$LIVE_SHA")" ;;
+      vt_postgres) printf 'true|healthy|postgres:16-alpine\\n'; exit 0 ;;
+      *) exit 1 ;;
+    esac
+    if [ "$service" = web ] && [ -f "$PARTIAL_WEB_SHA" ]; then
+      printf 'true|starting|volleytime-web:%s\n' "$(cat "$PARTIAL_WEB_SHA")"
+      exit 0
+    fi
+    if [ "$service" = bot ] && [ -n "\${FAKE_BOT_SHA:-}" ]; then sha="$FAKE_BOT_SHA"; fi
+    printf 'true|healthy|volleytime-%s:%s\\n' "$service" "$sha"
+    ;;
+  'image inspect')
+    [ "\${FAKE_OLD_IMAGE_MISSING:-0}" != 1 ] || { [[ "\${@: -1}" != *"$OLD_SHA" ]] || exit 1; }
+    ;;
+  'exec vt_bot') printf '{"status":"ok","release":"%s"}\\n' "$(cat "$LIVE_SHA")" ;;
+  'compose -f')
+    if [[ "$*" == *'run --rm --no-build migrate'* ]] && [ "\${FAKE_MIGRATE_FAIL:-0}" = 1 ]; then exit 1; fi
+    if [[ "$*" == *'up --no-build -d web bot'* ]]; then
+      if [ "\${FAKE_PARTIAL_UP:-0}" = 1 ] && grep -q "$NEXT_SHA" "$ROOT_PATH/.env.images"; then
+        printf '%s\n' "$NEXT_SHA" > "$PARTIAL_WEB_SHA"
+        exit 1
+      fi
+      if [ "\${FAKE_UP_FAIL:-0}" = 1 ] && grep -q "$NEXT_SHA" "$ROOT_PATH/.env.images"; then exit 1; fi
+      grep '^RELEASE_VERSION=' "$ROOT_PATH/.env.images" | cut -d= -f2 > "$LIVE_SHA"
+      rm -f "$PARTIAL_WEB_SHA"
+    fi
+    ;;
+esac
+`,
+  )
+  writeFileSync(
+    join(bin, 'curl'),
+    `#!/usr/bin/env bash
+printf '%s\\n' "curl $*" >> "$CALLS"
+sha="$(cat "$LIVE_SHA")"
+if [ "\${FAKE_HEALTH_FAIL:-0}" = 1 ] && [ "$sha" = "$NEXT_SHA" ]; then exit 22; fi
+if [ "\${FAKE_HEALTH_TRANSIENT:-0}" = 1 ] && [ "$sha" = "$NEXT_SHA" ]; then
+  count=0
+  [ ! -f "$HEALTH_CALLS" ] || count="$(cat "$HEALTH_CALLS")"
+  count=$((count + 1))
+  printf '%s\n' "$count" > "$HEALTH_CALLS"
+  [ "$count" -gt 1 ] || exit 22
+fi
+printf '{"status":"ok","db":"ok","auth":"ok","release":"%s"}\\n' "$sha"
+`,
+  )
+  writeFileSync(join(bin, 'flock'), '#!/usr/bin/env bash\n[ "${FAKE_LOCK_HELD:-0}" != 1 ]\n')
+  writeFileSync(join(bin, 'install'), '#!/usr/bin/env bash\nmkdir -p "${@: -1}"\n')
+  writeFileSync(
+    join(repo, '.deploy', 'scripts', 'verify-release-images.sh'),
+    '#!/usr/bin/env bash\nprintf "verify %s\\n" "$*" >> "$CALLS"\n',
+  )
+  writeFileSync(
+    join(repo, '.deploy', 'scripts', 'backup-local.sh'),
+    '#!/usr/bin/env bash\nprintf "backup %s\\n" "${LOCAL_BACKUP_KEEP:-}" >> "$CALLS"\n[ "${FAKE_BACKUP_FAIL:-0}" != 1 ]\n',
+  )
+  chmodSync(join(bin, 'docker'), 0o755)
+  chmodSync(join(bin, 'curl'), 0o755)
+  chmodSync(join(bin, 'flock'), 0o755)
+  chmodSync(join(bin, 'install'), 0o755)
+  const env = {
+    ...process.env,
+    PATH: `${shellPath(bin)}:/usr/bin:/mingw64/bin:${process.env.PATH ?? ''}`,
+    VOLLEYTIME_ROOT: shellPath(repo),
+    ROOT_PATH: shellPath(repo),
+    LIVE_SHA: shellPath(live),
+    PARTIAL_WEB_SHA: shellPath(partialWeb),
+    HEALTH_CALLS: shellPath(healthCalls),
+    CALLS: shellPath(calls),
+    OLD_SHA: old,
+    NEXT_SHA: next,
+    PUBLIC_HEALTH_URL: 'https://test.invalid/api/health',
+    CURL_BIN: shellPath(join(bin, 'curl')),
+    PYTHON_BIN: process.platform === 'win32' ? 'python' : 'python3',
+    HEALTH_ATTEMPTS: '1',
+    HEALTH_SLEEP_SECONDS: '0',
+  }
+  const run = (mode = 'deploy', overrides: Record<string, string> = {}) =>
+    spawnSync(
+      bash,
+      [
+        shellPath(join(repo, '.deploy', 'scripts', 'deploy-image-bundle.sh')),
+        mode,
+        ...(mode === 'deploy' ? [shellPath(staging), next] : [next]),
+      ],
+      { encoding: 'utf8', env: { ...env, ...overrides } },
+    )
+  const commands = () => (existsSync(calls) ? readFileSync(calls, 'utf8') : '')
+  return { root, repo, staging, old, candidate, next, git, live, manifest, run, commands }
+}
+
+describe('image bundle activation', () => {
+  it('activates with helpers staged outside the old tracked checkout', () => {
+    const f = activationFixture()
+    expect(existsSync(join(f.repo, 'scripts', 'verify-release-images.sh'))).toBe(false)
+    const result = f.run()
+    expect(result.status, result.stderr).toBe(0)
+    expect(readFileSync(f.live, 'utf8').trim()).toBe(f.next)
+  })
+
+  it('preserves live old SHA in the partial state and activates exact new images in order', () => {
+    const f = activationFixture()
+    const result = f.run()
+    expect(result.status, result.stderr).toBe(0)
+    expect(readFileSync(join(f.repo, '.deploy', 'previous-git-sha'), 'utf8').trim()).toBe(f.old)
+    expect(readFileSync(join(f.repo, '.env.images.previous'), 'utf8')).toBe(f.manifest(f.old))
+    expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(f.manifest(f.next))
+    expect(readFileSync(f.live, 'utf8').trim()).toBe(f.next)
+    expect(f.git('rev-parse', 'HEAD')).toBe(f.next)
+    const calls = f.commands()
+    expect(calls.indexOf('verify ')).toBeLessThan(calls.indexOf('backup '))
+    expect(calls.indexOf('backup ')).toBeLessThan(calls.indexOf('run --rm --no-build migrate'))
+    expect(calls.indexOf('run --rm --no-build migrate')).toBeLessThan(
+      calls.indexOf('up --no-build -d web bot'),
+    )
+    expect(calls).not.toMatch(
+      /docker (?:build|image prune|system prune|compose .* build\b)|restore/,
+    )
+    expect(readFileSync(join(f.repo, '.deploy', 'image-bundle-phase'), 'utf8')).toContain(
+      `smoke-passed ${f.next}`,
+    )
+  })
+
+  it('same-SHA retry retains old previous pointer', () => {
+    const f = activationFixture()
+    expect(f.run().status).toBe(0)
+    const before = f.commands()
+    const retry = f.run()
+    expect(retry.status, retry.stderr).toBe(0)
+    expect(f.commands().slice(before.length)).not.toMatch(/verify |backup |compose /)
+    expect(readFileSync(join(f.repo, '.deploy', 'previous-git-sha'), 'utf8').trim()).toBe(f.old)
+  })
+
+  it.each([
+    ['live mismatch', { FAKE_BOT_SHA: 'b'.repeat(40) }],
+    ['missing old image', { FAKE_OLD_IMAGE_MISSING: '1' }],
+  ])('rejects %s before backup', (_name, env) => {
+    const f = activationFixture()
+    const result = f.run('deploy', env)
+    expect(result.status).not.toBe(0)
+    expect(f.commands()).not.toContain('backup ')
+    expect(f.git('rev-parse', 'HEAD')).toBe(f.candidate)
+  })
+
+  it('rejects dirty checkout before backup', () => {
+    const f = activationFixture()
+    writeFileSync(join(f.repo, 'source'), 'dirty\n')
+    expect(f.run().status).not.toBe(0)
+    expect(f.commands()).not.toContain('backup ')
+  })
+
+  it('rejects a non fast forward bundle before backup', () => {
+    const f = activationFixture()
+    writeFileSync(join(f.repo, 'source'), 'diverged\n')
+    f.git('commit', '-am', 'diverged')
+    const result = f.run()
+    expect(result.status).not.toBe(0)
+    expect(f.commands()).not.toContain('backup ')
+  })
+
+  it('rejects a second lock holder before touching live state', () => {
+    const f = activationFixture()
+    const result = f.run('deploy', { FAKE_LOCK_HELD: '1' })
+    expect(result.status).not.toBe(0)
+    expect(f.commands()).toBe('')
+  })
+
+  it('backup failure leaves Git and runtime untouched', () => {
+    const f = activationFixture()
+    const result = f.run('deploy', { FAKE_BACKUP_FAIL: '1' })
+    expect(result.status).not.toBe(0)
+    expect(f.git('rev-parse', 'HEAD')).toBe(f.candidate)
+    expect(readFileSync(f.live, 'utf8')).toBe(f.old)
+  })
+
+  it('can retry after a pre-activation backup failure without changing the previous release', () => {
+    const f = activationFixture()
+    expect(f.run('deploy', { FAKE_BACKUP_FAIL: '1' }).status).not.toBe(0)
+    expect(f.git('rev-parse', 'HEAD')).toBe(f.candidate)
+    expect(readFileSync(f.live, 'utf8').trim()).toBe(f.old)
+
+    const retry = f.run()
+    expect(retry.status, retry.stderr).toBe(0)
+    expect(readFileSync(join(f.repo, '.deploy', 'previous-git-sha'), 'utf8').trim()).toBe(f.old)
+    expect(readFileSync(f.live, 'utf8').trim()).toBe(f.next)
+  }, 15000)
+
+  it('migration failure never switches web or bot', () => {
+    const f = activationFixture()
+    const result = f.run('deploy', { FAKE_MIGRATE_FAIL: '1' })
+    expect(result.status).not.toBe(0)
+    expect(readFileSync(f.live, 'utf8')).toBe(f.old)
+    expect(f.commands()).not.toContain('up --no-build -d web bot')
+  })
+
+  it.each([
+    ['up failure', { FAKE_UP_FAIL: '1' }],
+    ['smoke failure', { FAKE_HEALTH_FAIL: '1' }],
+  ])('%s rolls back with local old images and no build', (_name, env) => {
+    const f = activationFixture()
+    const result = f.run('deploy', env)
+    expect(result.status).not.toBe(0)
+    expect(f.git('rev-parse', 'HEAD')).toBe(f.old)
+    expect(readFileSync(f.live, 'utf8').trim()).toBe(f.old)
+    expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(f.manifest(f.old))
+    expect(readFileSync(join(f.repo, '.deploy', 'image-bundle-phase'), 'utf8')).toContain(
+      'rolled-back',
+    )
+    expect(f.commands()).not.toMatch(
+      /docker (?:build|image prune|system prune|compose .* build\b)|restore/,
+    )
+  })
+
+  it('restores old images after web starts but bot does not', () => {
+    const f = activationFixture()
+    const result = f.run('deploy', { FAKE_PARTIAL_UP: '1' })
+    expect(result.status).not.toBe(0)
+    expect(f.git('rev-parse', 'HEAD')).toBe(f.old)
+    expect(readFileSync(f.live, 'utf8').trim()).toBe(f.old)
+    expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(f.manifest(f.old))
+    expect(f.commands()).not.toMatch(/docker (?:build|image prune|system prune)/)
+  })
+
+  it('waits for the new public health to become ready before declaring failure', () => {
+    const f = activationFixture()
+    const result = f.run('deploy', {
+      FAKE_HEALTH_TRANSIENT: '1',
+      HEALTH_ATTEMPTS: '3',
+      HEALTH_SLEEP_SECONDS: '0',
+    })
+    expect(result.status, result.stderr).toBe(0)
+    expect(readFileSync(f.live, 'utf8').trim()).toBe(f.next)
+    expect(f.git('rev-parse', 'HEAD')).toBe(f.next)
+  })
+
+  it('rolls back an activated candidate by exact SHA', () => {
+    const f = activationFixture()
+    expect(f.run().status).toBe(0)
+    const result = f.run('rollback')
+    expect(result.status, result.stderr).toBe(0)
+    expect(f.git('rev-parse', 'HEAD')).toBe(f.old)
+    expect(readFileSync(f.live, 'utf8').trim()).toBe(f.old)
+    expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(f.manifest(f.old))
   })
 })
