@@ -16,6 +16,10 @@ output_dir="$2"
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/.." && pwd)"
 cd "$repo_root"
+checkout_sha="$(git rev-parse --verify HEAD 2>/dev/null)" || fail "release source is not a Git checkout"
+[ "$checkout_sha" = "$release_sha" ] || fail "checkout SHA does not match release SHA"
+source_status="$(git status --porcelain --untracked-files=all)" || fail "cannot inspect source checkout"
+[ -z "$source_status" ] || fail "source checkout is not clean"
 
 umask 077
 mkdir -p -m 700 "$output_dir"
@@ -27,17 +31,24 @@ metadata="$output_dir/release-images.meta"
 raw=""
 archive_tmp=""
 metadata_tmp=""
+context=""
 published_archive=0
 success=0
 cleanup() {
   [ -z "$raw" ] || rm -f -- "$raw"
   [ -z "$archive_tmp" ] || rm -f -- "$archive_tmp"
   [ -z "$metadata_tmp" ] || rm -f -- "$metadata_tmp"
+  [ -z "$context" ] || rm -rf -- "$context"
   if [ "$success" -ne 1 ] && [ "$published_archive" -eq 1 ]; then
     rm -f -- "$archive"
   fi
 }
 trap cleanup EXIT
+
+# Build from only the committed tree, excluding ignored artifacts and other
+# workspace files that cannot be tied to the release SHA.
+context="$(mktemp -d "$output_dir/.release-context.XXXXXXXX")"
+git archive --format=tar "$release_sha" | tar -xf - -C "$context"
 
 web_image="volleytime-web:$release_sha"
 bot_image="volleytime-bot:$release_sha"
@@ -51,7 +62,7 @@ for entry in \
   docker build \
     --platform linux/amd64 \
     --label "org.opencontainers.image.revision=$release_sha" \
-    -f "$dockerfile" -t "$image" .
+    -f "$context/$dockerfile" -t "$image" "$context"
 done
 
 for image in "$web_image" "$bot_image" "$migrator_image"; do
