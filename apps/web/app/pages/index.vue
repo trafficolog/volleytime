@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import '~/assets/css/landing-fonts.css'
 import '~/assets/css/landing.css'
 import {
   groupCreateHref,

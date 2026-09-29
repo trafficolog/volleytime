@@ -1,0 +1,49 @@
+// Task 3.11.9. Open a local preview and sign in normally as an owner before running.
+// Fresh contexts preserve the caller's session only for private routes; no auth fixture.
+async (page) => {
+  const origin = page.url().match(/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?/)?.[0]
+  if (!origin) throw new Error('Use a local preview')
+  const session = await page.context().storageState()
+  const orgPath = page.url().slice(origin.length).match(/^\/(?:app|m)\/orgs\/\d+/)?.[0]?.replace(/^\/m\//, '/app/')
+  if (!orgPath) throw new Error('Sign in normally and open an organization first')
+  const expected = [['Oswald', '500'], ['Oswald', '600'], ['Oswald', '700'], ['Golos Text', '400'], ['Golos Text', '500'], ['Golos Text', '600'], ['Golos Text', '700']]
+  const results = []
+  for (const [label, path, authenticated] of [['auth', '/auth/login', false], ['desktop', orgPath, true], ['landing', '/', false], ['mini', orgPath.replace(/^\/app\//, '/m/'), true]]) {
+    const context = await page.context().browser().newContext({ storageState: authenticated ? session : undefined, viewport: { width: 390, height: 844 } })
+    const probe = await context.newPage()
+    const externalRequests = [], localResponses = [], pageErrors = []
+    probe.on('request', request => { if (/fonts\.(googleapis|gstatic)\.com/.test(request.url())) externalRequests.push(request.url()) })
+    probe.on('response', response => { if (response.url().includes('/fonts/landing/')) localResponses.push({ path: response.url().slice(origin.length), status: response.status() }) })
+    probe.on('pageerror', error => pageErrors.push(error.message))
+    await context.route(/https:\/\/fonts\.(googleapis|gstatic)\.com\//, route => route.abort())
+    // Chrome is not a Telegram host. Keep the SDK fixture separate from font assertions.
+    await context.route('https://telegram.org/**', route => route.abort())
+    try {
+      await probe.goto(`${origin}${path}`)
+      await probe.locator('main').getByRole('heading').first().waitFor()
+      const font = await probe.evaluate(async expectedFaces => {
+        const sample = 'Тренировка 123'
+        await Promise.all(expectedFaces.map(([family, weight]) => document.fonts.load(`${weight} 20px "${family}"`, sample)))
+        await document.fonts.ready
+        const faces = [...document.fonts].map(face => ({ family: face.family.replaceAll('"', ''), weight: face.weight, status: face.status }))
+        const missing = expectedFaces.filter(([family, weight]) => !faces.some(face => face.family === family && face.weight === weight && face.status === 'loaded'))
+        return { sample, faces, missing }
+      }, expected)
+      const missingResources = expected.filter(([family, weight]) => !localResponses.some(response => response.path === `/fonts/landing/${family === 'Oswald' ? 'Oswald' : 'GolosText'}-${weight}.ttf` && response.status === 200))
+      const errors = []
+      if (probe.url() !== `${origin}${path}`) errors.push('unexpected route: normal owner session required')
+      if (font.missing.length) errors.push('missing loaded FontFace entries')
+      if (missingResources.length) errors.push('missing successful local font resources')
+      if (externalRequests.length) errors.push('external font requests')
+      if (pageErrors.length) errors.push('application page errors')
+      results.push({ label, path, font, localResponses, missingResources, externalRequests, pageErrors, errors })
+    } finally {
+      await context.close()
+    }
+  }
+  const report = { cases: results.length, results, failures: results.filter(result => result.errors.length) }
+  await page.evaluate(value => { window.__globalLocalFonts = value }, report)
+  console.log(JSON.stringify(report))
+  if (report.failures.length) throw new Error(`Global font delivery failed: ${report.failures.map(result => `${result.label}: ${result.errors.join(', ')}`).join('; ')}`)
+  return report
+}

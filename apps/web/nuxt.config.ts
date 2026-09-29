@@ -4,7 +4,7 @@ export default defineNuxtConfig({
   compatibilityDate: '2026-05-01',
   devtools: { enabled: true },
   modules: ['@nuxtjs/tailwindcss'],
-  css: ['~/assets/css/main.css'],
+  css: ['~/assets/css/landing-fonts.css', '~/assets/css/main.css'],
   tailwindcss: { cssPath: false },
   app: {
     head: {
@@ -16,15 +16,7 @@ export default defineNuxtConfig({
       ],
       // SDK Telegram Mini App: без него window.Telegram отсутствует (Task 8.8.1)
       script: [{ src: 'https://telegram.org/js/telegram-web-app.js' }],
-      link: [
-        { rel: 'icon', type: 'image/png', href: '/favicon.png' },
-        { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
-        { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
-        {
-          rel: 'stylesheet',
-          href: 'https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Golos+Text:wght@400;500;600;700&display=swap',
-        },
-      ],
+      link: [{ rel: 'icon', type: 'image/png', href: '/favicon.png' }],
     },
   },
   routeRules: {
