@@ -26,6 +26,7 @@ phase_file=.deploy/image-bundle-phase
 manifest=.env.images
 previous_manifest=.env.images.previous
 previous_pointer=.deploy/previous-git-sha
+previous_env=".deploy/previous-env-$wanted"
 compose=(docker compose -f docker-compose.prod.yml --env-file .env --env-file .env.images)
 health_url="${PUBLIC_HEALTH_URL:-https://volleytime.by/api/health}"
 
@@ -143,6 +144,7 @@ rollback_to_previous() {
   valid_sha "$old" || fail "previous SHA is not validated"
   [ "$(read_manifest_sha "$previous_manifest" || true)" = "$old" ] || fail "previous manifest mismatch"
   [ "$(cat "$previous_pointer" 2>/dev/null || true)" = "$old" ] || fail "previous pointer mismatch"
+  [ -f "$previous_env" ] || fail "previous production env is unavailable"
   images_available "$old" || fail "old images are missing; no automatic rollback"
   clean_prod || fail "checkout is dirty or not prod; no automatic rollback"
   [ "$(git rev-parse HEAD)" = "$candidate" ] || fail "checkout is not expected candidate; no automatic rollback"
@@ -156,6 +158,7 @@ rollback_to_previous() {
   mark rollback-started
   git reset --hard "$old" >/dev/null || fail "Git rollback failed"
   write_manifest "$old" "$manifest"
+  install -m 600 "$previous_env" .env || fail "previous production env restore failed"
   "${compose[@]}" up --no-build -d web bot || fail "old application restart failed"
   wait_health "$old" || fail "old release health failed after rollback"
   mark rolled-back
@@ -185,6 +188,7 @@ if [ "$mode" = confirm-smoke ]; then
 fi
 
 [ -d "$staging" ] && [ -f "$staging/release.bundle" ] || fail "staged Git bundle is missing"
+[ -s "$staging/.env.production" ] || fail "staged production env is missing"
 if [ -f "$phase_file" ]; then
   read -r phase phase_sha < "$phase_file"
   if [ "$phase" = smoke-passed ] && [ "$phase_sha" = "$wanted" ]; then
@@ -226,6 +230,8 @@ mark loaded
 # validates the new pg_dump/gzip; its normal retention runs outside deploy.
 LOCAL_BACKUP_KEEP=2147483647 bash "$helper_dir/backup-local.sh" || fail "backup failed before advancement"
 mark backed-up
+[ ! -e "$previous_env" ] || fail "previous production env snapshot already exists"
+install -m 600 .env "$previous_env" || fail "previous production env snapshot failed"
 if [ "$(git rev-parse HEAD)" != "$wanted" ]; then
   bash "$helper_dir/release-bundle.sh" advance --repo "$root" --bundle "$staging/release.bundle" --expected "$wanted" || fail "Git advancement failed"
 fi
@@ -236,6 +242,15 @@ printf '%s\n' "$previous" > "$pointer_temp"
 chmod 600 "$pointer_temp"
 mv -f "$pointer_temp" "$previous_pointer"
 write_manifest "$wanted" "$manifest"
+env_temp="$(mktemp .deploy/.env.install.XXXXXX)"
+if ! install -m 600 "$staging/.env.production" "$env_temp"; then
+  rm -f -- "$env_temp"
+  fail "candidate production env staging failed"
+fi
+if ! mv -f "$env_temp" .env; then
+  rm -f -- "$env_temp"
+  fail "candidate production env install failed"
+fi
 
 if ! "${compose[@]}" run --rm --no-build migrate; then
   mark migration-failed
@@ -243,6 +258,7 @@ if ! "${compose[@]}" run --rm --no-build migrate; then
   clean_prod || fail "migration failed and checkout is ambiguous"
   git reset --hard "$previous" >/dev/null || fail "migration failed and Git rollback failed"
   write_manifest "$previous" "$manifest"
+  install -m 600 "$previous_env" .env || fail "migration failed and previous production env restore failed"
   check_health "$previous" || fail "migration failed and previous runtime health is not exact"
   mark rolled-back
   fail "migration failed; source and manifest restored"

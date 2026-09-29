@@ -535,7 +535,8 @@ function activationFixture() {
   git('reset', '--hard', candidate)
   const manifest = (sha: string) =>
     `WEB_IMAGE=volleytime-web:${sha}\nBOT_IMAGE=volleytime-bot:${sha}\nMIGRATOR_IMAGE=volleytime-migrator:${sha}\nRELEASE_VERSION=${sha}\n`
-  writeFileSync(join(repo, '.env'), 'DB_PASSWORD=fake\n')
+  writeFileSync(join(repo, '.env'), 'DB_PASSWORD=old\n')
+  writeFileSync(join(staging, '.env.production'), 'DB_PASSWORD=candidate\n')
   writeFileSync(join(repo, 'docker-compose.prod.yml'), 'services: {}\n')
   writeFileSync(join(repo, '.env.images'), manifest(candidate))
   writeFileSync(join(repo, '.env.images.previous'), manifest(old))
@@ -574,6 +575,7 @@ case "$1 $2" in
     ;;
   'exec vt_bot') printf '{"status":"ok","release":"%s"}\\n' "$(cat "$LIVE_SHA")" ;;
   'compose -f')
+    printf 'compose-env %s\\n' "$(cat "$ROOT_PATH/.env")" >> "$CALLS"
     if [[ "$*" == *'run --rm --no-build migrate'* ]] && [ "\${FAKE_MIGRATE_FAIL:-0}" = 1 ]; then exit 1; fi
     if [[ "$*" == *'up --no-build -d web bot'* ]]; then
       if [ "\${FAKE_PARTIAL_UP:-0}" = 1 ] && grep -q "$NEXT_SHA" "$ROOT_PATH/.env.images"; then
@@ -605,7 +607,10 @@ printf '{"status":"ok","db":"ok","auth":"ok","release":"%s"}\\n' "$sha"
 `,
   )
   writeFileSync(join(bin, 'flock'), '#!/usr/bin/env bash\n[ "${FAKE_LOCK_HELD:-0}" != 1 ]\n')
-  writeFileSync(join(bin, 'install'), '#!/usr/bin/env bash\nmkdir -p "${@: -1}"\n')
+  writeFileSync(
+    join(bin, 'install'),
+    '#!/usr/bin/env bash\nif [ "$1" = "-d" ]; then mkdir -p "${@: -1}"; else cp "${@: -2:1}" "${@: -1}"; fi\n',
+  )
   writeFileSync(
     join(repo, '.deploy', 'scripts', 'verify-release-images.sh'),
     '#!/usr/bin/env bash\nprintf "verify %s\\n" "$*" >> "$CALLS"\n',
@@ -676,6 +681,10 @@ describe('image bundle activation', () => {
     expect(readFileSync(join(f.repo, '.env.images.previous'), 'utf8')).toBe(f.manifest(f.old))
     expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(f.manifest(f.next))
     expect(readFileSync(f.live, 'utf8').trim()).toBe(f.next)
+    expect(readFileSync(join(f.repo, '.env'), 'utf8')).toBe('DB_PASSWORD=candidate\n')
+    const previousEnv = join(f.repo, '.deploy', `previous-env-${f.next}`)
+    expect(readFileSync(previousEnv, 'utf8')).toBe('DB_PASSWORD=old\n')
+    if (process.platform !== 'win32') expect(statSync(previousEnv).mode & 0o777).toBe(0o600)
     expect(f.git('rev-parse', 'HEAD')).toBe(f.next)
     const calls = f.commands()
     expect(calls.indexOf('verify ')).toBeLessThan(calls.indexOf('backup '))
@@ -770,6 +779,8 @@ describe('image bundle activation', () => {
     expect(result.status).not.toBe(0)
     expect(f.git('rev-parse', 'HEAD')).toBe(f.candidate)
     expect(readFileSync(f.live, 'utf8')).toBe(f.old)
+    expect(readFileSync(join(f.repo, '.env'), 'utf8')).toBe('DB_PASSWORD=old\n')
+    expect(existsSync(join(f.repo, '.deploy', `previous-env-${f.next}`))).toBe(false)
   })
 
   it('can retry after a pre-activation backup failure without changing the previous release', () => {
@@ -801,6 +812,8 @@ describe('image bundle activation', () => {
     const result = f.run('deploy', { FAKE_MIGRATE_FAIL: '1' })
     expect(result.status).not.toBe(0)
     expect(readFileSync(f.live, 'utf8')).toBe(f.old)
+    expect(f.commands()).toContain('compose-env DB_PASSWORD=candidate')
+    expect(readFileSync(join(f.repo, '.env'), 'utf8')).toBe('DB_PASSWORD=old\n')
     expect(f.commands()).not.toContain('up --no-build -d web bot')
   })
 
@@ -815,6 +828,8 @@ describe('image bundle activation', () => {
       expect(result.status).not.toBe(0)
       expect(f.git('rev-parse', 'HEAD')).toBe(f.old)
       expect(readFileSync(f.live, 'utf8').trim()).toBe(f.old)
+      expect(f.commands()).toContain('compose-env DB_PASSWORD=candidate')
+      expect(readFileSync(join(f.repo, '.env'), 'utf8')).toBe('DB_PASSWORD=old\n')
       expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(f.manifest(f.old))
       expect(readFileSync(join(f.repo, '.deploy', 'image-bundle-phase'), 'utf8')).toContain(
         'rolled-back',
@@ -855,6 +870,7 @@ describe('image bundle activation', () => {
     expect(result.status, result.stderr).toBe(0)
     expect(f.git('rev-parse', 'HEAD')).toBe(f.old)
     expect(readFileSync(f.live, 'utf8').trim()).toBe(f.old)
+    expect(readFileSync(join(f.repo, '.env'), 'utf8')).toBe('DB_PASSWORD=old\n')
     expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(f.manifest(f.old))
   }, 15000)
 })

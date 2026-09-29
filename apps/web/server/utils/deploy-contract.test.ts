@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -36,12 +37,19 @@ const productionSourceGuardPath = fileURLToPath(
 const releaseBundlePath = fileURLToPath(
   new URL('../../../../scripts/release-bundle.sh', import.meta.url),
 )
+const ghcrGuardPath = fileURLToPath(
+  new URL('../../../../scripts/verify-ghcr-deploy-state.sh', import.meta.url),
+)
 const bashExecutable =
   process.platform === 'win32' ? 'C:\\Program Files\\Git\\bin\\bash.exe' : 'bash'
 const releaseBundleScript =
   process.platform === 'win32'
     ? releaseBundlePath.replace(/^([A-Za-z]):\\/, '/$1/').replaceAll('\\', '/')
     : releaseBundlePath
+const ghcrGuardScript =
+  process.platform === 'win32'
+    ? ghcrGuardPath.replace(/^([A-Za-z]):\\/, '/$1/').replaceAll('\\', '/')
+    : ghcrGuardPath
 const deployRunbookPath = fileURLToPath(
   new URL('../../../../docs/operations/runbooks/deploy.md', import.meta.url),
 )
@@ -386,23 +394,33 @@ describe('production env deployment contract', () => {
     expect(result.stderr).not.toContain(requiredEnv.BOT_INTERNAL_SECRET)
   })
 
-  it('installs secrets before remote image activation and preserves GHCR ordering', () => {
+  it('installs image-bundle secrets after backup and leaves GHCR live env untouched', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
+    const imageBundle = readFileSync(
+      fileURLToPath(new URL('../../../../scripts/deploy-image-bundle.sh', import.meta.url)),
+      'utf8',
+    )
     const prepare = workflow.indexOf('Prepare production env')
     const upload = workflow.indexOf('appleboy/scp-action@v1')
-    const ghcrInstall = workflow.indexOf('install -m 600 .deploy/.env.production .env')
-    const install = workflow.indexOf('install -m 600 .deploy/incoming/')
+    const ghcrGuard = workflow.indexOf('bash .deploy/scripts/verify-ghcr-deploy-state.sh')
+    const ghcrBackup = workflow.indexOf('bash .deploy/scripts/backup-local.sh')
     const activate = workflow.indexOf('deploy-image-bundle.sh deploy')
+    const imageBackup = imageBundle.indexOf('bash "$helper_dir/backup-local.sh"')
+    const imageInstall = imageBundle.indexOf(
+      'install -m 600 "$staging/.env.production" "$env_temp"',
+    )
     const pull = workflow.indexOf('docker compose -f docker-compose.prod.yml')
     const migrate = workflow.indexOf('run --rm migrate')
     const up = workflow.indexOf('up -d')
 
     expect(prepare).toBeGreaterThan(-1)
     expect(upload).toBeGreaterThan(prepare)
-    expect(install).toBeGreaterThan(upload)
-    expect(activate).toBeGreaterThan(install)
-    expect(ghcrInstall).toBeGreaterThan(upload)
-    expect(pull).toBeGreaterThan(ghcrInstall)
+    expect(activate).toBeGreaterThan(upload)
+    expect(imageInstall).toBeGreaterThan(imageBackup)
+    expect(ghcrGuard).toBeGreaterThan(upload)
+    expect(ghcrBackup).toBeGreaterThan(ghcrGuard)
+    expect(pull).toBeGreaterThan(ghcrBackup)
+    expect(workflow).not.toContain('install -m 600 .deploy/.env.production .env')
     expect(migrate).toBeGreaterThan(pull)
     expect(up).toBeGreaterThan(migrate)
   })
@@ -443,6 +461,9 @@ describe('image bundle workflow contract', () => {
     expect(workflow).toContain('BOT_INTERNAL_SECRET: ${{ secrets.BOT_INTERNAL_SECRET }}')
     expect(workflow).toContain('SMOKE_TG_ID:?synthetic smoke user is required')
     expect(workflow).toContain('BOT_INTERNAL_SECRET:?synthetic smoke cleanup secret is required')
+    expect(workflow).not.toContain(
+      'install -m 600 .deploy/incoming/${{ github.sha }}/.env.production .env',
+    )
   })
 
   it('rolls back only a confirmed activation after controlled smoke failure', () => {
@@ -454,5 +475,152 @@ describe('image bundle workflow contract', () => {
     expect(workflow).toContain('Existing SHA staging requires a manual recovery checkpoint')
     expect(workflow).toContain('manual recovery checkpoint')
     expect(workflow).not.toContain('Rollback local build on failed smoke')
+  })
+
+  it('checks both destination and temporary transfer capacity before SCP', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const metadata = workflow.indexOf('release-images.meta')
+    const capacity = workflow.indexOf('Check remote transfer capacity')
+    const upload = workflow.indexOf('Upload image bundle')
+    expect(metadata).toBeGreaterThan(-1)
+    expect(capacity).toBeGreaterThan(metadata)
+    expect(upload).toBeGreaterThan(capacity)
+    expect(workflow).toContain('ARCHIVE_BYTES')
+    expect(workflow).toContain('payload_bytes')
+    expect(workflow).toContain('UNPACKED_BYTES')
+    expect(workflow).toContain('df -Pk /opt/volleytime/.deploy/incoming')
+    expect(workflow).toContain('df -Pk /tmp')
+    expect(workflow).toContain('df -Pk "$docker_root"')
+    expect(workflow).toContain(
+      'stage_required_bytes=$((payload_bytes + archive_bytes + 2 * unpacked_bytes + 268435456))',
+    )
+    expect(workflow).toContain('stage_required_bytes=$((stage_required_bytes + payload_bytes))')
+    expect(workflow).toContain('docker info --format')
+  })
+
+  it('rejects a transfer when either filesystem is below the computed reserve', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const step = workflow.match(
+      /- name: Check remote transfer capacity[\s\S]*?(?=\n {6}- name:)/,
+    )?.[0]
+    expect(step).toBeDefined()
+    const sha = 'a'.repeat(40)
+    const script = step
+      ?.split('script: |\n')[1]
+      .split('\n')
+      .map((line) => line.replace(/^ {12}/, ''))
+      .join('\n')
+      .replaceAll('${{ github.sha }}', sha)
+      .replaceAll('${{ steps.transfer_size.outputs.payload_bytes }}', '1000')
+      .replaceAll('${{ steps.transfer_size.outputs.archive_bytes }}', '700')
+      .replaceAll('${{ steps.transfer_size.outputs.unpacked_bytes }}', '2000')
+    const instrumented =
+      'install() { :; }\ndocker() { echo /usr; }\nstat() { case "${@: -1}" in /tmp) echo "$TEMP_DEVICE" ;; /usr) echo "$DOCKER_DEVICE" ;; *) echo stage ;; esac; }\ndf() { local available="$STAGE_KIB"; case "${@: -1}" in /tmp) available="$TEMP_KIB" ;; /usr) available="$DOCKER_KIB" ;; esac; printf "Filesystem 1K-blocks Used Available Use%% Mounted on\\n/dev/test 999999 1 %s 1%% /fake\\n" "$available"; }\n' +
+      script
+    const run = (
+      stageKib: number,
+      tempKib: number,
+      tempDevice = 'stage',
+      dockerKib = stageKib,
+      dockerDevice = 'stage',
+    ) =>
+      spawnSync(bashExecutable, ['-c', instrumented], {
+        env: {
+          ...process.env,
+          STAGE_KIB: String(stageKib),
+          TEMP_KIB: String(tempKib),
+          TEMP_DEVICE: tempDevice,
+          DOCKER_KIB: String(dockerKib),
+          DOCKER_DEVICE: dockerDevice,
+        },
+        encoding: 'utf8',
+      })
+    // Same filesystem: stage + temporary tar + later Docker import reserve.
+    const enough = run(262151, 0)
+    expect(enough.status, enough.stderr).toBe(0)
+    expect(run(262150, 0).status).not.toBe(0)
+    // Separate /tmp: each filesystem must independently cover its copy.
+    expect(run(262150, 262145, 'temp').status).toBe(0)
+    expect(run(262149, 262145, 'temp').status).not.toBe(0)
+    expect(run(262150, 262144, 'temp').status).not.toBe(0)
+    expect(run(262150, 262145, 'temp', 262148, 'docker').status).not.toBe(0)
+  })
+
+  it('does not start deploy after workflow cancellation', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    expect(workflow).toContain('if: ${{ !cancelled() && needs.test.result')
+    expect(workflow).not.toContain('if: ${{ always() && needs.test.result')
+  })
+
+  it('guards the manual GHCR path against partial-state identity before mutation', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const ghcr = workflow.match(/- name: Deploy GHCR images over SSH[\s\S]*?(?=\n {6}- name:)/)?.[0]
+    expect(ghcr).toBeDefined()
+    const guard = ghcr?.indexOf('verify-ghcr-deploy-state.sh') ?? -1
+    const envMutation = ghcr?.indexOf('install -m 600 .deploy/.env.production .env') ?? -1
+    const backup = ghcr?.indexOf('bash .deploy/scripts/backup-local.sh') ?? -1
+    expect(guard).toBeGreaterThan(-1)
+    expect(envMutation).toBe(-1)
+    expect(backup).toBeGreaterThan(guard)
+    expect(ghcr).toContain('bash .deploy/scripts/verify-ghcr-deploy-state.sh')
+  })
+})
+
+describe('manual GHCR state guard', () => {
+  it('rejects the documented candidate-manifest/old-runtime partial state without mutation', () => {
+    const root = mkdtempSync(join(tmpdir(), 'volleytime-ghcr-guard-'))
+    dirs.push(root)
+    const bin = join(root, 'bin')
+    mkdirSync(bin)
+    mkdirSync(join(root, '.deploy'))
+    const old = 'a'.repeat(40)
+    const candidate = 'b'.repeat(40)
+    const manifest = (sha: string) =>
+      `WEB_IMAGE=volleytime-web:${sha}\nBOT_IMAGE=volleytime-bot:${sha}\nMIGRATOR_IMAGE=volleytime-migrator:${sha}\nRELEASE_VERSION=${sha}\n`
+    writeFileSync(join(root, '.env.images'), manifest(candidate))
+    writeFileSync(join(root, '.env'), 'DB_PASSWORD=old\n')
+    writeFileSync(join(root, '.deploy', '.env.production'), 'DB_PASSWORD=old\n')
+    writeFileSync(
+      join(bin, 'docker'),
+      '#!/usr/bin/env bash\ncase "$1 $2" in "inspect --format") name="${@: -1}"; sha="$LIVE_SHA"; [ "$name" != vt_bot ] || sha="$BOT_SHA"; printf "true|healthy|volleytime-%s:%s\\n" "${name#vt_}" "$sha" ;; "image inspect") exit 0 ;; *) exit 1 ;; esac\n',
+    )
+    writeFileSync(
+      join(bin, 'curl'),
+      '#!/usr/bin/env bash\nprintf \'{"status":"ok","db":"ok","auth":"ok","release":"%s"}\\n\' "$LIVE_SHA"\n',
+    )
+    chmodSync(join(bin, 'docker'), 0o755)
+    chmodSync(join(bin, 'curl'), 0o755)
+    const shellRoot =
+      process.platform === 'win32'
+        ? root
+            .replace(/^([A-Za-z]):\\/, (_match, drive: string) => `/${drive.toLowerCase()}/`)
+            .replaceAll('\\', '/')
+        : root
+    const run = (botSha = old) =>
+      spawnSync(bashExecutable, [ghcrGuardScript], {
+        env: {
+          ...process.env,
+          PATH: `${shellRoot}/bin:/usr/bin:/mingw64/bin:${process.env.PATH ?? ''}`,
+          VOLLEYTIME_ROOT: shellRoot,
+          LIVE_SHA: old,
+          BOT_SHA: botSha,
+          CURL_BIN: `${shellRoot}/bin/curl`,
+          PUBLIC_HEALTH_URL: 'https://example.invalid/api/health',
+          PYTHON_BIN: process.platform === 'win32' ? 'python' : 'python3',
+        },
+        encoding: 'utf8',
+      })
+
+    const rejected = run()
+    expect(rejected.status).not.toBe(0)
+    expect(readFileSync(join(root, '.env.images'), 'utf8')).toBe(manifest(candidate))
+    expect(readFileSync(join(root, '.env'), 'utf8')).toBe('DB_PASSWORD=old\n')
+    writeFileSync(join(root, '.env.images'), manifest(old))
+    const accepted = run()
+    expect(accepted.status, accepted.stderr).toBe(0)
+    expect(run(candidate).status).not.toBe(0)
+    writeFileSync(join(root, '.deploy', '.env.production'), 'DB_PASSWORD=candidate\n')
+    expect(run().status).not.toBe(0)
+    expect(readFileSync(join(root, '.env'), 'utf8')).toBe('DB_PASSWORD=old\n')
   })
 })

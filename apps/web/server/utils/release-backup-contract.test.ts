@@ -42,7 +42,12 @@ describe('local release backup contract', () => {
     const localAdvance = localBuild.indexOf('release-bundle.sh advance')
     const localMigrate = localBuild.indexOf('run --rm migrate')
 
-    expect(workflow).toContain('scripts/backup-local.sh')
+    expect(workflow).toContain(
+      "source: '.env.production,release.bundle,scripts/release-bundle.sh,scripts/deploy-local-build.sh,scripts/backup-local.sh,scripts/verify-ghcr-deploy-state.sh'",
+    )
+    expect(workflow).toContain(
+      'install -m 600 scripts/release-bundle.sh scripts/verify-release-images.sh scripts/backup-local.sh scripts/deploy-image-bundle.sh "$stage/scripts/"',
+    )
     expect(workflow).toContain('deploy-image-bundle.sh deploy')
     expect(workflowBackup).toBeGreaterThan(-1)
     expect(workflowMigrate).toBeGreaterThan(workflowBackup)

@@ -126,7 +126,7 @@ jobs:
   deploy:
     name: Deploy to VPS
     needs: [test, build-and-push]
-    if: ${{ always() && needs.test.result == 'success' && (needs.build-and-push.result == 'success' || needs.build-and-push.result == 'skipped') }}
+    if: ${{ !cancelled() && needs.test.result == 'success' && (needs.build-and-push.result == 'success' || needs.build-and-push.result == 'skipped') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -184,6 +184,24 @@ jobs:
           set -euo pipefail
           install -m 600 .env.production "${{ github.sha }}/.env.production"
           rm -f .env.production
+      - name: Measure image bundle transfer
+        id: transfer_size
+        if: ${{ github.event_name == 'push' || inputs.deployment_mode == 'image-bundle' }}
+        run: |
+          set -euo pipefail
+          stage="${{ github.sha }}"
+          test "$(sed -n 's/^RELEASE_SHA=//p' "$stage/release-images.meta")" = "${{ github.sha }}"
+          archive_bytes="$(sed -n 's/^ARCHIVE_BYTES=//p' "$stage/release-images.meta")"
+          unpacked_bytes="$(sed -n 's/^UNPACKED_BYTES=//p' "$stage/release-images.meta")"
+          [[ "$archive_bytes" =~ ^[1-9][0-9]{0,14}$ ]]
+          [[ "$unpacked_bytes" =~ ^[1-9][0-9]{0,14}$ ]]
+          test "$(stat -c %s "$stage/release-images.tar.gz")" = "$archive_bytes"
+          payload_bytes="$(du -sb "$stage" | awk '{print $1}')"
+          [[ "$payload_bytes" =~ ^[1-9][0-9]{0,14}$ ]]
+          [ "$payload_bytes" -ge "$archive_bytes" ]
+          echo "payload_bytes=$payload_bytes" >> "$GITHUB_OUTPUT"
+          echo "archive_bytes=$archive_bytes" >> "$GITHUB_OUTPUT"
+          echo "unpacked_bytes=$unpacked_bytes" >> "$GITHUB_OUTPUT"
       - name: Prepare remote secret staging
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'ghcr' }}
         uses: appleboy/ssh-action@v1
@@ -204,7 +222,7 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: deploy
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: '.env.production,release.bundle,scripts/release-bundle.sh,scripts/deploy-local-build.sh,scripts/backup-local.sh'
+          source: '.env.production,release.bundle,scripts/release-bundle.sh,scripts/deploy-local-build.sh,scripts/backup-local.sh,scripts/verify-ghcr-deploy-state.sh'
           target: '/opt/volleytime/.deploy'
       - name: Deploy GHCR images over SSH
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'ghcr' }}
@@ -216,10 +234,11 @@ jobs:
           script: |
             set -euo pipefail
             cd /opt/volleytime
+            bash .deploy/scripts/verify-ghcr-deploy-state.sh
             test -f .deploy/.env.production
-            install -m 600 .deploy/.env.production .env
-            rm -f .deploy/.env.production
             bash .deploy/scripts/backup-local.sh
+            # The guard requires byte-identical env; keep the live file untouched.
+            rm -f .deploy/.env.production
             candidate_manifest=.deploy/.env.images.candidate
             {
               echo "WEB_IMAGE=ghcr.io/${{ github.repository }}/web:${{ github.sha }}"
@@ -241,7 +260,7 @@ jobs:
               run --rm migrate
             docker compose -f docker-compose.prod.yml --env-file .env --env-file .env.images up -d
 
-      - name: Prepare private incoming directory
+      - name: Check remote transfer capacity
         if: ${{ github.event_name == 'push' || inputs.deployment_mode == 'image-bundle' }}
         uses: appleboy/ssh-action@v1
         with:
@@ -253,9 +272,45 @@ jobs:
           script: |
             set -euo pipefail
             [[ '${{ github.sha }}' =~ ^[0-9a-f]{40}$ ]]
+            payload_bytes='${{ steps.transfer_size.outputs.payload_bytes }}'
+            archive_bytes='${{ steps.transfer_size.outputs.archive_bytes }}'
+            unpacked_bytes='${{ steps.transfer_size.outputs.unpacked_bytes }}'
+            [[ "$payload_bytes" =~ ^[1-9][0-9]{0,14}$ ]]
+            [[ "$archive_bytes" =~ ^[1-9][0-9]{0,14}$ ]]
+            [[ "$unpacked_bytes" =~ ^[1-9][0-9]{0,14}$ ]]
+            install -d -m 700 /opt/volleytime/.deploy/incoming
             if [ -e /opt/volleytime/.deploy/incoming/${{ github.sha }} ]; then
               echo 'Existing SHA staging requires a manual recovery checkpoint before rerun' >&2
               exit 1
+            fi
+            # Preserve the verifier's post-upload Docker import reserve. SCP also
+            # needs a destination extraction copy and a temporary tar archive.
+            stage_required_bytes=$((payload_bytes + archive_bytes + 2 * unpacked_bytes + 268435456))
+            temp_required_bytes=$((payload_bytes + 268435456))
+            docker_required_bytes=$((archive_bytes + 2 * unpacked_bytes + 268435456))
+            stage_device="$(stat -c %d /opt/volleytime/.deploy/incoming)"
+            temp_device="$(stat -c %d /tmp)"
+            docker_root="$(docker info --format '{{.DockerRootDir}}')"
+            [ -d "$docker_root" ]
+            docker_device="$(stat -c %d "$docker_root")"
+            if [ "$stage_device" = "$temp_device" ]; then
+              stage_required_bytes=$((stage_required_bytes + payload_bytes))
+            fi
+            stage_required_kib=$(((stage_required_bytes + 1023) / 1024))
+            stage_available_kib="$(df -Pk /opt/volleytime/.deploy/incoming | awk 'NR == 2 {print $4}')"
+            [[ "$stage_available_kib" =~ ^[0-9]+$ ]]
+            [ "$stage_available_kib" -ge "$stage_required_kib" ] || { echo 'Insufficient staging/import capacity; manual recovery checkpoint' >&2; exit 1; }
+            if [ "$stage_device" != "$temp_device" ]; then
+              temp_required_kib=$(((temp_required_bytes + 1023) / 1024))
+              temp_available_kib="$(df -Pk /tmp | awk 'NR == 2 {print $4}')"
+              [[ "$temp_available_kib" =~ ^[0-9]+$ ]]
+              [ "$temp_available_kib" -ge "$temp_required_kib" ] || { echo 'Insufficient temporary transfer capacity; manual recovery checkpoint' >&2; exit 1; }
+            fi
+            if [ "$stage_device" != "$docker_device" ]; then
+              docker_required_kib=$(((docker_required_bytes + 1023) / 1024))
+              docker_available_kib="$(df -Pk "$docker_root" | awk 'NR == 2 {print $4}')"
+              [[ "$docker_available_kib" =~ ^[0-9]+$ ]]
+              [ "$docker_available_kib" -ge "$docker_required_kib" ] || { echo 'Insufficient Docker import capacity; manual recovery checkpoint' >&2; exit 1; }
             fi
             install -d -m 700 /opt/volleytime/.deploy/incoming/${{ github.sha }}
 
@@ -292,7 +347,6 @@ jobs:
             test -f .deploy/incoming/${{ github.sha }}/scripts/deploy-image-bundle.sh
             chmod 700 .deploy/incoming/${{ github.sha }} .deploy/incoming/${{ github.sha }}/scripts
             chmod 600 .deploy/incoming/${{ github.sha }}/.env.production
-            install -m 600 .deploy/incoming/${{ github.sha }}/.env.production .env
             bash .deploy/incoming/${{ github.sha }}/scripts/deploy-image-bundle.sh deploy .deploy/incoming/${{ github.sha }} ${{ github.sha }}
 
       - name: Smoke check
