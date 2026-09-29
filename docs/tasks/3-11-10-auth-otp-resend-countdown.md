@@ -2,10 +2,10 @@
 id: '3.11.10'
 phase: '3'
 epic: '3.11'
-status: in_progress
+status: done
 sync_state: synced
 last_reviewed: 2026-09-29
-status_note: 'Chrome 200% QA 8.10.3 выявил начальное «Повтор через 0:60». RED 4 fail → GREEN 14/14; пять gates (125 файлов/731 тест), built Chrome 200% 1:00→0:59, local health/session smoke и независимый re-review без блокеров прошли. Exact-head CI/PR/main ещё ожидаются; production не менялся.'
+status_note: 'Принята PR #66 в main=99cae3a; RED 4 fail → GREEN 14/14, пять gates (125 файлов/731 тест), native Chrome 200% 1:00→0:59, local health/session smoke, независимый re-review, CI exact-head и main прошли; merge tree равен head. Production не менялся.'
 review_ref: '8.10.3 · Chrome 200% auth code state'
 priority: P2
 roles: [FE, QA]
@@ -41,6 +41,8 @@ tags: [auth, otp, ui, review-fix]
 В `apps/web/app/pages/auth/login.vue` старт `resendIn = 60` уже корректен. Исправление ограничено форматированием подписи; существующие тесты `apps/web/app/utils/auth-flow.test.ts` подходят для чистой функции без таймеров в unit-тесте.
 
 ### Проверка 2026-09-29
+
+- [PR #66](https://github.com/trafficolog/volleytime/pull/66) закрывает issue #65, head `14a90cde7db4c7ecd5a99355f0622349a0b6d2c2`, merge `99cae3abceeb27705adde46f45143597fa6fd1b2`. [CI head 36542875997](https://github.com/trafficolog/volleytime/actions/runs/36542875997) и [CI main 36543085212](https://github.com/trafficolog/volleytime/actions/runs/36543085212) завершились success во всех трёх jobs. Полное дерево head/merge одинаково: `6bd2c630a67a2ebee7fd2b9a359353d6d7502eb1`. Общий R0.6 gate и Telegram QA не закрываются этой отдельной задачей.
 
 - После SDD commit `5f76fc2` четыре RED-кейса (`60`, `59`, `1`, `0`) упали из-за отсутствующего форматтера. Минимальная реализация дала 14/14 в `auth-flow.test.ts`; стартовое значение, интервал, запросы OTP и сервер не менялись.
 - Все пять gates на ветке: `format:check` success; `lint` 0 errors/12 существовавших warnings; `typecheck` 6/6; `test` 125 файлов/731 тест; `build` 2/2. Независимый scoped review и focused re-review не нашли Critical/Important; исправлена замеченная в карточке ссылка на ещё не смёрженный QA-отчёт.

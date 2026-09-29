@@ -5,7 +5,7 @@ epic: '8.10'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-29
-status_note: 'Implementation-зависимости, 3.11.9 и 8.10.6 приняты в main. Локальный R0.6 closure-map дополнен Chrome 200% auth/player; найден minor OTP timer 0:60 → 3.11.10, до его исправления QA не закрыт. Прежние task-level POST остаются P, Telegram-host T после controlled deploy. Итоговые gates/review/CI после интеграции 3.11.10 ещё ожидаются; prod/VPS не менялись.'
+status_note: 'Implementation-зависимости приняты в main; local F/P matrix и native Chrome 200% auth/player завершены, minor OTP timer исправлен PR #66. Итоговые пять gates (125/731), exact-SHA local synthetic smoke и независимый re-review без Critical/Important прошли. PR/exact-head CI QA-ветки ещё ожидаются; T после controlled deploy. Prod/VPS не менялись.'
 roles: [QA, FE]
 depends_on:
   [
@@ -33,6 +33,10 @@ tags: [qa, mvp, redesign]
 Подтвердить полноту MVP-экранов и состояний относительно архива v2 и отсутствие регрессий.
 
 ## Контекст
+
+2026-09-29 итоговый локальный gate: интеграция `1a063e5` повторно прошла пять gates (format; lint 0 errors/12 прежних warnings; typecheck6/6; test125/731; build2/2), local exact-SHA health/auth/synthetic-initData/forgery/cleanup smoke и focused independent re-review без Critical/Important. Детали и ограничения — в разделе «Итоговый локальный gate» [матрицы](../operations/qa/2026-09-28-r06-integrated-matrix.md). До task acceptance остаются PR/exact-head CI; production/Telegram не объявляются пройденными.
+
+2026-09-29: 3.11.10 принята через [PR #66](https://github.com/trafficolog/volleytime/pull/66), `main=99cae3a`, head/main CI success и одинаковое merge tree. QA checkpoint `2af4a26` объединён с этим main как `1a063e5`; runtime-source совпадает с main, документный конфликт RELEASES разрешён с сохранением обеих задач. На объединённом состоянии выполняются финальные gates/smoke/review; исторические ожидания 3.11.10 ниже закрыты.
 
 2026-09-29: [native Chrome 200% auth/player](../operations/qa/2026-09-29-native-200-auth-player.md) завершил недостающий репрезентативный zoom-проход: email/code, две группы, Home/event/bookings/subscriptions/profile сверху и после прокрутки, без горизонтального переполнения; группа с выключенными новыми абонементами и сохранённым остатком показывает просмотр по правилу. В кодовом состоянии обнаружен `0:60`, исправление выделено в 3.11.10 и требуется до итогового QA gate. Реальный Telegram не заявлен.
 
