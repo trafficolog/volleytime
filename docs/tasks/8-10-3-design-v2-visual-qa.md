@@ -5,7 +5,7 @@ epic: '8.10'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-29
-status_note: 'Implementation-зависимости и font-fix 3.11.9 приняты в main. После исправления повторены 48 Mini App + 55 desktop cases с loaded fonts, auth 15 и landing 5, клавиатура/loading. Checkpoint сохранён и main интегрирован без runtime delta. Оставшиеся entry/invite/error states, финальный release smoke и post-deploy Telegram/pilot открыты; prod/VPS не менялись.'
+status_note: 'Implementation-зависимости, 3.11.9 и 8.10.6 приняты в main. Локальный R0.6 closure-map дополнен Chrome 200% auth/player; найден minor OTP timer 0:60 → 3.11.10, до его исправления QA не закрыт. Прежние task-level POST остаются P, Telegram-host T после controlled deploy. Итоговые gates/review/CI после интеграции 3.11.10 ещё ожидаются; prod/VPS не менялись.'
 roles: [QA, FE]
 depends_on:
   [
@@ -13,10 +13,12 @@ depends_on:
     '3.11.4',
     '3.11.8',
     '3.11.9',
+    '3.11.10',
     '8.10.1',
     '8.10.2',
     '8.10.4',
     '8.10.5',
+    '8.10.6',
     '5.15.1',
     '6.10.1',
   ]
@@ -31,6 +33,10 @@ tags: [qa, mvp, redesign]
 Подтвердить полноту MVP-экранов и состояний относительно архива v2 и отсутствие регрессий.
 
 ## Контекст
+
+2026-09-29: [native Chrome 200% auth/player](../operations/qa/2026-09-29-native-200-auth-player.md) завершил недостающий репрезентативный zoom-проход: email/code, две группы, Home/event/bookings/subscriptions/profile сверху и после прокрутки, без горизонтального переполнения; группа с выключенными новыми абонементами и сохранённым остатком показывает просмотр по правилу. В кодовом состоянии обнаружен `0:60`, исправление выделено в 3.11.10 и требуется до итогового QA gate. Реальный Telegram не заявлен.
+
+2026-09-29: [8.10.6](./8-10-6-miniapp-invite-load-retry.md) принята через [PR #64](https://github.com/trafficolog/volleytime/pull/64) в `main=c473de1`, CI PR/main прошли, merge tree совпадает с проверенным head. Исправленный Chrome даёт 45/45 error/retry с настоящими локальными GET200 и успешным empty после повтора; failed-revoke fixture 4/4 сохраняет ссылку/действия без повторного POST. Дополнительно primary-route error/retry 21/21. [Актуальное дополнение](../operations/qa/2026-09-29-entry-invite-error-states.md) и [closure-map](../operations/qa/2026-09-28-r06-integrated-matrix.md) разделяют свежие F, принятые ранее P и будущие Telegram T. Старые строки ниже о незавершённой 8.10.6 — исторический RED checkpoint. До принятия этой QA-ветки нужны финальные пять gates/review/CI; production не менялся.
 
 2026-09-29: [дополнительный Chrome проход](../operations/qa/2026-09-29-entry-invite-error-states.md) дал 60/60 entry/invite/group states и 41/41 error→retry к real local API. Organizer invite при GET 503 показал ложный empty и отсутствие retry в четырёх размерах/темах; до кода создана отдельная [8.10.6](./8-10-6-miniapp-invite-load-retry.md). Пользователь подтвердил bounded RED→GREEN план исправления. Общий QA остаётся открытым до исправления, remaining targeted primary-route/role checks и release gates; prod/VPS не менялись.
 

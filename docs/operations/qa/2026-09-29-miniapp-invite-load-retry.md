@@ -15,7 +15,7 @@ Mounted Vue tests используют настоящие page / ErrorState / Em
 - После review-fix: format pass, lint 0 errors / 12 прежних warnings, typecheck 6/6, полный PostgreSQL suite 125 files / 727 tests pass, build 2/2 pass (1m25.786s).
 - Оба `DATABASE_URL` и `DATABASE_URL_TEST` указывают на отдельную `volleytime_qa_8101_post56`; browser DB `volleytime_qa_8101_selfcheck` не использовалась тестовым suite.
 - Независимый task-review на `5227759..e3b8031`: spec compliance и task quality approved, без Critical/Important. Последующее whole-branch review квалифицировало shared `loadError` для failed revoke как Important regression; focused independent re-review на `40759fc` подтвердило исправление без новых Critical/Important. Minor о неподтверждённом successful empty после реального GET закрыт новым browser assertion и PNG после повтора.
-- Exact-head CI / PR / main ещё ожидаются. Карточка пока `in_progress`.
+- [PR #64](https://github.com/trafficolog/volleytime/pull/64) принят в `main` как `c473de1ef8482a4f54a00b30ab79f6bd951e0333`. [Exact-head CI 36538108493](https://github.com/trafficolog/volleytime/actions/runs/36538108493) на `52d65a26a6008757637f7c3cf6d3612304d59181` и [main CI 36538310519](https://github.com/trafficolog/volleytime/actions/runs/36538310519) на merge: все три jobs success; дерево merge равно PR head. Карточка 8.10.6 закрыта, 8.10.3 отдельно открыта.
 
 ## Chrome и реальные локальные GET
 

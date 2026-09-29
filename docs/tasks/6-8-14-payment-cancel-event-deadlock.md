@@ -2,10 +2,10 @@
 id: '6.8.14'
 phase: '6'
 epic: '6.8'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-27
-status_note: 'RED подтвердил PostgreSQL deadlock 40P01; порядок блокировок выровнен, 10 повторов GREEN, money-races, пять gates и scoped review пройдены; задача интегрирована в GitHub main, production не менялся.'
+last_reviewed: 2026-09-29
+status_note: 'RED подтвердил PostgreSQL deadlock 40P01; lock order выровнен, 10 повторов GREEN, money-races, пять gates и scoped review пройдены. Отдельный PR #49 принят в main как c8ad0eb, все три CI jobs на 3bd6f98 прошли. Общий R0.6 и production/Telegram acceptance отдельно открыты.'
 review_ref: 'Task 6.8.13 · scoped concurrency review'
 priority: P1
 roles: [BACK, QA]
@@ -43,6 +43,8 @@ tags: [payments, events, concurrency, review-fix]
 - Не смешивать с реализацией 6.8.13 или UI-задачами.
 
 ## Диагностика 2026-09-27
+
+Принятие: [PR #49](https://github.com/trafficolog/volleytime/pull/49) смёржен в `main` как `c8ad0eb198540f5f2e95ae2e54877f6ffbf2f139`, все три CI jobs на head `3bd6f98926661c2eef29e57c7d50819ca6a60a48` прошли. Статус карточки приведён в соответствие с уже принятой реализацией; это не production/Telegram QA.
 
 - На отдельной БД `volleytime_qa_6814_20260927` тест удержал строку события `FOR UPDATE`, дождался, пока `eventService.cancel` возьмёт advisory lock события и остановится на строке, затем запустил `paymentService.cancel`. Он изменил pending-платёж и остановился на том же advisory lock. После освобождения строки события event cancel попытался заблокировать уже удерживаемый платёж. RED: `pnpm exec vitest run --project integration money-races.integration.test.ts -t 6.8.14` — 1 failed с подтверждённым кодом PostgreSQL `40P01` в `cause` ошибки.
 - Минимальная коррекция: для платежа, связанного с бронью, `paymentService.cancel` должен получить eventId без блокировки строки платежа и взять advisory lock события **до** условного `pending → cancelled`. Повторный захват в `bookingService.cancel` внутри той же транзакции допустим. Платежи абонементов без события сохраняют прежний путь; публичный API и ledger не меняются.

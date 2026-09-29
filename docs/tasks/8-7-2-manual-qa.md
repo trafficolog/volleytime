@@ -4,8 +4,8 @@ phase: '8'
 epic: '8.7'
 status: in_progress
 sync_state: synced
-last_reviewed: 2026-09-18
-status_note: 'Reconciled 2026-09-18: manual-QA checklist существует, но реальный Telegram-прогон iOS/Android/Desktop не выполнен. Тот же underlying gate детализирован в 8.8.11.'
+last_reviewed: 2026-09-29
+status_note: 'Manual-QA checklist существует, но реальный Telegram-прогон iOS/Android/Desktop и недельный пилот не выполнены. По решению владельца R0.6 этот gate проверяется на production после контролируемой выкладки полного кандидата; 8.8.11 детализирует тот же ручной прогон.'
 roles:
   - QA
 depends_on:
@@ -26,6 +26,8 @@ tags:
 Чеклист полного MVP-сценария (игрок + организатор). Прогон в реальном Telegram на iOS и Android. Проверка MVP-критерия: неделя тренировок только через Mini App.
 
 ## Контекст
+
+Для R0.6/v0.1.6 владелец 2026-09-27 разрешил сначала controlled deploy полного локально проверенного кандидата на пустой production-пилот, затем настоящий Telegram QA и двухаккаунтные сценарии. Поэтому историческая фраза ниже «гейт перед Phase 9» не требует staging до выкладки именно этого кандидата. Она остаётся обязательным условием окончательной приёмки, а не доказательством от автотестов.
 
 Telegram-specific вещи (initData реально приходит, MainButton рендерится на iOS/Android, web_app deeplinks открываются, haptics работают) нельзя проверить автотестами — только вручную в реальном клиенте. Это гейт перед Phase 9 (deploy).
 
