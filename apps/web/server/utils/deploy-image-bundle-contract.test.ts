@@ -673,19 +673,35 @@ describe('image bundle activation', () => {
       /docker (?:build|image prune|system prune|compose .* build\b)|restore/,
     )
     expect(readFileSync(join(f.repo, '.deploy', 'image-bundle-phase'), 'utf8')).toContain(
-      `smoke-passed ${f.next}`,
+      `activated ${f.next}`,
     )
   })
 
   it('same-SHA retry retains old previous pointer', () => {
     const f = activationFixture()
     expect(f.run().status).toBe(0)
+    expect(f.run('confirm-smoke').status).toBe(0)
     const before = f.commands()
     const retry = f.run()
     expect(retry.status, retry.stderr).toBe(0)
     expect(f.commands().slice(before.length)).not.toMatch(/verify |backup |compose /)
     expect(readFileSync(join(f.repo, '.deploy', 'previous-git-sha'), 'utf8').trim()).toBe(f.old)
-  })
+  }, 15000)
+
+  it('requires separate exact-SHA confirmation before reporting synthetic smoke success', () => {
+    const f = activationFixture()
+    expect(f.run().status).toBe(0)
+    expect(readFileSync(join(f.repo, '.deploy', 'image-bundle-phase'), 'utf8')).toContain(
+      `activated ${f.next}`,
+    )
+    expect(f.run().status).not.toBe(0)
+    const confirm = f.run('confirm-smoke')
+    expect(confirm.status, confirm.stderr).toBe(0)
+    expect(readFileSync(join(f.repo, '.deploy', 'image-bundle-phase'), 'utf8')).toContain(
+      `smoke-passed ${f.next}`,
+    )
+    expect(f.run().status).toBe(0)
+  }, 15000)
 
   it.each([
     ['live mismatch', { FAKE_BOT_SHA: 'b'.repeat(40) }],
@@ -694,8 +710,21 @@ describe('image bundle activation', () => {
     const f = activationFixture()
     const result = f.run('deploy', env)
     expect(result.status).not.toBe(0)
+    expect(f.commands()).not.toContain('verify ')
     expect(f.commands()).not.toContain('backup ')
     expect(f.git('rev-parse', 'HEAD')).toBe(f.candidate)
+  })
+
+  it('rejects a live previous SHA missing from Git before loading images or backing up', () => {
+    const f = activationFixture()
+    const absent = 'a'.repeat(40)
+    writeFileSync(f.live, absent)
+    writeFileSync(join(f.repo, '.env.images.previous'), f.manifest(absent))
+    writeFileSync(join(f.repo, '.deploy', 'previous-git-sha'), `${absent}\n`)
+    const result = f.run()
+    expect(result.status).not.toBe(0)
+    expect(f.commands()).not.toContain('verify ')
+    expect(f.commands()).not.toContain('backup ')
   })
 
   it('rejects dirty checkout before backup', () => {
@@ -741,6 +770,18 @@ describe('image bundle activation', () => {
     expect(readFileSync(f.live, 'utf8').trim()).toBe(f.next)
   }, 15000)
 
+  it('retries the original partial state where checkout and manifest already equal the target', () => {
+    const f = activationFixture()
+    f.git('reset', '--hard', f.next)
+    writeFileSync(join(f.repo, '.env.images'), f.manifest(f.next))
+    expect(f.run('deploy', { FAKE_BACKUP_FAIL: '1' }).status).not.toBe(0)
+    expect(readFileSync(f.live, 'utf8').trim()).toBe(f.old)
+    const retry = f.run()
+    expect(retry.status, retry.stderr).toBe(0)
+    expect(readFileSync(join(f.repo, '.deploy', 'previous-git-sha'), 'utf8').trim()).toBe(f.old)
+    expect(readFileSync(f.live, 'utf8').trim()).toBe(f.next)
+  }, 15000)
+
   it('migration failure never switches web or bot', () => {
     const f = activationFixture()
     const result = f.run('deploy', { FAKE_MIGRATE_FAIL: '1' })
@@ -752,20 +793,24 @@ describe('image bundle activation', () => {
   it.each([
     ['up failure', { FAKE_UP_FAIL: '1' }],
     ['smoke failure', { FAKE_HEALTH_FAIL: '1' }],
-  ])('%s rolls back with local old images and no build', (_name, env) => {
-    const f = activationFixture()
-    const result = f.run('deploy', env)
-    expect(result.status).not.toBe(0)
-    expect(f.git('rev-parse', 'HEAD')).toBe(f.old)
-    expect(readFileSync(f.live, 'utf8').trim()).toBe(f.old)
-    expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(f.manifest(f.old))
-    expect(readFileSync(join(f.repo, '.deploy', 'image-bundle-phase'), 'utf8')).toContain(
-      'rolled-back',
-    )
-    expect(f.commands()).not.toMatch(
-      /docker (?:build|image prune|system prune|compose .* build\b)|restore/,
-    )
-  })
+  ])(
+    '%s rolls back with local old images and no build',
+    (_name, env) => {
+      const f = activationFixture()
+      const result = f.run('deploy', env)
+      expect(result.status).not.toBe(0)
+      expect(f.git('rev-parse', 'HEAD')).toBe(f.old)
+      expect(readFileSync(f.live, 'utf8').trim()).toBe(f.old)
+      expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(f.manifest(f.old))
+      expect(readFileSync(join(f.repo, '.deploy', 'image-bundle-phase'), 'utf8')).toContain(
+        'rolled-back',
+      )
+      expect(f.commands()).not.toMatch(
+        /docker (?:build|image prune|system prune|compose .* build\b)|restore/,
+      )
+    },
+    15000,
+  )
 
   it('restores old images after web starts but bot does not', () => {
     const f = activationFixture()
@@ -797,5 +842,5 @@ describe('image bundle activation', () => {
     expect(f.git('rev-parse', 'HEAD')).toBe(f.old)
     expect(readFileSync(f.live, 'utf8').trim()).toBe(f.old)
     expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(f.manifest(f.old))
-  })
+  }, 15000)
 })

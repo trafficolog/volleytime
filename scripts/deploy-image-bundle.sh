@@ -5,11 +5,12 @@ umask 077
 fail() { echo "image-bundle: $*; manual recovery checkpoint" >&2; exit 1; }
 valid_sha() { [[ "$1" =~ ^[0-9a-f]{40}$ ]]; }
 
-[ "$#" -ge 2 ] || fail "usage: deploy-image-bundle.sh deploy STAGING_DIR FULL_SHA | rollback FULL_SHA"
+[ "$#" -ge 2 ] || fail "usage: deploy-image-bundle.sh deploy STAGING_DIR FULL_SHA | rollback FULL_SHA | confirm-smoke FULL_SHA"
 mode="$1"
 case "$mode" in
   deploy) [ "$#" -eq 3 ] || fail "deploy needs staging directory and full SHA"; staging="$2"; wanted="$3" ;;
   rollback) [ "$#" -eq 2 ] || fail "rollback needs full SHA"; wanted="$2" ;;
+  confirm-smoke) [ "$#" -eq 2 ] || fail "confirm-smoke needs full SHA"; wanted="$2" ;;
   *) fail "unknown mode" ;;
 esac
 valid_sha "$wanted" || fail "release SHA must be full lowercase SHA"
@@ -170,6 +171,19 @@ if [ "$mode" = rollback ]; then
   exit 0
 fi
 
+if [ "$mode" = confirm-smoke ]; then
+  [ -f "$phase_file" ] || fail "activation phase is unknown"
+  read -r phase phase_sha < "$phase_file"
+  [ "$phase_sha" = "$wanted" ] || fail "activation phase belongs to another SHA"
+  case "$phase" in activated|smoke-passed) ;; *) fail "activation has not completed" ;; esac
+  clean_prod || fail "checkout is dirty or not prod"
+  [ "$(git rev-parse HEAD)" = "$wanted" ] || fail "checkout does not match synthetic smoke SHA"
+  [ "$(read_manifest_sha "$manifest" || true)" = "$wanted" ] || fail "manifest does not match synthetic smoke SHA"
+  check_health "$wanted" || fail "runtime no longer matches synthetic smoke SHA"
+  mark smoke-passed
+  exit 0
+fi
+
 [ -d "$staging" ] && [ -f "$staging/release.bundle" ] || fail "staged Git bundle is missing"
 if [ -f "$phase_file" ]; then
   read -r phase phase_sha < "$phase_file"
@@ -180,11 +194,10 @@ if [ -f "$phase_file" ]; then
   fi
   [ "$phase_sha" = "$wanted" ] || fail "unfinished activation belongs to another SHA"
   case "$phase" in
-    verified|loaded|backed-up)
-      # These phases precede checkout/manifest mutation. A retry is safe only
-      # when source and live services still prove that boundary.
-      [ "$(git rev-parse HEAD)" != "$wanted" ] || fail "source advanced during an early phase"
-      [ "$(read_manifest_sha "$manifest" || true)" != "$wanted" ] || fail "manifest advanced during an early phase"
+    verified|loaded)
+      # These phases precede backup and checkout mutation. HEAD/manifest may
+      # already equal the target in the documented partial-deploy incident.
+      # The live runtime and previous pointer must still agree before retry.
       capture_previous >/dev/null
       ;;
     *) fail "unfinished activation phase $phase for $phase_sha" ;;
@@ -198,13 +211,16 @@ ref="$(git bundle list-heads "$staging/release.bundle" | awk -v sha="$wanted" '$
 git fetch --no-tags "$staging/release.bundle" "$ref" >/dev/null || fail "bundle fetch failed"
 [ "$(git rev-parse FETCH_HEAD)" = "$wanted" ] || fail "bundle fetched wrong commit"
 git merge-base --is-ancestor HEAD FETCH_HEAD || fail "bundle target is not fast-forward"
-mark verified
-bash "$helper_dir/verify-release-images.sh" "$staging" "$wanted" || fail "image verification/load failed"
-mark loaded
 previous="$(capture_previous)"
+git cat-file -e "$previous^{commit}" || fail "previous runtime Git commit is unavailable"
+git merge-base --is-ancestor "$previous" "$wanted" || fail "previous runtime Git commit is not an ancestor"
 if [ "$previous" = "$wanted" ]; then
   fail "target is already live without completed phase; inspect manually"
 fi
+mark verified
+bash "$helper_dir/verify-release-images.sh" "$staging" "$wanted" || fail "image verification/load failed"
+mark loaded
+[ "$(capture_previous)" = "$previous" ] || fail "live runtime changed while loading images"
 
 # Preserve every pre-existing backup during this activation. The helper still
 # validates the new pg_dump/gzip; its normal retention runs outside deploy.
@@ -241,5 +257,4 @@ if ! wait_health "$wanted"; then
   rollback_to_previous "$wanted" "$previous"
   fail "smoke failed; previous release restored"
 fi
-mark smoke-passed
-echo "image-bundle deployed $wanted"
+echo "image-bundle runtime healthy $wanted; external synthetic smoke pending"
