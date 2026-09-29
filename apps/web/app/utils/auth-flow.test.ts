@@ -2,7 +2,13 @@ import { describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
 import type { AuthOrg } from './auth-destination'
-import { botLink, completeEmailSignIn, continueEmailSignIn, switchEmailAccount } from './auth-flow'
+import {
+  botLink,
+  completeEmailSignIn,
+  continueEmailSignIn,
+  formatOtpResendCountdown,
+  switchEmailAccount,
+} from './auth-flow'
 
 const owner: AuthOrg = {
   id: 7,
@@ -11,6 +17,17 @@ const owner: AuthOrg = {
   membershipRole: 'owner',
   membershipStatus: 'active',
 }
+
+describe('OTP resend countdown', () => {
+  it.each([
+    [60, '1:00'],
+    [59, '0:59'],
+    [1, '0:01'],
+    [0, '0:00'],
+  ])('formats %i seconds as %s', (seconds, expected) => {
+    expect(formatOtpResendCountdown(seconds)).toBe(expected)
+  })
+})
 
 describe('email sign-in completion', () => {
   it('returns to the desktop route after email sign-in', async () => {
