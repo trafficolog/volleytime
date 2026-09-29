@@ -2,10 +2,10 @@
 id: '3.11.9'
 phase: '3'
 epic: '3.11'
-status: todo
+status: done
 sync_state: synced
-last_reviewed: 2026-09-28
-status_note: 'Интегрированная QA 8.10.3 воспроизвела потерю Oswald/Golos на прямом входе auth/desktop при недоступном Google Fonts. Причина установлена; scoped-план подготовлен, implementation ещё не начата.'
+last_reviewed: 2026-09-29
+status_note: 'Принята в main через PR #61, merge b4c9630: RED → GREEN, пять gates, Chrome matrix, независимые task/whole-branch review без новых замечаний и CI 36523981993 success на 67ef8c6. Дерево merge идентично проверенному head; prod/VPS не менялись.'
 roles: [FE, QA]
 depends_on: ['3.11.7', '3.11.3', '5.15.1', '6.10.1']
 estimated_hours: '1-2'
@@ -40,10 +40,16 @@ tags: [fonts, visual-fidelity, review-fix, mvp]
 
 ## План / проверка
 
-[Scoped implementation plan](../superpowers/plans/2026-09-28-global-local-reference-fonts.md). До согласования плана production-код не меняется. Диагностика не является GREEN и не даёт права объявить R0.6 готовым.
+[Scoped implementation plan](../superpowers/plans/2026-09-28-global-local-reference-fonts.md). План утверждён пользователем 2026-09-29; исполнение subagent-driven. Диагностика не является GREEN и не даёт права объявить R0.6 готовым.
 
 ## Не делать
 
 - Не вводить новые шрифты, зависимости, формат-конвертер, preload каждого веса или общую оптимизацию ресурсов.
 - Не менять auth/session, Telegram SDK, серверные операции или настройки организации.
 - Не публиковать частичный R0.6 на prod/VPS и не выдавать Chrome за реальный Telegram-host QA.
+
+## Локальное исполнение 2026-09-29
+
+[QA evidence](../operations/qa/2026-09-29-global-local-reference-fonts.md): реальный browser RED на отсутствии FontFaceSet auth/desktop, тот же GREEN 4/4 с семью local 200/loaded faces и кириллицей; owner 103/103 (48 Mini App light/dark + 55 desktop, включая 320), auth 15/15 на 320/390/720, landing 5/5 и scoped organizer controls. Пять gates: format pass, lint 0 errors / 12 baseline warnings, typecheck 6/6, PostgreSQL tests 124 files / 722 tests, build 2/2. Семь бинарников/лицензии, токены, auth/API/SDK неизменны.
+
+Независимые task review и whole-branch review не нашли Critical/Important или новых Minor. Controller повторил browser regression 4/4 и PostgreSQL suite 124/722 на отдельной test DB (53,60 s) на `67ef8c6`. [CI 36523981993](https://github.com/trafficolog/volleytime/actions/runs/36523981993) прошёл все три job на точном head `67ef8c6beeb0e92d9761be009ebe97d00776dae8`. [PR #61](https://github.com/trafficolog/volleytime/pull/61) смёржен как `b4c9630f14d04782d916d00af3fe51f9166507fd`; полное дерево merge идентично проверенному head. Task `done`; общая 8.10.3 и post-deploy Telegram-host acceptance не закрываются, prod/VPS не менялись.

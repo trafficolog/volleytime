@@ -209,7 +209,7 @@ Canonical R0 snapshot не изменился: **132 done / 7 in_progress из 1
 
 ## R0.6 — MVP UI refresh `v0.1.6` (план)
 
-Дополнение 2026-09-28: интегрированная 8.10.3 обнаружила зависимость auth/desktop от внешнего Google Fonts при прямом входе. Отдельная [3.11.9](./tasks/3-11-9-global-local-reference-fonts.md) переносит уже существующие локальные Oswald/Golos на все MVP-маршруты без смены дизайна. Диагностика и scoped-план готовы; implementation/review/gates ещё не выполнены. Desktop geometry pass с fallback-шрифтом не является visual acceptance; общий R0.6 остаётся открытым.
+2026-09-29 **3.11.9** принята через [PR #61](https://github.com/trafficolog/volleytime/pull/61), merge `b4c9630`: существующие локальные Oswald/Golos глобально доступны на прямом auth/desktop entry. Browser RED → GREEN (семь весов/local 200/кириллица, без Google), пять gates (124 files / 722 tests), owner 103/103, auth 15/15, landing 5/5 и независимые task/whole-branch review прошли; [CI 36523981993](https://github.com/trafficolog/volleytime/actions/runs/36523981993) success на точном `67ef8c6`, полное дерево merge идентично head. [Отчёт](./operations/qa/2026-09-29-global-local-reference-fonts.md). Общая **8.10.3**, полный release gate и post-deploy Telegram-host acceptance остаются открыты; prod/VPS не менялись.
 
 Дополнение 2026-09-26: [3.11.7 — соответствие лендинга исходному референсу](./tasks/3-11-7-landing-reference-fidelity.md) закрывает замечания к визуальному переносу 3.11.4. Входит в R0.6 до общего QA: точная палитра, исходные шрифты/композиция и локальная поставка шрифтов. Пользовательский выбор точных цветов не означает WCAG-приёмку исходного оранжевого; ограничение контраста фиксируется отдельно.
 
