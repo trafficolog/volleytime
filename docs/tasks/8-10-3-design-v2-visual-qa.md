@@ -2,10 +2,10 @@
 id: '8.10.3'
 phase: '8'
 epic: '8.10'
-status: in_progress
+status: done
 sync_state: synced
 last_reviewed: 2026-09-29
-status_note: 'Implementation-зависимости приняты в main; local F/P matrix и native Chrome 200% auth/player завершены, minor OTP timer исправлен PR #66. Итоговые пять gates (125/731), exact-SHA local synthetic smoke и независимый re-review без Critical/Important прошли. PR/exact-head CI QA-ветки ещё ожидаются; T после controlled deploy. Prod/VPS не менялись.'
+status_note: 'Локальный predeploy QA принят PR #68 в main=32d7c4f: F/P matrix, representative native Chrome 200%, пять gates125/731, exact-SHA synthetic local smoke, independent re-review без Critical/Important, exact-head CI success, merge tree равен head. T/полевая приёмка релиза после controlled deploy; task done не означает production/Telegram acceptance.'
 roles: [QA, FE]
 depends_on:
   [
@@ -33,6 +33,8 @@ tags: [qa, mvp, redesign]
 Подтвердить полноту MVP-экранов и состояний относительно архива v2 и отсутствие регрессий.
 
 ## Контекст
+
+**Принятие 2026-09-29:** [PR #68](https://github.com/trafficolog/volleytime/pull/68) закрывает issue #67. Head `75b5c38bee0e235520b1116af6abbc62e72e65a7`, merge `32d7c4f68272a50d7ffacc3a346158a16cb2e860`; [exact-head CI 36552036320](https://github.com/trafficolog/volleytime/actions/runs/36552036320) success во всех трёх jobs, tree обоих `d9f394fa60f99fe31505ca80b6c16b5d80f34a59`. Frozen-head independent review: Critical/Important отсутствуют, все MVP implementation dependencies done. Done относится к доступной локальной матрице/gates, не к отдельным post-deploy Telegram/pilot карточкам 8.7.2/8.8.11.
 
 2026-09-29 итоговый локальный gate: интеграция `1a063e5` повторно прошла пять gates (format; lint 0 errors/12 прежних warnings; typecheck6/6; test125/731; build2/2), local exact-SHA health/auth/synthetic-initData/forgery/cleanup smoke и focused independent re-review без Critical/Important. Детали и ограничения — в разделе «Итоговый локальный gate» [матрицы](../operations/qa/2026-09-28-r06-integrated-matrix.md). До task acceptance остаются PR/exact-head CI; production/Telegram не объявляются пройденными.
 

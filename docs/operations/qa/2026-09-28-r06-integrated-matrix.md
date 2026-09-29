@@ -1,5 +1,7 @@
 # R0.6 / 8.10.3 — интегрированная матрица QA
 
+**Текущий итог 2026-09-29:** локальный predeploy QA принят через [PR #68](https://github.com/trafficolog/volleytime/pull/68) в `main=32d7c4f`, head `75b5c38`, exact-head CI `36552036320` success во всех трёх jobs; merge/head tree одинаково `d9f394fa60f99fe31505ca80b6c16b5d80f34a59`. Все implementation dependencies done, пять gates и локальный smoke ниже прошли; independent frozen-head review без Critical/Important. Исторические ожидания PR/CI ниже закрыты этим результатом. Это допуск полного кандидата к runbook promotion, не production deploy и не окончательное принятие R0.6: **T** остаётся после controlled deploy.
+
 Статус: **локальный predeploy QA-кандидат**, не production deploy и не окончательная приёмка R0.6. Ветка `trafficolog/test/8.10.3-r06-integrated-qa` начата от main `060ecdf`; checkpoints `c0883fc` и `2af4a26` сохранены. После font-fix и 8.10.6 интегрирована [3.11.10 / PR #66](https://github.com/trafficolog/volleytime/pull/66) из main `99cae3a` как merge `1a063e5`. Runtime diff с main отсутствует; QA-ветка отличается только документами. Приоритет актуального результата имеет раздел «Актуальное закрытие локальных O-ячеек» ниже; начальная таблица сохраняет исторические O-метки до этих проверок. Финальные пять gates, smoke, независимый review и точный CI QA-ветки ещё ожидаются. **T** — реальный Telegram/pilot — только после controlled deploy полного кандидата и до окончательной приёмки.
 
 ## Источники и окружение
