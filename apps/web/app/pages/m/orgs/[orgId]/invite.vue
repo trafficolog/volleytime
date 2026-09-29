@@ -193,8 +193,8 @@ function expiry(i: InviteRow) {
         </form>
 
         <h2 class="vt-cap">Активные ссылки</h2>
-        <p v-if="loadError" class="text-sm text-vt-rose-ink" role="alert">{{ loadError }}</p>
         <SkeletonList v-if="loading" :count="2" />
+        <ErrorState v-else-if="loadError" :message="loadError" @retry="load" />
         <EmptyState
           v-else-if="activeInvites.length === 0"
           icon="send"

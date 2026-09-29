@@ -5,7 +5,7 @@ epic: '8.10'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-29
-status_note: 'Дефект подтверждён сквозной Chrome QA на принятом runtime 67ef8c6: GET invites 503 одновременно показывает error и ложный empty, retry отсутствует. Пользователь 2026-09-29 подтвердил bounded RED→GREEN fix с отдельными gates/review/PR; продуктовый код ещё не менялся.'
+status_note: 'Локальный bounded fix отделяет loading/error/empty/list существующим ErrorState и GET-повтором. Mounted Vue RED воспроизвёл ложный empty и отсутствие retry; GREEN 4/4, полный PostgreSQL suite 125 файлов/726 тестов. Chrome, независимое review, PR/CI и merge main ещё ожидаются; задача остаётся in_progress.'
 review_ref: '8.10.3 / 2026-09-29 error-state QA'
 priority: P2
 roles: [FE, QA]
