@@ -2,10 +2,10 @@
 id: '6.8.13'
 phase: '6'
 epic: '6.8'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-26
-status_note: 'RED подтвердил гонку; блокировка строки платежа в отмене события дала GREEN, повторный конкурентный тест, пять gates и независимый scoped review пройдены; ожидается локальная интеграция задачи.'
+last_reviewed: 2026-09-29
+status_note: 'Гонка подтверждена RED и исправлена GREEN; отдельный PR #48 принят в main как 3230c31 после повторного конкурентного теста, пяти gates и независимого scoped review. Все три CI jobs PR прошли на 6455f5e. Общий R0.6 и production/Telegram acceptance отдельно открыты.'
 review_ref: 'Task 8.10.2 · event payment review'
 priority: P1
 roles: [BACK, QA]
@@ -42,6 +42,8 @@ tags: [payments, events, concurrency, review-fix]
 - Сравнить `packages/core/src/events/service.ts` и `packages/core/src/payments/service.ts` с существующими `money-races.integration.test.ts`; использовать отдельную PostgreSQL-тестовую базу.
 
 ## Диагностика 2026-09-27
+
+Принятие: [PR #48](https://github.com/trafficolog/volleytime/pull/48) смёржен в `main` как `3230c31d6b1154e533376570de45093d30ddeef5`, все три CI jobs на head `6455f5e17ffd99d75c916549faca4c08c3a8fd9f` прошли. Ранее записанное «ожидается локальная интеграция» было историческим состоянием до merge. Production и реальный Telegram этим не проверялись.
 
 - На отдельной PostgreSQL QA-БД `volleytime_qa_6813_20260927` тест удержал строку платежа `FOR UPDATE`, дождался ожидающего `confirm`, затем запустил `event.cancel` и дождался обоих ожидающих вызовов по `pg_blocking_pids`. После освобождения строки оба вызова завершились, но событие и бронь стали `cancelled`, платёж остался `succeeded` без возврата. RED: `pnpm exec vitest run --project integration money-races.integration.test.ts -t 6.8.13` — 1 failed, получено `succeeded` вместо `refunded`.
 - Причина: `eventService.cancel` берёт advisory lock события до чтения платежа, а `paymentService.confirm` меняет `pending → succeeded` без этого лока. Прочитав `pending`, отмена ждёт строку; после коммита подтверждения условный `pending → cancelled` уже не меняет её, хотя бронь и событие отменяются. Клиентская блокировка Mini App на этот порядок не влияет.

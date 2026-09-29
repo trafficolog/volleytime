@@ -2,10 +2,10 @@
 id: '8.10.6'
 phase: '8'
 epic: '8.10'
-status: in_progress
+status: done
 sync_state: synced
 last_reviewed: 2026-09-29
-status_note: 'GET retry и failed-revoke review-fix прошли mounted RED→GREEN, пять gates (125 files/727 tests, build 2/2), Chrome 45/45 error/retry и 4/4 failed-revoke на 320/390 light/dark, local smoke точного implementation SHA; независимый focused re-review без Critical/Important. Exact-head CI/PR и main ещё ожидаются; общий 8.10.3 и Telegram-host отдельно открыты.'
+status_note: 'GET retry и failed-revoke review-fix прошли mounted RED→GREEN, пять gates (125 files/727 tests), Chrome 45/45 error/retry и 4/4 failed-revoke 320/390 light/dark, local smoke и независимый re-review без блокеров. PR #64 принят в main как c473de1: exact-head CI 36538108493 и main CI 36538310519 успешны, merge tree совпадает с head. Общий 8.10.3 и Telegram-host отдельно открыты; prod/VPS не менялись.'
 review_ref: '8.10.3 / 2026-09-29 error-state QA'
 priority: P2
 roles: [FE, QA]
@@ -48,6 +48,8 @@ tags: [miniapp, invitations, resilience, review-fix]
 - Пять gates, независимое review и exact-head CI проходят до merge main; общий 8.10.3 остаётся отдельным gate.
 
 ## Подсказки
+
+Принятие: [PR #64](https://github.com/trafficolog/volleytime/pull/64) смёржен в `main` как `c473de1ef8482a4f54a00b30ab79f6bd951e0333`; [CI PR 36538108493](https://github.com/trafficolog/volleytime/actions/runs/36538108493) на точном head `52d65a26a6008757637f7c3cf6d3612304d59181` и [main CI 36538310519](https://github.com/trafficolog/volleytime/actions/runs/36538310519) на merge прошли все три jobs. Деревья PR head и merge идентичны. Это закрывает только 8.10.6, не общий R0.6/production/Telegram.
 
 [Отчёт 2026-09-29](../operations/qa/2026-09-29-miniapp-invite-load-retry.md): baseline 722, expected mounted RED4fail → GREEN4pass, финальный suite726; пять gates, Chrome и локальный smoke на точном implementation SHA. Настоящие Telegram/production/backup не заявляются.
 
