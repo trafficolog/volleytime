@@ -5,7 +5,7 @@ epic: '8.10'
 status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-29
-status_note: 'Initial GET retry fix прошёл пять gates и Chrome error/retry 45/45. Whole-branch review выявил отдельную регрессию failed revoke POST: scoped mounted RED→GREEN 1→0 failures, сохранены ссылка/действия и отдельный alert; пять gates прошли (125 files/727 tests, build 2/2). Browser на исправленном HEAD, независимый re-review, exact CI/PR и main ещё ожидаются. Общий 8.10.3 и Telegram-host отдельно открыты.'
+status_note: 'GET retry и failed-revoke review-fix прошли mounted RED→GREEN, пять gates (125 files/727 tests, build 2/2), Chrome 45/45 error/retry и 4/4 failed-revoke на 320/390 light/dark, local smoke точного implementation SHA; независимый focused re-review без Critical/Important. Exact-head CI/PR и main ещё ожидаются; общий 8.10.3 и Telegram-host отдельно открыты.'
 review_ref: '8.10.3 / 2026-09-29 error-state QA'
 priority: P2
 roles: [FE, QA]
