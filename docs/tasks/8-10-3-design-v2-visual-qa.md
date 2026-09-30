@@ -4,7 +4,7 @@ phase: '8'
 epic: '8.10'
 status: done
 sync_state: synced
-last_reviewed: 2026-09-29
+last_reviewed: 2026-09-30
 status_note: 'Локальный predeploy QA принят PR #68 в main=32d7c4f: F/P matrix, representative native Chrome 200%, пять gates125/731, exact-SHA synthetic local smoke, independent re-review без Critical/Important, exact-head CI success, merge tree равен head. T/полевая приёмка релиза после controlled deploy; task done не означает production/Telegram acceptance.'
 roles: [QA, FE]
 depends_on:
@@ -21,6 +21,11 @@ depends_on:
     '8.10.6',
     '5.15.1',
     '6.10.1',
+    '8.10.7',
+    '3.11.11',
+    '3.11.12',
+    '3.11.13',
+    '8.10.8',
   ]
 estimated_hours: '6-10'
 tags: [qa, mvp, redesign]
@@ -33,6 +38,8 @@ tags: [qa, mvp, redesign]
 Подтвердить полноту MVP-экранов и состояний относительно архива v2 и отсутствие регрессий.
 
 ## Контекст
+
+2026-09-30: пять отдельных pilot UI fixes приняты PR #72–76 после собственных RED→GREEN, browser QA, пяти gates, независимых reviews и exact-head CI. [Новый отчёт](../operations/qa/2026-09-30-r06-pilot-ui-fixes.md) отделяет эти локальные проверки от общего promotion gate и post-deploy Telegram regression. Прежние пользовательские 200% и screen-reader результаты сохранены; screenshots с production являются частичной полевой проверкой, не всей Telegram matrix.
 
 **Принятие 2026-09-29:** [PR #68](https://github.com/trafficolog/volleytime/pull/68) закрывает issue #67. Head `75b5c38bee0e235520b1116af6abbc62e72e65a7`, merge `32d7c4f68272a50d7ffacc3a346158a16cb2e860`; [exact-head CI 36552036320](https://github.com/trafficolog/volleytime/actions/runs/36552036320) success во всех трёх jobs, tree обоих `d9f394fa60f99fe31505ca80b6c16b5d80f34a59`. Frozen-head independent review: Critical/Important отсутствуют, все MVP implementation dependencies done. Done относится к доступной локальной матрице/gates, не к отдельным post-deploy Telegram/pilot карточкам 8.7.2/8.8.11.
 

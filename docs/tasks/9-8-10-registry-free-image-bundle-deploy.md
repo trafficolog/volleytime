@@ -4,7 +4,7 @@ phase: '9'
 epic: '9.8'
 status: in_progress
 release: 'v0.1.6'
-status_note: 'Deploy 36747623989 passed on exact SHA 64f1850 with backup and smoke, but downloaded pnpm inside the migrator. The local RED/GREEN fix uses bundled tsx, checks the final CLI before export, and applied all 20 migrations twice with outbound access blocked. Updated CI, independent review and controlled redeploy remain open; real Telegram/pilot QA and v0.1.6 tag/Release are separate gates.'
+status_note: 'Deploy 36747623989 passed on64f1850 with backup/smoke but downloaded pnpm inside migrator. Offline RED/GREEN fix accepted PR #71 main=d7e775a with independent review and exact-head/main CI passed; final CLI offline packaging and local20-migration/replay smoke passed. Corrected controlled redeploy remains open; real Telegram/pilot and v0.1.6 tag/Release are separate gates.'
 roles:
   - DEVOPS
   - QA

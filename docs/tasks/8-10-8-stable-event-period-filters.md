@@ -2,10 +2,10 @@
 id: '8.10.8'
 phase: '8'
 epic: '8.10'
-status: in_progress
+status: done
 sync_state: synced
 last_reviewed: 2026-09-30
-status_note: 'Mounted RED→GREEN 7/7; synthetic Chrome 320/390 light/dark native/browser back geometry stable (header 64px, filter Y64px). Full gates/review/CI pending; real Telegram QA not claimed.'
+status_note: 'Принята PR #76 в main=575ca06: mounted RED→GREEN7/7, synthetic Chrome8cells с native/browser back сохраняет header64/filterY64 при load/error/retry/rapid toggle, пять gates135/907, independent review и exact-head CI passed. Merge tree равен head; exact-main CI и общий promotion gate ведутся отдельно в QA report, реальный Telegram regression после redeploy.'
 review_ref: '2026-09-30 production Telegram pilot screenshots'
 priority: P2
 roles: [FE, QA]
