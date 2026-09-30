@@ -84,6 +84,9 @@ case "$1 $2" in
     [ "\${FAKE_SAVE_FAILURE:-0}" != 1 ] || exit 41
     printf 'fake docker archive\\n' > "$3"
     ;;
+  'run --rm')
+    [ "\${FAKE_RUN_FAILURE:-0}" != 1 ] || exit 44
+    ;;
 esac
 if [ "$1" = build ]; then
   [ ! -e "\${@: -1}/.output/build.js" ] || exit 42
@@ -140,7 +143,7 @@ describe('runner image bundle packaging', () => {
     const result = f.run()
     expect(result.status, result.stderr).toBe(0)
     const calls = f.commands().trim().split('\n')
-    expect(calls).toHaveLength(7)
+    expect(calls).toHaveLength(8)
     for (const [name, dockerfile] of [
       ['web', 'apps/web/Dockerfile'],
       ['bot', 'apps/bot/Dockerfile'],
@@ -157,7 +160,10 @@ describe('runner image bundle packaging', () => {
         `image inspect --format {{.Architecture}}|{{index .Config.Labels "org.opencontainers.image.revision"}}|{{join .RepoTags ","}} volleytime-${name}:${sha}`,
       )
     }
-    expect(calls[6]).toMatch(
+    expect(calls[6]).toBe(
+      `run --rm --network none --entrypoint node volleytime-migrator:${sha} ./node_modules/tsx/dist/cli.mjs --version`,
+    )
+    expect(calls[7]).toMatch(
       new RegExp(
         `^save -o ${shellPath(f.output)}/\\.release-images\\.[^ ]+\\.tar volleytime-web:${sha} volleytime-bot:${sha} volleytime-migrator:${sha}$`,
       ),
@@ -192,6 +198,17 @@ describe('runner image bundle packaging', () => {
       expect(statSync(archive).mode & 0o777).toBe(0o600)
       expect(statSync(meta).mode & 0o777).toBe(0o600)
     }
+  })
+
+  it('refuses to export a migrator image whose bundled CLI fails offline', () => {
+    const f = fixture()
+    const result = f.run(f.sha, { FAKE_RUN_FAILURE: '1' })
+
+    expect(result.status).not.toBe(0)
+    expect(f.commands()).toContain('run --rm --network none --entrypoint node')
+    expect(f.commands()).not.toContain('save -o')
+    expect(existsSync(join(f.output, 'release-images.tar.gz'))).toBe(false)
+    expect(existsSync(join(f.output, 'release-images.meta'))).toBe(false)
   })
 
   it.each([

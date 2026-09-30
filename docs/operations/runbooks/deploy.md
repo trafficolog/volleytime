@@ -1,6 +1,8 @@
 # Production deploy runbook
 
-Task 9.8.10 changes the workflow default to **image-bundle**: build on the Actions runner, transfer exact-SHA images and a verified Git bundle, then activate without building on the VPS. This is the locally implemented candidate path; exact-head CI, independent whole-branch review and controlled production acceptance remain required before rollout. GHCR remains an explicit manual alternative. Historical local-build acceptance does not validate this new path.
+Task 9.8.10 changes the workflow default to **image-bundle**: build on the Actions runner, transfer exact-SHA images and a verified Git bundle, then activate without building on the VPS. The first controlled rollout passed on SHA `64f18506b03081bc7b9c065c8371cd3e62f10b30`; [production evidence](../qa/2026-09-30-r06-production-candidate.md) records CI, backup, runtime and synthetic smoke, **plus an open runtime npm dependency in the migrator container**. Until fixed and re-verified, that successful rollout does not satisfy the no-VPS-npm requirement or establish real Telegram/pilot acceptance or a generally proven future rollback. GHCR remains an explicit manual alternative. Historical local-build acceptance does not validate this new path.
+
+The offline-runtime remediation invokes bundled `tsx` directly through Node in the migrator image. Runner packaging probes that final CLI with `docker run --rm --network none` before exporting the archive. The local isolated PostgreSQL migration smoke is recorded in the production-candidate evidence; updated reviewed CI and a controlled rollout without runtime downloads are still required before closing the offline-VPS acceptance.
 
 ## Provisioning or disaster-recovery prerequisites
 

@@ -73,6 +73,11 @@ for image in "$web_image" "$bot_image" "$migrator_image"; do
   [[ ",$tags," == *",$image,"* ]] || fail "image tag mismatch: $image"
 done
 
+# Prove the copied migrator CLI runs in the final image without npm access.
+# A missing runtime dependency must stop before publishing the release archive.
+docker run --rm --network none --entrypoint node "$migrator_image" ./node_modules/tsx/dist/cli.mjs --version >/dev/null \
+  || fail "migrator image cannot run bundled CLI offline"
+
 raw="$(mktemp "$output_dir/.release-images.XXXXXXXX.tar")"
 archive_tmp="$(mktemp "$output_dir/.release-images.XXXXXXXX.tar.gz")"
 metadata_tmp="$(mktemp "$output_dir/.release-images.XXXXXXXX.meta")"
