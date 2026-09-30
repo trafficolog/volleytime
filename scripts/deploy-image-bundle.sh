@@ -180,6 +180,52 @@ capture_previous() {
   printf '%s' "$web"
 }
 
+check_ghcr_checkpoint() {
+  [ -f .deploy/ghcr-manual-phase ] || return 0
+  local ghcr_phase ghcr_sha checkout_sha image_phase image_sha old_snapshot history_snapshot old path confirmed
+  read -r ghcr_phase ghcr_sha < .deploy/ghcr-manual-phase || fail "GHCR checkpoint is unreadable"
+  valid_sha "$ghcr_sha" && [ "$(cat .deploy/ghcr-manual-phase)" = "$ghcr_phase $ghcr_sha" ] || fail "GHCR checkpoint is invalid"
+  case "$ghcr_phase" in activated|rolled-back) ;; *) fail "unfinished GHCR phase $ghcr_phase for $ghcr_sha" ;; esac
+  clean_prod || fail "GHCR checkpoint has dirty or non-prod checkout"
+  checkout_sha="$(git rev-parse HEAD)"
+  git cat-file -e "$ghcr_sha^{commit}" || fail "GHCR checkpoint commit is unavailable"
+  if [ "$ghcr_phase" = rolled-back ]; then
+    old_snapshot=".deploy/ghcr-old-manifest-$ghcr_sha"
+    history_snapshot=".deploy/ghcr-history-$ghcr_sha"
+    old="$(read_manifest_sha "$old_snapshot")" || fail "GHCR rollback snapshot is invalid"
+    [ -d "$history_snapshot" ] || fail "GHCR rollback history is missing"
+    [ "$old" != "$ghcr_sha" ] && git merge-base --is-ancestor "$old" "$ghcr_sha" || fail "GHCR rollback snapshot is not an ancestor"
+  fi
+  # An accepted later image release explains a completed historical GHCR marker.
+  # Never infer completion for an unfinished GHCR attempt from healthy old images.
+  if [ -f "$phase_file" ] && [ "$ghcr_sha" != "$checkout_sha" ]; then
+    read -r image_phase image_sha < "$phase_file" || fail "image phase is unreadable"
+    if [ "$image_phase" = smoke-passed ] && [ "$image_sha" = "$checkout_sha" ] &&
+      git merge-base --is-ancestor "$ghcr_sha" "$checkout_sha"; then
+      [ "$(read_manifest_sha "$manifest" || true)" = "$checkout_sha" ] || fail "completed image phase disagrees with manifest"
+      confirmed="$(capture_previous)" || exit "$?"
+      [ "$confirmed" = "$checkout_sha" ] || fail "completed image phase disagrees with runtime"
+      return 0
+    fi
+  fi
+  if [ "$ghcr_phase" = activated ]; then
+    [ "$ghcr_sha" = "$checkout_sha" ] || fail "GHCR handoff phase disagrees with checkout"
+    [[ "$(sed -n 's/^WEB_IMAGE=//p' "$manifest")" == ghcr.io/* ]] || fail "GHCR handoff requires a GHCR manifest"
+  else
+    [ "$old" = "$checkout_sha" ] && cmp -s "$old_snapshot" "$manifest" || fail "GHCR rollback snapshot disagrees with checkout or manifest"
+    for path in "$previous_manifest" "$previous_pointer"; do
+      if [ -f "$history_snapshot/$(basename "$path")" ]; then
+        cmp -s "$history_snapshot/$(basename "$path")" "$path" || fail "GHCR rollback history was not restored"
+      else
+        [ ! -e "$path" ] || fail "GHCR rollback history was not restored"
+      fi
+    done
+  fi
+  [ "$(read_manifest_sha "$manifest" || true)" = "$checkout_sha" ] || fail "GHCR checkpoint disagrees with manifest"
+  confirmed="$(capture_previous)" || exit "$?"
+  [ "$confirmed" = "$checkout_sha" ] || fail "GHCR checkpoint disagrees with runtime"
+}
+
 rollback_to_previous() {
   local candidate="$1" old="$2" old_web old_bot
   valid_sha "$old" || fail "previous SHA is not validated"
@@ -230,6 +276,7 @@ fi
 
 [ -d "$staging" ] && [ -f "$staging/release.bundle" ] || fail "staged Git bundle is missing"
 [ -s "$staging/.env.production" ] || fail "staged production env is missing"
+check_ghcr_checkpoint
 if [ -f "$phase_file" ]; then
   read -r phase phase_sha < "$phase_file"
   if [ "$phase" = smoke-passed ]; then
@@ -242,9 +289,7 @@ if [ -f "$phase_file" ]; then
       # completed marker; unfinished image/GHCR phases remain ineligible.
       valid_sha "$phase_sha" || fail "successful phase SHA is invalid"
       [ -f .deploy/ghcr-manual-phase ] || fail "successful phase disagrees with checkout"
-      read -r ghcr_phase ghcr_sha < .deploy/ghcr-manual-phase
-      [ "$ghcr_phase" = activated ] && [ "$ghcr_sha" = "$checkout_sha" ] || fail "GHCR handoff phase disagrees with checkout"
-      [[ "$(sed -n 's/^WEB_IMAGE=//p' "$manifest")" == ghcr.io/* ]] || fail "GHCR handoff requires a GHCR manifest"
+      # check_ghcr_checkpoint already proved completed state and exact runtime.
       git cat-file -e "$phase_sha^{commit}" || fail "previous successful image commit is unavailable"
       git merge-base --is-ancestor "$phase_sha" "$checkout_sha" || fail "GHCR handoff is not a descendant of the successful image release"
       accepted_sha="$checkout_sha"
