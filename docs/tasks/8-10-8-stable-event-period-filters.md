@@ -40,7 +40,7 @@ QA evidence фиксирует точный SHA, размеры, тему, сц�
 - Mounted deferred RED: header action disappears during loading/error (2 failed, 5 passed); GREEN 7/7 checks persistent action/filter focus, disabled navigation, error/retry, latest responses and role/access constraints.
 - Synthetic Chrome matrix: 320/390 × light/dark × SDK native back/browser back — 8/8 pass. Header remains 64px; filter rect Y64px/height54.5px before/during/after request, error/retry and rapid toggle. No stale past rows or false empty; disabled create does not navigate on click/Enter.
 - Local header uses a persistent native disabled button guarded by existing canCreate. Request/access guards and content state order unchanged. No shared CSS changes.
-- Exact SHA and gate/review outcomes recorded in controller task evidence after verification; independent review, exact-head CI and real Telegram acceptance remain open.
+- Accepted via [PR #76](https://github.com/trafficolog/volleytime/pull/76): source `ae8f88c`, merge `575ca06`, independent review approved and [exact-head CI 36767438375](https://github.com/trafficolog/volleytime/actions/runs/36767438375) passed all four jobs. Selected exact-main CI and the shared promotion gate remain pending; real Telegram regression requires the corrected controlled redeploy and remains open.
 
 ## Подсказки
 
