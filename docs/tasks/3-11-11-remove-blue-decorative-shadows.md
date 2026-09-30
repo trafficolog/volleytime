@@ -2,10 +2,10 @@
 id: '3.11.11'
 phase: '3'
 epic: '3.11'
-status: todo
+status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-30
-status_note: 'SDD до кода; пользователь подтвердил продолжение исправлений. Acceptance/review/CI ещё открыты.'
+status_note: 'Синие decorative shadows удалены; RED→GREEN, browser light/dark и keyboard focus проверены. Пять локальных gates пройдены; независимые review и exact-head CI ещё открыты.'
 review_ref: '2026-09-30 production Telegram pilot screenshots'
 priority: P2
 roles: [FE, QA]
