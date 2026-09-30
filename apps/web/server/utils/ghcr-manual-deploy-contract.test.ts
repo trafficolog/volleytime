@@ -55,13 +55,17 @@ function fixture() {
   writeFileSync(join(repo, 'source'), 'next\n')
   git('commit', '-am', 'next')
   const next = git('rev-parse', 'HEAD')
-  git('bundle', 'create', join(repo, '.deploy', 'release.bundle'), 'prod')
+  const staging = join(repo, '.deploy', 'incoming', `ghcr-${next}`)
+  mkdirSync(join(staging, 'scripts'), { recursive: true })
+  git('bundle', 'create', join(staging, 'release.bundle'), 'prod')
   git('reset', '--hard', old)
 
   const manifest = (sha: string, prefix = 'volleytime') =>
     `WEB_IMAGE=${prefix === 'volleytime' ? 'volleytime-web' : `${prefix}/web`}:${sha}\nBOT_IMAGE=${prefix === 'volleytime' ? 'volleytime-bot' : `${prefix}/bot`}:${sha}\nMIGRATOR_IMAGE=${prefix === 'volleytime' ? 'volleytime-migrator' : `${prefix}/migrator`}:${sha}\nRELEASE_VERSION=${sha}\n`
   writeFileSync(join(repo, '.env'), 'DB_PASSWORD=old\n')
-  writeFileSync(join(repo, '.deploy', '.env.production'), 'DB_PASSWORD=old\n')
+  writeFileSync(join(staging, '.env.production'), 'DB_PASSWORD=old\n')
+  // An unrelated attempt's env must never be used by this helper.
+  writeFileSync(join(repo, '.deploy', '.env.production'), 'DB_PASSWORD=unrelated\n')
   writeFileSync(join(repo, '.env.images'), manifest(old))
   writeFileSync(join(repo, '.env.images.previous'), manifest(prior))
   writeFileSync(join(repo, '.deploy', 'previous-git-sha'), `${prior}\n`)
@@ -71,7 +75,7 @@ function fixture() {
     'release-bundle.sh',
   ]) {
     if (existsSync(rootFile(`scripts/${name}`))) {
-      copyFileSync(rootFile(`scripts/${name}`), join(repo, '.deploy', 'scripts', name))
+      copyFileSync(rootFile(`scripts/${name}`), join(staging, 'scripts', name))
     }
   }
   const web = join(root, 'web')
@@ -134,7 +138,7 @@ printf '{"status":"ok","db":"ok","auth":"ok","release":"%s"}\\n' "$sha"
     '#!/usr/bin/env bash\nif [ "$1" = -d ]; then mkdir -p "${@: -1}"; else cp "${@: -2:1}" "${@: -1}"; fi\n',
   )
   writeFileSync(
-    join(repo, '.deploy', 'scripts', 'backup-local.sh'),
+    join(staging, 'scripts', 'backup-local.sh'),
     '#!/usr/bin/env bash\nprintf "backup\\n" >> "$CALLS"\n',
   )
   for (const name of ['docker', 'curl', 'flock', 'install']) chmodSync(join(bin, name), 0o755)
@@ -155,7 +159,7 @@ printf '{"status":"ok","db":"ok","auth":"ok","release":"%s"}\\n' "$sha"
   }
   const run = (mode = 'deploy', overrides: Record<string, string> = {}) => {
     if (overrides.FAKE_WRONG_BUNDLE === '1') {
-      writeFileSync(join(repo, '.deploy', 'release.bundle'), 'not a bundle')
+      writeFileSync(join(staging, 'release.bundle'), 'not a bundle')
     }
     return spawnSync(
       bash,
@@ -164,11 +168,9 @@ printf '{"status":"ok","db":"ok","auth":"ok","release":"%s"}\\n' "$sha"
         'PATH="$1:$PATH"; shift; exec bash "$@"',
         'fixture',
         shellPath(bin),
-        shellPath(join(repo, '.deploy', 'scripts', 'deploy-ghcr-manual.sh')),
+        shellPath(join(staging, 'scripts', 'deploy-ghcr-manual.sh')),
         mode,
-        ...(mode === 'deploy'
-          ? [shellPath(join(repo, '.deploy')), next, 'ghcr.io/example/repo']
-          : [next]),
+        ...(mode === 'deploy' ? [shellPath(staging), next, 'ghcr.io/example/repo'] : [next]),
       ],
       { encoding: 'utf8', env: { ...env, ...overrides } },
     )

@@ -543,6 +543,10 @@ function activationFixture() {
   writeFileSync(join(repo, '.deploy', 'previous-git-sha'), `${old}\n`)
   copyFileSync(deployScript, join(repo, '.deploy', 'scripts', 'deploy-image-bundle.sh'))
   copyFileSync(
+    fileURLToPath(new URL('../../../../scripts/compose-images-only.yml', import.meta.url)),
+    join(repo, '.deploy', 'scripts', 'compose-images-only.yml'),
+  )
+  copyFileSync(
     fileURLToPath(new URL('../../../../scripts/release-bundle.sh', import.meta.url)),
     join(repo, '.deploy', 'scripts', 'release-bundle.sh'),
   )
@@ -568,16 +572,27 @@ case "$1 $2" in
       exit 0
     fi
     if [ "$service" = bot ] && [ -n "\${FAKE_BOT_SHA:-}" ]; then sha="$FAKE_BOT_SHA"; fi
-    printf 'true|healthy|volleytime-%s:%s\\n' "$service" "$sha"
+    if [ "$sha" = "$NEXT_SHA" ] && [ -n "\${FAKE_INSPECT_STATUS:-}" ]; then exit "$FAKE_INSPECT_STATUS"; fi
+    prefix="volleytime-"
+    if [ "$sha" = "$OLD_SHA" ]; then prefix="\${FAKE_OLD_PREFIX:-volleytime-}"; fi
+    printf 'true|healthy|%s%s:%s\\n' "$prefix" "$service" "$sha"
     ;;
   'image inspect')
+    if [ "\${FAKE_OLD_PREFIX:-}" != '' ] && [[ "\${@: -1}" == volleytime-*"$OLD_SHA" ]]; then exit 1; fi
     [ "\${FAKE_OLD_IMAGE_MISSING:-0}" != 1 ] || { [[ "\${@: -1}" != *"$OLD_SHA" ]] || exit 1; }
     ;;
-  'exec vt_bot') printf '{"status":"ok","release":"%s"}\\n' "$(cat "$LIVE_SHA")" ;;
+  'exec vt_bot')
+    if [ "$(cat "$LIVE_SHA")" = "$NEXT_SHA" ] && [ -n "\${FAKE_BOT_HEALTH_STATUS:-}" ]; then exit "$FAKE_BOT_HEALTH_STATUS"; fi
+    printf '{"status":"ok","release":"%s"}\\n' "$(cat "$LIVE_SHA")" ;;
   'compose -f')
     printf 'compose-env %s\\n' "$(cat "$ROOT_PATH/.env")" >> "$CALLS"
-    if [[ "$*" == *'run --rm --no-build migrate'* ]] && [ "\${FAKE_MIGRATE_FAIL:-0}" = 1 ]; then exit 1; fi
+    if [[ "$*" == *'run --rm'* ]]; then
+      [[ "$*" != *'--no-build'* ]] || { echo 'unknown flag: --no-build' >&2; exit 16; }
+      [ -z "\${FAKE_MIGRATE_STATUS:-}" ] || exit "$FAKE_MIGRATE_STATUS"
+      [ "\${FAKE_MIGRATE_FAIL:-0}" != 1 ] || exit 1
+    fi
     if [[ "$*" == *'up --no-build -d web bot'* ]]; then
+      [ -z "\${FAKE_UP_STATUS:-}" ] || exit "$FAKE_UP_STATUS"
       if [ "\${FAKE_PARTIAL_UP:-0}" = 1 ] && grep -q "$NEXT_SHA" "$ROOT_PATH/.env.images"; then
         printf '%s\n' "$NEXT_SHA" > "$PARTIAL_WEB_SHA"
         exit 1
@@ -595,6 +610,7 @@ esac
     `#!/usr/bin/env bash
 printf '%s\\n' "curl $*" >> "$CALLS"
 sha="$(cat "$LIVE_SHA")"
+if [ "$sha" = "$NEXT_SHA" ] && [ -n "\${FAKE_CURL_STATUS:-}" ]; then exit "$FAKE_CURL_STATUS"; fi
 if [ "\${FAKE_HEALTH_FAIL:-0}" = 1 ] && [ "$sha" = "$NEXT_SHA" ]; then exit 22; fi
 if [ "\${FAKE_HEALTH_TRANSIENT:-0}" = 1 ] && [ "$sha" = "$NEXT_SHA" ]; then
   count=0
@@ -640,13 +656,13 @@ printf '{"status":"ok","db":"ok","auth":"ok","release":"%s"}\\n' "$sha"
     HEALTH_ATTEMPTS: '1',
     HEALTH_SLEEP_SECONDS: '0',
   }
-  const run = (mode = 'deploy', overrides: Record<string, string> = {}) =>
+  const run = (mode = 'deploy', overrides: Record<string, string> = {}, target = next) =>
     spawnSync(
       bash,
       [
         shellPath(join(repo, '.deploy', 'scripts', 'deploy-image-bundle.sh')),
         mode,
-        ...(mode === 'deploy' ? [shellPath(staging), next] : [next]),
+        ...(mode === 'deploy' ? [shellPath(staging), target] : [target]),
       ],
       { encoding: 'utf8', env: { ...env, ...overrides } },
     )
@@ -655,6 +671,134 @@ printf '{"status":"ok","db":"ok","auth":"ok","release":"%s"}\\n' "$sha"
 }
 
 describe('image bundle activation', () => {
+  it.each(['valid', 'unfinished-ghcr', 'wrong-ghcr-sha', 'nonancestor-marker', 'stale-target'])(
+    'validates %s GHCR handoff after an earlier image-bundle release',
+    (state) => {
+      const f = activationFixture()
+      // X=old was accepted through image-bundle; GHCR then advanced to A=candidate.
+      const ghcrManifest = f
+        .manifest(f.candidate)
+        .replaceAll('volleytime-', 'ghcr.io/owner/volleytime/')
+      writeFileSync(join(f.repo, '.env.images'), ghcrManifest)
+      writeFileSync(f.live, f.candidate)
+      writeFileSync(
+        join(f.repo, '.deploy', 'image-bundle-phase'),
+        `smoke-passed ${state === 'nonancestor-marker' ? f.next : f.old}\n`,
+      )
+      writeFileSync(
+        join(f.repo, '.deploy', 'ghcr-manual-phase'),
+        `${state === 'unfinished-ghcr' ? 'migrating' : 'activated'} ${state === 'wrong-ghcr-sha' ? f.old : f.candidate}\n`,
+      )
+      const overrides = { OLD_SHA: f.candidate, FAKE_OLD_PREFIX: 'ghcr.io/owner/volleytime/' }
+      const result = f.run('deploy', overrides, state === 'stale-target' ? f.old : f.next)
+      if (state !== 'valid') {
+        expect(result.status).not.toBe(0)
+        expect(f.commands()).not.toMatch(/verify |backup |compose /)
+        return
+      }
+      expect(result.status, result.stderr).toBe(0)
+      expect(readFileSync(join(f.repo, '.env.images.previous'), 'utf8')).toBe(ghcrManifest)
+      const rollback = f.run('rollback', overrides)
+      expect(rollback.status, rollback.stderr).toBe(0)
+      expect(f.git('rev-parse', 'HEAD')).toBe(f.candidate)
+      expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(ghcrManifest)
+      expect(f.commands()).not.toMatch(/ pull | build |prune/)
+    },
+    20000,
+  )
+
+  it('deploys A, confirms smoke, deploys B and rolls back to A', () => {
+    const f = activationFixture()
+    expect(f.run().status).toBe(0)
+    expect(f.run('confirm-smoke').status).toBe(0)
+    writeFileSync(join(f.repo, 'source'), 'release B\n')
+    f.git('commit', '-am', 'release B')
+    const b = f.git('rev-parse', 'HEAD')
+    f.git('bundle', 'create', join(f.staging, 'release.bundle'), 'prod')
+    f.git('reset', '--hard', f.next)
+    const result = f.run('deploy', {}, b)
+    expect(result.status, result.stderr).toBe(0)
+    expect(readFileSync(join(f.repo, '.env.images.previous'), 'utf8')).toBe(f.manifest(f.next))
+    expect(f.run('rollback', {}, b).status).toBe(0)
+    expect(f.git('rev-parse', 'HEAD')).toBe(f.next)
+  }, 30000)
+
+  it.each(['activated', 'backed-up', 'interrupted', 'smoke-passed'])(
+    'rejects a mismatched %s phase before load or backup',
+    (phase) => {
+      const f = activationFixture()
+      writeFileSync(join(f.repo, '.deploy', 'image-bundle-phase'), `${phase} ${f.old}\n`)
+      const result = f.run()
+      expect(result.status).not.toBe(0)
+      expect(f.commands()).not.toMatch(/verify |backup |compose /)
+    },
+  )
+
+  it.each(
+    [124, 137, 143, 255].flatMap((status) =>
+      ['MIGRATE', 'UP', 'INSPECT', 'BOT_HEALTH', 'CURL'].map(
+        (operation) => [operation, status] as const,
+      ),
+    ),
+  )(
+    'preserves interrupted %s status %s without recovery or a second Compose action',
+    (operation, status) => {
+      const f = activationFixture()
+      const result = f.run('deploy', {
+        [`FAKE_${operation}_STATUS`]: String(status),
+        HEALTH_ATTEMPTS: '3',
+      })
+      expect(result.status, result.stderr).toBe(status)
+      expect(result.stderr).toContain('manual recovery checkpoint')
+      expect(f.git('rev-parse', 'HEAD')).toBe(f.next)
+      expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(f.manifest(f.next))
+      expect(f.commands().match(/up --no-build -d web bot/g) ?? []).toHaveLength(
+        operation === 'MIGRATE' ? 0 : 1,
+      )
+      expect(readFileSync(join(f.repo, '.deploy', 'image-bundle-phase'), 'utf8')).toContain(
+        'interrupted',
+      )
+      expect(f.run().status).not.toBe(0)
+      expect(f.run('rollback').status).not.toBe(0)
+    },
+    20000,
+  )
+
+  it('preserves exact GHCR images through image-bundle activation and rollback without local aliases', () => {
+    const f = activationFixture()
+    f.git('reset', '--hard', f.old)
+    const oldManifest = f.manifest(f.old).replaceAll('volleytime-', 'ghcr.io/owner/volleytime/')
+    writeFileSync(join(f.repo, '.env.images'), oldManifest)
+    const env = { FAKE_OLD_PREFIX: 'ghcr.io/owner/volleytime/' }
+    const result = f.run('deploy', env)
+    expect(result.status, result.stderr).toBe(0)
+    expect(readFileSync(join(f.repo, '.env.images.previous'), 'utf8')).toBe(oldManifest)
+    const rollback = f.run('rollback', env)
+    expect(rollback.status, rollback.stderr).toBe(0)
+    expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(oldManifest)
+    expect(f.git('rev-parse', 'HEAD')).toBe(f.old)
+    expect(f.commands()).not.toMatch(/ pull | build |prune/)
+  }, 20000)
+
+  it.each(['wrong-prefix', 'wrong-tag', 'missing-image'])(
+    'rejects GHCR %s before importing or backup',
+    (failure) => {
+      const f = activationFixture()
+      f.git('reset', '--hard', f.old)
+      let manifest = f.manifest(f.old).replaceAll('volleytime-', 'ghcr.io/owner/volleytime/')
+      if (failure === 'wrong-prefix')
+        manifest = manifest.replace('ghcr.io/owner/volleytime/web', 'ghcr.io/other/repo/web')
+      if (failure === 'wrong-tag') manifest = manifest.replace(`web:${f.old}`, `web:${f.next}`)
+      writeFileSync(join(f.repo, '.env.images'), manifest)
+      rmSync(join(f.repo, '.env.images.previous'))
+      const result = f.run('deploy', {
+        FAKE_OLD_PREFIX: 'ghcr.io/owner/volleytime/',
+        ...(failure === 'missing-image' ? { FAKE_OLD_IMAGE_MISSING: '1' } : {}),
+      })
+      expect(result.status).not.toBe(0)
+      expect(f.commands()).not.toMatch(/verify |backup |compose /)
+    },
+  )
   it('uses the staged helper CLI and confirms only after external smoke', () => {
     const deploy = workflow.indexOf('deploy-image-bundle.sh deploy .deploy/incoming/')
     const smoke = workflow.indexOf('node scripts/smoke.mjs')
@@ -689,8 +833,10 @@ describe('image bundle activation', () => {
     expect(f.git('rev-parse', 'HEAD')).toBe(f.next)
     const calls = f.commands()
     expect(calls.indexOf('verify ')).toBeLessThan(calls.indexOf('backup '))
-    expect(calls.indexOf('backup ')).toBeLessThan(calls.indexOf('run --rm --no-build migrate'))
-    expect(calls.indexOf('run --rm --no-build migrate')).toBeLessThan(
+    expect(calls.indexOf('backup ')).toBeLessThan(
+      calls.indexOf('run --rm --no-deps --pull never migrate'),
+    )
+    expect(calls.indexOf('run --rm --no-deps --pull never migrate')).toBeLessThan(
       calls.indexOf('up --no-build -d web bot'),
     )
     expect(calls).not.toMatch(

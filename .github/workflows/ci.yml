@@ -14,6 +14,31 @@ env:
   NODE_VERSION: '22'
 
 jobs:
+  image-bundle:
+    name: Runner image build-export-import
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # PR head, not the synthetic merge commit; main push uses exact main SHA.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Validate exact-SHA images and record runner capacity
+        env:
+          VALIDATION_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          bash scripts/validate-runner-images.sh "$VALIDATION_SHA" 2>&1 | tee "$RUNNER_TEMP/image-validation.log"
+      - name: Record nonsecret capacity evidence
+        if: ${{ always() }}
+        run: |
+          if [ -f "$RUNNER_TEMP/image-validation.log" ]; then
+            tail -n 100 "$RUNNER_TEMP/image-validation.log" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   quality:
     name: Lint · Format · Typecheck
     runs-on: ubuntu-latest

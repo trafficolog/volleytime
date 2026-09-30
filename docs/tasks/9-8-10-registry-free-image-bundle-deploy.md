@@ -4,7 +4,7 @@ phase: '9'
 epic: '9.8'
 status: in_progress
 release: 'v0.1.6'
-status_note: 'Image packaging, preflight, activation, workflow, recovery and Task 6 documentation/local gates complete. Whole-branch review, exact-head/main CI, controlled production acceptance and separate Telegram/pilot QA remain open.'
+status_note: 'Final consolidated deployment fixes and runner-only image CI gate implemented locally. Scoped re-review, exact-head/main real build/export/import capacity evidence, controlled production acceptance and separate Telegram/pilot QA remain open.'
 roles:
   - DEVOPS
   - QA
@@ -43,6 +43,10 @@ GitHub `main` остаётся integration-веткой; production source — �
 8. Обновить deploy runbook и release/status evidence. После пяти локальных gates, PostgreSQL integration tests, shell syntax, focused contracts, независимого review и exact-head/main CI продвигать reviewed `main` в `prod` только fast-forward. Production acceptance фиксирует успешный workflow, проверенный backup до миграции, точный Git/image/runtime/public-health SHA, healthy web/bot/DB и synthetic cleanup; после этого проводится отдельная ручная Telegram QA.
 
 ## Критерии приёмки
+
+Whole-branch fix acceptance (2026-09-30): supported Compose migration CLI must prohibit pulls/builds; a completed healthy release A can advance to exact FF release B while preserving A for rollback; interrupted operations (124/137/143/255) retain a manual checkpoint without a second Compose action. Manual GHCR uploads use isolated immutable SHA staging, and a healthy GHCR runtime can be preserved and restored by a later image-bundle deployment using its exact local image references. PR/main CI must build/export/import the exact checked-out SHA on a runner and record capacity before production promotion; capacity failures stop without pruning. External synthetic smoke uses a five-minute timeout plus a 15-second prewait.
+
+Cross-mode continuity also covers accepted image-bundle X → GHCR activated A → image-bundle B. An old completed image marker is explainable only by exact GHCR activated phase/current checkout/manifest/healthy runtime A and X→A→B ancestry; unfinished/mismatched histories remain blocked. Replaying X after the GHCR handoff must fail rather than report success for a SHA no longer running. The new CI image job runs without deployment secrets/VPS/publication. Promotion requires recorded successful exact-main CI image-job/capacity evidence; Deploy does not query past CI or configure branch protection. Local fixtures and Compose CLI checks do not establish real runner or production acceptance.
 
 Локальный checkpoint 2026-09-30: Tasks 1–5 реализуют package/verify/load, runtime-based previous target, backup-before-advancement, activation/rollback без сборки и default image-bundle workflow. Manual GHCR проверяет согласованный current runtime/checkout и неизменный env, восстанавливает Git/manifest/history при контролируемом отказе и требует manual checkpoint при timeout. Task 6 синхронизирует [runbook](../operations/runbooks/deploy.md) и повторяет локальные gates. Новый whole-branch review, exact-head/main CI, reviewed fast-forward prod, реальная доставка/backup/migration/smoke/cleanup и Telegram QA ещё обязательны. Production evidence не создано, tag/Release `v0.1.6` не опубликован этой работой.
 

@@ -145,10 +145,15 @@ jobs:
           git bundle create "$stage/release.bundle" HEAD
           git bundle verify "$stage/release.bundle"
           install -d -m 700 "$stage/scripts"
-          install -m 600 scripts/release-bundle.sh scripts/verify-release-images.sh scripts/backup-local.sh scripts/deploy-image-bundle.sh "$stage/scripts/"
+          install -m 600 scripts/release-bundle.sh scripts/verify-release-images.sh scripts/backup-local.sh scripts/deploy-image-bundle.sh scripts/compose-images-only.yml "$stage/scripts/"
       - name: Create GHCR release bundle
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'ghcr' }}
-        run: git bundle create release.bundle HEAD
+        run: |
+          set -euo pipefail
+          stage="ghcr-${{ github.sha }}"
+          install -d -m 700 "$stage/scripts"
+          git bundle create "$stage/release.bundle" HEAD
+          install -m 600 scripts/release-bundle.sh scripts/deploy-ghcr-manual.sh scripts/backup-local.sh scripts/verify-ghcr-deploy-state.sh "$stage/scripts/"
       - name: Prepare production env
         env:
           DOMAIN: ${{ secrets.DOMAIN }}
@@ -184,6 +189,11 @@ jobs:
           set -euo pipefail
           install -m 600 .env.production "${{ github.sha }}/.env.production"
           rm -f .env.production
+      - name: Place private env in GHCR staging
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'ghcr' }}
+        run: |
+          install -m 600 .env.production "ghcr-${{ github.sha }}/.env.production"
+          rm -f .env.production
       - name: Measure image bundle transfer
         id: transfer_size
         if: ${{ github.event_name == 'push' || inputs.deployment_mode == 'image-bundle' }}
@@ -211,10 +221,14 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             set -euo pipefail
-            install -d -m 700 /opt/volleytime/.deploy
-            rm -f /opt/volleytime/.deploy/.env.production
-            rm -f /opt/volleytime/.deploy/release.bundle
-            rm -rf /opt/volleytime/.deploy/scripts
+            umask 077
+            install -d -m 700 /opt/volleytime/.deploy/incoming
+            # mkdir is an atomic reservation: no existing attempt is overwritten,
+            # including helpers that an earlier activation still has open.
+            mkdir -m 700 /opt/volleytime/.deploy/incoming/ghcr-${{ github.sha }} || {
+              echo 'Existing GHCR SHA staging requires a manual recovery checkpoint' >&2
+              exit 1
+            }
       - name: Upload production env
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'ghcr' }}
         uses: appleboy/scp-action@v1
@@ -222,8 +236,8 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: deploy
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: '.env.production,release.bundle,scripts/release-bundle.sh,scripts/deploy-ghcr-manual.sh,scripts/backup-local.sh,scripts/verify-ghcr-deploy-state.sh'
-          target: '/opt/volleytime/.deploy'
+          source: 'ghcr-${{ github.sha }}'
+          target: '/opt/volleytime/.deploy/incoming'
       - name: Deploy GHCR images over SSH
         id: ghcr_activate
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'ghcr' }}
@@ -237,9 +251,9 @@ jobs:
           script: |
             set -euo pipefail
             cd /opt/volleytime
-            chmod 700 .deploy .deploy/scripts
-            chmod 600 .deploy/.env.production
-            bash .deploy/scripts/deploy-ghcr-manual.sh deploy .deploy ${{ github.sha }} ghcr.io/${{ github.repository }}
+            chmod 700 .deploy/incoming/ghcr-${{ github.sha }} .deploy/incoming/ghcr-${{ github.sha }}/scripts
+            chmod 600 .deploy/incoming/ghcr-${{ github.sha }}/.env.production
+            bash .deploy/incoming/ghcr-${{ github.sha }}/scripts/deploy-ghcr-manual.sh deploy .deploy/incoming/ghcr-${{ github.sha }} ${{ github.sha }} ghcr.io/${{ github.repository }}
 
       - name: Check remote transfer capacity
         if: ${{ github.event_name == 'push' || inputs.deployment_mode == 'image-bundle' }}
@@ -381,7 +395,7 @@ jobs:
           script: |
             set -euo pipefail
             cd /opt/volleytime
-            bash .deploy/scripts/deploy-ghcr-manual.sh rollback ${{ github.sha }}
+            bash .deploy/incoming/ghcr-${{ github.sha }}/scripts/deploy-ghcr-manual.sh rollback ${{ github.sha }}
 
       - name: Require manual recovery audit after ambiguous GHCR failure
         if: ${{ failure() && inputs.deployment_mode == 'ghcr' && (steps.ghcr_activate.outcome != 'success' || steps.smoke.outputs.controlled_failure != 'true' || steps.ghcr_rollback.outcome == 'failure') }}

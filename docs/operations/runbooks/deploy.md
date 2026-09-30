@@ -52,6 +52,10 @@ The release path is `task branch → main → prod`: task branches are reviewed 
 
 The `prod` update must be a reviewed fast-forward from the selected `main` revision, after exact-head task CI, independent review and merge-tree/main CI verification. A push to `main` runs CI. A push to `prod` automatically starts image-bundle deployment; `workflow_dispatch` defaults to `image-bundle` or explicitly selects `ghcr`. `local-build` is no longer a production workflow option. Inspect any prior attempt before rerunning.
 
+Before the fast-forward, require the **Runner image build-export-import** CI job to succeed for both the reviewed PR head and the exact selected `main` SHA. This job builds all three images, exports their real Docker archive, verifies/imports it and records disk/memory/image-store capacity in the job log and summary, without deployment secrets, VPS access or publication. A PR run alone does not validate a new merge SHA. Inspect the exact SHA and successful job conclusion; pending, cancelled, missing or failed results block promotion. Record the CI run URL and capacity evidence with the release. This promotion gate is an operator requirement; the deploy workflow does not query prior main CI or configure branch protection.
+
+The runner uses a 12 GiB initial build floor and a separate measured archive/import reserve after packaging. If either capacity gate or the real build/export/import fails, retain the measured evidence and stop for redesign. Do not prune runner/VPS images to make a failing capacity gate pass. Local tests and local application builds do not substitute for this runner evidence; avoid local Docker export on the capacity-constrained Windows C: drive.
+
 Every manual run must select `prod` in the GitHub **Branch** dropdown (or pass `--ref prod` through GitHub CLI). The workflow source gate rejects `main`, task branches, and tags before tests, image publication, production-secret handling, or VPS access.
 
 ## Telegram update transport
@@ -73,7 +77,7 @@ A push to `prod`, or manual `deployment_mode=image-bundle` on `prod`, follows th
 3. Create `release.bundle`, `release-images.tar.gz` and allowlisted `release-images.meta`. Check remote capacity across staging, temporary SCP extraction and Docker storage, then transfer helpers and mode-0600 `.env.production` into mode-0700 `/opt/volleytime/.deploy/incoming/FULL_SHA/`. Existing SHA staging requires manual audit before rerun.
 4. Under `.deploy/image-bundle.lock` (`flock`), verify clean tracked `prod`, exact bundle/fast-forward ancestry, healthy old web/bot/public identity and local old images. Verify archive size/hash/metadata/architecture/labels and import capacity, load images, then inspect their actual identity. Loading does not activate containers.
 5. Recheck live identity, create and validate the private local `pg_dump`/gzip backup, snapshot old env, advance Git (or confirm candidate checkout already reached), and atomically install previous pointer, SHA manifest and candidate env.
-6. Run `migrate` separately with `--no-build`, then `up --no-build -d web bot`; keep PostgreSQL/Caddy running. Check both services, database and exact public HTTPS health.
+6. Use the staged `compose-images-only.yml` override to remove build definitions and set `pull_policy: never` for app/migration services. Run migration with `run --rm --no-deps --pull never migrate`, then `up --no-build -d web bot`; keep PostgreSQL/Caddy running. Check both services, database and exact public HTTPS health. Compose must support `!reset` overrides (validated locally with v5.1.1); verify the installed VPS CLI before rollout.
 7. Run bounded external exact-SHA synthetic initData/forged-signature smoke with technical-session cleanup, then `confirm-smoke FULL_SHA`. Only this confirmation records `smoke-passed`.
 
 The activation command used by the workflow is:
@@ -83,13 +87,17 @@ cd /opt/volleytime
 bash .deploy/incoming/FULL_SHA/scripts/deploy-image-bundle.sh deploy .deploy/incoming/FULL_SHA FULL_SHA
 ```
 
-Transfer and activation each have a 30-minute command timeout (35-minute step bound), with separate 2-minute SSH connection bounds. External smoke is bounded to 180 seconds. A timeout or disconnected runner does not prove the remote process stopped.
+Transfer and activation each have a 30-minute command timeout (35-minute step bound), with separate 2-minute SSH connection bounds. External synthetic smoke has a five-minute timeout plus a 15-second prewait. A timeout or disconnected runner does not prove the remote process stopped.
 
 ## Partial state and manual recovery checkpoint
 
 The historical failed deployment had checkout/candidate manifest `a16eb2a2f821e5e8f46fd8749f12d571d7aeadf4`, but live web/bot/public health and previous manifest/pointer `67bbfe89acaac04992b8128d45cb1b40f8acc75c`. Recheck this state live before any action. Never derive the rollback target from checkout or candidate manifest alone. The image helper accepts an explainable partial state only when live health and previous manifest/pointer agree and all three old images exist locally. GHCR rejects this partial state.
 
 Phase markers in `.deploy/image-bundle-phase` are `verified → loaded → backed-up → migrated → activated → smoke-passed`, with failure/recovery markers as applicable. They are evidence hints, not proof of current state. Direct helper retries at `verified`/`loaded` revalidate old runtime; workflow reruns still refuse existing SHA staging. `backed-up`, `migrated`, unfinished activation and `rolled-back` require manual recovery review. Same-SHA `smoke-passed` retry verifies checkout and exact healthy runtime without changing previous history; an already-live target without that completed marker fails closed.
+
+A completed `smoke-passed A` permits a later fast-forward B only while checkout, manifest and healthy runtime still agree on A; A becomes B's rollback target. A healthy GHCR SHA is also supported as previous runtime: preserve its exact GHCR image references and require all three images locally, without pulling or inventing local aliases. Reserved operation statuses 124/137/143/255 record `interrupted`, preserve the exit status and block automatic reset/restart or retry until manual audit.
+
+For `image-bundle X → GHCR A → image-bundle B`, the old completed X marker is accepted only when `.deploy/ghcr-manual-phase` records `activated A`, checkout/manifest/exact live/public health agree on GHCR A, and X is an ancestor of A (A must then be an ancestor of B). This handoff preserves A's exact GHCR rollback images. An unfinished image phase, unfinished/mismatched GHCR phase, wrong live reference or unrelated ancestry still stops before import/backup.
 
 After timeout, interruption, unexpected phase or rollback failure, use the normal/recovery key for a read-only audit:
 
@@ -130,13 +138,15 @@ Use only after immutable-SHA pulls and registry authentication/reachability are 
 
 The GHCR helper shares the activation lock. Before backup/mutation it requires healthy live web/bot/public health, current manifest, local old images and server checkout to agree, and staged env to be byte-identical to live env. It does not rotate env or repair a partial candidate manifest. It verifies the exact fast-forward bundle, validates backup, snapshots old manifest/history, pulls candidate images through a temporary manifest, advances Git before migration, and starts only web/bot with `--no-build`. Candidate readiness has bounded retries (24 × 5 seconds by default); detached Compose startup alone is not success.
 
+Each GHCR attempt is reserved atomically under `.deploy/incoming/ghcr-FULL_SHA/`, including its helpers, bundle and private env. Existing same-SHA staging is refused. Uploads cannot replace shared helpers or another attempt's files while that attempt holds the activation lock; normal/recovery SSH access remains independent.
+
 Controlled migration/start/readiness failures restore old Git/manifest/history and verify exact old health; old env remains intact. Reserved timeout/interruption exit codes require manual recovery audit. Existing per-SHA snapshots reject blind same-SHA reuse. External smoke uses the shared workflow smoke; GHCR production acceptance must explicitly retain synthetic auth/forgery/cleanup evidence and must not be inferred from a basic health-only run.
 
 After verified eligible `activated` phase, explicit rollback uses:
 
 ```bash
 cd /opt/volleytime
-bash .deploy/scripts/deploy-ghcr-manual.sh rollback FULL_CANDIDATE_SHA
+bash .deploy/incoming/ghcr-FULL_CANDIDATE_SHA/scripts/deploy-ghcr-manual.sh rollback FULL_CANDIDATE_SHA
 ```
 
 This restores snapshotted source/manifest/history and restarts locally available old images without a build or pull. Inspect `.deploy/ghcr-manual-phase`, private per-SHA snapshots, PID/lock, schema and exact health on any ambiguous failure. Reachability, real image pulls and this rollback remain unvalidated in production by local fixtures.

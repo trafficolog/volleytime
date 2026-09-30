@@ -1,0 +1,12 @@
+# Staged with the activation helper, including when the old checkout predates it.
+# Removing build definitions makes a missing verified image fail closed.
+services:
+  migrate:
+    build: !reset null
+    pull_policy: never
+  web:
+    build: !reset null
+    pull_policy: never
+  bot:
+    build: !reset null
+    pull_policy: never

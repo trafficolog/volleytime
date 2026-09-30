@@ -131,7 +131,7 @@ fi
 
 [ -d "$staging" ] && [ -f "$staging/release.bundle" ] || fail "staged bundle is missing"
 [ -f "$staging/.env.production" ] || fail "staged env is missing"
-GHCR_REQUIRE_STAGED_ENV=1 bash "$helper_dir/verify-ghcr-deploy-state.sh" || fail "current runtime is not consistent"
+GHCR_REQUIRE_STAGED_ENV=1 GHCR_STAGED_ENV="$staging/.env.production" bash "$helper_dir/verify-ghcr-deploy-state.sh" || fail "current runtime is not consistent"
 clean_prod || fail "checkout is dirty or not prod"
 old="$(manifest_value "$manifest" RELEASE_VERSION)"
 valid_sha "$old" || fail "old manifest SHA is invalid"

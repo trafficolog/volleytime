@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import {
   chmodSync,
   existsSync,
@@ -406,7 +406,9 @@ describe('production env deployment contract', () => {
       new URL('../../../../scripts/deploy-ghcr-manual.sh', import.meta.url),
       'utf8',
     )
-    const ghcrInvoke = workflow.indexOf('bash .deploy/scripts/deploy-ghcr-manual.sh deploy')
+    const ghcrInvoke = workflow.indexOf(
+      'bash .deploy/incoming/ghcr-${{ github.sha }}/scripts/deploy-ghcr-manual.sh deploy',
+    )
     const ghcrGuard = ghcr.indexOf('bash "$helper_dir/verify-ghcr-deploy-state.sh"')
     const ghcrBackup = ghcr.indexOf('bash "$helper_dir/backup-local.sh"')
     const activate = workflow.indexOf('deploy-image-bundle.sh deploy')
@@ -573,14 +575,72 @@ describe('image bundle workflow contract', () => {
     expect(envMutation).toBe(-1)
     expect(backup).toBeGreaterThan(guard)
     expect(ghcr).toContain(
-      'bash .deploy/scripts/deploy-ghcr-manual.sh deploy .deploy ${{ github.sha }}',
+      'bash .deploy/incoming/ghcr-${{ github.sha }}/scripts/deploy-ghcr-manual.sh deploy .deploy/incoming/ghcr-${{ github.sha }} ${{ github.sha }}',
     )
     expect(workflow).toContain(
-      'bash .deploy/scripts/deploy-ghcr-manual.sh rollback ${{ github.sha }}',
+      'bash .deploy/incoming/ghcr-${{ github.sha }}/scripts/deploy-ghcr-manual.sh rollback ${{ github.sha }}',
     )
     expect(workflow).toContain(
       "steps.ghcr_activate.outcome == 'success' && steps.smoke.outputs.controlled_failure == 'true'",
     )
+  })
+
+  it('reserves immutable GHCR staging without replacing an in-flight helper or secrets', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'volleytime-ghcr-stage-'))
+    dirs.push(root)
+    const shared = join(root, '.deploy')
+    mkdirSync(join(shared, 'scripts'), { recursive: true })
+    writeFileSync(join(shared, 'scripts', 'in-flight.sh'), 'printf "in-flight helper intact"\n')
+    writeFileSync(join(shared, '.env.production'), 'old-private-env')
+    writeFileSync(join(shared, 'release.bundle'), 'old-bundle')
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const step = workflow.match(
+      /- name: Prepare remote secret staging[\s\S]*?(?=\n {6}- name:)/,
+    )?.[0]
+    const script = step
+      ?.split('script: |\n')[1]
+      .split('\n')
+      .map((line) => line.replace(/^ {12}/, ''))
+      .join('\n')
+      .replaceAll('/opt/volleytime', root.replaceAll('\\', '/'))
+      .replaceAll('${{ github.sha }}', 'a'.repeat(40))
+    expect(script).toBeDefined()
+    const run = () =>
+      spawnSync(bashExecutable, ['-c', 'install() { mkdir -p "${@: -1}"; }\n' + script!], {
+        encoding: 'utf8',
+      })
+    const ready = join(root, 'ready')
+    const release = join(root, 'release')
+    const runningHelper = spawn(bashExecutable, [
+      '-c',
+      'printf ready > "$1"; while [ ! -f "$2" ]; do sleep 0.05; done; source "$3"',
+      'fixture',
+      ready.replaceAll('\\', '/'),
+      release.replaceAll('\\', '/'),
+      join(shared, 'scripts', 'in-flight.sh').replaceAll('\\', '/'),
+    ])
+    let output = ''
+    runningHelper.stdout.on('data', (data: Buffer) => {
+      output += data.toString()
+    })
+    const completion = new Promise<number | null>((resolve) => runningHelper.on('close', resolve))
+    try {
+      for (let attempt = 0; attempt < 100 && !existsSync(ready); attempt++)
+        await new Promise((resolve) => setTimeout(resolve, 10))
+      expect(existsSync(ready)).toBe(true)
+      const first = run()
+      expect(first.status, first.stderr).toBe(0)
+      expect(readFileSync(join(shared, '.env.production'), 'utf8')).toBe('old-private-env')
+      expect(readFileSync(join(shared, 'release.bundle'), 'utf8')).toBe('old-bundle')
+      expect(run().status).not.toBe(0)
+      writeFileSync(release, 'resume')
+      expect(await completion).toBe(0)
+      expect(output).toBe('in-flight helper intact')
+    } finally {
+      writeFileSync(release, 'resume')
+      if (runningHelper.exitCode === null) runningHelper.kill()
+      await completion
+    }
   })
 })
 

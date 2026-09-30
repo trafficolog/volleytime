@@ -47,10 +47,10 @@ describe('local release backup contract', () => {
     const localMigrate = localBuild.indexOf('run --rm migrate')
 
     expect(workflow).toContain(
-      "source: '.env.production,release.bundle,scripts/release-bundle.sh,scripts/deploy-ghcr-manual.sh,scripts/backup-local.sh,scripts/verify-ghcr-deploy-state.sh'",
+      'install -m 600 scripts/release-bundle.sh scripts/deploy-ghcr-manual.sh scripts/backup-local.sh scripts/verify-ghcr-deploy-state.sh "$stage/scripts/"',
     )
     expect(workflow).toContain(
-      'install -m 600 scripts/release-bundle.sh scripts/verify-release-images.sh scripts/backup-local.sh scripts/deploy-image-bundle.sh "$stage/scripts/"',
+      'install -m 600 scripts/release-bundle.sh scripts/verify-release-images.sh scripts/backup-local.sh scripts/deploy-image-bundle.sh scripts/compose-images-only.yml "$stage/scripts/"',
     )
     expect(workflow).toContain('deploy-image-bundle.sh deploy')
     expect(workflowBackup).toBeGreaterThan(-1)
@@ -60,7 +60,7 @@ describe('local release backup contract', () => {
     expect(localMigrate).toBeGreaterThan(localBackup)
     const imageBackup = imageBundle.indexOf('bash "$helper_dir/backup-local.sh"')
     const imageAdvance = imageBundle.indexOf('release-bundle.sh" advance')
-    const imageMigrate = imageBundle.indexOf('run --rm --no-build migrate')
+    const imageMigrate = imageBundle.indexOf('run --rm --no-deps --pull never migrate')
     expect(imageBackup).toBeGreaterThan(imageBundle.indexOf('verify-release-images.sh'))
     expect(imageAdvance).toBeGreaterThan(imageBackup)
     expect(imageMigrate).toBeGreaterThan(imageAdvance)

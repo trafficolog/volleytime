@@ -13,8 +13,9 @@ cd "$root"
 [ -f .env.images ] || fail "current image manifest is missing"
 [ -f .env ] || fail "current production env is missing"
 if [ "${GHCR_REQUIRE_STAGED_ENV:-1}" = 1 ]; then
-  [ -f .deploy/.env.production ] || fail "staged production env is missing"
-  cmp -s .env .deploy/.env.production || fail "GHCR manual deploy cannot change production env"
+  staged_env="${GHCR_STAGED_ENV:-.deploy/.env.production}"
+  [ -f "$staged_env" ] || fail "staged production env is missing"
+  cmp -s .env "$staged_env" || fail "GHCR manual deploy cannot change production env"
 fi
 
 declare -A fields=()
