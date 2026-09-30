@@ -209,6 +209,8 @@ Canonical R0 snapshot не изменился: **132 done / 7 in_progress из 1
 
 ## R0.6 — MVP UI refresh `v0.1.6` (кандидат; локальная QA принята)
 
+2026-09-30: после выкладки кандидата пользователь предоставил Telegram-скриншоты и открыл пять отдельных pilot UI fixes: **8.10.7** (полный статус события), **3.11.11** (без синих декоративных теней), **3.11.12** (брендовые native radio), **3.11.13** (различимые поля на серых поверхностях), **8.10.8** (стабильные микрофильтры событий). Для каждой обязательны RED→GREEN, собственные пять gates, browser QA, независимое review и CI. До интеграции и controlled redeploy этих исправлений финальная приёмка R0.6 остаётся открытой. Подробное production evidence и отдельное offline-migrator исправление 9.8.10 ведутся в своей ветке и не подменяются этой записью.
+
 2026-09-30 **9.8.10 PR #70 recovery review-fix:** локальные RED→GREEN и пять gates прошли; исправлено доказательство env для отката в историческом partial state и проверка незавершённой image-bundle фазы перед ручным GHCR. Независимое scoped review закрыло оба Important без нового блокера. Прежний CI относится к старому SHA; обновлённый PR/head и затем exact-main CI обязательны до fast-forward `prod`. Production deploy, реальный Telegram QA и принятие `v0.1.6` ещё не выполнены.
 
 Task 6 (2026-09-30): пять локальных gates прошли, PostgreSQL 127 files/795 tests, focused contracts 90/90, shell/YAML/diff checks. Lint: 0 errors/12 baseline warnings; typecheck/build использовали Turbo cache. Self-review документации не заменяет independent whole-branch review, exact-head CI или controlled production acceptance.
