@@ -522,6 +522,7 @@ function activationFixture() {
   git('config', 'user.email', 'test@volleytime.invalid')
   writeFileSync(join(repo, '.gitignore'), '.deploy/\n.env.images*\n.env\n')
   writeFileSync(join(repo, 'source'), 'old\n')
+  writeFileSync(join(repo, 'docker-compose.prod.yml'), 'services: {}\n')
   git('add', '.')
   git('commit', '-m', 'old')
   const old = git('rev-parse', 'HEAD')
@@ -542,6 +543,12 @@ function activationFixture() {
   writeFileSync(join(repo, '.env.images.previous'), manifest(old))
   writeFileSync(join(repo, '.deploy', 'previous-git-sha'), `${old}\n`)
   copyFileSync(deployScript, join(repo, '.deploy', 'scripts', 'deploy-image-bundle.sh'))
+  const rollbackEnvHelper = fileURLToPath(
+    new URL('../../../../scripts/verify-live-rollback-env.sh', import.meta.url),
+  )
+  if (existsSync(rollbackEnvHelper)) {
+    copyFileSync(rollbackEnvHelper, join(repo, '.deploy', 'scripts', 'verify-live-rollback-env.sh'))
+  }
   copyFileSync(
     fileURLToPath(new URL('../../../../scripts/compose-images-only.yml', import.meta.url)),
     join(repo, '.deploy', 'scripts', 'compose-images-only.yml'),
@@ -562,6 +569,11 @@ printf '%s\\n' "docker $*" >> "$CALLS"
 case "$1 $2" in
   'inspect --format')
     name="\${@: -1}"
+    if [ "$3" = '{{json .Config.Env}}' ]; then
+      [ "\${FAKE_ENV_JSON:-0}" != 1 ] || { printf 'malformed'; exit 0; }
+      printf '["DB_PASSWORD=old","RELEASE_VERSION=%s","PATH=/image-default","SMOKE_TG_ID=old-smoke"]\\n' "$OLD_SHA"
+      exit 0
+    fi
     case "$name" in
       vt_web|vt_bot) service="\${name#vt_}"; sha="$(cat "$LIVE_SHA")" ;;
       vt_postgres) printf 'true|healthy|postgres:16-alpine\\n'; exit 0 ;;
@@ -578,6 +590,7 @@ case "$1 $2" in
     printf 'true|healthy|%s%s:%s\\n' "$prefix" "$service" "$sha"
     ;;
   'image inspect')
+    if [ "\${3:-}" = --format ]; then printf '["PATH=/image-default"]\\n'; exit 0; fi
     if [ "\${FAKE_OLD_PREFIX:-}" != '' ] && [[ "\${@: -1}" == volleytime-*"$OLD_SHA" ]]; then exit 1; fi
     [ "\${FAKE_OLD_IMAGE_MISSING:-0}" != 1 ] || { [[ "\${@: -1}" != *"$OLD_SHA" ]] || exit 1; }
     ;;
@@ -585,6 +598,12 @@ case "$1 $2" in
     if [ "$(cat "$LIVE_SHA")" = "$NEXT_SHA" ] && [ -n "\${FAKE_BOT_HEALTH_STATUS:-}" ]; then exit "$FAKE_BOT_HEALTH_STATUS"; fi
     printf '{"status":"ok","release":"%s"}\\n' "$(cat "$LIVE_SHA")" ;;
   'compose -f')
+    if [[ "$*" == *'config --format json'* ]]; then
+      cat >/dev/null
+      password="$(sed -n 's/^DB_PASSWORD=//p' "$ROOT_PATH/.env")"
+      printf '{"services":{"web":{"environment":{"DB_PASSWORD":"%s","RELEASE_VERSION":"%s","SMOKE_TG_ID":"new-smoke"}},"bot":{"environment":{"DB_PASSWORD":"%s","RELEASE_VERSION":"%s","SMOKE_TG_ID":"new-smoke"}}}}\\n' "$password" "$OLD_SHA" "$password" "$OLD_SHA"
+      exit 0
+    fi
     printf 'compose-env %s\\n' "$(cat "$ROOT_PATH/.env")" >> "$CALLS"
     if [[ "$*" == *'run --rm'* ]]; then
       [[ "$*" != *'--no-build'* ]] || { echo 'unknown flag: --no-build' >&2; exit 16; }
@@ -671,6 +690,27 @@ printf '{"status":"ok","db":"ok","auth":"ok","release":"%s"}\\n' "$sha"
 }
 
 describe('image bundle activation', () => {
+  it.each(['changed secret', 'malformed runtime JSON'])(
+    'rejects partial rollback env with %s before import, backup or snapshot',
+    (failure) => {
+      const f = activationFixture()
+      if (failure === 'changed secret') {
+        writeFileSync(join(f.repo, '.env'), 'DB_PASSWORD=never-print-candidate-secret\n')
+      }
+      const result = f.run(
+        'deploy',
+        failure === 'malformed runtime JSON' ? { FAKE_ENV_JSON: '1' } : {},
+      )
+      expect(result.status).not.toBe(0)
+      expect(result.stderr).toContain('rollback env')
+      expect(result.stdout + result.stderr).not.toContain('never-print-candidate-secret')
+      expect(f.commands()).not.toMatch(/verify |backup |run --rm|up --no-build/)
+      expect(existsSync(join(f.repo, '.deploy', `previous-env-${f.next}`))).toBe(false)
+      expect(f.git('rev-parse', 'HEAD')).toBe(f.candidate)
+    },
+    15000,
+  )
+
   it.each(
     ['backed-up', 'rolling-back', 'activated'].flatMap((ghcrPhase) =>
       ['descendant', 'same-SHA'].map((targetKind) => [ghcrPhase, targetKind] as const),
@@ -958,6 +998,8 @@ describe('image bundle activation', () => {
     if (process.platform !== 'win32') expect(statSync(previousEnv).mode & 0o777).toBe(0o600)
     expect(f.git('rev-parse', 'HEAD')).toBe(f.next)
     const calls = f.commands()
+    expect(calls.indexOf('config --format json')).toBeGreaterThan(-1)
+    expect(calls.indexOf('config --format json')).toBeLessThan(calls.indexOf('verify '))
     expect(calls.indexOf('verify ')).toBeLessThan(calls.indexOf('backup '))
     expect(calls.indexOf('backup ')).toBeLessThan(
       calls.indexOf('run --rm --no-deps --pull never migrate'),

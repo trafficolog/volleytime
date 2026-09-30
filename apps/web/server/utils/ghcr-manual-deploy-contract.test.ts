@@ -180,6 +180,88 @@ printf '{"status":"ok","db":"ok","auth":"ok","release":"%s"}\\n' "$sha"
 }
 
 describe('manual GHCR deploy recovery', () => {
+  it.each(['verified', 'loaded', 'backed-up', 'migrated', 'activated', 'interrupted'])(
+    'rejects unfinished image %s checkpoint before backup, pull or Git movement',
+    (phase) => {
+      const f = fixture()
+      writeFileSync(join(f.repo, '.deploy', 'image-bundle-phase'), `${phase} ${f.next}\n`)
+      const result = f.run()
+      expect(result.status).not.toBe(0)
+      expect(result.stderr).toContain('image checkpoint')
+      expect(f.readCalls()).not.toMatch(/backup| pull|run --rm|up --no-build/)
+      expect(f.git('rev-parse', 'HEAD')).toBe(f.old)
+      expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(f.manifest(f.old))
+    },
+    15000,
+  )
+
+  it.each([
+    'malformed',
+    'unknown',
+    'extra field',
+    'wrong completed SHA',
+    'missing GHCR proof',
+    'wrong GHCR proof',
+    'nonancestor',
+  ])(
+    'rejects %s image checkpoint before backup or pull',
+    (failure) => {
+      const f = fixture()
+      const phase =
+        failure === 'malformed'
+          ? 'smoke-passed bad'
+          : failure === 'unknown'
+            ? `unknown ${f.old}`
+            : failure === 'extra field'
+              ? `smoke-passed ${f.old} extra`
+              : `smoke-passed ${failure === 'wrong completed SHA' ? f.next : f.prior}`
+      writeFileSync(join(f.repo, '.deploy', 'image-bundle-phase'), `${phase}\n`)
+      if (['wrong GHCR proof', 'nonancestor'].includes(failure)) {
+        writeFileSync(join(f.repo, '.env.images'), f.manifest(f.old, 'ghcr.io/example/repo'))
+        writeFileSync(f.web, `ghcr.io/example/repo/web:${f.old}`)
+        writeFileSync(f.bot, `ghcr.io/example/repo/bot:${f.old}`)
+        writeFileSync(
+          join(f.repo, '.deploy', 'ghcr-manual-phase'),
+          `activated ${failure === 'wrong GHCR proof' ? f.next : f.old}\n`,
+        )
+      }
+      if (failure === 'nonancestor') {
+        f.git('checkout', '--orphan', 'unrelated')
+        f.git('commit', '-am', 'unrelated')
+        const unrelated = f.git('rev-parse', 'HEAD')
+        f.git('checkout', 'prod')
+        writeFileSync(join(f.repo, '.deploy', 'image-bundle-phase'), `smoke-passed ${unrelated}\n`)
+      }
+      const result = f.run()
+      expect(result.status).not.toBe(0)
+      expect(result.stderr).toContain('image checkpoint')
+      expect(f.readCalls()).not.toMatch(/backup| pull|run --rm|up --no-build/)
+      expect(f.git('rev-parse', 'HEAD')).toBe(f.old)
+    },
+    15000,
+  )
+
+  it.each(['current image', 'historical GHCR handoff'])(
+    'accepts a proven %s image checkpoint',
+    (kind) => {
+      const f = fixture()
+      writeFileSync(
+        join(f.repo, '.deploy', 'image-bundle-phase'),
+        `smoke-passed ${kind === 'current image' ? f.old : f.prior}\n`,
+      )
+      if (kind === 'historical GHCR handoff') {
+        writeFileSync(join(f.repo, '.env.images'), f.manifest(f.old, 'ghcr.io/example/repo'))
+        writeFileSync(f.web, `ghcr.io/example/repo/web:${f.old}`)
+        writeFileSync(f.bot, `ghcr.io/example/repo/bot:${f.old}`)
+        writeFileSync(join(f.repo, '.deploy', 'ghcr-manual-phase'), `activated ${f.old}\n`)
+      }
+      const result = f.run()
+      expect(result.status, result.stderr).toBe(0)
+      expect(f.git('rev-parse', 'HEAD')).toBe(f.next)
+    },
+    15000,
+  )
+
   it('waits for starting candidate containers to become healthy', () => {
     const f = fixture()
     const result = f.run('deploy', { FAKE_STARTING_CHECKS: '1' })
