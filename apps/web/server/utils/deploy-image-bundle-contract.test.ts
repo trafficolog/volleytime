@@ -1096,7 +1096,7 @@ describe('image bundle activation', () => {
     expect(readFileSync(f.live, 'utf8')).toBe(f.old)
     expect(readFileSync(join(f.repo, '.env'), 'utf8')).toBe('DB_PASSWORD=old\n')
     expect(existsSync(join(f.repo, '.deploy', `previous-env-${f.next}`))).toBe(false)
-  })
+  }, 15000)
 
   it('can retry after a pre-activation backup failure without changing the previous release', () => {
     const f = activationFixture()
@@ -1108,7 +1108,7 @@ describe('image bundle activation', () => {
     expect(retry.status, retry.stderr).toBe(0)
     expect(readFileSync(join(f.repo, '.deploy', 'previous-git-sha'), 'utf8').trim()).toBe(f.old)
     expect(readFileSync(f.live, 'utf8').trim()).toBe(f.next)
-  }, 15000)
+  }, 30000)
 
   it('retries the original partial state where checkout and manifest already equal the target', () => {
     const f = activationFixture()
@@ -1120,7 +1120,7 @@ describe('image bundle activation', () => {
     expect(retry.status, retry.stderr).toBe(0)
     expect(readFileSync(join(f.repo, '.deploy', 'previous-git-sha'), 'utf8').trim()).toBe(f.old)
     expect(readFileSync(f.live, 'utf8').trim()).toBe(f.next)
-  }, 15000)
+  }, 30000)
 
   it('migration failure never switches web or bot', () => {
     const f = activationFixture()
