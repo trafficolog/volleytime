@@ -151,19 +151,23 @@ async function onArchive() {
           <fieldset>
             <legend class="vt-label">Новые участники</legend>
             <div class="space-y-2">
-              <label class="flex items-center gap-2 text-sm">
+              <label class="flex min-h-[44px] items-center gap-2 text-sm">
                 <input
                   v-model="form.defaultMemberStatus"
                   type="radio"
+                  name="settings-member-status"
+                  class="vt-radio"
                   value="active"
                   :disabled="saving"
                 />
                 <span>Сразу в составе</span>
               </label>
-              <label class="flex items-center gap-2 text-sm">
+              <label class="flex min-h-[44px] items-center gap-2 text-sm">
                 <input
                   v-model="form.defaultMemberStatus"
                   type="radio"
+                  name="settings-member-status"
+                  class="vt-radio"
                   value="pending"
                   :disabled="saving"
                 />
@@ -178,7 +182,7 @@ async function onArchive() {
                 id="settings-subscriptions"
                 v-model="form.subscriptionsEnabled"
                 type="checkbox"
-                class="mt-1 h-5 w-5 shrink-0 accent-vt-flame"
+                class="mt-1 h-[20px] w-[20px] shrink-0 accent-vt-flame"
                 :disabled="saving"
                 aria-describedby="settings-subscriptions-hint"
               />
