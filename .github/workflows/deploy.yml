@@ -222,43 +222,24 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: deploy
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: '.env.production,release.bundle,scripts/release-bundle.sh,scripts/deploy-local-build.sh,scripts/backup-local.sh,scripts/verify-ghcr-deploy-state.sh'
+          source: '.env.production,release.bundle,scripts/release-bundle.sh,scripts/deploy-ghcr-manual.sh,scripts/backup-local.sh,scripts/verify-ghcr-deploy-state.sh'
           target: '/opt/volleytime/.deploy'
       - name: Deploy GHCR images over SSH
+        id: ghcr_activate
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'ghcr' }}
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
           username: deploy
           key: ${{ secrets.VPS_SSH_KEY }}
+          timeout: 2m
+          command_timeout: 30m
           script: |
             set -euo pipefail
             cd /opt/volleytime
-            bash .deploy/scripts/verify-ghcr-deploy-state.sh
-            test -f .deploy/.env.production
-            bash .deploy/scripts/backup-local.sh
-            # The guard requires byte-identical env; keep the live file untouched.
-            rm -f .deploy/.env.production
-            candidate_manifest=.deploy/.env.images.candidate
-            {
-              echo "WEB_IMAGE=ghcr.io/${{ github.repository }}/web:${{ github.sha }}"
-              echo "BOT_IMAGE=ghcr.io/${{ github.repository }}/bot:${{ github.sha }}"
-              echo "MIGRATOR_IMAGE=ghcr.io/${{ github.repository }}/migrator:${{ github.sha }}"
-              echo "RELEASE_VERSION=${{ github.sha }}"
-            } > "$candidate_manifest"
-            chmod 600 "$candidate_manifest"
-            # A same-SHA redeploy must retain the real previous release manifest.
-            if [ -f .env.images ] && ! cmp -s .env.images "$candidate_manifest"; then
-              cp -f .env.images .env.images.previous
-              chmod 600 .env.images.previous
-            fi
-            install -m 600 "$candidate_manifest" .env.images
-            rm -f -- "$candidate_manifest"
-            docker compose -f docker-compose.prod.yml --env-file .env --env-file .env.images pull
-            # миграции ОТДЕЛЬНОЙ стадией: ошибка останавливает деплой (Task 9.9.4)
-            docker compose -f docker-compose.prod.yml --env-file .env --env-file .env.images \
-              run --rm migrate
-            docker compose -f docker-compose.prod.yml --env-file .env --env-file .env.images up -d
+            chmod 700 .deploy .deploy/scripts
+            chmod 600 .deploy/.env.production
+            bash .deploy/scripts/deploy-ghcr-manual.sh deploy .deploy ${{ github.sha }} ghcr.io/${{ github.repository }}
 
       - name: Check remote transfer capacity
         if: ${{ github.event_name == 'push' || inputs.deployment_mode == 'image-bundle' }}
@@ -351,7 +332,7 @@ jobs:
 
       - name: Smoke check
         id: smoke
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'ghcr' || steps.activate.outcome == 'success' }}
+        if: ${{ steps.ghcr_activate.outcome == 'success' || steps.activate.outcome == 'success' }}
         env:
           BASE_URL: https://${{ secrets.DOMAIN }}
           SMOKE_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -388,25 +369,24 @@ jobs:
             bash .deploy/incoming/${{ github.sha }}/scripts/deploy-image-bundle.sh confirm-smoke ${{ github.sha }}
 
       - name: Rollback GHCR images on failed smoke
-        if: ${{ failure() && steps.smoke.outcome == 'failure' && github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'ghcr' }}
+        id: ghcr_rollback
+        if: ${{ failure() && steps.ghcr_activate.outcome == 'success' && steps.smoke.outputs.controlled_failure == 'true' }}
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
           username: deploy
           key: ${{ secrets.VPS_SSH_KEY }}
+          timeout: 2m
+          command_timeout: 10m
           script: |
             set -euo pipefail
             cd /opt/volleytime
-            if [ ! -f .env.images.previous ]; then
-              echo "нет записи о предыдущих образах — откат невозможен, нужен ручной разбор" && exit 1
-            fi
-            if cmp -s .env.images.previous .env.images; then
-              echo "предыдущие образы совпадают с текущими — откатывать нечего, нужен ручной разбор" && exit 1
-            fi
-            cp -f .env.images.previous .env.images
-            docker compose -f docker-compose.prod.yml --env-file .env --env-file .env.images up -d
-            echo "rolled back to previous images:"
-            cat .env.images
+            bash .deploy/scripts/deploy-ghcr-manual.sh rollback ${{ github.sha }}
+
+      - name: Require manual recovery audit after ambiguous GHCR failure
+        if: ${{ failure() && inputs.deployment_mode == 'ghcr' && (steps.ghcr_activate.outcome != 'success' || steps.smoke.outputs.controlled_failure != 'true' || steps.ghcr_rollback.outcome == 'failure') }}
+        run: |
+          echo 'GHCR deployment needs a manual recovery checkpoint: inspect remote PID, lock, phase, Git, images, containers, schema and exact health before any retry.' >&2
 
       - name: Rollback image bundle after controlled smoke failure
         id: rollback

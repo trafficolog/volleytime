@@ -665,13 +665,14 @@ describe('image bundle activation', () => {
     expect(workflow).toContain('deploy-image-bundle.sh rollback ${{ github.sha }}')
   })
 
+  // Real Git/Bash fixture setup and activation exceed Vitest's 5s default on Windows.
   it('activates with helpers staged outside the old tracked checkout', () => {
     const f = activationFixture()
     expect(existsSync(join(f.repo, 'scripts', 'verify-release-images.sh'))).toBe(false)
     const result = f.run()
     expect(result.status, result.stderr).toBe(0)
     expect(readFileSync(f.live, 'utf8').trim()).toBe(f.next)
-  })
+  }, 15000)
 
   it('preserves live old SHA in the partial state and activates exact new images in order', () => {
     const f = activationFixture()
@@ -698,7 +699,7 @@ describe('image bundle activation', () => {
     expect(readFileSync(join(f.repo, '.deploy', 'image-bundle-phase'), 'utf8')).toContain(
       `activated ${f.next}`,
     )
-  })
+  }, 15000)
 
   it('same-SHA retry retains old previous pointer', () => {
     const f = activationFixture()
@@ -815,7 +816,7 @@ describe('image bundle activation', () => {
     expect(f.commands()).toContain('compose-env DB_PASSWORD=candidate')
     expect(readFileSync(join(f.repo, '.env'), 'utf8')).toBe('DB_PASSWORD=old\n')
     expect(f.commands()).not.toContain('up --no-build -d web bot')
-  })
+  }, 15000)
 
   it.each([
     ['up failure', { FAKE_UP_FAIL: '1' }],
@@ -849,7 +850,7 @@ describe('image bundle activation', () => {
     expect(readFileSync(f.live, 'utf8').trim()).toBe(f.old)
     expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(f.manifest(f.old))
     expect(f.commands()).not.toMatch(/docker (?:build|image prune|system prune)/)
-  })
+  }, 15000)
 
   it('waits for the new public health to become ready before declaring failure', () => {
     const f = activationFixture()
@@ -861,7 +862,7 @@ describe('image bundle activation', () => {
     expect(result.status, result.stderr).toBe(0)
     expect(readFileSync(f.live, 'utf8').trim()).toBe(f.next)
     expect(f.git('rev-parse', 'HEAD')).toBe(f.next)
-  })
+  }, 15000)
 
   it('rolls back an activated candidate by exact SHA', () => {
     const f = activationFixture()

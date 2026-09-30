@@ -402,22 +402,28 @@ describe('production env deployment contract', () => {
     )
     const prepare = workflow.indexOf('Prepare production env')
     const upload = workflow.indexOf('appleboy/scp-action@v1')
-    const ghcrGuard = workflow.indexOf('bash .deploy/scripts/verify-ghcr-deploy-state.sh')
-    const ghcrBackup = workflow.indexOf('bash .deploy/scripts/backup-local.sh')
+    const ghcr = readFileSync(
+      new URL('../../../../scripts/deploy-ghcr-manual.sh', import.meta.url),
+      'utf8',
+    )
+    const ghcrInvoke = workflow.indexOf('bash .deploy/scripts/deploy-ghcr-manual.sh deploy')
+    const ghcrGuard = ghcr.indexOf('bash "$helper_dir/verify-ghcr-deploy-state.sh"')
+    const ghcrBackup = ghcr.indexOf('bash "$helper_dir/backup-local.sh"')
     const activate = workflow.indexOf('deploy-image-bundle.sh deploy')
     const imageBackup = imageBundle.indexOf('bash "$helper_dir/backup-local.sh"')
     const imageInstall = imageBundle.indexOf(
       'install -m 600 "$staging/.env.production" "$env_temp"',
     )
-    const pull = workflow.indexOf('docker compose -f docker-compose.prod.yml')
-    const migrate = workflow.indexOf('run --rm migrate')
-    const up = workflow.indexOf('up -d')
+    const pull = ghcr.indexOf('pull web bot migrate')
+    const migrate = ghcr.indexOf('run --rm migrate')
+    const up = ghcr.indexOf('if "${compose[@]}" up --no-build -d web bot')
 
     expect(prepare).toBeGreaterThan(-1)
     expect(upload).toBeGreaterThan(prepare)
     expect(activate).toBeGreaterThan(upload)
     expect(imageInstall).toBeGreaterThan(imageBackup)
-    expect(ghcrGuard).toBeGreaterThan(upload)
+    expect(ghcrInvoke).toBeGreaterThan(upload)
+    expect(ghcrGuard).toBeGreaterThan(-1)
     expect(ghcrBackup).toBeGreaterThan(ghcrGuard)
     expect(pull).toBeGreaterThan(ghcrBackup)
     expect(workflow).not.toContain('install -m 600 .deploy/.env.production .env')
@@ -556,13 +562,25 @@ describe('image bundle workflow contract', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
     const ghcr = workflow.match(/- name: Deploy GHCR images over SSH[\s\S]*?(?=\n {6}- name:)/)?.[0]
     expect(ghcr).toBeDefined()
-    const guard = ghcr?.indexOf('verify-ghcr-deploy-state.sh') ?? -1
+    const helper = readFileSync(
+      new URL('../../../../scripts/deploy-ghcr-manual.sh', import.meta.url),
+      'utf8',
+    )
+    const guard = helper.indexOf('bash "$helper_dir/verify-ghcr-deploy-state.sh"')
     const envMutation = ghcr?.indexOf('install -m 600 .deploy/.env.production .env') ?? -1
-    const backup = ghcr?.indexOf('bash .deploy/scripts/backup-local.sh') ?? -1
+    const backup = helper.indexOf('bash "$helper_dir/backup-local.sh"')
     expect(guard).toBeGreaterThan(-1)
     expect(envMutation).toBe(-1)
     expect(backup).toBeGreaterThan(guard)
-    expect(ghcr).toContain('bash .deploy/scripts/verify-ghcr-deploy-state.sh')
+    expect(ghcr).toContain(
+      'bash .deploy/scripts/deploy-ghcr-manual.sh deploy .deploy ${{ github.sha }}',
+    )
+    expect(workflow).toContain(
+      'bash .deploy/scripts/deploy-ghcr-manual.sh rollback ${{ github.sha }}',
+    )
+    expect(workflow).toContain(
+      "steps.ghcr_activate.outcome == 'success' && steps.smoke.outputs.controlled_failure == 'true'",
+    )
   })
 })
 

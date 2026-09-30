@@ -5,8 +5,11 @@ fail() { echo "GHCR manual deploy: $*; manual recovery checkpoint" >&2; exit 1; 
 root="${VOLLEYTIME_ROOT:-/opt/volleytime}"
 cd "$root"
 [ -f .env.images ] || fail "current image manifest is missing"
-[ -f .env ] && [ -f .deploy/.env.production ] || fail "current or staged production env is missing"
-cmp -s .env .deploy/.env.production || fail "GHCR manual deploy cannot change production env"
+[ -f .env ] || fail "current production env is missing"
+if [ "${GHCR_REQUIRE_STAGED_ENV:-1}" = 1 ]; then
+  [ -f .deploy/.env.production ] || fail "staged production env is missing"
+  cmp -s .env .deploy/.env.production || fail "GHCR manual deploy cannot change production env"
+fi
 
 declare -A fields=()
 count=0
