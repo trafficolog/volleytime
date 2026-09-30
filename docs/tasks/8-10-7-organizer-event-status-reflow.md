@@ -2,10 +2,10 @@
 id: '8.10.7'
 phase: '8'
 epic: '8.10'
-status: todo
+status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-30
-status_note: 'SDD до кода; пользователь подтвердил продолжение исправлений. Acceptance/review/CI ещё открыты.'
+status_note: 'Локальный status reflow реализован с mounted RED→GREEN и browser matrix 320/390 light/dark для пяти статусов. Независимое task review и exact-head CI до merge ещё открыты; Telegram/VPS acceptance не заявляется.'
 review_ref: '2026-09-30 production Telegram pilot screenshots'
 priority: P2
 roles: [FE, QA]

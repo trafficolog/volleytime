@@ -42,7 +42,7 @@ const venue = computed(() => props.event.venue?.name ?? props.event.locationText
       </div>
     </div>
     <VtChip
-      class="organizer-event-status max-w-24 shrink-0 text-center"
+      class="organizer-event-status max-w-full shrink-0 text-center whitespace-normal break-words"
       :tone="
         event.status === 'draft' ? 'amber' : event.status === 'published' ? 'grass' : 'default'
       "
@@ -53,7 +53,7 @@ const venue = computed(() => props.event.venue?.name ?? props.event.locationText
 </template>
 
 <style scoped>
-@media (max-width: 200px) {
+@media (max-width: 390px) {
   .organizer-event-row {
     display: grid;
     grid-template-columns: 40px minmax(0, 1fr);
@@ -65,9 +65,6 @@ const venue = computed(() => props.event.venue?.name ?? props.event.locationText
     grid-column: 2;
     justify-self: start;
     max-width: 100%;
-    white-space: normal;
-    font-size: 10px;
-    padding: 3px 6px;
   }
 }
 </style>
