@@ -4,7 +4,7 @@ phase: '9'
 epic: '9.8'
 status: in_progress
 release: 'v0.1.6'
-status_note: 'SDD contract recorded; image packaging, transfer, activation, workflow, review and production acceptance remain open.'
+status_note: 'Image packaging, preflight, activation, workflow, recovery and Task 6 documentation/local gates complete. Whole-branch review, exact-head/main CI, controlled production acceptance and separate Telegram/pilot QA remain open.'
 roles:
   - DEVOPS
   - QA
@@ -43,6 +43,10 @@ GitHub `main` остаётся integration-веткой; production source — �
 8. Обновить deploy runbook и release/status evidence. После пяти локальных gates, PostgreSQL integration tests, shell syntax, focused contracts, независимого review и exact-head/main CI продвигать reviewed `main` в `prod` только fast-forward. Production acceptance фиксирует успешный workflow, проверенный backup до миграции, точный Git/image/runtime/public-health SHA, healthy web/bot/DB и synthetic cleanup; после этого проводится отдельная ручная Telegram QA.
 
 ## Критерии приёмки
+
+Локальный checkpoint 2026-09-30: Tasks 1–5 реализуют package/verify/load, runtime-based previous target, backup-before-advancement, activation/rollback без сборки и default image-bundle workflow. Manual GHCR проверяет согласованный current runtime/checkout и неизменный env, восстанавливает Git/manifest/history при контролируемом отказе и требует manual checkpoint при timeout. Task 6 синхронизирует [runbook](../operations/runbooks/deploy.md) и повторяет локальные gates. Новый whole-branch review, exact-head/main CI, reviewed fast-forward prod, реальная доставка/backup/migration/smoke/cleanup и Telegram QA ещё обязательны. Production evidence не создано, tag/Release `v0.1.6` не опубликован этой работой.
+
+Task 6 локальные gates прошли: format, lint (0 errors/12 baseline warnings), typecheck 6/6 и build 2/2 (Turbo cache hits), PostgreSQL suite 127 files/795 tests, focused deploy/backup/identity contracts 5 files/90 tests, Bash syntax семи helpers, YAML parser/style и diff check. Self-review документации выполнен; independent whole-branch review ещё ожидается. Это проверка локального дерева, а не Docker export/transfer/production acceptance.
 
 - [ ] RED → GREEN contract/shell-workflow tests доказывают порядок source gate → runner build/export → transfer → remote verify/load → previous-runtime capture → backup → advance → migrate → `up --no-build` → exact-SHA smoke. Existing deploy/backup/identity assertions сохраняют проверку source, backup и rollback boundaries при обновлении.
 - [ ] Ref не `prod`, неполный/невалидный SHA или Git bundle, dirty tracked checkout, non-FF, truncated archive, hash/size/tag/architecture/label mismatch, недостаточный диск и отсутствующий старый образ останавливают путь до backup/migration/переключения. Preflight failures не вызывают `docker load`.

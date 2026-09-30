@@ -1,5 +1,9 @@
 # 📸 Текущее состояние проекта
 
+> **Task 6 local gates, 2026-09-30:** format, lint (0 errors/12 baseline warnings), typecheck 6/6 и build 2/2 (Turbo cache hits), PostgreSQL 127 files/795 tests, focused contracts 90/90, shell/YAML и diff check прошли. Документация сверена с helpers/workflow. Independent whole-branch review и внешние CI/production/Telegram gates ниже ещё не пройдены.
+
+> **9.8.10, локальный checkpoint 2026-09-30:** реализован новый default image-bundle workflow и обновлён [runbook](../runbooks/deploy.md): runner build/export, private transfer, verify/load, runtime-based previous target, backup-before-advancement, activation/rollback без сборки, bounded exact smoke/cleanup. GHCR — explicit manual с согласованными checkout/manifest/runtime и неизменным env. Task 6 повторяет локальные gates; independent whole-branch review, exact-head/merge-tree/main CI, reviewed fast-forward prod и controlled production evidence остаются открытыми. Ни deploy, ни новые production backup/restore, ни Telegram QA этой локальной работой не выполнены. 9.8.10 остаётся in_progress; 8.7.2/8.8.11 и принятие v0.1.6/tag остаются отдельными. Исторические live snapshots ниже не доказывают текущий VPS state и требуют read-only перепроверки перед выкладкой.
+
 > **R0.6 predeploy QA принят, 2026-09-29:** [PR #68](https://github.com/trafficolog/volleytime/pull/68), `main=32d7c4f`, exact-head CI `36552036320` success, merge/head tree совпадают. 8.10.3 done для локального F/P QA/gates; все MVP implementation dependencies done. Проверены normal/recovery/CI SSH ключи, чистый tracked серверный prod `67bbfe8`, healthy web/bot/PostgreSQL, 11 GiB свободного диска; записи на VPS не выполнялись. Миграция только additive `subscriptions_enabled DEFAULT true NOT NULL`, review допускает runbook FF/Actions/backup-before-migration. Production ещё v0.1.5; настоящий Telegram/pilot и окончательное принятие v0.1.6 остаются после controlled deploy полного кандидата.
 
 > **8.10.3 локальный gate, 2026-09-29:** интеграция `1a063e5` с `main=99cae3a` прошла пять gates 125/731, local exact-SHA health/auth/synthetic-initData/forgery/cleanup smoke и focused independent re-review без Critical/Important. [Матрица](../qa/2026-09-28-r06-integrated-matrix.md) сохраняет точный охват F/P/T, representative native 200% auth/player и прежние пользовательские проверки. До acceptance QA-задачи остаются PR/exact-head CI; `prod`/VPS v0.1.5 без изменений. Live Telegram/pilot после controlled deploy полного кандидата.
@@ -108,7 +112,7 @@
 - production compose;
 - separate migration stage;
 - smoke script with auth and forged-initData checks;
-- automatic deploy from GitHub `prod` through a verified Git bundle and local VPS build;
+- historical automatic deploy from GitHub `prod` through a verified Git bundle/local VPS build; replacement image-bundle workflow is locally implemented, awaiting CI/review/production acceptance (9.8.10);
 - exact-SHA release identity and explicit application rollback to an immutable ancestor;
 - backup/restore scripts and Sentry integration points.
 
