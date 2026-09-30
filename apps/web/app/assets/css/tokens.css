@@ -39,7 +39,7 @@
 
   --vt-shadow-card: 0 1px 2px rgba(21, 22, 26, 0.04), 0 10px 28px -10px rgba(21, 22, 26, 0.14);
   --vt-shadow-float: 0 14px 32px -8px rgba(21, 22, 26, 0.3);
-  --vt-shadow-accent: 0 16px 32px -14px rgba(36, 55, 201, 0.55);
+  --vt-shadow-accent: none;
   --vt-on-accent: #ffffff;
   --vt-on-grass: #ffffff;
   --vt-tabbar-bg: #15161a;

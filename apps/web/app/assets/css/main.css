@@ -109,7 +109,6 @@
   .vt-btn--primary {
     background: var(--vt-flame);
     color: var(--vt-on-accent);
-    box-shadow: 0 8px 18px -10px rgba(36, 55, 201, 0.7);
   }
   .vt-btn--primary:hover:not(:disabled) {
     background: var(--vt-flame-deep);
