@@ -177,6 +177,9 @@ capture_previous() {
     [ "$identity" = "true|healthy|$image" ] || fail "live image reference differs from manifest"
   done
   images_available "$path" || operation_failed "$?" "old runtime images are unavailable"
+  if [ "$old_manifest" != "$web" ]; then
+    bash "$helper_dir/verify-live-rollback-env.sh" "$path" || fail "rollback env does not match live runtime"
+  fi
   printf '%s' "$web"
 }
 

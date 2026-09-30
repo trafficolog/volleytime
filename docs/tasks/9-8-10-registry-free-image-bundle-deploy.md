@@ -4,7 +4,7 @@ phase: '9'
 epic: '9.8'
 status: in_progress
 release: 'v0.1.6'
-status_note: 'PR #70 exact-head CI passed, including real image build/export/import. Final whole-branch review found partial-state rollback-env and reverse-mode checkpoint gaps; RED/GREEN fixes, re-review, main CI, production and Telegram/pilot QA remain open.'
+status_note: 'PR #70 prior-head CI passed, including real image build/export/import. Final partial-state rollback-env and reverse-mode checkpoint fixes have executable RED/GREEN coverage and five local gates; independent re-review, updated PR/main CI, production and Telegram/pilot QA remain open.'
 roles:
   - DEVOPS
   - QA

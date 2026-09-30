@@ -78,6 +78,30 @@ runtime_allowed() {
   image="${identity##*|}"
   [ "$image" = "$old_image" ] || [ "$image" = "$candidate_image" ]
 }
+check_image_checkpoint() {
+  [ ! -e .deploy/image-bundle-phase ] || {
+    local image_sha web prefix
+    local -a image_marker ghcr_marker
+    [ -f .deploy/image-bundle-phase ] || fail "image checkpoint is unreadable"
+    mapfile -t image_marker < .deploy/image-bundle-phase || fail "image checkpoint is unreadable"
+    [ "${#image_marker[@]}" -eq 1 ] && [[ "${image_marker[0]}" =~ ^smoke-passed\ ([0-9a-f]{40})$ ]] || fail "image checkpoint is unfinished or malformed"
+    image_sha="${BASH_REMATCH[1]}"
+    web="$(manifest_value "$manifest" WEB_IMAGE)"
+    if [ "$image_sha" = "$old" ] && [ "$web" = "volleytime-web:$old" ]; then
+      return 0
+    fi
+    # Only an exact healthy GHCR handoff explains an older completed image.
+    [ "$image_sha" != "$old" ] && [ -f "$phase_file" ] || fail "image checkpoint does not match current release"
+    mapfile -t ghcr_marker < "$phase_file" || fail "image checkpoint GHCR proof is unreadable"
+    [ "${#ghcr_marker[@]}" -eq 1 ] && [ "${ghcr_marker[0]}" = "activated $old" ] || fail "image checkpoint lacks a current GHCR handoff"
+    [[ "$web" =~ ^(ghcr\.io/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/)web:$old$ ]] || fail "image checkpoint requires a current GHCR manifest"
+    prefix="${BASH_REMATCH[1]}"
+    [ "$(manifest_value "$manifest" BOT_IMAGE)" = "${prefix}bot:$old" ] &&
+      [ "$(manifest_value "$manifest" MIGRATOR_IMAGE)" = "${prefix}migrator:$old" ] || fail "image checkpoint GHCR images disagree"
+    git cat-file -e "$image_sha^{commit}" 2>/dev/null &&
+      git merge-base --is-ancestor "$image_sha" "$old" || fail "image checkpoint is not ancestral to current GHCR release"
+  }
+}
 restore_previous() {
   local old="$1" candidate="$2" switch_started="$3" old_web old_bot
   valid_sha "$old" || fail "old runtime SHA is invalid"
@@ -136,6 +160,7 @@ clean_prod || fail "checkout is dirty or not prod"
 old="$(manifest_value "$manifest" RELEASE_VERSION)"
 valid_sha "$old" || fail "old manifest SHA is invalid"
 [ "$(git rev-parse HEAD)" = "$old" ] || fail "checkout does not match healthy old runtime"
+check_image_checkpoint
 [ "$old" != "$wanted" ] || fail "target is already live; inspect before same-SHA retry"
 bash "$helper_dir/release-bundle.sh" verify --repo "$root" --bundle "$staging/release.bundle" --expected "$wanted" || fail "Git bundle verification failed"
 ref="$(git bundle list-heads "$staging/release.bundle" | awk -v sha="$wanted" '$1 == sha {print $2; exit}')"

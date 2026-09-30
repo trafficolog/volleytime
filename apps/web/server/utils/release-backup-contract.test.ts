@@ -50,7 +50,7 @@ describe('local release backup contract', () => {
       'install -m 600 scripts/release-bundle.sh scripts/deploy-ghcr-manual.sh scripts/backup-local.sh scripts/verify-ghcr-deploy-state.sh "$stage/scripts/"',
     )
     expect(workflow).toContain(
-      'install -m 600 scripts/release-bundle.sh scripts/verify-release-images.sh scripts/backup-local.sh scripts/deploy-image-bundle.sh scripts/compose-images-only.yml "$stage/scripts/"',
+      'install -m 600 scripts/release-bundle.sh scripts/verify-release-images.sh scripts/verify-live-rollback-env.sh scripts/backup-local.sh scripts/deploy-image-bundle.sh scripts/compose-images-only.yml "$stage/scripts/"',
     )
     expect(workflow).toContain('deploy-image-bundle.sh deploy')
     expect(workflowBackup).toBeGreaterThan(-1)
