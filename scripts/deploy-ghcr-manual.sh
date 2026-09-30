@@ -12,6 +12,11 @@ case "$mode" in
   *) fail "unknown mode" ;;
 esac
 valid_sha "$wanted" || fail "release SHA must be full lowercase SHA"
+# Detached Compose startup must allow production's 30-second healthcheck interval.
+health_attempts="${GHCR_HEALTH_ATTEMPTS:-24}"
+health_delay="${GHCR_HEALTH_SLEEP_SECONDS:-5}"
+[[ "$health_attempts" =~ ^[1-9][0-9]?$ ]] && [ "$health_attempts" -le 60 ] || fail "readiness attempts must be between 1 and 60"
+[[ "$health_delay" =~ ^(0|[1-9]|10)$ ]] || fail "readiness delay must be between 0 and 10 seconds"
 if [ "$mode" = deploy ]; then
   [[ "$prefix" =~ ^ghcr\.io/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || fail "invalid GHCR repository prefix"
 fi
@@ -46,6 +51,22 @@ controlled_failure() {
     124 | 137 | 143 | 255) fail "operation timed out or was interrupted; inspect phase, PID, lock, Git, images, schema and exact health before retry" ;;
   esac
 }
+wait_ready() {
+  local attempt result
+  for ((attempt = 1; attempt <= health_attempts; attempt++)); do
+    if GHCR_REQUIRE_STAGED_ENV=0 bash "$helper_dir/verify-ghcr-deploy-state.sh" >/dev/null 2>&1; then
+      return 0
+    else
+      result=$?
+      case "$result" in 124 | 137 | 143 | 255) return "$result" ;; esac
+    fi
+    if [ "$attempt" -lt "$health_attempts" ]; then
+      sleep "$health_delay" || return "$?"
+    fi
+  done
+  echo "GHCR manual deploy: readiness exhausted after $health_attempts attempts" >&2
+  return 1
+}
 atomic_install() {
   local temp
   temp="$(mktemp "$(dirname "$2")/.ghcr-state.XXXXXX")"
@@ -74,12 +95,12 @@ restore_previous() {
   for image in "$old_web" "$old_bot" "$(manifest_value "$old_snapshot" MIGRATOR_IMAGE)"; do
     docker image inspect "$image" >/dev/null 2>&1 || fail "old image is unavailable before rollback"
   done
+  mark rolling-back
   git reset --hard "$old" >/dev/null || fail "Git rollback failed"
   atomic_install "$old_snapshot" "$manifest" || fail "old manifest restore failed"
   if [ "$switch_started" = yes ]; then
     "${compose[@]}" up --no-build -d web bot || fail "old runtime restart failed"
   fi
-  GHCR_REQUIRE_STAGED_ENV=0 bash "$helper_dir/verify-ghcr-deploy-state.sh" || fail "old runtime health failed after rollback"
   for path in "$previous_manifest" "$previous_pointer"; do
     if [ -f "$history_snapshot/$(basename "$path")" ]; then
       atomic_install "$history_snapshot/$(basename "$path")" "$path" || fail "previous history restore failed"
@@ -87,7 +108,13 @@ restore_previous() {
       rm -f -- "$path" || fail "previous history removal failed"
     fi
   done
-  mark rolled-back
+  if wait_ready; then
+    mark rolled-back
+  else
+    result=$?
+    controlled_failure "$result"
+    fail "old runtime readiness exhausted after rollback; previous history restored"
+  fi
 }
 
 if [ "$mode" = rollback ]; then
@@ -156,10 +183,14 @@ else
   restore_previous "$old" "$wanted" yes
   fail "activation failed; old source and runtime restored"
 fi
-GHCR_REQUIRE_STAGED_ENV=0 bash "$helper_dir/verify-ghcr-deploy-state.sh" || {
+if wait_ready; then
+  :
+else
+  result=$?
+  controlled_failure "$result"
   restore_previous "$old" "$wanted" yes
-  fail "candidate health failed; old release restored"
-}
+  fail "candidate readiness exhausted; old release restored"
+fi
 atomic_install "$old_snapshot" "$previous_manifest" || fail "previous manifest update failed"
 pointer_temp="$(mktemp .deploy/.previous-git-sha.XXXXXX)"
 printf '%s\n' "$old" > "$pointer_temp"

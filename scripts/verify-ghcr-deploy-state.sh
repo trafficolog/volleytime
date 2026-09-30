@@ -2,6 +2,12 @@
 set -euo pipefail
 
 fail() { echo "GHCR manual deploy: $*; manual recovery checkpoint" >&2; exit 1; }
+operation_failed() {
+  case "$1" in
+    124 | 137 | 143 | 255) echo "GHCR manual deploy: $2 was interrupted; manual recovery checkpoint" >&2; exit "$1" ;;
+    *) fail "$2" ;;
+  esac
+}
 root="${VOLLEYTIME_ROOT:-/opt/volleytime}"
 cd "$root"
 [ -f .env.images ] || fail "current image manifest is missing"
@@ -28,15 +34,15 @@ for service in web bot migrator; do
   key="${service^^}_IMAGE"
   image="${fields[$key]}"
   [[ "$image" == *":$sha" ]] || fail "$service image tag disagrees with release SHA"
-  docker image inspect "$image" >/dev/null 2>&1 || fail "$service image is unavailable locally"
+  docker image inspect "$image" >/dev/null 2>&1 || operation_failed "$?" "$service image is unavailable locally"
   if [ "$service" != migrator ]; then
-    identity="$(docker inspect --format '{{.State.Running}}|{{.State.Health.Status}}|{{.Config.Image}}' "vt_$service")" || fail "$service runtime is unavailable"
+    identity="$(docker inspect --format '{{.State.Running}}|{{.State.Health.Status}}|{{.Config.Image}}' "vt_$service")" || operation_failed "$?" "$service runtime is unavailable"
     [ "$identity" = "true|healthy|$image" ] || fail "$service runtime disagrees with current manifest"
   fi
 done
 
 health_url="${PUBLIC_HEALTH_URL:-https://volleytime.by/api/health}"
-health="$("${CURL_BIN:-curl}" --fail --silent --show-error --max-time 10 "$health_url")" || fail "public health is unavailable"
+health="$("${CURL_BIN:-curl}" --fail --silent --show-error --max-time 10 "$health_url")" || operation_failed "$?" "public health is unavailable"
 printf '%s' "$health" | "${PYTHON_BIN:-python3}" -c '
 import json, sys
 try:
@@ -46,6 +52,6 @@ try:
     sys.exit(0 if valid else 1)
 except (ValueError, TypeError, AttributeError):
     sys.exit(1)
-' "$sha" || fail "public health disagrees with current manifest"
+' "$sha" || operation_failed "$?" "public health disagrees with current manifest"
 
 echo "GHCR manual deploy current runtime verified: $sha"

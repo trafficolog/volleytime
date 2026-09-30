@@ -88,7 +88,16 @@ case "$1 $2" in
   'inspect --format')
     name="\${@: -1}"
     case "$name" in vt_web) image="$(cat "$WEB_STATE")" ;; vt_bot) image="$(cat "$BOT_STATE")" ;; *) exit 1 ;; esac
-    printf 'true|healthy|%s\\n' "$image"
+    status=healthy
+    if [ -f "$ROOT_PATH/.deploy/readiness-$name" ]; then
+      remaining="$(cat "$ROOT_PATH/.deploy/readiness-$name")"
+      if [ "$remaining" -gt 0 ]; then
+        status=starting
+        printf '%s' "$((remaining - 1))" > "$ROOT_PATH/.deploy/readiness-$name"
+      fi
+    fi
+    printf 'runtime-health %s %s\\n' "$name" "$status" >> "$CALLS"
+    printf 'true|%s|%s\\n' "$status" "$image"
     ;;
   'compose -f')
     if [[ "$*" == *' pull'* ]] && [ "\${FAKE_PULL_FAIL:-0}" = 1 ]; then exit 1; fi
@@ -102,6 +111,7 @@ case "$1 $2" in
       fi
       sed -n 's/^WEB_IMAGE=//p' "$ROOT_PATH/.env.images" > "$WEB_STATE"
       sed -n 's/^BOT_IMAGE=//p' "$ROOT_PATH/.env.images" > "$BOT_STATE"
+      for name in vt_web vt_bot; do printf '%s' "\${FAKE_STARTING_CHECKS:-0}" > "$ROOT_PATH/.deploy/readiness-$name"; done
     fi
     ;;
 esac
@@ -112,6 +122,9 @@ esac
     `#!/usr/bin/env bash
 image="$(cat "$WEB_STATE")"
 sha="\${image##*:}"
+printf 'public-health %s\\n' "$sha" >> "$CALLS"
+if [ "$sha" = "$NEXT_SHA" ] && [ "\${FAKE_HEALTH_INTERRUPT:-0}" = 1 ]; then exit 124; fi
+if [ "$sha" = "$NEXT_SHA" ] && [ "\${FAKE_PUBLIC_FAIL:-0}" = 1 ]; then exit 22; fi
 printf '{"status":"ok","db":"ok","auth":"ok","release":"%s"}\\n' "$sha"
 `,
   )
@@ -134,6 +147,8 @@ printf '{"status":"ok","db":"ok","auth":"ok","release":"%s"}\\n' "$sha"
     BOT_STATE: shellPath(bot),
     CALLS: shellPath(calls),
     NEXT_SHA: next,
+    GHCR_HEALTH_ATTEMPTS: '5',
+    GHCR_HEALTH_SLEEP_SECONDS: '0',
     PUBLIC_HEALTH_URL: 'https://test.invalid/api/health',
     CURL_BIN: shellPath(join(bin, 'curl')),
     PYTHON_BIN: process.platform === 'win32' ? 'python' : 'python3',
@@ -163,6 +178,48 @@ printf '{"status":"ok","db":"ok","auth":"ok","release":"%s"}\\n' "$sha"
 }
 
 describe('manual GHCR deploy recovery', () => {
+  it('waits for starting candidate containers to become healthy', () => {
+    const f = fixture()
+    const result = f.run('deploy', { FAKE_STARTING_CHECKS: '1' })
+    expect(result.status, result.stderr).toBe(0)
+    expect(f.git('rev-parse', 'HEAD')).toBe(f.next)
+    expect(f.readCalls()).toContain(`public-health ${f.next}`)
+    expect(f.readCalls()).toContain('runtime-health vt_web starting')
+    expect(f.readCalls()).toContain('runtime-health vt_bot starting')
+  }, 15000)
+
+  it('waits for restored containers before completing rollback and restoring history', () => {
+    const f = fixture()
+    expect(f.run().status).toBe(0)
+    const rollback = f.run('rollback', { FAKE_STARTING_CHECKS: '1' })
+    expect(rollback.status, rollback.stderr).toBe(0)
+    expect(f.readCalls()).toContain('runtime-health vt_web starting')
+    expect(f.readCalls()).toContain('runtime-health vt_bot starting')
+    expect(f.readCalls()).toContain(`public-health ${f.old}`)
+    expect(f.git('rev-parse', 'HEAD')).toBe(f.old)
+    expect(readFileSync(join(f.repo, '.env.images.previous'), 'utf8')).toBe(f.manifest(f.prior))
+    expect(readFileSync(join(f.repo, '.deploy', 'previous-git-sha'), 'utf8')).toBe(`${f.prior}\n`)
+  }, 15000)
+
+  it('restores old history when candidate readiness exhausts its bounded attempts', () => {
+    const f = fixture()
+    const result = f.run('deploy', { FAKE_PUBLIC_FAIL: '1' })
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toContain('readiness exhausted')
+    expect(f.git('rev-parse', 'HEAD')).toBe(f.old)
+    expect(readFileSync(join(f.repo, '.env.images.previous'), 'utf8')).toBe(f.manifest(f.prior))
+    expect(readFileSync(join(f.repo, '.deploy', 'previous-git-sha'), 'utf8')).toBe(`${f.prior}\n`)
+    expect(f.readCalls().match(new RegExp(`public-health ${f.next}`, 'g'))).toHaveLength(5)
+  }, 15000)
+
+  it('requires a manual checkpoint instead of rollback after readiness interruption', () => {
+    const f = fixture()
+    const result = f.run('deploy', { FAKE_HEALTH_INTERRUPT: '1' })
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toContain('manual recovery checkpoint')
+    expect(f.git('rev-parse', 'HEAD')).toBe(f.next)
+    expect(f.readCalls().match(/up --no-build -d web bot/g)).toHaveLength(1)
+  }, 15000)
   it.each([
     ['pull', { FAKE_PULL_FAIL: '1' }],
     ['migration', { FAKE_MIGRATE_FAIL: '1' }],
