@@ -321,6 +321,30 @@
       border-color 0.12s,
       box-shadow 0.12s;
   }
+  /* Gray surface fields: zero-specificity context keeps focus and local states authoritative. */
+  :where(
+      .vt-card:not(.vt-card--raised, .vt-card--hero, .vt-card--warm, .vt-card--cool),
+      .bg-vt-bone,
+      .bg-vt-bone-2
+    )
+    .vt-field:where(
+      input:not(
+        [type='checkbox'],
+        [type='radio'],
+        [type='button'],
+        [type='submit'],
+        [type='reset'],
+        [type='image'],
+        [type='hidden'],
+        [type='range'],
+        [type='color']
+      ),
+      select,
+      textarea
+    ):not(:where(.vt-card--raised *, .vt-card--hero *, .vt-card--warm *, .vt-card--cool *)) {
+    background: var(--vt-paper);
+    border-color: var(--vt-field-border);
+  }
   .vt-field.vt-code {
     font-family: var(--f-mono);
   }
