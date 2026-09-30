@@ -1,5 +1,9 @@
 # Production deploy runbook
 
+Current acceptance, 2026-09-30: corrected [Deploy 36772178900](https://github.com/trafficolog/volleytime/actions/runs/36772178900) succeeded on `967aff312f962196e7347cc0e50f879f25f6dffa`, including bundled Node migrator without runtime package-manager downloads. Backup preceded migration; Git/images/runtime/public health agree and synthetic smoke/cleanup passed. [Current production evidence](../qa/2026-09-30-r06-production-candidate.md#corrected-rollout-and-pilot-ui-fixes) supersedes the historical offline-runtime blocker below. Real Telegram/pilot, isolated restore and actual production rollback execution are not inferred from this rollout.
+
+## Historical first-rollout checkpoint
+
 Task 9.8.10 changes the workflow default to **image-bundle**: build on the Actions runner, transfer exact-SHA images and a verified Git bundle, then activate without building on the VPS. The first controlled rollout passed on SHA `64f18506b03081bc7b9c065c8371cd3e62f10b30`; [production evidence](../qa/2026-09-30-r06-production-candidate.md) records CI, backup, runtime and synthetic smoke, **plus an open runtime npm dependency in the migrator container**. Until fixed and re-verified, that successful rollout does not satisfy the no-VPS-npm requirement or establish real Telegram/pilot acceptance or a generally proven future rollback. GHCR remains an explicit manual alternative. Historical local-build acceptance does not validate this new path.
 
 The offline-runtime remediation invokes bundled `tsx` directly through Node in the migrator image. Runner packaging probes that final CLI with `docker run --rm --network none` before exporting the archive. The local isolated PostgreSQL migration smoke is recorded in the production-candidate evidence; updated reviewed CI and a controlled rollout without runtime downloads are still required before closing the offline-VPS acceptance.

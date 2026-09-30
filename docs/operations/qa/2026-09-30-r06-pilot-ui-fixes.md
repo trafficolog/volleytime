@@ -36,6 +36,8 @@ Controller rulings: native radio means native semantics rather than retaining th
 
 ## Remaining promotion gates
 
+Promotion completed 2026-09-30: reviewed documentation PR #77 merged as `967aff312f962196e7347cc0e50f879f25f6dffa`, tree equal to reviewed head `f44b5b2972a32276292d9ea3fe7e93df8029dd1b`. Exact-head CI36770978331 and exact-main CI36771539306 passed all four jobs. Ordinary fast-forward advanced remote prod and, after successful rollout, local prod from `a16eb2a` to `967aff3`; the divergent historical local main was preserved. [Deploy36772178900](https://github.com/trafficolog/volleytime/actions/runs/36772178900) and [production evidence](2026-09-30-r06-production-candidate.md#corrected-rollout-and-pilot-ui-fixes) close controlled deployment/backup/migration/runtime smoke, including the bundled-node migrator criterion. Pending promotion statements below describe the predeploy checkpoint, not current state. Real Telegram regression and remaining two-account/client/pilot acceptance are still open.
+
 ### Final local gate and review
 
 Controller repeated all five gates against frozen runtime-source `6cb214a22b14b7b4146005cb0498c945ce9e86fb` with dedicated PostgreSQL `volleytime_pilot_integrated_test`: format pass; lint0errors/12 baseline warnings; typecheck6/6;135 files/907 tests passed462.71s; fresh web/bot build2/2 passed1m28.437s. During this run only two Markdown cards changed in `c9019f04870eb46c5c23088f469bc6e4b65589b4`; runtime/test source did not change, and those cards passed separate formatting/diff checks.

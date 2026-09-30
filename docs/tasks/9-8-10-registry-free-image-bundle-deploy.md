@@ -2,9 +2,9 @@
 id: '9.8.10'
 phase: '9'
 epic: '9.8'
-status: in_progress
+status: done
 release: 'v0.1.6'
-status_note: 'Deploy 36747623989 passed on64f1850 with backup/smoke but downloaded pnpm inside migrator. Offline RED/GREEN fix accepted PR #71 main=d7e775a with independent review and exact-head/main CI passed; final CLI offline packaging and local20-migration/replay smoke passed. Corrected controlled redeploy remains open; real Telegram/pilot and v0.1.6 tag/Release are separate gates.'
+status_note: 'Corrected Deploy 36772178900 passed on967aff3 after reviewed PRs and exact-main CI36771539306. Backup verified before migration; Git/images/runtime/health agree; bundled Node migrator, runtime smoke and synthetic cleanup passed. Real Telegram/pilot and v0.1.6 tag/Release remain separate gates.'
 roles:
   - DEVOPS
   - QA
@@ -22,6 +22,8 @@ tags:
 # Task 9.8.10: доставка production-образов без реестра и сборки на VPS
 
 ## Цель
+
+Production acceptance 2026-09-30: corrected [Deploy 36772178900](https://github.com/trafficolog/volleytime/actions/runs/36772178900) completed on `967aff312f962196e7347cc0e50f879f25f6dffa`. [Current evidence](../operations/qa/2026-09-30-r06-production-candidate.md#corrected-rollout-and-pilot-ui-fixes) closes the offline-runtime deployment criterion, including exact-main runner CI, backup before migration, bundled Node CLI, healthy runtime, exact SHA and synthetic cleanup. Earlier pending checkpoints below are historical. This task's completion is not real Telegram/pilot acceptance or an isolated backup restore/production rollback test.
 
 Выпустить проверенный кандидат R0.6 на пилотный VPS: собрать три образа одного точного `prod` SHA в GitHub Actions, передать их вместе с Git bundle через существующий restricted CI SSH-ключ и активировать без сборки, реестра, GitHub или npm на сервере. Сохранить возможность отката к действительно работавшему релизу без повторной сборки. `v0.1.6` остаётся кандидатом до успешного production smoke и отдельной ручной Telegram/pilot QA.
 
@@ -66,7 +68,7 @@ Historical local fix checkpoint before PR #71 acceptance: RED tests committed be
 - [x] Секреты остаются в GitHub Secrets и закрытом env staging; archive/metadata/images/log их не содержат. CI restricted SSH и обычный/recovery SSH работают независимо.
 - [x] Локально проходят `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test` с PostgreSQL, `pnpm build`, shell syntax и focused contracts; независимое review и exact-head/main CI проходят до fast-forward `prod`.
 - [x] [Production evidence](../operations/qa/2026-09-30-r06-production-candidate.md) подтверждает successful workflow, проверенный DB backup до migration, exact SHA Git/трёх образов/запущенных web/bot/public health, healthy DB, runtime smoke и synthetic-session cleanup. Ручная Telegram/pilot QA записывается отдельно; до её принятия не публикуется `v0.1.6` tag/Release.
-- [ ] Runtime-образ мигратора запускает поставленный вместе с образом `tsx` без Corepack/pnpm/npm registry на VPS. RED-тест фиксирует обнаруженное в Deploy `36747623989` скачивание `pnpm@12.4.1` из контейнера; GREEN требует исполнения final image с заблокированной сетью для проверки CLI и повторного controlled deploy без runtime download.
+- [x] Runtime-образ мигратора запускает поставленный вместе с образом `tsx` без Corepack/pnpm/npm registry на VPS. RED-тест фиксирует обнаруженное в Deploy `36747623989` скачивание `pnpm@12.4.1` из контейнера; GREEN подтверждён final image с заблокированной сетью, runner packaging probe и corrected Deploy `36772178900` без runtime download.
 
 Offline-runtime local checkpoint (2026-09-30): RED commits `ee8d752`/`33fd8c0` precede the fix. The migrator invokes the copied `tsx` CLI directly through Node; packaging checks that CLI with `--network none` before `docker save`, refusing export on failure. Real final image `volleytime-migrator:offline-qa` reported `tsx v4.23.13` / Node `v22.23.3` without networking. Its default CMD applied all 20 migrations to a fresh isolated PostgreSQL 16 database on a Docker `--internal` network; a second run succeeded with the journal still at 20. A registry fetch from the same image/network failed, confirming blocked outbound npm access. This local smoke does not establish runner CI or a corrected production rollout.
 

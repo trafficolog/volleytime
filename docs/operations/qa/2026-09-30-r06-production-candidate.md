@@ -2,6 +2,21 @@
 
 Task: [9.8.10](../../tasks/9-8-10-registry-free-image-bundle-deploy.md). This is production deployment evidence for the **candidate**, not acceptance of the real Telegram client or the `v0.1.6` release.
 
+## Corrected rollout and pilot UI fixes
+
+Current verified state, 2026-09-30; the first-rollout sections below remain historical:
+
+- Selected source `967aff312f962196e7347cc0e50f879f25f6dffa` includes offline migrator PR #71, all five independently accepted pilot UI fixes PR #72–76 and integrated verification PR #77. Reviewed head `f44b5b2972a32276292d9ea3fe7e93df8029dd1b` and merge have identical trees. [Exact-head CI36770978331](https://github.com/trafficolog/volleytime/actions/runs/36770978331) and [exact-main CI36771539306](https://github.com/trafficolog/volleytime/actions/runs/36771539306) passed all four jobs, including exact-SHA runner build/export/import. Runner free disk before/after:90,172,360/85,162,584KiB; available memory14,764/13,935MiB. Integrated local five gates and Chrome matrices are recorded in [pilot fixes evidence](2026-09-30-r06-pilot-ui-fixes.md).
+- Reviewed ordinary fast-forward advanced GitHub prod from `64f1850` to selected967aff3. [Deploy36772178900](https://github.com/trafficolog/volleytime/actions/runs/36772178900), job110082153995, completed successfully: source gate, predeploy tests, runner image bundle, bounded SSH transfer/activation and smoke passed. Manual GHCR job was correctly skipped. No server-side GitHub pull, VPS build, tag rewrite or prune was performed.
+- UTC log order: verified20:28:56; images loaded by20:30:57 and inspected20:31:01; backup ready20:31:09; migrations applied20:31:21; migrated20:31:25; activated20:31:40; external smoke succeeded20:32:34. Backup `/opt/volleytime/backups/volleytime_20260930_203106.sql.gz`:10,209bytes, mode0600, `gzip -t` exit0, created before migration. This proves dump existence/compression, not isolated restore or S3 acceptance.
+- Read-only postdeploy verification: clean tracked VPS prod967aff3; phase `smoke-passed967aff3`; all three manifests/images are amd64 with exact OCI revision967aff3; web/bot/PostgreSQL healthy. Caddy/PostgreSQL remained running without recreation. Default migrator CMD is `node ./node_modules/tsx/dist/cli.mjs src/migrate.ts`; migration journal contains20 records. No Corepack/pnpm/npm runtime download appears in activation logs. Together with the real isolated offline migration/replay and runner offline CLI packaging probe, this closes Task9.8.10's runtime dependency criterion.
+- Public HTTPS `/api/health` returned status/db/auth=ok and full selected SHA at20:32:19 and freshly at20:38:53UTC. Bot health:ok, polling, exact selected SHA. Synthetic health/session/Telegram sign-in/authorized organizations returned200; forged initData401; cleanup reported cleaned=true,userId4,sessionsRemoved1 and SMOKE OK. Expected webhook502 in polling fallback does not establish inbound webhook availability or real Telegram-client acceptance.
+- Rollback pointer and `.env.images.previous` now identify actually former live64f1850, with all three old images present. Earlier67bbfe8 images and backup remain retained. Disk available postdeploy4,419,384KiB; /tmp tmpfs1,004,792KiB. No real rollback or DB restore was executed. Normal/recovery/restricted CI keys authenticated during preflight; no secrets were logged.
+- Local prod was safely fast-forwarded from a16eb2a to967aff3 after verifying ancestry and that no worktree checked out prod. Divergent historical local main and the user's auth branch were preserved. This documentation follow-up does not change runtime source or trigger another production deployment merely to publish evidence.
+- Still required: reopen Mini App and check all five corrections in real Telegram, then remaining two-account iOS/Android/Desktop and pilot checklist. Prior user-confirmed200% zoom, animation pause/resume and screen-reader checks are retained, not requested anew. No final v0.1.6 tag/GitHub Release until separate acceptance.
+
+## Historical first rollout
+
 ## Source and gates
 
 - [PR #70](https://github.com/trafficolog/volleytime/pull/70) merged as `64f18506b03081bc7b9c065c8371cd3e62f10b30`. The merge tree equals the reviewed PR head tree `964747f803730d15460da2753c287031faa73ddc`.
