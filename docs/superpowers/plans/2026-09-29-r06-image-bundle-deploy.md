@@ -105,3 +105,23 @@
 - [ ] Перед controlled deploy заново проверить ключи, VPS health, free disk, старые images/backup/manifest, отсутствие чужого deploy; если capacity check не проходит, остановиться без `docker prune`.
 - [ ] Дождаться успешного Actions workflow; сохранить доказательства backup-before-migrate, exact server Git/image/web/bot SHA, healthy containers, HTTPS и synthetic smoke cleanup. При отказе — записать фактическую фазу, не заявлять релиз и не запускать повтор вслепую.
 - [ ] Только после успешного runtime smoke открыть ручной Telegram checklist на тестовых аккаунтах/организации; `v0.1.6` tag/Release и закрытие пилотных задач — лишь после отдельного принятия пользователем.
+
+### Final review-fix A: prove rollback environment in the historical partial state
+
+**Files:** Modify `scripts/deploy-image-bundle.sh`, `.github/workflows/deploy.yml`, `apps/web/server/utils/deploy-image-bundle-contract.test.ts`; create `scripts/verify-live-rollback-env.sh` and its focused executable contract test.
+
+**Interface:** `bash scripts/verify-live-rollback-env.sh PREVIOUS_MANIFEST` compares the rendered web/bot environment for the previous SHA and local image defaults with running `vt_web`/`vt_bot` container environments. It prints only service/diagnostic category, never values. `SMOKE_TG_ID` alone may differ because it is used only by the external smoke script. The deploy helper calls it only for partial `manifest != live` state, before image import, backup or `.env` snapshot.
+
+- [ ] Extend task acceptance and write RED fixtures: mismatched secret or missing runtime key rejects partial-state deploy before import/backup; matching config plus only smoke ID difference permits existing partial-state flow; malformed Docker/Compose JSON fails closed without secret output.
+- [ ] Run focused tests and confirm expected failures. Add the minimal helper/call and workflow staging, then rerun focused tests to GREEN; inspect the real VPS partial state read-only without printing values.
+- [ ] Record the result in the runbook and run shell/YAML checks, then commit with Task/Release trailers.
+
+### Final review-fix B: reconcile image checkpoint before manual GHCR
+
+**Files:** Modify `scripts/deploy-ghcr-manual.sh`, `apps/web/server/utils/ghcr-manual-deploy-contract.test.ts`, task/runbook.
+
+**Interface:** Before backup or pull, reject an unfinished or malformed `.deploy/image-bundle-phase`. Accept absent or exact `smoke-passed` current image SHA; for a completed historical image marker under current GHCR, require current activated GHCR phase and ancestor proof before proceeding.
+
+- [ ] Write RED fixtures for `verified`/`loaded` B while healthy A, malformed/wrong completed marker and valid completed/current or ancestral handoff. Assert no backup/pull/Git movement on failures.
+- [ ] Run focused tests to see expected failures, add the minimal guard, then rerun focused tests to GREEN.
+- [ ] Re-run five repository gates with PostgreSQL, independent review, push PR update and require fresh exact-head CI including runner image job before any merge/promotion.
