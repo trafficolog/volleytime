@@ -671,6 +671,132 @@ printf '{"status":"ok","db":"ok","auth":"ok","release":"%s"}\\n' "$sha"
 }
 
 describe('image bundle activation', () => {
+  it.each(
+    ['backed-up', 'rolling-back', 'activated'].flatMap((ghcrPhase) =>
+      ['descendant', 'same-SHA'].map((targetKind) => [ghcrPhase, targetKind] as const),
+    ),
+  )(
+    'rejects a %s GHCR checkpoint for A on %s deploy while accepted image X is current',
+    (ghcrPhase, targetKind) => {
+      const f = activationFixture()
+      f.git('reset', '--hard', f.old)
+      writeFileSync(join(f.repo, '.env.images'), f.manifest(f.old))
+      const phasePath = join(f.repo, '.deploy', 'image-bundle-phase')
+      const ghcrPath = join(f.repo, '.deploy', 'ghcr-manual-phase')
+      const imagePhase = `smoke-passed ${f.old}\n`
+      const ghcrCheckpoint = `${ghcrPhase} ${f.candidate}\n`
+      writeFileSync(phasePath, imagePhase)
+      writeFileSync(ghcrPath, ghcrCheckpoint)
+      const target = targetKind === 'descendant' ? f.next : f.old
+      const result = f.run('deploy', {}, target)
+      expect(result.status, result.stdout).not.toBe(0)
+      expect(result.stderr).toContain('manual recovery checkpoint')
+      expect(f.commands()).not.toMatch(/verify |backup |compose /)
+      expect(f.git('rev-parse', 'HEAD')).toBe(f.old)
+      expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(f.manifest(f.old))
+      expect(readFileSync(f.live, 'utf8')).toBe(f.old)
+      expect(readFileSync(phasePath, 'utf8')).toBe(imagePhase)
+      expect(readFileSync(ghcrPath, 'utf8')).toBe(ghcrCheckpoint)
+    },
+    20000,
+  )
+
+  it.each(['backed-up', 'rolling-back'])(
+    'rejects a %s GHCR checkpoint before import even without an image marker',
+    (ghcrPhase) => {
+      const f = activationFixture()
+      writeFileSync(join(f.repo, '.deploy', 'ghcr-manual-phase'), `${ghcrPhase} ${f.candidate}\n`)
+      const result = f.run()
+      expect(result.status, result.stdout).not.toBe(0)
+      expect(result.stderr).toContain('manual recovery checkpoint')
+      expect(f.commands()).not.toMatch(/verify |backup |compose /)
+      expect(f.git('rev-parse', 'HEAD')).toBe(f.candidate)
+      expect(readFileSync(f.live, 'utf8')).toBe(f.old)
+    },
+    20000,
+  )
+
+  it('accepts image X replay and descendant B with no GHCR checkpoint', () => {
+    const f = activationFixture()
+    f.git('reset', '--hard', f.old)
+    writeFileSync(join(f.repo, '.env.images'), f.manifest(f.old))
+    writeFileSync(join(f.repo, '.deploy', 'image-bundle-phase'), `smoke-passed ${f.old}\n`)
+    const replay = f.run('deploy', {}, f.old)
+    expect(replay.status, replay.stderr).toBe(0)
+    expect(f.commands()).not.toMatch(/verify |backup |compose /)
+    const deploy = f.run()
+    expect(deploy.status, deploy.stderr).toBe(0)
+    expect(readFileSync(join(f.repo, '.env.images.previous'), 'utf8')).toBe(f.manifest(f.old))
+    expect(f.git('rev-parse', 'HEAD')).toBe(f.next)
+    expect(readFileSync(f.live, 'utf8').trim()).toBe(f.next)
+  }, 20000)
+
+  it('accepts image B to C after a completed ancestral GHCR handoff A', () => {
+    const f = activationFixture()
+    writeFileSync(join(f.repo, '.env.images'), f.manifest(f.next))
+    writeFileSync(f.live, f.next)
+    writeFileSync(join(f.repo, '.deploy', 'image-bundle-phase'), `smoke-passed ${f.next}\n`)
+    writeFileSync(join(f.repo, '.deploy', 'ghcr-manual-phase'), `activated ${f.candidate}\n`)
+    f.git('reset', '--hard', f.next)
+    writeFileSync(join(f.repo, 'source'), 'release C\n')
+    f.git('commit', '-am', 'release C')
+    const c = f.git('rev-parse', 'HEAD')
+    f.git('bundle', 'create', join(f.staging, 'release.bundle'), 'prod')
+    f.git('reset', '--hard', f.next)
+    const result = f.run('deploy', {}, c)
+    expect(result.status, result.stderr).toBe(0)
+    expect(f.git('rev-parse', 'HEAD')).toBe(c)
+    expect(readFileSync(join(f.repo, '.env.images.previous'), 'utf8')).toBe(f.manifest(f.next))
+    expect(readFileSync(f.live, 'utf8').trim()).toBe(c)
+  }, 20000)
+
+  it.each([
+    'valid',
+    'missing-snapshot',
+    'wrong-snapshot',
+    'wrong-history',
+    'wrong-history-manifest',
+    'nonancestor',
+  ])(
+    'validates %s completed GHCR rollback before a new image-bundle release',
+    (state) => {
+      const f = activationFixture()
+      const current = state === 'nonancestor' ? f.candidate : f.old
+      const ghcrSha = state === 'nonancestor' ? f.old : f.candidate
+      f.git('reset', '--hard', current)
+      writeFileSync(f.live, current)
+      writeFileSync(join(f.repo, '.env.images'), f.manifest(current))
+      writeFileSync(join(f.repo, '.deploy', 'image-bundle-phase'), `smoke-passed ${current}\n`)
+      writeFileSync(join(f.repo, '.deploy', 'ghcr-manual-phase'), `rolled-back ${ghcrSha}\n`)
+      const snapshot = join(f.repo, '.deploy', `ghcr-old-manifest-${ghcrSha}`)
+      const history = join(f.repo, '.deploy', `ghcr-history-${ghcrSha}`)
+      if (state !== 'missing-snapshot')
+        writeFileSync(snapshot, f.manifest(state === 'wrong-snapshot' ? f.candidate : current))
+      mkdirSync(history)
+      writeFileSync(
+        join(history, '.env.images.previous'),
+        f.manifest(state === 'wrong-history-manifest' ? f.candidate : f.old),
+      )
+      writeFileSync(
+        join(history, 'previous-git-sha'),
+        `${state === 'wrong-history' ? f.candidate : f.old}\n`,
+      )
+      const result = f.run()
+      if (state !== 'valid') {
+        expect(result.status, result.stdout).not.toBe(0)
+        expect(result.stderr).toContain('manual recovery checkpoint')
+        expect(f.commands()).not.toMatch(/verify |backup |compose /)
+        expect(f.git('rev-parse', 'HEAD')).toBe(current)
+        expect(readFileSync(f.live, 'utf8')).toBe(current)
+        return
+      }
+      expect(result.status, result.stderr).toBe(0)
+      expect(readFileSync(join(f.repo, '.env.images.previous'), 'utf8')).toBe(f.manifest(f.old))
+      expect(readFileSync(f.live, 'utf8').trim()).toBe(f.next)
+    },
+    20000,
+  )
+
   it.each(['valid', 'unfinished-ghcr', 'wrong-ghcr-sha', 'nonancestor-marker', 'stale-target'])(
     'validates %s GHCR handoff after an earlier image-bundle release',
     (state) => {
