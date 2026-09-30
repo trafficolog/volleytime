@@ -2,10 +2,10 @@
 id: '3.11.13'
 phase: '3'
 epic: '3.11'
-status: todo
+status: in_progress
 sync_state: synced
 last_reviewed: 2026-09-30
-status_note: 'SDD до кода; пользователь подтвердил продолжение исправлений. Acceptance/review/CI ещё открыты.'
+status_note: 'Contextual CSS для полей на серых карточках реализован; RED→GREEN contracts и 42 browser cases light/dark 320/390/1280 пройдены на synthetic API fixtures. Пять gates, независимое review и exact-head CI фиксируются в handoff; Telegram/production QA не заявляется.'
 review_ref: '2026-09-30 production Telegram pilot screenshots'
 priority: P2
 roles: [FE, QA]
