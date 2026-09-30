@@ -4,7 +4,7 @@ phase: '9'
 epic: '9.8'
 status: in_progress
 release: 'v0.1.6'
-status_note: 'Final deployment fixes, runner-only image CI gate and additional GHCR checkpoint guard implemented locally. Scoped independent re-review, exact-head/main real build/export/import capacity evidence, controlled production acceptance and separate Telegram/pilot QA remain open.'
+status_note: 'Final deployment fixes, runner-only image CI gate and additional GHCR checkpoint guard implemented locally; scoped independent re-review approved. Exact-head/main real build/export/import capacity evidence, controlled production acceptance and separate Telegram/pilot QA remain open.'
 roles:
   - DEVOPS
   - QA
@@ -50,7 +50,7 @@ Cross-mode continuity also covers accepted image-bundle X → GHCR activated A �
 
 Additional scoped review-fix acceptance (2026-09-30, user approved): an unfinished or mismatched GHCR checkpoint blocks image-bundle deployment before success, import, backup, Git advancement, migration or activation even when checkout/manifest/healthy runtime still equal the last `smoke-passed` image SHA. Executable fixtures cover GHCR `backed-up` and `rolling-back`, same-SHA replay, absence of a GHCR marker and a valid completed GHCR handoff. Existing image A→B and image X→GHCR A→image B continuity remain required. A completed ancestral GHCR A must not block an accepted image B→C; a `rolled-back A` marker requires its old-manifest snapshot, restored history and ancestry to prove exact healthy restored state before another image release. Missing/mismatched proof remains a manual checkpoint.
 
-Additional local fix verification: RED tests committed before code; focused deployment/GHCR/runner contracts 6 files/144 tests and full PostgreSQL suite 128 files/849 tests passed without timeouts. All five gates passed serially (lint 0 errors/12 baseline warnings, typecheck 6/6, build 2/2), plus eight Bash syntax checks, YAML parsing/style and diff check. Independent scoped review and exact-head/main runner/production/Telegram evidence remain open; this task stays `in_progress`.
+Additional local fix verification: RED tests committed before code; focused deployment/GHCR/runner contracts 6 files/144 tests and full PostgreSQL suite 128 files/849 tests passed without timeouts. All five gates passed serially (lint 0 errors/12 baseline warnings, typecheck 6/6, build 2/2), plus eight Bash syntax checks, YAML parsing/style and diff check. Independent scoped review approved the GHCR checkpoint fix without new Critical/Important findings. Exact-head/main runner, production and Telegram evidence remain open; this task stays `in_progress`.
 
 Локальный checkpoint 2026-09-30: Tasks 1–5 реализуют package/verify/load, runtime-based previous target, backup-before-advancement, activation/rollback без сборки и default image-bundle workflow. Manual GHCR проверяет согласованный current runtime/checkout и неизменный env, восстанавливает Git/manifest/history при контролируемом отказе и требует manual checkpoint при timeout. Task 6 синхронизирует [runbook](../operations/runbooks/deploy.md) и повторяет локальные gates. Новый whole-branch review, exact-head/main CI, reviewed fast-forward prod, реальная доставка/backup/migration/smoke/cleanup и Telegram QA ещё обязательны. Production evidence не создано, tag/Release `v0.1.6` не опубликован этой работой.
 
