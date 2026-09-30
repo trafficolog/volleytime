@@ -2,10 +2,10 @@
 id: '8.10.7'
 phase: '8'
 epic: '8.10'
-status: in_progress
+status: done
 sync_state: synced
 last_reviewed: 2026-09-30
-status_note: 'Локальный status reflow реализован с mounted RED→GREEN и browser matrix 320/390 light/dark для пяти статусов. Независимое task review и exact-head CI до merge ещё открыты; Telegram/VPS acceptance не заявляется.'
+status_note: 'Принята PR #72 в main=4a48cdb: RED→GREEN, 20 browser status cases, пять gates131/889, независимое review и exact-head/main CI passed. Telegram regression после controlled redeploy отдельно; см. 2026-09-30-r06-pilot-ui-fixes.md.'
 review_ref: '2026-09-30 production Telegram pilot screenshots'
 priority: P2
 roles: [FE, QA]

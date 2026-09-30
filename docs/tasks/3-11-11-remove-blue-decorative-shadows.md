@@ -2,10 +2,10 @@
 id: '3.11.11'
 phase: '3'
 epic: '3.11'
-status: in_progress
+status: done
 sync_state: synced
 last_reviewed: 2026-09-30
-status_note: 'Синие decorative shadows удалены; RED→GREEN, browser light/dark и keyboard focus проверены. Пять локальных gates пройдены; независимые review и exact-head CI ещё открыты.'
+status_note: 'Принята PR #73 в main=74149eb: RED→GREEN, browser light/dark и keyboard focus, пять gates132/892, independent review и exact-head/main CI passed. Удалены декоративные синие тени, focus/neutral shadows сохранены; Telegram regression после redeploy отдельно.'
 review_ref: '2026-09-30 production Telegram pilot screenshots'
 priority: P2
 roles: [FE, QA]

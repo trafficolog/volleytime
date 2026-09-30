@@ -2,10 +2,10 @@
 id: '3.11.13'
 phase: '3'
 epic: '3.11'
-status: in_progress
+status: done
 sync_state: synced
 last_reviewed: 2026-09-30
-status_note: 'Contextual CSS для полей на серых карточках реализован; RED→GREEN contracts и 42 browser cases light/dark 320/390/1280 пройдены на synthetic API fixtures. Пять gates, независимое review и exact-head CI фиксируются в handoff; Telegram/production QA не заявляется.'
+status_note: 'Принята PR #75 в main=3c68fb8: RED→GREEN, 42 browser cases и native scope fixtures, measured contrast, пять gates134/900, independent review без Critical/Important и exact-head/main CI passed. Minor future token-test maintenance фиксируется в QA report; Telegram regression отдельно.'
 review_ref: '2026-09-30 production Telegram pilot screenshots'
 priority: P2
 roles: [FE, QA]

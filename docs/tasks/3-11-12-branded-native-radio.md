@@ -2,10 +2,10 @@
 id: '3.11.12'
 phase: '3'
 epic: '3.11'
-status: todo
+status: done
 sync_state: synced
 last_reviewed: 2026-09-30
-status_note: 'SDD до кода; пользователь подтвердил продолжение исправлений. Acceptance/review/CI ещё открыты.'
+status_note: 'Принята PR #74 в main=7bb847d: native branded radio и settings checkbox20px, RED→GREEN, browser8cases/keyboard/forced-colors/contrast, пять gates133/897, independent review и exact-head/main CI passed. Telegram regression после redeploy отдельно.'
 review_ref: '2026-09-30 production Telegram pilot screenshots'
 priority: P2
 roles: [FE, QA]
