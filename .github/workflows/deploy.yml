@@ -8,11 +8,11 @@ on:
       deployment_mode:
         description: Deployment path
         required: true
-        default: local-build
+        default: image-bundle
         type: choice
         options:
           - ghcr
-          - local-build
+          - image-bundle
 
 concurrency:
   group: deploy-production
@@ -28,8 +28,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
       - name: Require prod branch
-        run: node scripts/require-prod-ref.mjs
+        run: |
+          node scripts/require-prod-ref.mjs
+          [[ '${{ github.sha }}' =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
 
   test:
     name: Test before deploy
@@ -55,6 +60,8 @@ jobs:
       NODE_ENV: test
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with: { node-version: '22', cache: 'pnpm' }
@@ -74,6 +81,8 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -117,16 +126,34 @@ jobs:
   deploy:
     name: Deploy to VPS
     needs: [test, build-and-push]
-    if: ${{ always() && needs.test.result == 'success' && (needs.build-and-push.result == 'success' || needs.build-and-push.result == 'skipped') }}
+    if: ${{ !cancelled() && needs.test.result == 'success' && (needs.build-and-push.result == 'success' || needs.build-and-push.result == 'skipped') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with: { node-version: '22' }
-      - name: Create release bundle
-        run: git bundle create release.bundle HEAD
+      - name: Package exact-SHA image bundle
+        if: ${{ github.event_name == 'push' || inputs.deployment_mode == 'image-bundle' }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+          stage="${{ github.sha }}"
+          bash scripts/package-release-images.sh "${{ github.sha }}" "$stage"
+          git bundle create "$stage/release.bundle" HEAD
+          git bundle verify "$stage/release.bundle"
+          install -d -m 700 "$stage/scripts"
+          install -m 600 scripts/release-bundle.sh scripts/verify-release-images.sh scripts/verify-live-rollback-env.sh scripts/backup-local.sh scripts/deploy-image-bundle.sh scripts/compose-images-only.yml "$stage/scripts/"
+      - name: Create GHCR release bundle
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'ghcr' }}
+        run: |
+          set -euo pipefail
+          stage="ghcr-${{ github.sha }}"
+          install -d -m 700 "$stage/scripts"
+          git bundle create "$stage/release.bundle" HEAD
+          install -m 600 scripts/release-bundle.sh scripts/deploy-ghcr-manual.sh scripts/backup-local.sh scripts/verify-ghcr-deploy-state.sh "$stage/scripts/"
       - name: Prepare production env
         env:
           DOMAIN: ${{ secrets.DOMAIN }}
@@ -151,28 +178,41 @@ jobs:
           HEALTHCHECK_URL: ${{ secrets.HEALTHCHECK_URL }}
         run: |
           node scripts/verify-telegram-bot-identity.mjs
+          if [ '${{ github.event_name }}' = push ] || [ '${{ inputs.deployment_mode }}' = image-bundle ]; then
+            : "${SMOKE_TG_ID:?synthetic smoke user is required}"
+            : "${BOT_INTERNAL_SECRET:?synthetic smoke cleanup secret is required}"
+          fi
           node scripts/render-production-env.mjs .env.production
+      - name: Place private env in image bundle
+        if: ${{ github.event_name == 'push' || inputs.deployment_mode == 'image-bundle' }}
+        run: |
+          set -euo pipefail
+          install -m 600 .env.production "${{ github.sha }}/.env.production"
+          rm -f .env.production
+      - name: Place private env in GHCR staging
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'ghcr' }}
+        run: |
+          install -m 600 .env.production "ghcr-${{ github.sha }}/.env.production"
+          rm -f .env.production
+      - name: Measure image bundle transfer
+        id: transfer_size
+        if: ${{ github.event_name == 'push' || inputs.deployment_mode == 'image-bundle' }}
+        run: |
+          set -euo pipefail
+          stage="${{ github.sha }}"
+          test "$(sed -n 's/^RELEASE_SHA=//p' "$stage/release-images.meta")" = "${{ github.sha }}"
+          archive_bytes="$(sed -n 's/^ARCHIVE_BYTES=//p' "$stage/release-images.meta")"
+          unpacked_bytes="$(sed -n 's/^UNPACKED_BYTES=//p' "$stage/release-images.meta")"
+          [[ "$archive_bytes" =~ ^[1-9][0-9]{0,14}$ ]]
+          [[ "$unpacked_bytes" =~ ^[1-9][0-9]{0,14}$ ]]
+          test "$(stat -c %s "$stage/release-images.tar.gz")" = "$archive_bytes"
+          payload_bytes="$(du -sb "$stage" | awk '{print $1}')"
+          [[ "$payload_bytes" =~ ^[1-9][0-9]{0,14}$ ]]
+          [ "$payload_bytes" -ge "$archive_bytes" ]
+          echo "payload_bytes=$payload_bytes" >> "$GITHUB_OUTPUT"
+          echo "archive_bytes=$archive_bytes" >> "$GITHUB_OUTPUT"
+          echo "unpacked_bytes=$unpacked_bytes" >> "$GITHUB_OUTPUT"
       - name: Prepare remote secret staging
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: deploy
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
-            set -euo pipefail
-            install -d -m 700 /opt/volleytime/.deploy
-            rm -f /opt/volleytime/.deploy/.env.production
-            rm -f /opt/volleytime/.deploy/release.bundle
-            rm -rf /opt/volleytime/.deploy/scripts
-      - name: Upload production env
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: deploy
-          key: ${{ secrets.VPS_SSH_KEY }}
-          source: '.env.production,release.bundle,scripts/release-bundle.sh,scripts/deploy-local-build.sh,scripts/backup-local.sh'
-          target: '/opt/volleytime/.deploy'
-      - name: Deploy GHCR images over SSH
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'ghcr' }}
         uses: appleboy/ssh-action@v1
         with:
@@ -181,52 +221,132 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             set -euo pipefail
-            cd /opt/volleytime
-            test -f .deploy/.env.production
-            install -m 600 .deploy/.env.production .env
-            rm -f .deploy/.env.production
-            bash .deploy/scripts/backup-local.sh
-            candidate_manifest=.deploy/.env.images.candidate
-            {
-              echo "WEB_IMAGE=ghcr.io/${{ github.repository }}/web:${{ github.sha }}"
-              echo "BOT_IMAGE=ghcr.io/${{ github.repository }}/bot:${{ github.sha }}"
-              echo "MIGRATOR_IMAGE=ghcr.io/${{ github.repository }}/migrator:${{ github.sha }}"
-              echo "RELEASE_VERSION=${{ github.sha }}"
-            } > "$candidate_manifest"
-            chmod 600 "$candidate_manifest"
-            # A same-SHA redeploy must retain the real previous release manifest.
-            if [ -f .env.images ] && ! cmp -s .env.images "$candidate_manifest"; then
-              cp -f .env.images .env.images.previous
-              chmod 600 .env.images.previous
-            fi
-            install -m 600 "$candidate_manifest" .env.images
-            rm -f -- "$candidate_manifest"
-            docker compose -f docker-compose.prod.yml --env-file .env --env-file .env.images pull
-            # миграции ОТДЕЛЬНОЙ стадией: ошибка останавливает деплой (Task 9.9.4)
-            docker compose -f docker-compose.prod.yml --env-file .env --env-file .env.images \
-              run --rm migrate
-            docker compose -f docker-compose.prod.yml --env-file .env --env-file .env.images up -d
-            docker image prune -f
-
-      - name: Deploy verified bundle over SSH
-        if: ${{ github.event_name == 'push' || inputs.deployment_mode == 'local-build' }}
+            umask 077
+            install -d -m 700 /opt/volleytime/.deploy/incoming
+            # mkdir is an atomic reservation: no existing attempt is overwritten,
+            # including helpers that an earlier activation still has open.
+            mkdir -m 700 /opt/volleytime/.deploy/incoming/ghcr-${{ github.sha }} || {
+              echo 'Existing GHCR SHA staging requires a manual recovery checkpoint' >&2
+              exit 1
+            }
+      - name: Upload production env
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'ghcr' }}
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: deploy
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: 'ghcr-${{ github.sha }}'
+          target: '/opt/volleytime/.deploy/incoming'
+      - name: Deploy GHCR images over SSH
+        id: ghcr_activate
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'ghcr' }}
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
           username: deploy
           key: ${{ secrets.VPS_SSH_KEY }}
+          timeout: 2m
           command_timeout: 30m
           script: |
             set -euo pipefail
             cd /opt/volleytime
-            test -f .deploy/.env.production
-            test -f .deploy/scripts/deploy-local-build.sh
-            install -m 600 .deploy/.env.production .env
-            rm -f .deploy/.env.production
-            bash .deploy/scripts/deploy-local-build.sh deploy-bundle .deploy/release.bundle ${{ github.sha }}
+            chmod 700 .deploy/incoming/ghcr-${{ github.sha }} .deploy/incoming/ghcr-${{ github.sha }}/scripts
+            chmod 600 .deploy/incoming/ghcr-${{ github.sha }}/.env.production
+            bash .deploy/incoming/ghcr-${{ github.sha }}/scripts/deploy-ghcr-manual.sh deploy .deploy/incoming/ghcr-${{ github.sha }} ${{ github.sha }} ghcr.io/${{ github.repository }}
+
+      - name: Check remote transfer capacity
+        if: ${{ github.event_name == 'push' || inputs.deployment_mode == 'image-bundle' }}
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: deploy
+          key: ${{ secrets.VPS_SSH_KEY }}
+          timeout: 2m
+          command_timeout: 2m
+          script: |
+            set -euo pipefail
+            [[ '${{ github.sha }}' =~ ^[0-9a-f]{40}$ ]]
+            payload_bytes='${{ steps.transfer_size.outputs.payload_bytes }}'
+            archive_bytes='${{ steps.transfer_size.outputs.archive_bytes }}'
+            unpacked_bytes='${{ steps.transfer_size.outputs.unpacked_bytes }}'
+            [[ "$payload_bytes" =~ ^[1-9][0-9]{0,14}$ ]]
+            [[ "$archive_bytes" =~ ^[1-9][0-9]{0,14}$ ]]
+            [[ "$unpacked_bytes" =~ ^[1-9][0-9]{0,14}$ ]]
+            install -d -m 700 /opt/volleytime/.deploy/incoming
+            if [ -e /opt/volleytime/.deploy/incoming/${{ github.sha }} ]; then
+              echo 'Existing SHA staging requires a manual recovery checkpoint before rerun' >&2
+              exit 1
+            fi
+            # Preserve the verifier's post-upload Docker import reserve. SCP also
+            # needs a destination extraction copy and a temporary tar archive.
+            stage_required_bytes=$((payload_bytes + archive_bytes + 2 * unpacked_bytes + 268435456))
+            temp_required_bytes=$((payload_bytes + 268435456))
+            docker_required_bytes=$((archive_bytes + 2 * unpacked_bytes + 268435456))
+            stage_device="$(stat -c %d /opt/volleytime/.deploy/incoming)"
+            temp_device="$(stat -c %d /tmp)"
+            docker_root="$(docker info --format '{{.DockerRootDir}}')"
+            [ -d "$docker_root" ]
+            docker_device="$(stat -c %d "$docker_root")"
+            if [ "$stage_device" = "$temp_device" ]; then
+              stage_required_bytes=$((stage_required_bytes + payload_bytes))
+            fi
+            stage_required_kib=$(((stage_required_bytes + 1023) / 1024))
+            stage_available_kib="$(df -Pk /opt/volleytime/.deploy/incoming | awk 'NR == 2 {print $4}')"
+            [[ "$stage_available_kib" =~ ^[0-9]+$ ]]
+            [ "$stage_available_kib" -ge "$stage_required_kib" ] || { echo 'Insufficient staging/import capacity; manual recovery checkpoint' >&2; exit 1; }
+            if [ "$stage_device" != "$temp_device" ]; then
+              temp_required_kib=$(((temp_required_bytes + 1023) / 1024))
+              temp_available_kib="$(df -Pk /tmp | awk 'NR == 2 {print $4}')"
+              [[ "$temp_available_kib" =~ ^[0-9]+$ ]]
+              [ "$temp_available_kib" -ge "$temp_required_kib" ] || { echo 'Insufficient temporary transfer capacity; manual recovery checkpoint' >&2; exit 1; }
+            fi
+            if [ "$stage_device" != "$docker_device" ]; then
+              docker_required_kib=$(((docker_required_bytes + 1023) / 1024))
+              docker_available_kib="$(df -Pk "$docker_root" | awk 'NR == 2 {print $4}')"
+              [[ "$docker_available_kib" =~ ^[0-9]+$ ]]
+              [ "$docker_available_kib" -ge "$docker_required_kib" ] || { echo 'Insufficient Docker import capacity; manual recovery checkpoint' >&2; exit 1; }
+            fi
+            install -d -m 700 /opt/volleytime/.deploy/incoming/${{ github.sha }}
+
+      - name: Upload image bundle
+        if: ${{ github.event_name == 'push' || inputs.deployment_mode == 'image-bundle' }}
+        timeout-minutes: 35
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: deploy
+          key: ${{ secrets.VPS_SSH_KEY }}
+          timeout: 2m
+          command_timeout: 30m
+          source: '${{ github.sha }}'
+          target: '/opt/volleytime/.deploy/incoming'
+
+      - name: Activate image bundle over SSH
+        id: activate
+        if: ${{ github.event_name == 'push' || inputs.deployment_mode == 'image-bundle' }}
+        timeout-minutes: 35
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: deploy
+          key: ${{ secrets.VPS_SSH_KEY }}
+          timeout: 2m
+          command_timeout: 30m
+          script: |
+            set -euo pipefail
+            cd /opt/volleytime
+            test -f .deploy/incoming/${{ github.sha }}/release.bundle
+            test -f .deploy/incoming/${{ github.sha }}/release-images.tar.gz
+            test -f .deploy/incoming/${{ github.sha }}/release-images.meta
+            test -f .deploy/incoming/${{ github.sha }}/scripts/deploy-image-bundle.sh
+            chmod 700 .deploy/incoming/${{ github.sha }} .deploy/incoming/${{ github.sha }}/scripts
+            chmod 600 .deploy/incoming/${{ github.sha }}/.env.production
+            bash .deploy/incoming/${{ github.sha }}/scripts/deploy-image-bundle.sh deploy .deploy/incoming/${{ github.sha }} ${{ github.sha }}
 
       - name: Smoke check
         id: smoke
+        if: ${{ steps.ghcr_activate.outcome == 'success' || steps.activate.outcome == 'success' }}
         env:
           BASE_URL: https://${{ secrets.DOMAIN }}
           SMOKE_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -235,40 +355,69 @@ jobs:
           BOT_INTERNAL_SECRET: ${{ secrets.BOT_INTERNAL_SECRET }}
           EXPECTED_RELEASE: ${{ github.sha }}
         run: |
+          set -euo pipefail
           sleep 15
-          node scripts/smoke.mjs
+          set +e
+          timeout 5m node scripts/smoke.mjs 2>&1 | tee "$RUNNER_TEMP/volleytime-smoke.log"
+          result=${PIPESTATUS[0]}
+          set -e
+          if [ "$result" -eq 1 ] && grep -q '^SMOKE FAILED:' "$RUNNER_TEMP/volleytime-smoke.log"; then
+            echo 'controlled_failure=true' >> "$GITHUB_OUTPUT"
+          elif [ "$result" -eq 124 ]; then
+            echo 'Synthetic smoke timed out; manual recovery checkpoint required' >&2
+          fi
+          exit "$result"
+
+      - name: Confirm synthetic smoke over SSH
+        if: ${{ steps.activate.outcome == 'success' && steps.smoke.outcome == 'success' }}
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: deploy
+          key: ${{ secrets.VPS_SSH_KEY }}
+          timeout: 2m
+          command_timeout: 2m
+          script: |
+            set -euo pipefail
+            cd /opt/volleytime
+            bash .deploy/incoming/${{ github.sha }}/scripts/deploy-image-bundle.sh confirm-smoke ${{ github.sha }}
 
       - name: Rollback GHCR images on failed smoke
-        if: ${{ failure() && steps.smoke.outcome == 'failure' && github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'ghcr' }}
+        id: ghcr_rollback
+        if: ${{ failure() && steps.ghcr_activate.outcome == 'success' && steps.smoke.outputs.controlled_failure == 'true' }}
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
           username: deploy
           key: ${{ secrets.VPS_SSH_KEY }}
+          timeout: 2m
+          command_timeout: 10m
           script: |
             set -euo pipefail
             cd /opt/volleytime
-            if [ ! -f .env.images.previous ]; then
-              echo "нет записи о предыдущих образах — откат невозможен, нужен ручной разбор" && exit 1
-            fi
-            if cmp -s .env.images.previous .env.images; then
-              echo "предыдущие образы совпадают с текущими — откатывать нечего, нужен ручной разбор" && exit 1
-            fi
-            cp -f .env.images.previous .env.images
-            docker compose -f docker-compose.prod.yml --env-file .env --env-file .env.images up -d
-            echo "rolled back to previous images:"
-            cat .env.images
+            bash .deploy/incoming/ghcr-${{ github.sha }}/scripts/deploy-ghcr-manual.sh rollback ${{ github.sha }}
 
-      - name: Rollback local build on failed smoke
-        if: ${{ failure() && steps.smoke.outcome == 'failure' && (github.event_name == 'push' || inputs.deployment_mode == 'local-build') }}
+      - name: Require manual recovery audit after ambiguous GHCR failure
+        if: ${{ failure() && inputs.deployment_mode == 'ghcr' && (steps.ghcr_activate.outcome != 'success' || steps.smoke.outputs.controlled_failure != 'true' || steps.ghcr_rollback.outcome == 'failure') }}
+        run: |
+          echo 'GHCR deployment needs a manual recovery checkpoint: inspect remote PID, lock, phase, Git, images, containers, schema and exact health before any retry.' >&2
+
+      - name: Rollback image bundle after controlled smoke failure
+        id: rollback
+        if: ${{ failure() && steps.activate.outcome == 'success' && steps.smoke.outputs.controlled_failure == 'true' }}
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
           username: deploy
           key: ${{ secrets.VPS_SSH_KEY }}
-          command_timeout: 30m
+          timeout: 2m
+          command_timeout: 10m
           script: |
             set -euo pipefail
             cd /opt/volleytime
-            test -f .deploy/scripts/deploy-local-build.sh
-            bash .deploy/scripts/deploy-local-build.sh rollback
+            bash .deploy/incoming/${{ github.sha }}/scripts/deploy-image-bundle.sh rollback ${{ github.sha }}
+
+      - name: Require manual recovery audit after ambiguous image-bundle failure
+        if: ${{ failure() && (github.event_name == 'push' || inputs.deployment_mode == 'image-bundle') && (steps.smoke.outputs.controlled_failure != 'true' || steps.rollback.outcome == 'failure') }}
+        run: |
+          echo 'Deployment state is uncertain; manual recovery checkpoint: inspect remote PID, lock, phase, images, containers, schema and exact health before any retry.' >&2
