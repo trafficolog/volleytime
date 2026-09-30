@@ -207,7 +207,11 @@ Canonical R0 snapshot не изменился: **132 done / 7 in_progress из 1
 
 ---
 
-## R0.6 — MVP UI refresh `v0.1.6` (кандидат; локальная QA принята)
+## R0.6 — MVP UI refresh `v0.1.6` (production-кандидат; Telegram QA открыт)
+
+2026-09-30 **локальный offline-runtime fix 9.8.10:** после RED commits `ee8d752`/`33fd8c0` мигратор запускает bundled `tsx` через Node, а packaging проверяет final CLI с отключённой сетью до export. Real final image применил все 20 миграций и успешно повторил запуск в isolated PostgreSQL 16 при заблокированном outbound npm. Updated CI, independent review и controlled redeploy ещё требуются; production и Telegram acceptance этим локальным smoke не подтверждаются.
+
+2026-09-30 **кандидат развёрнут, но релиз ещё не принят:** [9.8.10 production evidence](./operations/qa/2026-09-30-r06-production-candidate.md) фиксирует PR #70, exact-head/main CI, reviewed fast-forward `main → prod` и успешный [Deploy 36747623989](https://github.com/trafficolog/volleytime/actions/runs/36747623989) на `64f18506b03081bc7b9c065c8371cd3e62f10b30`. На VPS совпали Git, три SHA-образа, web/bot/public health; backup БД создан и проверен до миграции, synthetic auth/forgery/cleanup smoke прошёл. Однако мигратор скачал `pnpm` из npm registry внутри контейнера при активации: offline-VPS критерий 9.8.10 ещё не выполнен, требуется фикс и повторная проверка. Настоящий Telegram QA на двух аккаунтах и пилотная приёмка также открыты; immutable tag/GitHub Release `v0.1.6` пока не публикуются. Записи ниже описывают предшествующие checkpoint, а не текущее состояние production.
 
 2026-09-30: после выкладки кандидата пользователь предоставил Telegram-скриншоты и открыл пять отдельных pilot UI fixes: **8.10.7** (полный статус события), **3.11.11** (без синих декоративных теней), **3.11.12** (брендовые native radio), **3.11.13** (различимые поля на серых поверхностях), **8.10.8** (стабильные микрофильтры событий). Для каждой обязательны RED→GREEN, собственные пять gates, browser QA, независимое review и CI. До интеграции и controlled redeploy этих исправлений финальная приёмка R0.6 остаётся открытой. Подробное production evidence и отдельное offline-migrator исправление 9.8.10 ведутся в своей ветке и не подменяются этой записью.
 

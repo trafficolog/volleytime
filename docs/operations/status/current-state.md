@@ -1,5 +1,9 @@
 # 📸 Текущее состояние проекта
 
+> **9.8.10 offline-runtime local fix, 2026-09-30:** RED commits `ee8d752`/`33fd8c0` precede direct Node/bundled-tsx execution and the offline CLI gate before image export. A real final image applied all 20 migrations twice to isolated PostgreSQL 16 on an internal Docker network while outbound npm access was blocked. Updated CI/review and a corrected controlled deploy remain open; production still runs candidate `64f1850` and this local check makes no production or Telegram acceptance claim.
+
+> **R0.6 production candidate, 2026-09-30:** [Task 9.8.10 production evidence](../qa/2026-09-30-r06-production-candidate.md) records merged PR #70 (`main=64f18506b03081bc7b9c065c8371cd3e62f10b30`), successful exact-head/main CI, reviewed fast-forward `prod` and successful [Deploy 36747623989](https://github.com/trafficolog/volleytime/actions/runs/36747623989). VPS tracked `prod`, three amd64 image revision labels, healthy web/bot/PostgreSQL, bot polling health and public HTTPS health all identify that SHA. A mode-0600 gzip-validated DB backup preceded migration; exact-SHA synthetic auth/forgery/cleanup smoke and `smoke-passed` completed. The previous live `67bbfe8` remains the rollback pointer. **Offline-VPS acceptance remains open:** the migrator downloaded pnpm from npm registry inside its container during activation. Real Telegram Mini App/two-account pilot QA is also not done, and no `v0.1.6` tag or GitHub Release has been published. Historical local-only entries below are retained as checkpoints, not current production state.
+
 > **Additional 9.8.10 local review fix, 2026-09-30:** image-bundle deployment now checks GHCR checkpoints before same-SHA success or mutation, including when accepted image checkout/manifest/runtime still agree. Unfinished/mismatched histories stop at a manual checkpoint; completed ancestral handoffs and proven restored rollbacks preserve subsequent image releases. RED tests were committed before code; focused contracts 144/144 and PostgreSQL suite 128 files/849 tests passed without timeouts. Five serial gates, eight Bash syntax checks, YAML and diff checks passed. Independent scoped review and external CI/production/Telegram gates remain open; this records no production or Telegram acceptance.
 
 > **PR #70 final recovery fix, local checkpoint 2026-09-30:** the partial-state image path now compares the old release's rendered Compose and image-default environment with running web/bot before image import or backup, reporting only mismatch categories; only smoke-only `SMOKE_TG_ID` may differ. Manual GHCR now rejects unfinished/malformed/mismatched image-bundle checkpoints before backup/pull. RED commit `61b5ad0` reproduced 30 expected failures; GREEN full PostgreSQL suite passed 129 files/881 tests, format/lint (0 errors, 12 existing warnings), typecheck 6/6, build 2/2, Bash syntax, YAML parse and diff checks passed. The read-only helper passed against the actual VPS partial state without printing values. Independent scoped re-review closed both Important findings with no new blocker. Updated exact-head PR/main CI, controlled production deploy and Telegram pilot QA are still open; no production mutation occurred.
@@ -116,7 +120,7 @@
 - production compose;
 - separate migration stage;
 - smoke script with auth and forged-initData checks;
-- historical automatic deploy from GitHub `prod` through a verified Git bundle/local VPS build; replacement image-bundle workflow is locally implemented, awaiting CI/review/production acceptance (9.8.10);
+- production deploy from GitHub `prod` through runner-built exact-SHA image bundles and a verified Git bundle, without a VPS build (9.8.10); the old local-build path is historical;
 - exact-SHA release identity and explicit application rollback to an immutable ancestor;
 - backup/restore scripts and Sentry integration points.
 
@@ -130,6 +134,7 @@
 | `v0.1.3` | Опубликованный verified production baseline `91f6bff`; manual local build и isolated restore.                                        |
 | `v0.1.4` | Опубликован на `16c2fe4`: prod-only bundle deploy, exact identity, polling fallback и live rollback.                                 |
 | `v0.1.5` | Исправлен bot identity drift: invite links, token и runtime config указывают на `@volleytimeby_bot`; deploy guard проверяет `getMe`. |
+| `v0.1.6` | R0.6 candidate `64f1850` deployed; real Telegram/pilot acceptance and public tag/Release are still open.                             |
 
 Отчёты: [v0.1.0 review](../reviews/2026-09-16-v0.1.0-review.md), [v0.1.1 re-review](../reviews/2026-09-18-v0.1.1-rereview.md), [v0.1.2 release-readiness](../reviews/2026-09-18-v0.1.2-release-readiness.md).
 
@@ -162,6 +167,7 @@
 - [x] HTTPS, database/auth health и здоровые web/bot/PostgreSQL containers;
 - [x] отдельные CI credentials и требуемые GitHub Secret names;
 - [x] автоматический prod-only bundle/local-build deploy без VPS egress к GitHub/GHCR;
+- [x] R0.6 image-bundle deploy на `64f1850` без VPS Docker build, с pre-migration backup, exact image/runtime SHA и synthetic cleanup ([evidence](../qa/2026-09-30-r06-production-candidate.md)); runtime npm dependency внутри migrator container остаётся дефектом 9.8.10;
 - [x] release-local backup до advancement/migration и isolated restore в PostgreSQL 16;
 - [x] controlled application rollback на `v0.1.3` и успешный redeploy exact SHA;
 - [x] Telegram Bot API outbound через IPv6 и обработка реальных updates в polling mode.
@@ -178,7 +184,7 @@ Production bot identity drift устранён: invite URL, web/bot runtime conf
 - [ ] прямой webhook ingress до исправления IPv4-маршрута провайдера (polling остаётся рабочим fallback);
 - [ ] неделя реальных тренировок только через Volley Time (R0 DoD).
 
-Статус: **`v0.1.5` опубликован и работает в production; полный R0/MVP acceptance остаётся открытым до manual QA, monitoring/S3 и недельного pilot gate**.
+Статус: **`v0.1.5` остаётся последним опубликованным tag/Release; R0.6/`v0.1.6` кандидат `64f1850` работает в production, но 9.8.10 требует offline-runtime fix/redeploy, а релиз — реального Telegram QA и пилота. Полный R0/MVP acceptance дополнительно требует monitoring/S3 и недельного pilot gate.**
 
 ## Claude Design reference
 
