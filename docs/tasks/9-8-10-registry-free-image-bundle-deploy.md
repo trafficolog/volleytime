@@ -4,7 +4,7 @@ phase: '9'
 epic: '9.8'
 status: in_progress
 release: 'v0.1.6'
-status_note: 'PR #70 prior-head CI passed, including real image build/export/import. Final partial-state rollback-env and reverse-mode checkpoint fixes have executable RED/GREEN coverage, five local gates and independent scoped re-review without blockers; updated PR/main CI, production and Telegram/pilot QA remain open.'
+status_note: 'Deploy 36747623989 passed on exact SHA 64f1850 with backup and smoke, but downloaded pnpm inside the migrator. The local RED/GREEN fix uses bundled tsx, checks the final CLI before export, and applied all 20 migrations twice with outbound access blocked. Updated CI, independent review and controlled redeploy remain open; real Telegram/pilot QA and v0.1.6 tag/Release are separate gates.'
 roles:
   - DEVOPS
   - QA
@@ -58,14 +58,19 @@ Additional local fix verification: RED tests committed before code; focused depl
 
 Task 6 локальные gates прошли: format, lint (0 errors/12 baseline warnings), typecheck 6/6 и build 2/2 (Turbo cache hits), PostgreSQL suite 127 files/795 tests, focused deploy/backup/identity contracts 5 files/90 tests, Bash syntax семи helpers, YAML parser/style и diff check. Self-review документации выполнен; independent whole-branch review ещё ожидается. Это проверка локального дерева, а не Docker export/transfer/production acceptance.
 
-- [ ] RED → GREEN contract/shell-workflow tests доказывают порядок source gate → runner build/export → transfer → remote verify/load → previous-runtime capture → backup → advance → migrate → `up --no-build` → exact-SHA smoke. Existing deploy/backup/identity assertions сохраняют проверку source, backup и rollback boundaries при обновлении.
-- [ ] Ref не `prod`, неполный/невалидный SHA или Git bundle, dirty tracked checkout, non-FF, truncated archive, hash/size/tag/architecture/label mismatch, недостаточный диск и отсутствующий старый образ останавливают путь до backup/migration/переключения. Preflight failures не вызывают `docker load`.
-- [ ] Реальный partial-state fixture (`checkout=a16eb2a`, live web/bot=`67bbfe8`, candidate `.env.images=a16eb2a`, previous=`67bbfe8`) сохраняет прежний rollback target; same-SHA retry после успеха не затирает его. Повторы до load, после load, после backup, после migration и после up не дают ложный success или новый previous target.
-- [ ] Mismatch live web/bot/health, недоступный предыдущий образ, второй lock holder и недоказанное состояние после timeout блокируют переход с понятным manual checkpoint. До activation прежние контейнеры остаются доступны.
-- [ ] Контролируемые backup/migration/activation/smoke failures соблюдают указанные recovery boundaries. Откат после activation использует старые локальные образы, `--no-build` и exact old health; не выполняет Docker build, prune или автоматический DB restore.
-- [ ] Секреты остаются в GitHub Secrets и закрытом env staging; archive/metadata/images/log их не содержат. CI restricted SSH и обычный/recovery SSH работают независимо.
-- [ ] Локально проходят `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test` с PostgreSQL, `pnpm build`, shell syntax и focused contracts; независимое review и exact-head/main CI проходят до fast-forward `prod`.
-- [ ] Production evidence подтверждает successful workflow, проверенный DB backup до migration, exact SHA Git/трёх образов/запущенных web/bot/public health, healthy DB, runtime smoke и synthetic-session cleanup. Ручная Telegram/pilot QA записывается отдельно; до её принятия не публикуется `v0.1.6` tag/Release.
+- [x] RED → GREEN contract/shell-workflow tests доказывают порядок source gate → runner build/export → transfer → remote verify/load → previous-runtime capture → backup → advance → migrate → `up --no-build` → exact-SHA smoke. Existing deploy/backup/identity assertions сохраняют проверку source, backup и rollback boundaries при обновлении.
+- [x] Ref не `prod`, неполный/невалидный SHA или Git bundle, dirty tracked checkout, non-FF, truncated archive, hash/size/tag/architecture/label mismatch, недостаточный диск и отсутствующий старый образ останавливают путь до backup/migration/переключения. Preflight failures не вызывают `docker load`.
+- [x] Реальный partial-state fixture (`checkout=a16eb2a`, live web/bot=`67bbfe8`, candidate `.env.images=a16eb2a`, previous=`67bbfe8`) сохраняет прежний rollback target; same-SHA retry после успеха не затирает его. Повторы до load, после load, после backup, после migration и после up не дают ложный success или новый previous target.
+- [x] Mismatch live web/bot/health, недоступный предыдущий образ, второй lock holder и недоказанное состояние после timeout блокируют переход с понятным manual checkpoint. До activation прежние контейнеры остаются доступны.
+- [x] Контролируемые backup/migration/activation/smoke failures соблюдают указанные recovery boundaries. Откат после activation использует старые локальные образы, `--no-build` и exact old health; не выполняет Docker build, prune или автоматический DB restore.
+- [x] Секреты остаются в GitHub Secrets и закрытом env staging; archive/metadata/images/log их не содержат. CI restricted SSH и обычный/recovery SSH работают независимо.
+- [x] Локально проходят `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test` с PostgreSQL, `pnpm build`, shell syntax и focused contracts; независимое review и exact-head/main CI проходят до fast-forward `prod`.
+- [x] [Production evidence](../operations/qa/2026-09-30-r06-production-candidate.md) подтверждает successful workflow, проверенный DB backup до migration, exact SHA Git/трёх образов/запущенных web/bot/public health, healthy DB, runtime smoke и synthetic-session cleanup. Ручная Telegram/pilot QA записывается отдельно; до её принятия не публикуется `v0.1.6` tag/Release.
+- [ ] Runtime-образ мигратора запускает поставленный вместе с образом `tsx` без Corepack/pnpm/npm registry на VPS. RED-тест фиксирует обнаруженное в Deploy `36747623989` скачивание `pnpm@12.4.1` из контейнера; GREEN требует исполнения final image с заблокированной сетью для проверки CLI и повторного controlled deploy без runtime download.
+
+Offline-runtime local checkpoint (2026-09-30): RED commits `ee8d752`/`33fd8c0` precede the fix. The migrator invokes the copied `tsx` CLI directly through Node; packaging checks that CLI with `--network none` before `docker save`, refusing export on failure. Real final image `volleytime-migrator:offline-qa` reported `tsx v4.23.13` / Node `v22.23.3` without networking. Its default CMD applied all 20 migrations to a fresh isolated PostgreSQL 16 database on a Docker `--internal` network; a second run succeeded with the journal still at 20. A registry fetch from the same image/network failed, confirming blocked outbound npm access. This local smoke does not establish runner CI or a corrected production rollout.
+
+Fresh offline-fix gates passed: format, lint (0 errors/12 baseline warnings), typecheck 6/6, PostgreSQL suite 130 files/884 tests (418.12 seconds), build 2/2, changed helper Bash syntax and diff check. Earlier focused contracts passed 101/101. Self-review found no new blocker; independent review, updated exact-head/main CI and a controlled no-download production rollout remain open.
 
 ## Не делать
 

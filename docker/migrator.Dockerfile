@@ -16,5 +16,5 @@ COPY --from=deps /app/packages/db/node_modules ./packages/db/node_modules
 COPY packages/db ./packages/db
 COPY package.json pnpm-workspace.yaml ./
 WORKDIR /app/packages/db
-# db:migrate → tsx src/migrate.ts; выходной код пробрасывается наружу
-CMD ["pnpm", "exec", "tsx", "src/migrate.ts"]
+# tsx already resides in the copied node_modules; runtime must not fetch pnpm.
+CMD ["node", "./node_modules/tsx/dist/cli.mjs", "src/migrate.ts"]
