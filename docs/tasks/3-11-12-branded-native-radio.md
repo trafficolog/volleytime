@@ -27,11 +27,15 @@ tags: [r06, pilot, ui, review-fix]
 
 Стилизовать native radio настроек desktop/Mini App в брендовой системе, размер 20×20 CSS px как checkbox; сохранить input type=radio, группировку name, label, checked/disabled/focus, клавиатуру и server semantics. Без JS-псевдо-radio.
 
+Browser regression выявил, что существующий checkbox `h-5 w-5` при root font-size 14px имеет фактический размер 17.5×17.5px. В обеих settings-страницах задать checkbox явно 20×20 CSS px для совпадения с radio; сохранить native checkbox, accent, state и spacing. Другие checkbox-поверхности вне задачи.
+
 Отдельная ветка и RED→GREEN→refactor. После scoped verification выполнить пять gates: format:check, lint, typecheck, test с PostgreSQL, build. Затем независимое task review и exact-head CI до merge main.
 
 ## Критерии приёмки
 
 RED→GREEN regression native inputs и CSS; browser 320/390 light/dark, checked/unchecked/disabled, click label и arrow/space keyboard, distinct focus. Модель membership policy и сохранение не меняются.
+
+В этих же восьми browser cases измерить radio и checkbox: оба 20×20 CSS px. Проверить forced-colors fallback native radio и контраст checked/unchecked/focus в обеих темах.
 
 QA evidence фиксирует точный SHA, размеры, тему, сценарии и результаты; repository/browser evidence не выдаётся за Telegram QA.
 

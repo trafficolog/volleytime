@@ -199,19 +199,23 @@ async function archive() {
         <fieldset>
           <legend class="vt-label">Новые участники</legend>
           <div class="space-y-2">
-            <label class="flex items-center gap-2"
+            <label class="flex min-h-[44px] items-center gap-2"
               ><input
                 v-model="form.defaultMemberStatus"
                 type="radio"
+                name="desktop-settings-member-status"
+                class="vt-radio"
                 value="active"
                 :disabled="saving || archiving"
               />
               Сразу в составе</label
             >
-            <label class="flex items-center gap-2"
+            <label class="flex min-h-[44px] items-center gap-2"
               ><input
                 v-model="form.defaultMemberStatus"
                 type="radio"
+                name="desktop-settings-member-status"
+                class="vt-radio"
                 value="pending"
                 :disabled="saving || archiving"
               />
@@ -225,7 +229,7 @@ async function archive() {
               id="desktop-settings-subscriptions"
               v-model="form.subscriptionsEnabled"
               type="checkbox"
-              class="mt-1 h-5 w-5 shrink-0 accent-vt-flame"
+              class="mt-1 h-[20px] w-[20px] shrink-0 accent-vt-flame"
               :disabled="saving || archiving"
               aria-describedby="desktop-settings-subscriptions-hint"
             />

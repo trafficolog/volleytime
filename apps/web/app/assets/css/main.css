@@ -52,6 +52,41 @@
 
 /* ===== Atoms ===== */
 @layer components {
+  .vt-radio {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    margin: 0;
+    border: 2px solid var(--vt-mute);
+    border-radius: 50%;
+    background: var(--vt-paper);
+    cursor: pointer;
+  }
+  .vt-radio:checked {
+    border-color: var(--vt-flame-ink);
+    background: radial-gradient(circle, var(--vt-flame-ink) 0 4px, transparent 4px) var(--vt-paper);
+  }
+  .vt-radio:focus-visible {
+    outline: 2px solid var(--vt-focus);
+    outline-offset: 2px;
+    border-radius: 50%;
+  }
+  .vt-radio:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  @media (forced-colors: active) {
+    .vt-radio,
+    .vt-radio:checked {
+      appearance: auto;
+      background: none;
+      border: 0;
+    }
+    .vt-radio:disabled {
+      opacity: 1;
+    }
+  }
   .vt-num {
     font-variant-numeric: tabular-nums;
   }
