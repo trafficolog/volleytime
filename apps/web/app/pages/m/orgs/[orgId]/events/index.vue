@@ -76,14 +76,16 @@ watch([orgId, filter], load)
 <template>
   <div class="min-h-screen pb-20">
     <VtMiniHeader title="События" :back="`/m/orgs/${orgId}`">
-      <template v-if="canCreate" #right>
-        <NuxtLink
-          :to="`/m/orgs/${orgId}/events/new`"
+      <template v-if="isManager" #right>
+        <button
+          type="button"
           class="organizer-create-link vt-btn vt-btn--primary vt-btn--sm"
           aria-label="Создать событие"
+          :disabled="!canCreate"
+          @click="canCreate && navigateTo(`/m/orgs/${orgId}/events/new`)"
         >
           <VtIcon name="plus" :size="14" /> <span class="organizer-create-label">Создать</span>
-        </NuxtLink>
+        </button>
       </template>
     </VtMiniHeader>
     <div class="organizer-event-filters px-4 pt-3 flex gap-1" role="tablist">
