@@ -73,9 +73,10 @@ export const bookingService = {
       if (event.status === 'cancelled') throw new EventNotBookableError('cancelled')
       if (event.status !== 'published') throw new EventNotBookableError('not open')
       if (event.startsAt < new Date()) throw new EventNotBookableError('already started')
-      // Task 5.16.1 staging guard; replaced by the split reservation flow in 6.11.1.
-      if (event.priceMode === 'split')
-        throw new EventNotBookableError('split reservation is not available yet')
+      if (event.pricingSettledAt) throw new EventNotBookableError('pricing already settled')
+      if (event.priceMode === 'split' && !['cash', 'transfer'].includes(parsed.method)) {
+        throw new BookingMethodNotAllowedError(parsed.method)
+      }
       // метод должен соответствовать цене (Task 5.13.9): платное — только абонемент/наличные/перевод
       if (event.price > 0 && !PAID_METHODS.includes(parsed.method)) {
         throw new BookingMethodNotAllowedError(parsed.method)
@@ -104,6 +105,7 @@ export const bookingService = {
         where: and(eq(bookings.eventId, eventId), eq(bookings.userId, ctx.userId)),
       })
       if (existing && existing.status !== 'cancelled') throw new AlreadyBookedError()
+      if (existing?.allocatedAmount != null) throw new EventNotBookableError('allocation is final')
 
       // 4. место? (confirmed + pending_payment занимают слот)
       const [countRow] = await tx
@@ -126,9 +128,11 @@ export const bookingService = {
 
       if (!hasSpot) {
         status = 'waitlisted'
-        if (event.price === 0) method = 'free'
+        if (event.priceMode === 'fixed' && event.price === 0) method = 'free'
         // выбранный абонемент запоминаем, сессия списывается при промоушене (5.13.6)
         else if (parsed.method === 'subscription') subscriptionId = parsed.subscriptionId ?? null
+      } else if (event.priceMode === 'split') {
+        status = 'pending_payment'
       } else if (event.price === 0) {
         status = 'confirmed'
         method = 'free'
@@ -184,7 +188,11 @@ export const bookingService = {
       }
 
       // 7. платёж для pending_payment (cash/transfer) — Phase 6
-      if (status === 'pending_payment' && (method === 'cash' || method === 'transfer')) {
+      if (
+        event.priceMode === 'fixed' &&
+        status === 'pending_payment' &&
+        (method === 'cash' || method === 'transfer')
+      ) {
         const payment = await paymentService.createForBooking(
           // notifications прокидываем: организаторы получают уведомление о новом платеже (8.8.6)
           { ...ctx, db: tx },
@@ -215,24 +223,25 @@ export const bookingService = {
         },
       )
       // собрать уведомление (отправится после коммита)
-      collectNotification(ctx, {
-        userId: ctx.userId,
-        type:
-          result.status === 'waitlisted'
-            ? 'booking_waitlisted'
-            : result.status === 'pending_payment'
-              ? 'booking_pending_payment' // место держится до подтверждения оплаты (8.9.1)
-              : 'booking_confirmed',
-        params: {
-          eventTitle: event.title,
-          eventDate: event.startsAt.toISOString(),
-          organizationId: orgId,
-          eventId,
-          amount: event.price,
-          currency: event.currency,
-          method: result.method,
-        },
-      })
+      if (event.priceMode === 'fixed' || result.status === 'waitlisted')
+        collectNotification(ctx, {
+          userId: ctx.userId,
+          type:
+            result.status === 'waitlisted'
+              ? 'booking_waitlisted'
+              : result.status === 'pending_payment'
+                ? 'booking_pending_payment' // место держится до подтверждения оплаты (8.9.1)
+                : 'booking_confirmed',
+          params: {
+            eventTitle: event.title,
+            eventDate: event.startsAt.toISOString(),
+            organizationId: orgId,
+            eventId,
+            amount: event.price,
+            currency: event.currency,
+            method: result.method,
+          },
+        })
 
       return result
     })
@@ -295,9 +304,16 @@ export const bookingService = {
         telegramUsername: users.telegramUsername,
         image: users.image,
         status: bookings.status,
+        priceMode: events.priceMode,
+        paymentStatus: payments.status,
       })
       .from(bookings)
       .innerJoin(users, eq(users.id, bookings.userId))
+      .innerJoin(events, eq(events.id, bookings.eventId))
+      .leftJoin(
+        payments,
+        and(eq(payments.id, bookings.paymentId), eq(payments.bookingId, bookings.id)),
+      )
       .where(
         and(
           eq(bookings.eventId, eventId),
@@ -309,7 +325,8 @@ export const bookingService = {
       .limit(100)
     return rows.map((r) => ({
       user: { id: r.userId, name: r.name, telegramUsername: r.telegramUsername, image: r.image },
-      paid: r.status !== 'pending_payment',
+      paid:
+        r.priceMode === 'split' ? r.paymentStatus === 'succeeded' : r.status !== 'pending_payment',
     }))
   },
 
@@ -363,17 +380,24 @@ export const bookingService = {
     const marks = AttendanceInput.parse(input)
     return inTransaction(ctx, async (tx) => {
       const db = getDb(tx)
+      await db.execute(sql`SELECT pg_advisory_xact_lock(${eventId})`)
       const event = await db.query.events.findFirst({
         where: and(eq(events.id, eventId), eq(events.organizationId, orgId)),
       })
       if (!event) throw new EventNotFoundError(eventId)
       if (event.status === 'cancelled') throw new EventNotBookableError('cancelled')
+      if (event.priceMode === 'split' && !event.pricingSettledAt)
+        throw new EventNotBookableError('pricing not settled')
       if (event.startsAt > new Date()) throw new AttendanceTooEarlyError()
 
       const ids = [...new Set(marks.map((m) => m.bookingId))]
       const rows = await db
-        .select({ id: bookings.id, status: bookings.status })
+        .select({ id: bookings.id, status: bookings.status, paymentStatus: payments.status })
         .from(bookings)
+        .leftJoin(
+          payments,
+          and(eq(payments.id, bookings.paymentId), eq(payments.bookingId, bookings.id)),
+        )
         .where(
           and(
             inArray(bookings.id, ids),
@@ -382,7 +406,11 @@ export const bookingService = {
           ),
         )
       if (rows.length !== ids.length) throw new BookingNotFoundError(ids.join(','))
-      const notMarkable = rows.find((r) => !['confirmed', 'attended', 'no_show'].includes(r.status))
+      const notMarkable = rows.find(
+        (r) =>
+          !['confirmed', 'attended', 'no_show'].includes(r.status) ||
+          (event.priceMode === 'split' && r.paymentStatus !== 'succeeded'),
+      )
       if (notMarkable) {
         throw new EventNotBookableError('cannot mark attendance for this booking')
       }
@@ -431,6 +459,9 @@ export const bookingService = {
 
       const isSelf = booking.userId === ctx.userId
       if (!isSelf && !opts.byAdmin) throw new CannotCancelOthersError()
+      if (isSelf && !opts.byAdmin && booking.allocatedAmount != null) {
+        throw new BookingNotCancellableError('split allocation is final')
+      }
 
       // посещение отмечено или событие началось — отмена невозможна (Task 5.13.10)
       if (booking.status === 'attended' || booking.status === 'no_show') {
@@ -501,138 +532,143 @@ export const bookingService = {
    * Возвращает продвинутую бронь или null.
    */
   async promoteFromWaitlist(ctx: ServiceContext, eventId: number): Promise<Booking | null> {
-    const db = getDb(ctx)
-    // вызывающий держит pg_advisory_xact_lock(eventId); повторный захват в той же tx — no-op
-    await db.execute(sql`SELECT pg_advisory_xact_lock(${eventId})`)
-    const event = await db.query.events.findFirst({ where: eq(events.id, eventId) })
-    if (!event) return null
-    // Task 5.16.1 staging guard, after the event lock and fresh pricing read.
-    if (event.priceMode === 'split')
-      throw new EventNotBookableError('split promotion is not available yet')
+    return inTransaction(ctx, async (ctx) => {
+      const db = getDb(ctx)
+      // вызывающий держит pg_advisory_xact_lock(eventId); повторный захват в той же tx — no-op
+      await db.execute(sql`SELECT pg_advisory_xact_lock(${eventId})`)
+      const event = await db.query.events.findFirst({ where: eq(events.id, eventId) })
+      if (!event || event.status !== 'published' || event.pricingSettledAt) return null
 
-    // есть ли место? (confirmed + pending_payment)
-    const [countRow] = await db
-      .select({ taken: sql<number>`count(*)::int` })
-      .from(bookings)
-      .where(
-        and(
-          eq(bookings.eventId, eventId),
-          sql`${bookings.status} IN ('confirmed', 'pending_payment')`,
-        ),
-      )
-    if ((countRow?.taken ?? 0) >= event.capacity) return null
-
-    // первый в waitlist (FIFO); SKIP LOCKED — строку не заберут дважды (Task 5.13.7)
-    const [next] = await db
-      .select()
-      .from(bookings)
-      .where(and(eq(bookings.eventId, eventId), eq(bookings.status, 'waitlisted')))
-      .orderBy(asc(bookings.bookedAt), asc(bookings.id))
-      .limit(1)
-      .for('update', { skipLocked: true })
-    if (!next) return null
-
-    // Task 5.13.6: промоушен с абонемента списывает сессию; нет абонемента → оплата наличными
-    let newStatus: 'confirmed' | 'pending_payment'
-    let promotedMethod = next.method
-    let promotedSubscriptionId: number | null = null
-    if (event.price === 0) {
-      newStatus = 'confirmed'
-    } else if (next.method === 'subscription') {
-      try {
-        const consumed = await subscriptionService.consumeSession(
-          { userId: next.userId, db },
-          next.organizationId,
-          next.subscriptionId ?? undefined,
+      // есть ли место? (confirmed + pending_payment)
+      const [countRow] = await db
+        .select({ taken: sql<number>`count(*)::int` })
+        .from(bookings)
+        .where(
+          and(
+            eq(bookings.eventId, eventId),
+            sql`${bookings.status} IN ('confirmed', 'pending_payment')`,
+          ),
         )
-        promotedSubscriptionId = consumed.id
+      if ((countRow?.taken ?? 0) >= event.capacity) return null
+
+      // первый в waitlist (FIFO); SKIP LOCKED — строку не заберут дважды (Task 5.13.7)
+      const [next] = await db
+        .select()
+        .from(bookings)
+        .where(and(eq(bookings.eventId, eventId), eq(bookings.status, 'waitlisted')))
+        .orderBy(asc(bookings.bookedAt), asc(bookings.id))
+        .limit(1)
+        .for('update', { skipLocked: true })
+      if (!next) return null
+
+      // Task 5.13.6: промоушен с абонемента списывает сессию; нет абонемента → оплата наличными
+      let newStatus: 'confirmed' | 'pending_payment'
+      let promotedMethod = next.method
+      let promotedSubscriptionId: number | null = null
+      if (event.priceMode === 'split') {
+        if (!['cash', 'transfer'].includes(next.method))
+          throw new BookingMethodNotAllowedError(next.method)
+        newStatus = 'pending_payment'
+      } else if (event.price === 0) {
         newStatus = 'confirmed'
-      } catch (e) {
-        if (!(e instanceof NoActiveSubscriptionError)) throw e
-        // выбранный абонемент закончился/истёк — пробуем любой другой активный
+      } else if (next.method === 'subscription') {
         try {
           const consumed = await subscriptionService.consumeSession(
             { userId: next.userId, db },
             next.organizationId,
+            next.subscriptionId ?? undefined,
           )
           promotedSubscriptionId = consumed.id
           newStatus = 'confirmed'
-        } catch (e2) {
-          if (!(e2 instanceof NoActiveSubscriptionError)) throw e2
-          newStatus = 'pending_payment'
-          promotedMethod = 'cash'
+        } catch (e) {
+          if (!(e instanceof NoActiveSubscriptionError)) throw e
+          // выбранный абонемент закончился/истёк — пробуем любой другой активный
+          try {
+            const consumed = await subscriptionService.consumeSession(
+              { userId: next.userId, db },
+              next.organizationId,
+            )
+            promotedSubscriptionId = consumed.id
+            newStatus = 'confirmed'
+          } catch (e2) {
+            if (!(e2 instanceof NoActiveSubscriptionError)) throw e2
+            newStatus = 'pending_payment'
+            promotedMethod = 'cash'
+          }
         }
+      } else {
+        newStatus = 'pending_payment'
       }
-    } else {
-      newStatus = 'pending_payment'
-    }
 
-    const [promoted] = await db
-      .update(bookings)
-      .set({
-        status: newStatus,
-        method: promotedMethod,
-        subscriptionId: promotedSubscriptionId,
-        confirmedAt: newStatus === 'confirmed' ? new Date() : null,
-        updatedAt: new Date(),
-      })
-      .where(eq(bookings.id, next.id))
-      .returning()
-    await auditService.record(ctx, {
-      organizationId: next.organizationId,
-      action: AUDIT_ACTIONS.BOOKING_PROMOTED,
-      entityType: 'booking',
-      entityId: next.id,
-      oldValue: { status: 'waitlisted' },
-      newValue: { status: newStatus, method: promotedMethod },
-    })
-
-    // платёж при промоушене в pending_payment (cash/transfer) — Phase 6
-    if (
-      newStatus === 'pending_payment' &&
-      (promotedMethod === 'cash' || promotedMethod === 'transfer')
-    ) {
-      const payment = await paymentService.createForBooking(
-        { ...ctx, userId: next.userId, db: ctx.db },
-        {
-          organizationId: next.organizationId,
-          userId: next.userId,
-          bookingId: next.id,
-          amount: event.price,
-          currency: event.currency,
-          method: promotedMethod,
-        },
-      )
-      const [linked] = await db
+      const [promoted] = await db
         .update(bookings)
-        .set({ paymentId: payment.id })
+        .set({
+          status: newStatus,
+          method: promotedMethod,
+          subscriptionId: promotedSubscriptionId,
+          confirmedAt: newStatus === 'confirmed' ? new Date() : null,
+          updatedAt: new Date(),
+        })
         .where(eq(bookings.id, next.id))
         .returning()
-      collectNotification(ctx, {
-        userId: next.userId,
-        type: 'waitlist_promoted',
-        params: {
-          eventTitle: event.title,
-          eventDate: event.startsAt.toISOString(),
-          organizationId: next.organizationId,
-          eventId: event.id,
-          needsPayment: true,
-        },
-      })
-      return linked!
-    }
-    collectNotification(ctx, {
-      userId: next.userId,
-      type: 'waitlist_promoted',
-      params: {
-        eventTitle: event.title,
-        eventDate: event.startsAt.toISOString(),
+      await auditService.record(ctx, {
         organizationId: next.organizationId,
-        eventId: event.id,
-        needsPayment: false,
-      },
+        action: AUDIT_ACTIONS.BOOKING_PROMOTED,
+        entityType: 'booking',
+        entityId: next.id,
+        oldValue: { status: 'waitlisted' },
+        newValue: { status: newStatus, method: promotedMethod },
+      })
+
+      // платёж при промоушене в pending_payment (cash/transfer) — Phase 6
+      if (
+        event.priceMode === 'fixed' &&
+        newStatus === 'pending_payment' &&
+        (promotedMethod === 'cash' || promotedMethod === 'transfer')
+      ) {
+        const payment = await paymentService.createForBooking(
+          { ...ctx, userId: next.userId, db: ctx.db },
+          {
+            organizationId: next.organizationId,
+            userId: next.userId,
+            bookingId: next.id,
+            amount: event.price,
+            currency: event.currency,
+            method: promotedMethod,
+          },
+        )
+        const [linked] = await db
+          .update(bookings)
+          .set({ paymentId: payment.id })
+          .where(eq(bookings.id, next.id))
+          .returning()
+        collectNotification(ctx, {
+          userId: next.userId,
+          type: 'waitlist_promoted',
+          params: {
+            eventTitle: event.title,
+            eventDate: event.startsAt.toISOString(),
+            organizationId: next.organizationId,
+            eventId: event.id,
+            needsPayment: true,
+          },
+        })
+        return linked!
+      }
+      if (event.priceMode === 'fixed')
+        collectNotification(ctx, {
+          userId: next.userId,
+          type: 'waitlist_promoted',
+          params: {
+            eventTitle: event.title,
+            eventDate: event.startsAt.toISOString(),
+            organizationId: next.organizationId,
+            eventId: event.id,
+            needsPayment: false,
+          },
+        })
+      return promoted!
     })
-    return promoted!
   },
 
   async getById(ctx: ServiceContext, bookingId: number): Promise<Booking> {

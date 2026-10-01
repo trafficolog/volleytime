@@ -4,6 +4,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { bookingService } from '../bookings/service'
 import { ledgerService } from '../ledger/service'
 import { memberService } from '../members/service'
+import type { PendingNotification } from '../notifier/types'
 import { organizationService } from '../organizations/service'
 import { paymentService } from '../payments/service'
 import { planService } from '../subscription-plans/service'
@@ -74,7 +75,12 @@ describe('event cancel — mass refund (integration)', () => {
     await paymentService.confirm({ userId: ownerId }, b2.paymentId!)
     expect((await ledgerService.getBalance({ userId: ownerId }, orgId)).balance).toBe(4000)
 
-    await eventService.cancel({ userId: ownerId }, ev.id)
+    const notifications: PendingNotification[] = []
+    await eventService.cancel({ userId: ownerId, notifications }, ev.id)
+    expect(notifications).toMatchObject([
+      { type: 'event_cancelled', params: { refunded: true } },
+      { type: 'event_cancelled', params: { refunded: true } },
+    ])
 
     const balance = await ledgerService.getBalance({ userId: ownerId }, orgId)
     expect(balance.income).toBe(4000)
@@ -93,7 +99,9 @@ describe('event cancel — mass refund (integration)', () => {
     const pid = await newPlayer()
     const b = await bookingService.book({ userId: pid }, orgId, ev.id, { method: 'cash' })
 
-    await eventService.cancel({ userId: ownerId }, ev.id)
+    const notifications: PendingNotification[] = []
+    await eventService.cancel({ userId: ownerId, notifications }, ev.id)
+    expect(notifications).toMatchObject([{ type: 'event_cancelled', params: { refunded: false } }])
 
     const payment = await paymentService.getById({ userId: ownerId }, b.paymentId!)
     expect(payment.status).toBe('cancelled')
@@ -106,7 +114,7 @@ describe('event cancel — mass refund (integration)', () => {
       title: 'Абонементное',
       startsAt: future(),
       endsAt: future(26),
-      capacity: 5,
+      capacity: 1,
       price: 1500,
     })
     const pid = await newPlayer()
@@ -127,9 +135,34 @@ describe('event cancel — mass refund (integration)', () => {
     })
     expect((await subscriptionService.getById({ userId: pid }, sub.id)).usedSessions).toBe(1)
 
-    await eventService.cancel({ userId: ownerId }, ev.id)
+    const waitingPlayer = await newPlayer()
+    const waitingSubscription = await subscriptionService.createFromPlan(
+      { userId: waitingPlayer },
+      orgId,
+      plan.id,
+      { autoActivate: true },
+    )
+    const waiting = await bookingService.book({ userId: waitingPlayer }, orgId, ev.id, {
+      method: 'subscription',
+      subscriptionId: waitingSubscription.id,
+    })
+    expect(waiting.status).toBe('waitlisted')
+    const notifications: PendingNotification[] = []
+    await eventService.cancel({ userId: ownerId, notifications }, ev.id)
+    expect(notifications.find((n) => n.userId === pid)).toMatchObject({
+      type: 'event_cancelled',
+      params: { refunded: true },
+    })
+    expect(notifications.find((n) => n.userId === waitingPlayer)).toMatchObject({
+      type: 'event_cancelled',
+      params: { refunded: false },
+    })
 
     expect((await subscriptionService.getById({ userId: pid }, sub.id)).usedSessions).toBe(0)
+    expect(
+      (await subscriptionService.getById({ userId: waitingPlayer }, waitingSubscription.id))
+        .usedSessions,
+    ).toBe(0)
   })
 
   it('idempotent: double cancel does not double-refund', async () => {

@@ -7,8 +7,10 @@ import {
   events,
   gte,
   inArray,
+  isNotNull,
   lt,
   ne,
+  or,
   organizationMembers,
   payments,
   sql,
@@ -312,13 +314,20 @@ export const eventService = {
       if (existing.status === 'cancelled') return existing
 
       const activeBookings = await tx.query.bookings.findMany({
-        where: and(eq(bookings.eventId, eventId), ne(bookings.status, 'cancelled')),
+        where: and(
+          eq(bookings.eventId, eventId),
+          existing.priceMode === 'split'
+            ? or(ne(bookings.status, 'cancelled'), isNotNull(bookings.allocatedAmount))
+            : ne(bookings.status, 'cancelled'),
+        ),
       })
 
       for (const b of activeBookings) {
+        let refunded = false
         // 1. вернуть сессию абонемента (только списанную: у waitlisted это лишь выбор, 5.13.6)
         if (b.subscriptionId && ['confirmed', 'attended', 'no_show'].includes(b.status)) {
           await subscriptionService.restoreSession({ userId: b.userId, db: tx }, b.subscriptionId)
+          refunded = true
         }
 
         // 2. платёж: succeeded -> refund (ledger expense), pending -> cancel
@@ -331,6 +340,7 @@ export const eventService = {
           // переходы условные (6.8.1): повторный возврат невозможен даже без лока
           if (payment?.status === 'succeeded' && payment.bookingId === b.id) {
             await paymentService.refund({ ...ctx, db: tx }, payment.id, 'Отмена события')
+            refunded = true
           } else if (payment?.status === 'pending') {
             await tx
               .update(payments)
@@ -353,7 +363,7 @@ export const eventService = {
             eventDate: existing.startsAt.toISOString(),
             organizationId: existing.organizationId,
             eventId: existing.id,
-            refunded: !!b.paymentId || !!b.subscriptionId,
+            refunded,
           },
         })
       }

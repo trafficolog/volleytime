@@ -2,10 +2,10 @@
 id: '6.11.1'
 phase: '6'
 epic: '6.11'
-status: todo
+status: done
 release: 'v0.1.7'
 last_reviewed: 2026-10-01
-status_note: 'Спецификация и письменный план утверждены пользователем 2026-10-01. Зависит от 5.16.1, реализация не начата.'
+status_note: 'Реализация и приёмка завершены: пять gates PASS (141 файл / 999 тестов), I1 исправлена с RED 5 → GREEN 99 и чистым independent re-review. CI 36831447289 на 19d1a88: все четыре jobs SUCCESS. PR #81 проводит принятую задачу в main; production не изменяется. Новые уведомления и UI остаются зависимыми задачами.'
 roles: [BE, QA]
 depends_on: ['5.16.1']
 tags: [mvp, split, payments, concurrency]
@@ -37,10 +37,20 @@ tags: [mvp, split, payments, concurrency]
 - N0/target<N, wrong org/role, invalid methods и попытка обхода PATCH оставляют прежнее состояние.
 - Повтор settle после confirm/reject возвращает сохранённый snapshot; allocatedAmount не исчезает при cancelled/refunded.
 - Cancel event корректно закрывает как unsettled, так и settled брони, включая возврат succeeded payment ранее снятой split-брони с сохранённой allocatedAmount; нет начислений waitlist или изменения чужой доли.
+- Review I1: существующее уведомление `event_cancelled` сообщает о возврате только после успешного refund или восстановления списанной сессии; pending/rejected/снятая неоплаченная split-бронь и waitlisted абонемент не дают ложного сообщения о возврате.
 - Реальный manager GET для cancelled-only/waitlist-only history при taken=0 возвращает canChangePriceMode=false; без history действует role/state policy. Settled блокирует target/settle; published unsettled позволяет active manager settlement. Игрок/foreign org не получают projection, mutation отвергает устаревшие разрешения после новой истории/status под lock. Task 5.16.2 проверяет передачу этого API-контракта в обе формы.
 - Fixed/free/subscription flows, локальные PostgreSQL интеграции, пять gates и отдельное review проходят.
 
 ## Подсказки
+
+### Локальная проверка 2026-10-01
+
+- RED → GREEN: 6 reservation-тестов и 12 settlement/HTTP-тестов; PostgreSQL rollback при ошибке второго payment insert, идемпотентность после confirm/reject, возврат ранее снятой оплаченной split-брони, history-based permissions и приватность projections.
+- Focused regression: 14 файлов / 133 теста; полный `pnpm test`: 141 файл / 999 тестов, 527.34 s.
+- `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm build` проходят; lint содержит 12 существующих предупреждений, build — нефатальные dependency warnings.
+- GET события: `event.pricing`, manager-only `event.pricingPermissions` и `event.pricingFinancials`; список событий — `pricing` каждой строки; мои брони — `pricing` в корне каждой брони.
+- Новые split-уведомления относятся к 8.11.1. Capability в production не включалась. Независимое review, CI/merge, расширенная матрица гонок 6.11.2 и Telegram/pilot acceptance остаются открытыми.
+- Review I1 (fix round 1): реальные collector-тесты воспроизвели 5 ложных refund-флагов (pending/rejected/removed split, fixed pending, waitlisted subscription). После исправления 12 focused-файлов / 99 тестов проходят, включая положительный возврат ранее снятой оплаченной split-брони и восстановление сессии. Format/lint/typecheck проходят; 12 прежних lint warnings сохраняются. Полный suite/build для узкого fix не повторялись по указанию controller; exact-head CI и integrated gates впереди.
 
 Существующие eventService/bookingService/paymentService, API permissions и notifier collector. Добавить только необходимые read projections. UI зависит от прав, но сервер является источником разрешений.
 

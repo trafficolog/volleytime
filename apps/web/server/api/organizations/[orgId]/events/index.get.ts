@@ -1,4 +1,9 @@
-import { canManageContent, eventService, requireOrgMember } from '@volley-time/core'
+import {
+  canManageContent,
+  eventService,
+  readEventPricing,
+  requireOrgMember,
+} from '@volley-time/core'
 
 /** Список событий + заполненность, лист ожидания, моя бронь, площадка (5.13.17). */
 export default defineApiHandler(async (event) => {
@@ -11,5 +16,13 @@ export default defineApiHandler(async (event) => {
     ctx,
     list.map((e) => e.id),
   )
-  return { events: list.map((e) => ({ ...e, ...stats.get(e.id)! })) }
+  return {
+    events: await Promise.all(
+      list.map(async (e) => ({
+        ...e,
+        ...stats.get(e.id)!,
+        pricing: await readEventPricing(ctx, e.id),
+      })),
+    ),
+  }
 })
