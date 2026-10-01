@@ -4,6 +4,7 @@ import {
   bookings,
   eq,
   events,
+  inArray,
   ledgerEntries,
   organizations,
   payments,
@@ -11,9 +12,11 @@ import {
   subscriptions,
   users,
 } from '@volley-time/db'
-import { afterAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { behindEventLock } from '../__tests__/event-lock-barrier'
 import { bookingService } from '../bookings/service'
+import { eventPricingService } from '../events/pricing-service'
 import { eventService } from '../events/service'
 import { memberService } from '../members/service'
 import { createNotificationCollector } from '../notifier/collect'
@@ -22,14 +25,17 @@ import { organizationService } from '../organizations/service'
 import { paymentService } from './service'
 
 /** Денежные гонки из ревью v0.1.0 (6.8.1, 6.8.2, 6.8.10). */
-describe('money races (integration)', () => {
+describe('money races (integration)', { timeout: 30_000 }, () => {
   let ownerId: number
   let orgId: number
+  let fixtureUsers: number[] = []
+  let fixtureOrgs: number[] = []
   const newPlayer = async () => {
     const [u] = await db
       .insert(users)
       .values({ email: `mr-${Math.random()}@t.by` })
       .returning()
+    fixtureUsers.push(u!.id)
     await memberService.add({ userId: ownerId }, { organizationId: orgId, userId: u!.id })
     return u!.id
   }
@@ -45,11 +51,13 @@ describe('money races (integration)', () => {
     db.select().from(ledgerEntries).where(eq(ledgerEntries.paymentId, paymentId))
 
   beforeEach(async () => {
-    await db.delete(organizations)
-    await db.delete(users)
+    fixtureUsers = []
+    fixtureOrgs = []
     const [o] = await db.insert(users).values({ email: 'mr-owner@t.by' }).returning()
     ownerId = o!.id
+    fixtureUsers.push(ownerId)
     orgId = (await organizationService.create({ userId: ownerId }, { name: 'Money Races' })).id
+    fixtureOrgs.push(orgId)
   })
 
   it('6.8.1: 10 parallel confirms → exactly one income (5 runs)', async () => {
@@ -70,19 +78,128 @@ describe('money races (integration)', () => {
     }
   })
 
-  it('6.8.1: confirm vs reject — one wins, state consistent', async () => {
+  it.each([true, false])('6.8.1: confirm vs reject — confirm first=%s', async (confirmFirst) => {
     const ev = await paidEvent()
     const b = await bookingService.book({ userId: await newPlayer() }, orgId, ev.id, {
       method: 'cash',
     })
-    const results = await Promise.allSettled([
-      paymentService.confirm({ userId: ownerId }, b.paymentId!, { orgId }),
-      paymentService.cancel({ userId: ownerId }, b.paymentId!, { orgId }),
-    ])
+    const confirm = () => paymentService.confirm({ userId: ownerId }, b.paymentId!, { orgId })
+    const reject = () => paymentService.cancel({ userId: ownerId }, b.paymentId!, { orgId })
+    const results = await behindEventLock(
+      ev.id,
+      confirmFirst ? [confirm, reject] : [reject, confirm],
+    )
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
     const [p] = await db.select().from(payments).where(eq(payments.id, b.paymentId!))
     const income = await incomes(b.paymentId!)
-    expect(income.length).toBe(p!.status === 'succeeded' ? 1 : 0)
+    expect(p!.status).toBe(confirmFirst ? 'succeeded' : 'cancelled')
+    expect(income.length).toBe(confirmFirst ? 1 : 0)
+    expect(results[1]).toMatchObject({
+      status: 'rejected',
+      reason: { code: 'payment.not_pending' },
+    })
+  })
+
+  it.each([
+    ['confirm', 'reject', 'cancel'],
+    ['confirm', 'cancel', 'reject'],
+    ['reject', 'confirm', 'cancel'],
+    ['reject', 'cancel', 'confirm'],
+    ['cancel', 'confirm', 'reject'],
+    ['cancel', 'reject', 'confirm'],
+  ] as const)('confirm_reject_full_cancel_no_double_money: %s → %s → %s', async (...order) => {
+    vi.stubEnv('EVENT_SPLIT_PRICING_ENABLED', 'true')
+    const ev = await eventService.create({ userId: ownerId }, orgId, {
+      title: 'Split money race',
+      startsAt: new Date(Date.now() + 86400000),
+      endsAt: new Date(Date.now() + 90000000),
+      capacity: 2,
+      priceMode: 'split',
+      targetAmount: 10001,
+    })
+    const removed = await bookingService.book({ userId: await newPlayer() }, orgId, ev.id, {
+      method: 'cash',
+    })
+    const pending = await bookingService.book({ userId: await newPlayer() }, orgId, ev.id, {
+      method: 'transfer',
+    })
+    const waiting = await bookingService.book({ userId: await newPlayer() }, orgId, ev.id, {
+      method: 'cash',
+    })
+    const snapshot = await eventPricingService.settle({ userId: ownerId }, orgId, ev.id)
+    const removedPaymentId = (await bookingService.getById({ userId: ownerId }, removed.id))
+      .paymentId!
+    const pendingPaymentId = (await bookingService.getById({ userId: ownerId }, pending.id))
+      .paymentId!
+    await paymentService.confirm({ userId: ownerId }, removedPaymentId, { orgId })
+    await bookingService.cancel({ userId: ownerId }, removed.id, { byAdmin: true })
+    expect((await paymentService.getById({ userId: ownerId }, removedPaymentId)).status).toBe(
+      'succeeded',
+    )
+    const actions = {
+      confirm: () => paymentService.confirm({ userId: ownerId }, pendingPaymentId, { orgId }),
+      reject: () => paymentService.cancel({ userId: ownerId }, pendingPaymentId, { orgId }),
+      cancel: () => eventService.cancel({ userId: ownerId }, ev.id),
+    }
+    const outcomes = await behindEventLock(
+      ev.id,
+      order.map((action) => actions[action]),
+    )
+    for (const [index, result] of outcomes.entries()) {
+      const shouldSucceed = index === 0 || order[index] === 'cancel'
+      expect(result.status).toBe(shouldSucceed ? 'fulfilled' : 'rejected')
+      if (result.status === 'rejected')
+        expect(result.reason).toMatchObject({ code: 'payment.not_pending' })
+    }
+    await eventService.cancel({ userId: ownerId }, ev.id)
+    expect((await eventService.getById({ userId: ownerId }, ev.id)).status).toBe('cancelled')
+    expect(await paymentService.getById({ userId: ownerId }, removedPaymentId)).toMatchObject({
+      status: 'refunded',
+      amount: 5001,
+    })
+    expect(await incomes(removedPaymentId)).toMatchObject([
+      { type: 'income', amount: 5001 },
+      { category: 'refund', amount: 5001 },
+    ])
+    const confirmed = order[0] === 'confirm'
+    expect(await paymentService.getById({ userId: ownerId }, pendingPaymentId)).toMatchObject({
+      status: confirmed ? 'refunded' : 'cancelled',
+      amount: 5000,
+    })
+    const entries = await incomes(pendingPaymentId)
+    expect(entries.filter((e) => e.type === 'income')).toHaveLength(confirmed ? 1 : 0)
+    expect(entries.filter((e) => e.category === 'refund')).toHaveLength(confirmed ? 1 : 0)
+    expect(entries.every((e) => e.amount === 5000)).toBe(true)
+    expect(await bookingService.getById({ userId: ownerId }, waiting.id)).toMatchObject({
+      paymentId: null,
+      allocatedAmount: null,
+    })
+    expect(await bookingService.promoteFromWaitlist({ userId: ownerId }, ev.id)).toBeNull()
+    const again = await eventPricingService.settle({ userId: ownerId }, orgId, ev.id)
+    expect(again.summary).toEqual(snapshot.summary)
+    const allocated = await db
+      .select()
+      .from(bookings)
+      .where(eq(bookings.eventId, ev.id))
+      .orderBy(bookings.id)
+    expect(allocated.map((b) => [b.paymentId, b.allocatedAmount])).toEqual([
+      [removedPaymentId, 5001],
+      [pendingPaymentId, 5000],
+      [null, null],
+    ])
+    const paid = await db
+      .select()
+      .from(payments)
+      .where(eq(payments.organizationId, orgId))
+      .orderBy(payments.id)
+    expect(paid.map((p) => p.id)).toEqual([removedPaymentId, pendingPaymentId])
+    expect(paid.reduce((sum, p) => sum + p.amount, 0)).toBe(10001)
+  })
+
+  afterEach(async () => {
+    vi.unstubAllEnvs()
+    await db.delete(organizations).where(inArray(organizations.id, fixtureOrgs))
+    await db.delete(users).where(inArray(users.id, fixtureUsers))
   })
 
   it('6.8.2: parallel event cancellations → one refund per payment, sessions restored once', async () => {
@@ -341,7 +458,9 @@ describe('money races (integration)', () => {
 
   it('6.8.1: confirm scoped by organization', async () => {
     const [o2] = await db.insert(users).values({ email: 'mr-o2@t.by' }).returning()
+    fixtureUsers.push(o2!.id)
     const org2 = await organizationService.create({ userId: o2!.id }, { name: 'Other' })
+    fixtureOrgs.push(org2.id)
     const ev = await paidEvent()
     const b = await bookingService.book({ userId: await newPlayer() }, orgId, ev.id, {
       method: 'cash',
@@ -411,8 +530,6 @@ describe('money races (integration)', () => {
   })
 
   afterAll(async () => {
-    await db.delete(organizations)
-    await db.delete(users)
     await closeDb()
   })
 })
