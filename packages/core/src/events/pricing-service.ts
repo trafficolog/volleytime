@@ -1,8 +1,18 @@
-import { and, bookings, eq, events, organizationMembers, sql, type Event } from '@volley-time/db'
+import {
+  and,
+  bookings,
+  eq,
+  events,
+  inArray,
+  organizationMembers,
+  sql,
+  type Event,
+} from '@volley-time/db'
 import { allocateSplitAmount } from '@volley-time/shared'
 
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
+import { collectNotification } from '../notifier/collect'
 import { paymentService } from '../payments/service'
 import { requireCanManageContent } from '../permissions/policies'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
@@ -131,6 +141,42 @@ export const eventPricingService = {
         entityId: eventId,
         newValue: result.summary,
       })
+      const managers = await db
+        .select({ userId: organizationMembers.userId })
+        .from(organizationMembers)
+        .where(
+          and(
+            eq(organizationMembers.organizationId, orgId),
+            eq(organizationMembers.status, 'active'),
+            inArray(organizationMembers.role, ['owner', 'organizer']),
+          ),
+        )
+      const params = {
+        eventTitle: event.title,
+        eventDate: event.startsAt.toISOString(),
+        organizationId: orgId,
+        eventId,
+        currency: event.currency,
+        target: 'event' as const,
+      }
+      for (const share of allocation) {
+        const booking = byId.get(share.bookingId)!
+        collectNotification(txCtx, {
+          userId: booking.userId,
+          type: 'split_price_settled',
+          params: { ...params, amount: share.amount, method: booking.method },
+        })
+      }
+      for (const manager of managers)
+        collectNotification(txCtx, {
+          userId: manager.userId,
+          type: 'split_settled_organizer',
+          params: {
+            ...params,
+            targetAmount: result.summary.targetAmount,
+            participantCount: result.summary.participantCount,
+          },
+        })
       return result
     })
   },

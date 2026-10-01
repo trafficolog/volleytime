@@ -223,25 +223,26 @@ export const bookingService = {
         },
       )
       // собрать уведомление (отправится после коммита)
-      if (event.priceMode === 'fixed' || result.status === 'waitlisted')
-        collectNotification(ctx, {
-          userId: ctx.userId,
-          type:
-            result.status === 'waitlisted'
-              ? 'booking_waitlisted'
+      collectNotification(ctx, {
+        userId: ctx.userId,
+        type:
+          result.status === 'waitlisted'
+            ? 'booking_waitlisted'
+            : event.priceMode === 'split'
+              ? 'split_booking_reserved'
               : result.status === 'pending_payment'
                 ? 'booking_pending_payment' // место держится до подтверждения оплаты (8.9.1)
                 : 'booking_confirmed',
-          params: {
-            eventTitle: event.title,
-            eventDate: event.startsAt.toISOString(),
-            organizationId: orgId,
-            eventId,
-            amount: event.price,
-            currency: event.currency,
-            method: result.method,
-          },
-        })
+        params: {
+          eventTitle: event.title,
+          eventDate: event.startsAt.toISOString(),
+          organizationId: orgId,
+          eventId,
+          amount: event.price,
+          currency: event.currency,
+          method: result.method,
+        },
+      })
 
       return result
     })
@@ -655,18 +656,17 @@ export const bookingService = {
         })
         return linked!
       }
-      if (event.priceMode === 'fixed')
-        collectNotification(ctx, {
-          userId: next.userId,
-          type: 'waitlist_promoted',
-          params: {
-            eventTitle: event.title,
-            eventDate: event.startsAt.toISOString(),
-            organizationId: next.organizationId,
-            eventId: event.id,
-            needsPayment: false,
-          },
-        })
+      collectNotification(ctx, {
+        userId: next.userId,
+        type: event.priceMode === 'split' ? 'split_booking_reserved' : 'waitlist_promoted',
+        params: {
+          eventTitle: event.title,
+          eventDate: event.startsAt.toISOString(),
+          organizationId: next.organizationId,
+          eventId: event.id,
+          needsPayment: false,
+        },
+      })
       return promoted!
     })
   },

@@ -3,6 +3,9 @@ export type NotificationType =
   | 'booking_pending_payment'
   | 'booking_waitlisted'
   | 'waitlist_promoted'
+  | 'split_booking_reserved'
+  | 'split_price_settled'
+  | 'split_settled_organizer'
   | 'payment_confirmed'
   | 'payment_rejected'
   | 'payment_pending_organizer'
@@ -47,6 +50,8 @@ export interface TemplateParams {
   /** Куда ведёт кнопка: экран события, платежей организатора, абонементов. */
   target?: 'event' | 'payments' | 'subscriptions' | 'org'
   amount?: number
+  targetAmount?: number
+  participantCount?: number
   currency?: string
   playerName?: string
   method?: string
@@ -88,6 +93,29 @@ export function renderMessage(type: NotificationType, p: TemplateParams): Render
     case 'booking_waitlisted':
       return {
         text: `📋 Вы в листе ожидания на <b>${title}</b>${when}\n\nЕсли место освободится, мы сообщим.`,
+        keyboard: openBtn(),
+      }
+    case 'split_booking_reserved':
+      return {
+        text: `📝 Место на <b>${title}</b>${when} забронировано.\n\nТочная сумма после закрытия записи.`,
+        keyboard: openBtn(),
+      }
+    case 'split_price_settled':
+      return {
+        text:
+          `💳 Запись на <b>${title}</b>${when} закрыта.\n\n` +
+          `Ваша доля: ${formatMoney(p.amount ?? 0, p.currency)}.\n` +
+          `Оплатите ${formatMoney(p.amount ?? 0, p.currency)}` +
+          (p.method === 'transfer' ? ' переводом' : ' наличными') +
+          ' организатору.',
+        keyboard: openBtn(),
+      }
+    case 'split_settled_organizer':
+      return {
+        text:
+          `📊 Расчёт для <b>${title}</b>${when} завершён.\n\n` +
+          `Распределено: ${formatMoney(p.targetAmount ?? 0, p.currency)}\n` +
+          `Участников: ${p.participantCount ?? 0}\nДоли рассчитаны. Ожидается оплата.`,
         keyboard: openBtn(),
       }
     case 'waitlist_promoted':
