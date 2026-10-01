@@ -2,7 +2,7 @@
 import type { Event } from '@volley-time/db'
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { defineComponent, h, reactive, ref, Suspense } from 'vue'
+import { computed, defineComponent, h, reactive, ref, Suspense } from 'vue'
 
 import EventForm from './EventForm.vue'
 
@@ -11,11 +11,13 @@ vi.stubGlobal('$fetch', apiFetch)
 vi.stubGlobal('apiErrorMessage', () => 'Сервер не сохранил событие')
 vi.stubGlobal('ref', ref)
 vi.stubGlobal('reactive', reactive)
+vi.stubGlobal('computed', computed)
 
 async function renderForm(
   initial?: Event,
   subscriptionsEnabled = false,
   canSubmit?: () => boolean,
+  pricingProps = {},
 ) {
   const host = defineComponent({
     render: () =>
@@ -28,6 +30,7 @@ async function renderForm(
             subscriptionsEnabled,
             canSubmit,
             submitLabel: 'Сохранить',
+            ...pricingProps,
           }),
       }),
   })
@@ -53,6 +56,98 @@ beforeEach(() => {
 })
 
 describe('EventForm payload and state', () => {
+  it('preserves_unsaved_values_between_modes and submits only the selected amount', async () => {
+    const wrapper = await renderForm(undefined, true, undefined, {
+      splitPricingEnabled: true,
+      currency: 'EUR',
+    })
+    await fill(wrapper, '#ev-price', '15')
+    await wrapper.get('input[value="split"]').setValue(true)
+    expect(wrapper.text()).toContain('EUR')
+    expect(wrapper.find('#ev-price').exists()).toBe(false)
+    await fill(wrapper, '#ev-target', '100')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(apiFetch).toHaveBeenLastCalledWith(
+      '/api/organizations/30/events',
+      expect.objectContaining({
+        body: expect.objectContaining({ priceMode: 'split', price: 0, targetAmount: 10000 }),
+      }),
+    )
+    await wrapper.get('input[value="fixed"]').setValue(true)
+    expect((wrapper.get('#ev-price').element as HTMLInputElement).value).toBe('15')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(apiFetch).toHaveBeenLastCalledWith(
+      '/api/organizations/30/events',
+      expect.objectContaining({
+        body: expect.objectContaining({ priceMode: 'fixed', price: 1500, targetAmount: null }),
+      }),
+    )
+    await wrapper.get('input[value="split"]').setValue(true)
+    expect((wrapper.get('#ev-target').element as HTMLInputElement).value).toBe('100')
+    expect(wrapper.get('input[value="split"]').classes()).toContain('vt-radio')
+    wrapper.unmount()
+  })
+
+  it('requires exact capability true for a new split and validates positive bounded target', async () => {
+    const disabled = await renderForm(undefined, false, undefined, { splitPricingEnabled: 'true' })
+    expect(disabled.get('input[value="split"]').attributes('disabled')).toBeDefined()
+    disabled.unmount()
+    const wrapper = await renderForm(undefined, false, undefined, { splitPricingEnabled: true })
+    await wrapper.get('input[value="split"]').setValue(true)
+    for (const target of ['0', '21474836.48', '-1', 'abc', '1.001']) {
+      await fill(wrapper, '#ev-target', target)
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      expect(wrapper.get('#ev-target').attributes('aria-invalid')).toBe('true')
+    }
+    expect(apiFetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toEqual([])
+    wrapper.unmount()
+  })
+
+  it('uses server permissions to lock booking history and settled targets even with capability off', async () => {
+    const initial = {
+      id: 71,
+      priceMode: 'split',
+      price: 0,
+      targetAmount: 10000,
+      capacity: 12,
+      currency: 'EUR',
+      startsAt: new Date('2026-10-03T16:00:00Z'),
+      endsAt: new Date('2026-10-03T18:00:00Z'),
+      status: 'published',
+    } as Event
+    const wrapper = await renderForm(initial, true, undefined, {
+      splitPricingEnabled: false,
+      pricingPermissions: {
+        canChangePriceMode: false,
+        canChangeTargetAmount: true,
+        canSettle: true,
+      },
+    })
+    expect(wrapper.get('input[value="fixed"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('#ev-target').attributes('disabled')).toBeUndefined()
+    await fill(wrapper, '#ev-target', '120')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    expect(apiFetch).toHaveBeenLastCalledWith(
+      '/api/organizations/30/events/71',
+      expect.objectContaining({
+        body: expect.objectContaining({ targetAmount: 12000, priceMode: 'split', price: 0 }),
+      }),
+    )
+    wrapper.unmount()
+    const settled = await renderForm(initial, true, undefined, {
+      pricingPermissions: {
+        canChangePriceMode: false,
+        canChangeTargetAmount: false,
+        canSettle: false,
+      },
+    })
+    expect(settled.get('#ev-target').attributes('disabled')).toBeDefined()
+    settled.unmount()
+  })
   it('creates a published event with all real fields and a fixed price in minor units', async () => {
     const wrapper = await renderForm()
     await fill(wrapper, '#ev-title', 'Новая игра')
@@ -75,6 +170,8 @@ describe('EventForm payload and state', () => {
         locationText: undefined,
         capacity: 14,
         price: 1550,
+        priceMode: 'fixed',
+        targetAmount: null,
         cancellationDeadlineHours: 4,
         description: 'Приходите заранее',
         status: 'published',

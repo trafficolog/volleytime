@@ -1,9 +1,15 @@
 <script setup lang="ts">
 import type { EventBookingRow } from '@volley-time/core'
 import type { Event } from '@volley-time/db'
-import { formatDay, formatTime } from '@volley-time/shared'
+import {
+  formatDay,
+  formatTime,
+  type EventPricingView,
+  type PricingFinancials,
+  type PricingPermissions,
+} from '@volley-time/shared'
 
-import { displayName, formatPrice } from '~/utils/labels'
+import { displayName, formatPrice, formatMoneyRu } from '~/utils/labels'
 import { pendingPaymentsForEvent } from '~/utils/organizer-miniapp'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
@@ -61,7 +67,13 @@ const {
   status: eventStatus,
   refresh: refreshEvent,
 } = await useFetch<{
-  event: Event & { taken: number; waitlist: number }
+  event: Event & {
+    taken: number
+    waitlist: number
+    pricing: EventPricingView
+    pricingPermissions?: PricingPermissions
+    pricingFinancials?: PricingFinancials
+  }
 }>(() => `/api/organizations/${orgId.value}/events/${eventId.value}`, {
   key: () => `event-manage-${routeKey.value}`,
 })
@@ -160,6 +172,39 @@ const inRoster = computed(() =>
 )
 const waitlist = computed(() => rows.value.filter((b) => b.status === 'waitlisted'))
 const started = computed(() => !!ev.value && new Date(ev.value.startsAt) <= new Date())
+
+async function settlePricing() {
+  const target = ev.value
+  const key = routeKey.value
+  if (
+    !isManager.value ||
+    !target?.pricingPermissions?.canSettle ||
+    mutationBusy.value ||
+    !routeStillCurrent(key)
+  )
+    return
+  busy.value = true
+  actionError.value = ''
+  try {
+    const count = target.taken
+    const ok = await confirm(
+      `Закрыть запись и распределить ${formatMoneyRu(target.pricing.targetAmount ?? 0, target.currency)} между ${count} участниками? Доли будут зафиксированы; лист ожидания не участвует. Состав и суммы окончательно проверит сервер.`,
+    )
+    if (!ok || !routeStillCurrent(key) || !ev.value?.pricingPermissions?.canSettle) return
+    await $fetch(`/api/organizations/${target.organizationId}/events/${target.id}/settle`, {
+      method: 'POST',
+    })
+    if (routeStillCurrent(key)) await Promise.all([refreshEvent(), loadRoster(), loadPayments()])
+  } catch (cause) {
+    if (routeStillCurrent(key))
+      actionError.value = apiErrorMessage(
+        cause,
+        'Не удалось распределить сумму. Обновите событие и попробуйте снова.',
+      )
+  } finally {
+    if (routeStillCurrent(key)) busy.value = false
+  }
+}
 
 const STATUS_CHIP: Record<string, { tone: 'grass' | 'amber' | 'rose' | 'default'; text: string }> =
   {
@@ -350,6 +395,24 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
       <VtChip v-if="ev.status === 'cancelled'" tone="rose">Событие отменено</VtChip>
 
       <p v-if="actionError" class="text-sm text-vt-rose-ink" role="alert">{{ actionError }}</p>
+      <button
+        v-if="actionError && ev.pricing?.mode === 'split'"
+        class="vt-btn vt-btn--ghost"
+        type="button"
+        :disabled="mutationBusy"
+        @click="refreshEvent()"
+      >
+        Обновить событие
+      </button>
+      <EventPricingPanel
+        v-if="ev.pricing?.mode === 'split'"
+        :pricing="ev.pricing"
+        :financials="ev.pricingFinancials ?? null"
+        :currency="ev.currency"
+        :can-settle="ev.pricingPermissions?.canSettle === true"
+        :pending="mutationBusy"
+        @settle="settlePricing"
+      />
 
       <div
         role="tablist"
@@ -428,7 +491,9 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
                   </div>
                 </div>
                 <VtChip :tone="STATUS_CHIP[b.status]?.tone ?? 'default'">{{
-                  STATUS_CHIP[b.status]?.text
+                  b.status === 'pending_payment' && !b.paymentId && ev.pricing?.mode === 'split'
+                    ? 'сумма после закрытия'
+                    : STATUS_CHIP[b.status]?.text
                 }}</VtChip>
                 <template
                   v-if="started && ev.status !== 'cancelled' && b.status !== 'pending_payment'"

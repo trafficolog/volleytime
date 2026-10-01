@@ -2,10 +2,10 @@
 id: '5.16.2'
 phase: '5'
 epic: '5.16'
-status: todo
+status: in_progress
 release: 'v0.1.7'
 last_reviewed: 2026-10-01
-status_note: 'Спецификация и письменный план утверждены пользователем 2026-10-01; UI не реализован.'
+status_note: 'UI реализован; 35 mounted и 12 реальных PostgreSQL API-to-form сценариев, пять gates зелёные. IAB 320/390/1280 light/dark и реальные create/PATCH проверены; native confirm блокирует браузер, settlement/error-retry и native 200% QA ожидают продолжения контроллером. Независимое review, CI и merge ещё не выполнены.'
 roles: [FE, QA]
 depends_on: ['6.11.1', '8.11.1']
 tags: [mvp, split, miniapp, desktop, organizer]

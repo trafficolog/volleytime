@@ -9,11 +9,29 @@ const base = computed(() => `/app/orgs/${orgId.value}/events`)
 const expectedPath = route.path
 const { tz, load } = useOrgTimezone(orgId)
 await load()
+const {
+  data: orgData,
+  pending: orgPending,
+  error: orgError,
+  refresh: refreshOrg,
+} = await useFetch<{
+  organization: { id: number; currency: string; subscriptionsEnabled: boolean }
+  myMember: { role: string; status: string }
+  capabilities: { eventSplitPricing: boolean }
+}>(() => `/api/organizations/${orgId.value}`, { key: () => `desktop-event-new-org-${orgId.value}` })
 let alive = true
 onBeforeUnmount(() => (alive = false))
 
 function canSubmit() {
-  return alive && canSubmitDesktopEventAction(route.path, expectedPath, false)
+  const member = orgData.value?.myMember
+  return (
+    alive &&
+    !orgError.value &&
+    orgData.value?.organization.id === orgId.value &&
+    member?.status === 'active' &&
+    ['owner', 'organizer'].includes(member.role) &&
+    canSubmitDesktopEventAction(route.path, expectedPath, false)
+  )
 }
 
 function saved(event: { id: number }) {
@@ -28,10 +46,19 @@ function saved(event: { id: number }) {
       <h1 tabindex="-1">Новое событие</h1>
       <p class="text-vt-mute-2">Создайте тренировку с рабочими полями текущего MVP.</p>
     </header>
-    <div class="vt-card vt-desktop-form-page__card">
+    <SkeletonList v-if="orgPending" :count="2" />
+    <ErrorState
+      v-else-if="orgError || !canSubmit()"
+      message="Не удалось открыть форму события"
+      @retry="refreshOrg()"
+    />
+    <div v-else class="vt-card vt-desktop-form-page__card">
       <EventForm
         :org-id="orgId"
         :tz="tz"
+        :currency="orgData!.organization.currency"
+        :subscriptions-enabled="orgData!.organization.subscriptionsEnabled"
+        :split-pricing-enabled="orgData?.capabilities?.eventSplitPricing === true"
         submit-label="Создать событие"
         :can-submit="canSubmit"
         @saved="saved"

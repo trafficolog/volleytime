@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Event } from '@volley-time/db'
+import type { PricingPermissions } from '@volley-time/shared'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 const route = useRoute()
 const router = useRouter()
@@ -12,12 +13,14 @@ const {
   status: orgStatus,
 } = await useFetch<{
   organization: { id: number; defaultTimezone: string; subscriptionsEnabled: boolean }
+  capabilities: { eventSplitPricing: boolean }
   myMember: { role: string; status: string }
 }>(() => `/api/organizations/${orgId.value}`, { key: () => `event-edit-org-${orgId.value}` })
-const { data, error, status } = await useFetch<{ event: Event }>(
-  () => `/api/organizations/${orgId.value}/events/${eventId.value}`,
-  { key: () => `event-edit-${routeKey.value}` },
-)
+const { data, error, status } = await useFetch<{
+  event: Event & { pricingPermissions: PricingPermissions }
+}>(() => `/api/organizations/${orgId.value}/events/${eventId.value}`, {
+  key: () => `event-edit-${routeKey.value}`,
+})
 const org = computed(() =>
   orgStatus.value === 'success' &&
   !orgError.value &&
@@ -71,6 +74,9 @@ function onSaved(event: Event) {
         :org-id="orgId"
         :tz="org!.defaultTimezone"
         :subscriptions-enabled="org!.subscriptionsEnabled"
+        :split-pricing-enabled="orgData?.capabilities?.eventSplitPricing === true"
+        :currency="currentEvent.currency"
+        :pricing-permissions="currentEvent.pricingPermissions"
         :initial="currentEvent"
         submit-label="Сохранить"
         @saved="onSaved"
