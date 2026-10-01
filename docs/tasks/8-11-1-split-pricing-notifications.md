@@ -5,7 +5,7 @@ epic: '8.11'
 status: todo
 release: 'v0.1.7'
 last_reviewed: 2026-10-01
-status_note: 'SDD подготовлена; implementation/Telegram acceptance ещё не выполнены.'
+status_note: 'Спецификация и письменный план утверждены пользователем 2026-10-01; реализация и Telegram acceptance не начаты.'
 roles: [BE, BOT, QA]
 depends_on: ['6.11.1']
 tags: [mvp, split, telegram, notifications]

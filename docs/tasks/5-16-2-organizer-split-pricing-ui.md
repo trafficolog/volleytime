@@ -5,7 +5,7 @@ epic: '5.16'
 status: todo
 release: 'v0.1.7'
 last_reviewed: 2026-10-01
-status_note: 'Financial rules утверждены 2026-10-01; план ожидает review, UI не реализован.'
+status_note: 'Спецификация и письменный план утверждены пользователем 2026-10-01; UI не реализован.'
 roles: [FE, QA]
 depends_on: ['6.11.1', '8.11.1']
 tags: [mvp, split, miniapp, desktop, organizer]
@@ -24,14 +24,15 @@ tags: [mvp, split, miniapp, desktop, organizer]
 ## Что должно быть сделано
 
 1. EventForm: доступный выбор fixed/split, условная цена/общая сумма, валюта организации, прогноз по вместимости, предупреждение об абонементах. Хранить отдельно несохранённые значения двух режимов.
-2. Edit уважает server pricing locks и status; mode/target нельзя менять после запрещённой границы. Прежние реальные поля, deadline и публикация сохраняются.
-3. Manage в Mini App/desktop: прогноз, target/count, кнопка ручного «Закрыть запись и распределить» с подтверждением; после success — snapshot и фактический статус поступлений.
+2. Оба Mini App/desktop edit parents передают в EventForm manager-only GET `pricingPermissions: { canChangePriceMode:boolean; canChangeTargetAmount:boolean; canSettle:boolean }` из 6.11.1. Mode/target следуют server permission, не вычисляются из participantCount; cancelled-only/waitlist-only history также блокирует mode. Прежние реальные поля, deadline и публикация сохраняются; capability отдельно ограничивает создание/переход в split.
+3. Manage в Mini App/desktop: прогноз, target/count, кнопка ручного «Закрыть запись и распределить» с подтверждением и server canSettle; после success — snapshot и фактический статус поступлений. Сервер повторно проверяет mutation под lock.
 4. Guard полного live route/unmount до POST и после response, блокировка повторного действия, error/retry; суммы разных валют не объединяются.
 5. Pending без paymentId отображается как «сумма после закрытия»; финансовая очередь показывает только существующие payments. Decline/remove не вызывает нового распределения.
 
 ## Критерии приёмки
 
 - RED→GREEN mounted tests переключают режим и проверяют соответствующий body, amount validation, lock при edit, valid cancel/confirm диалога и stale route.
+- API-to-form evidence: реальные manager GET ответы cancelled-only/waitlist-only при taken=0 передаются через оба edit parents в EventForm и блокируют mode; target/settle следуют своим разрешениям. Проверен server refusal после устаревшего GET; только hand-written mounted fixtures недостаточны.
 - Browser Mini App320/390 и desktop1280 light/dark: рабочее сохранение, загрузка, error, keyboard/focus, читаемый прогноз/итог и отсутствие horizontal overflow.
 - Пять gates и отдельное review; реальный Telegram сохраняется как отдельная post-deploy проверка.
 

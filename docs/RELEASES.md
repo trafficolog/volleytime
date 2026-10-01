@@ -261,11 +261,11 @@ Task 6 (2026-09-30): пять локальных gates прошли, PostgreSQL 
 
 ---
 
-## R0.7 — MVP: режим оплаты события `v0.1.7` (спецификация на review)
+## R0.7 — MVP: режим оплаты события `v0.1.7` (спецификация и план утверждены)
 
 2026-10-01 пользователь подтвердил реализацию fixed/split из дизайн-референса. Это расширение R0/MVP: общая сумма делится на фактически занявших места после ручного закрытия записи; игрок до него видит прогноз, после — собственный точный платёж. Наличные/перевод и действующее подтверждение денег сохраняются, абонементы в split недоступны. R0.6 остаётся выложенным кандидатом с открытой Telegram/pilot приёмкой; будущие задачи её не закрывают.
 
-[Письменная спецификация](./superpowers/specs/2026-10-01-event-split-pricing-design.md) утверждена пользователем 2026-10-01. [План семи задач](./superpowers/plans/2026-10-01-event-split-pricing.md) ожидает review; выбран Subagent-driven с отдельной проверкой каждой задачи. Распределение остатка копеек, неизменные доли после фиксации и правила выхода согласованы. Код, migration и production не изменены этой подготовкой.
+[Письменная спецификация](./superpowers/specs/2026-10-01-event-split-pricing-design.md) и [план семи задач](./superpowers/plans/2026-10-01-event-split-pricing.md) утверждены пользователем 2026-10-01; выбран Subagent-driven с отдельной проверкой каждой задачи. Распределение остатка копеек, неизменные доли после фиксации и правила выхода согласованы. Карточки todo, реализация не начата; код, migration и production не изменены этой подготовкой.
 
 | Задача                                                  | Результат                                                   | Статус |
 | ------------------------------------------------------- | ----------------------------------------------------------- | ------ |
@@ -277,7 +277,9 @@ Task 6 (2026-09-30): пять локальных gates прошли, PostgreSQL 
 | [6.11.2](./tasks/6-11-2-split-money-race-tests.md)      | Денежные гонки и сквозная интеграция                        | todo   |
 | [9.8.11](./tasks/9-8-11-split-pricing-release-qa.md)    | Общая QA, controlled deploy и Telegram/pilot acceptance     | todo   |
 
-DoD: каждая task branch/PR принята после RED→GREEN, собственных пяти gates, review и CI; полный интегрированный кандидат проходит визуальную/функциональную matrix и main→FF prod→Actions deploy с backup-before-migrations/exact SHA/runtime smoke. До ручного Telegram/pilot acceptance tag/Release v0.1.7 не создаётся. Создание split включается capability только для полного кандидата; rollback на старый fixed-only runtime при split-данных блокируется.
+DoD: каждая task branch/PR принята после RED→GREEN, собственных пяти gates, review и exact-head CI. Release-задача 9.8.11 имеет промежуточный merge checkpoint: code/local acceptance + свежие review + exact-head CI → merge в main со статусом in_progress и открытыми deployment/manual критериями; затем integrated-main gates/review/exact-main CI → reviewed FF prod → Actions deploy с backup-before-migrations/exact SHA/runtime smoke → реальная Telegram/pilot acceptance. Только финальное evidence закрывает карточку/релиз и разрешает tag/Release v0.1.7. Полный кандидат проходит визуальную/функциональную matrix; создание split включается capability только для полного кандидата.
+
+Rollback boundary: existing image/data preflight сохраняется. Перед authoritative downgrade DB query под deploy lock захватить exact active web/bot IDs/images, остановить всех project writers (duplicate/scaled тоже), доказать отсутствие running writers; только затем query schema/split rows. До guard не менять Git/manifest/env и не активировать images; повторить writer absence перед switch, удерживать quiescence до old activation. In-flight split либо commit до query и блокирует fixed-only downgrade, либо rollback; новый split в guard→activation window не commit. Query error/несовместимость запрещают downgrade: до stop runtime неизменен, после stop recovery только captured compatible current containers/images, exact state сообщается при отказе. Manual/automatic recovery не использует unsafe old fallback, DB restore или удаление split-данных. Пауза только при rollback, без нового persisted feature table/global advisory lock.
 
 Вне scope: multi-seat, online payment, credits, сборы, отчёты, автоматическое закрытие/scheduler и новая анонимная event page. Полная сумма распределяется по одному месту на игрока с сохранением до копейки, финансовые операции ledger остаются append-only.
 

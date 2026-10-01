@@ -5,7 +5,7 @@ epic: '6.11'
 status: todo
 release: 'v0.1.7'
 last_reviewed: 2026-10-01
-status_note: 'Спецификация утверждена 2026-10-01; план ожидает review. Зависит от 5.16.1, реализация не начата.'
+status_note: 'Спецификация и письменный план утверждены пользователем 2026-10-01. Зависит от 5.16.1, реализация не начата.'
 roles: [BE, QA]
 depends_on: ['5.16.1']
 tags: [mvp, split, payments, concurrency]
@@ -29,6 +29,7 @@ tags: [mvp, split, payments, concurrency]
 4. Идемпотентно возвращать существующий settlement без новых платежей, audit или рассылки; полное rollback при любой ошибке внутри транзакции.
 5. Запретить PATCH закрытие без settlement, reopen и finished до расчёта, самостоятельную отмену после фиксации. Manager снятие/reject не пересчитывает доли; закрытый waitlist не продвигается. Полная отмена использует существующий refund/cancel.
 6. GET/stats/my bookings/roster/manager summary различают unsettled, pending, paid, cancelled/refunded; mine содержит личную долю, roster не выдаёт чужие платежи и не показывает false paid.
+7. Manager-only GET события возвращает `pricingPermissions: { canChangePriceMode:boolean; canChangeTargetAmount:boolean; canSettle:boolean }`. Mode permission проверяет ЛЮБУЮ историю booking (cancelled-only/waitlist-only тоже), а не participantCount, и existing role/state policy. Target permission — unsettled split с existing role/state policy; settle permission — active manager и published unsettled split. Capability отдельно ограничивает переход в split; игроку manager projection не выдаётся. Сервер повторно проверяет историю/роль/status под event lock при mutation.
 
 ## Критерии приёмки
 
@@ -36,6 +37,7 @@ tags: [mvp, split, payments, concurrency]
 - N0/target<N, wrong org/role, invalid methods и попытка обхода PATCH оставляют прежнее состояние.
 - Повтор settle после confirm/reject возвращает сохранённый snapshot; allocatedAmount не исчезает при cancelled/refunded.
 - Cancel event корректно закрывает как unsettled, так и settled брони, включая возврат succeeded payment ранее снятой split-брони с сохранённой allocatedAmount; нет начислений waitlist или изменения чужой доли.
+- Реальный manager GET для cancelled-only/waitlist-only history при taken=0 возвращает canChangePriceMode=false; без history действует role/state policy. Settled блокирует target/settle; published unsettled позволяет active manager settlement. Игрок/foreign org не получают projection, mutation отвергает устаревшие разрешения после новой истории/status под lock. Task 5.16.2 проверяет передачу этого API-контракта в обе формы.
 - Fixed/free/subscription flows, локальные PostgreSQL интеграции, пять gates и отдельное review проходят.
 
 ## Подсказки
