@@ -2,10 +2,10 @@
 id: '6.11.2'
 phase: '6'
 epic: '6.11'
-status: in_progress
+status: done
 release: 'v0.1.7'
 last_reviewed: 2026-10-01
-status_note: 'Локальные PostgreSQL barriers и денежные regression реализованы после принятых 6.11.1/8.11.1: focused characterization 3×37/37 GREEN; пять gates PASS, полный набор 143 файла/1031 тест. Production-дефект не выявлен, production-код не менялся. Независимое review и exact-head CI/merge ещё открыты.'
+status_note: 'PostgreSQL barriers и денежные regression приняты: characterization3×37/37 GREEN, пять gates PASS143файла/1031тест, independent spec/quality review Approved без Critical/Important, CI36839966460 all4SUCCESS на3f70c45. PR83 проводит интеграцию, финальный documentation-head CI проверяется до merge. Production-дефект не выявлен, production-код не менялся; UI/Telegram/deploy не подтверждены. Test-only Minor явно отложены к финальному whole-branch review.'
 roles: [BE, QA]
 depends_on: ['6.11.1', '8.11.1']
 tags: [mvp, split, tdd, concurrency, money]
@@ -52,3 +52,11 @@ tags: [mvp, split, tdd, concurrency, money]
 ## Не делать
 
 Не добавлять тестовый hook в production ради гонки, не обращаться к production DB, не подменять денежные утверждения mock count или случайными Promise.all без контроля.
+
+## Приёмка реализации, 2026-10-01
+
+[PR #83](https://github.com/trafficolog/volleytime/pull/83), test SHA `3f70c453c3f9e873e744f5ca423d5b7a6764f4af`, [CI 36839966460](https://github.com/trafficolog/volleytime/actions/runs/36839966460): all4SUCCESS, включая real runner image build/export/import. Независимое review: spec compliant, quality Approved, без Critical/Important. Все пять gates прошли; три final-source focused прогона дали37/37 каждый, полный набор143файла/1031тест.
+
+Это characterization GREEN без обнаруженного product-дефекта, а не выдуманный RED. Реальные SQL barriers подтверждают оба порядка операций и шесть confirm/reject/full-cancel перестановок; middle-allocation SQL failure проверяет атомарный rollback. Test-only TS2556 исправлен без ослабления денежных assertions.
+
+Minor сохранены для финального whole-branch review: rejected blocker cleanup может пропустить joining pending операций; ledger-array assertion требует явного SQL order либо order-independent сравнения. Прежние12 lint warnings/dependency build notices — отдельный tooling follow-up. Ни UI/Telegram QA, ни production deployment или pilot acceptance не заявляются; задачи5.16.2/8.11.2/9.8.11 остаются открытыми.
