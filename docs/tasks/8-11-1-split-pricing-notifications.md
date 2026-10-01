@@ -2,10 +2,10 @@
 id: '8.11.1'
 phase: '8'
 epic: '8.11'
-status: in_progress
+status: done
 release: 'v0.1.7'
 last_reviewed: 2026-10-01
-status_note: 'Локально реализованы split reservation/promotion, персональные доли и одна сводка каждому активному manager через существующий collect-then-dispatch. RED 7 → GREEN 21; пять gates PASS (142 файла / 1010 тестов). Independent review и CI/merge остаются открытыми. Реальная Telegram acceptance остаётся в 9.8.11.'
+status_note: 'Split reservation/promotion, персональные доли и одна сводка каждому активному manager приняты после RED 7 → GREEN 21, regression52, пяти gates (142 файла / 1010 тестов), independent spec/quality review без Critical/Important и CI36836087098 all4SUCCESS на3211392. PR82 проводит интеграцию; финальный documentation-head CI проверяется до merge. Реальная Telegram acceptance остаётся в9.8.11; production не менялся.'
 roles: [BE, BOT, QA]
 depends_on: ['6.11.1']
 tags: [mvp, split, telegram, notifications]
@@ -51,3 +51,9 @@ tags: [mvp, split, telegram, notifications]
 ## Не делать
 
 Не обещать guaranteed delivery, не добавлять outbox/scheduler/автоматические напоминания или фиктивное «доставлено» из unit tests.
+
+## Проверка реализации, 2026-10-01
+
+[PR #82](https://github.com/trafficolog/volleytime/pull/82), product SHA `321139290e6771441c50905d55020001aabbaf2a`, [CI 36836087098](https://github.com/trafficolog/volleytime/actions/runs/36836087098): четыре jobs SUCCESS, включая real runner image build/export/import. Independent task review: spec compliant, quality Approved, без Critical/Important. Формат/lint/typecheck/test/build прошли; 12 прежних lint warnings и dependency build notices явно сохранены как nonblocking tooling follow-up.
+
+Post-commit collector и реальная PostgreSQL/API проверены локально: exact3334/3333/3333, одна manager summary, waiter/cancelled без начисления, rollback без dispatch, repeat после confirm/reject без дублей, transport failure не отменяет committed payments/GET. Первоначальный TS6059 исправлен только runtime test imports; три устаревших ожидания пустого коллектора заменены на required reservation message с сохранением money/state/lock assertions. Никакая реальная Telegram доставка, production выкладка или pilot acceptance этими тестами не подтверждается.
