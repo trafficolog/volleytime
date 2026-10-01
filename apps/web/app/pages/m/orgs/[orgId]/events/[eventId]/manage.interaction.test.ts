@@ -148,6 +148,76 @@ afterEach(() => {
 })
 
 describe('event management interactions', () => {
+  it.each([
+    ['?other=1', false],
+    ['#other', false],
+    ['?other=1', true],
+    ['#other', true],
+  ] as const)(
+    'recovers its busy state after confirmation leaves %s (confirmed=%s)',
+    async (suffix, ok) => {
+      const wrapper = await renderManage()
+      const button = wrapper
+        .findAll('button')
+        .find((b) => b.text() === 'Закрыть запись и распределить')!
+      await button.trigger('click')
+      routerRoute.value.fullPath = `${managePath}${suffix}`
+      route.fullPath = `${managePath}${suffix}`
+      resolveConfirmation?.(ok)
+      await flushPromises()
+      expect(apiFetch.mock.calls.filter(([, opts]) => opts?.method === 'POST')).toHaveLength(0)
+      expect(refreshEvent).not.toHaveBeenCalled()
+      expect(button.attributes('disabled')).toBeUndefined()
+      routerRoute.value.fullPath = managePath
+      route.fullPath = managePath
+      await button.trigger('click')
+      resolveConfirmation?.(true)
+      await flushPromises()
+      expect(
+        apiFetch.mock.calls.filter(
+          ([url, opts]) => url.endsWith('/settle') && opts?.method === 'POST',
+        ),
+      ).toHaveLength(1)
+      wrapper.unmount()
+    },
+  )
+  it.each(['?other=1', '#other'])(
+    'cleans up late settlement on retained %s without writing stale data',
+    async (suffix) => {
+      const wrapper = await renderManage()
+      let completePost: (() => void) | undefined
+      apiFetch.mockImplementationOnce(async () => {
+        await new Promise<void>((resolve) => (completePost = resolve))
+        return {}
+      })
+      const button = wrapper
+        .findAll('button')
+        .find((b) => b.text() === 'Закрыть запись и распределить')!
+      await button.trigger('click')
+      resolveConfirmation?.(true)
+      await flushPromises()
+      await button.trigger('click')
+      expect(apiFetch.mock.calls.filter(([, opts]) => opts?.method === 'POST')).toHaveLength(1)
+      const readsBefore = apiFetch.mock.calls.filter(([, opts]) => !opts?.method).length
+      routerRoute.value.fullPath = `${managePath}${suffix}`
+      route.fullPath = `${managePath}${suffix}`
+      completePost?.()
+      await flushPromises()
+      expect(refreshEvent).not.toHaveBeenCalled()
+      expect(apiFetch.mock.calls.filter(([, opts]) => !opts?.method)).toHaveLength(readsBefore)
+      expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+      expect(wrapper.text()).toContain('100,00')
+      expect(button.attributes('disabled')).toBeUndefined()
+      routerRoute.value.fullPath = managePath
+      route.fullPath = managePath
+      await button.trigger('click')
+      resolveConfirmation?.(true)
+      await flushPromises()
+      expect(apiFetch.mock.calls.filter(([, opts]) => opts?.method === 'POST')).toHaveLength(2)
+      expect(refreshEvent).toHaveBeenCalledOnce()
+      wrapper.unmount()
+    },
+  )
   it('ignores a late settlement response after leaving the full route', async () => {
     const wrapper = await renderManage()
     let resolveSettlement: (() => void) | undefined

@@ -5,7 +5,7 @@ epic: '5.16'
 status: in_progress
 release: 'v0.1.7'
 last_reviewed: 2026-10-01
-status_note: 'UI реализован; 35 mounted и 12 реальных PostgreSQL API-to-form сценариев, пять gates зелёные. IAB 320/390/1280 light/dark и реальные create/PATCH проверены; native confirm блокирует браузер, settlement/error-retry и native 200% QA ожидают продолжения контроллером. Независимое review, CI и merge ещё не выполнены.'
+status_note: 'UI реализован; I1/I2 review d7e9d18 исправлены через RED→GREEN (36 focused tests; full retry 147 files / 1075 tests PASS; исходный deploy-contract timeout записан в отчёте). Финальные gates/build отражены в task-4-report. Браузерная QA продолжается контроллером; native confirm/200%, independent re-review, CI и merge ещё не выполнены. M1 про consequence copy отложен до итогового triage.'
 roles: [FE, QA]
 depends_on: ['6.11.1', '8.11.1']
 tags: [mvp, split, miniapp, desktop, organizer]
@@ -39,6 +39,12 @@ tags: [mvp, split, miniapp, desktop, organizer]
 ## Подсказки
 
 Общая EventForm используется обеими поверхностями; новые native radio сохраняют semantic groups и 20px branded controls. Проверять шапку/filters при pending, уже исправленные в 8.10.8.
+
+## Review defects / fix round 1 (2026-10-01)
+
+- I1: после временной ошибки page-local organization GET desktop edit «Повторить» должен обновить organization и event, показать pending и восстановить реальную форму.
+- I2: query/hash navigation без unmount не должна навсегда оставлять settlement busy в Mini/desktop. Отмена и поздний POST должны снять только своё busy, не отправить stale POST и не применить stale response; после возврата на исходный URL действие снова доступно. Full-route/lifecycle/duplicate guards сохраняются.
+- M1: copy отклонения split payment про продвижение waitlist отложен контроллером до итогового whole-branch triage; не входит в этот fix round.
 
 ## Не делать
 

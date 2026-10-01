@@ -13,7 +13,12 @@ const base = computed(() => `/app/orgs/${orgId.value}/events/${eventId.value}`)
 const expectedPath = route.path
 const { tz, load } = useOrgTimezone(orgId)
 await load()
-const { data: orgData, error: orgError } = await useFetch<{
+const {
+  data: orgData,
+  error: orgError,
+  pending: orgPending,
+  refresh: refreshOrg,
+} = await useFetch<{
   organization: { id: number; currency: string; subscriptionsEnabled: boolean }
   myMember: { role: string; status: string }
   capabilities: { eventSplitPricing: boolean }
@@ -49,17 +54,21 @@ function canSubmit() {
 function saved() {
   if (canSubmit()) void navigateTo(base.value)
 }
+
+async function retry() {
+  await Promise.all([refreshOrg(), refresh()])
+}
 </script>
 
 <template>
   <section class="vt-desktop-form-page space-y-5">
     <NuxtLink :to="base" class="vt-btn vt-btn--ghost">К событию</NuxtLink>
     <h1 tabindex="-1">Редактирование события</h1>
-    <SkeletonList v-if="pending" :count="2" />
+    <SkeletonList v-if="pending || orgPending" :count="2" />
     <ErrorState
       v-else-if="error || orgError || !event || !canSubmit()"
       message="Не удалось открыть событие"
-      @retry="refresh()"
+      @retry="retry"
     />
     <div v-else class="vt-card vt-desktop-form-page__card">
       <EventForm

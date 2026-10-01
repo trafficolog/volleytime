@@ -51,6 +51,7 @@ const rosterLoading = ref(false)
 const rosterError = ref('')
 const actionError = ref('')
 const busy = ref(false)
+let settlementOperation = 0
 let generation = 0
 let alive = true
 
@@ -131,6 +132,7 @@ async function settlePricing() {
     !settlementRouteCurrent(target.organizationId, target.id)
   )
     return
+  const operation = ++settlementOperation
   busy.value = true
   actionError.value = ''
   try {
@@ -155,7 +157,7 @@ async function settlePricing() {
         'Не удалось распределить сумму. Обновите событие и попробуйте снова.',
       )
   } finally {
-    if (settlementRouteCurrent(target.organizationId, target.id)) busy.value = false
+    if (alive && operation === settlementOperation) busy.value = false
   }
 }
 

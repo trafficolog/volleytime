@@ -91,6 +91,71 @@ beforeEach(() => {
   hold = false
 })
 describe('desktop settlement full route and lifecycle', () => {
+  it.each([
+    ['?other=1', false],
+    ['#other', false],
+    ['?other=1', true],
+    ['#other', true],
+  ] as const)(
+    'recovers its busy state after confirmation leaves %s (confirmed=%s)',
+    async (suffix, ok) => {
+      const wrapper = await render()
+      const button = wrapper
+        .findAll('button')
+        .find((b) => b.text() === 'Закрыть запись и распределить')!
+      confirm.mockImplementationOnce(() => {
+        routerRoute.value.fullPath = `${path}${suffix}`
+        route.fullPath = `${path}${suffix}`
+        return ok
+      })
+      await button.trigger('click')
+      await flushPromises()
+      expect(apiFetch.mock.calls.filter(([, opts]) => opts?.method === 'POST')).toHaveLength(0)
+      expect(refresh).not.toHaveBeenCalled()
+      expect(button.attributes('disabled')).toBeUndefined()
+      routerRoute.value.fullPath = path
+      route.fullPath = path
+      await button.trigger('click')
+      await flushPromises()
+      expect(
+        apiFetch.mock.calls.filter(
+          ([url, opts]) => url.endsWith('/settle') && opts?.method === 'POST',
+        ),
+      ).toHaveLength(1)
+      wrapper.unmount()
+    },
+  )
+  it.each(['?other=1', '#other'])(
+    'cleans up late settlement on retained %s without writing stale data',
+    async (suffix) => {
+      const wrapper = await render()
+      const button = wrapper
+        .findAll('button')
+        .find((b) => b.text() === 'Закрыть запись и распределить')!
+      hold = true
+      await button.trigger('click')
+      await button.trigger('click')
+      expect(apiFetch.mock.calls.filter(([, opts]) => opts?.method === 'POST')).toHaveLength(1)
+      const readsBefore = apiFetch.mock.calls.filter(([, opts]) => !opts?.method).length
+      routerRoute.value.fullPath = `${path}${suffix}`
+      route.fullPath = `${path}${suffix}`
+      resolvePost?.()
+      await flushPromises()
+      expect(refresh).not.toHaveBeenCalled()
+      expect(apiFetch.mock.calls.filter(([, opts]) => !opts?.method)).toHaveLength(readsBefore)
+      expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+      expect(wrapper.text()).toContain('100,00')
+      expect(button.attributes('disabled')).toBeUndefined()
+      routerRoute.value.fullPath = path
+      route.fullPath = path
+      hold = false
+      await button.trigger('click')
+      await flushPromises()
+      expect(apiFetch.mock.calls.filter(([, opts]) => opts?.method === 'POST')).toHaveLength(2)
+      expect(refresh).toHaveBeenCalledOnce()
+      wrapper.unmount()
+    },
+  )
   it.each(['edit', 'org', 'event', 'query', 'unmount'])(
     'refuses POST when confirmation leaves %s',
     async (change) => {

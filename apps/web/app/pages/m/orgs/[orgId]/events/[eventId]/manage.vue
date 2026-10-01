@@ -89,6 +89,7 @@ const rosterError = ref('')
 const paymentsError = ref('')
 const actionError = ref('')
 const busy = ref(false)
+let settlementOperation = 0
 const paymentBusy = ref<number | null>(null)
 const mutationBusy = computed(() => busy.value || paymentBusy.value !== null)
 const activeTab = ref<'roster' | 'payments'>('roster')
@@ -183,6 +184,7 @@ async function settlePricing() {
     !routeStillCurrent(key)
   )
     return
+  const operation = ++settlementOperation
   busy.value = true
   actionError.value = ''
   try {
@@ -202,7 +204,7 @@ async function settlePricing() {
         'Не удалось распределить сумму. Обновите событие и попробуйте снова.',
       )
   } finally {
-    if (routeStillCurrent(key)) busy.value = false
+    if (pageActive && operation === settlementOperation) busy.value = false
   }
 }
 
