@@ -1,4 +1,12 @@
-import { bookingService, canManageContent, eventService, requireOrgMember } from '@volley-time/core'
+import {
+  bookingService,
+  canManageContent,
+  eventService,
+  readEventPricing,
+  readPricingFinancials,
+  readPricingPermissions,
+  requireOrgMember,
+} from '@volley-time/core'
 
 /** Событие + заполненность, моя бронь, площадка, публичный состав (5.13.18). */
 export default defineApiHandler(async (event) => {
@@ -13,5 +21,12 @@ export default defineApiHandler(async (event) => {
   }
   const stats = (await eventService.statsFor(ctx, [ev.id])).get(ev.id)!
   const roster = await bookingService.publicRoster(ctx, orgId, ev.id)
-  return { event: { ...ev, ...stats }, roster }
+  const pricing = await readEventPricing(ctx, ev.id)
+  const managerPricing = canManageContent(event.context.member ?? null)
+    ? {
+        pricingFinancials: await readPricingFinancials(ctx, ev.id),
+        pricingPermissions: await readPricingPermissions(ctx, ev.id),
+      }
+    : {}
+  return { event: { ...ev, ...stats, pricing, ...managerPricing }, roster }
 })

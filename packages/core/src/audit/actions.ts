@@ -17,6 +17,7 @@ export const AUDIT_ACTIONS = {
   EVENT_CREATED: 'event.created',
   EVENT_UPDATED: 'event.updated',
   EVENT_CANCELLED: 'event.cancelled',
+  EVENT_PRICING_SETTLED: 'event.pricing_settled',
   BOOKING_CREATED: 'booking.created',
   BOOKING_CANCELLED: 'booking.cancelled',
   BOOKING_PROMOTED: 'booking.promoted',

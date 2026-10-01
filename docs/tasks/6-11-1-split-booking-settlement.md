@@ -2,10 +2,10 @@
 id: '6.11.1'
 phase: '6'
 epic: '6.11'
-status: todo
+status: in_progress
 release: 'v0.1.7'
 last_reviewed: 2026-10-01
-status_note: 'Спецификация и письменный план утверждены пользователем 2026-10-01. Зависит от 5.16.1, реализация не начата.'
+status_note: '5.16.1 принята (PR80). Реализация 6.11.1 и пять локальных gates завершены: 141 файл / 999 тестов. Независимое review, exact-head CI и merge ещё не выполнены.'
 roles: [BE, QA]
 depends_on: ['5.16.1']
 tags: [mvp, split, payments, concurrency]
@@ -41,6 +41,14 @@ tags: [mvp, split, payments, concurrency]
 - Fixed/free/subscription flows, локальные PostgreSQL интеграции, пять gates и отдельное review проходят.
 
 ## Подсказки
+
+### Локальная проверка 2026-10-01
+
+- RED → GREEN: 6 reservation-тестов и 12 settlement/HTTP-тестов; PostgreSQL rollback при ошибке второго payment insert, идемпотентность после confirm/reject, возврат ранее снятой оплаченной split-брони, history-based permissions и приватность projections.
+- Focused regression: 14 файлов / 133 теста; полный `pnpm test`: 141 файл / 999 тестов, 527.34 s.
+- `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm build` проходят; lint содержит 12 существующих предупреждений, build — нефатальные dependency warnings.
+- GET события: `event.pricing`, manager-only `event.pricingPermissions` и `event.pricingFinancials`; список событий — `pricing` каждой строки; мои брони — `pricing` в корне каждой брони.
+- Новые split-уведомления относятся к 8.11.1. Capability в production не включалась. Независимое review, CI/merge, расширенная матрица гонок 6.11.2 и Telegram/pilot acceptance остаются открытыми.
 
 Существующие eventService/bookingService/paymentService, API permissions и notifier collector. Добавить только необходимые read projections. UI зависит от прав, но сервер является источником разрешений.
 

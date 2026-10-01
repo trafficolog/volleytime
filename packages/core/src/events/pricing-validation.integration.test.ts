@@ -248,17 +248,22 @@ describe('pricing validation and staging safety (PostgreSQL)', () => {
     ).rejects.toThrow()
     expect((await eventService.getById({ userId: ownerId }, event.id)).targetAmount).toBe(10000)
   })
-  it('fails closed on split cash booking before full reservation flow exists', async () => {
+  it('reserves split cash without a free confirmation or a payment', async () => {
     const event = await eventService.create({ userId: ownerId }, orgId, split())
     const notifications: PendingNotification[] = []
     await expect(
       bookingService.book({ userId: ownerId, notifications }, orgId, event.id, { method: 'cash' }),
-    ).rejects.toThrow()
-    expect(await db.select().from(bookings)).toHaveLength(0)
+    ).resolves.toMatchObject({
+      status: 'pending_payment',
+      method: 'cash',
+      paymentId: null,
+      allocatedAmount: null,
+    })
+    expect(await db.select().from(bookings)).toHaveLength(1)
     expect(await db.select().from(payments)).toHaveLength(0)
     expect(notifications).toEqual([])
   })
-  it('fails closed on split cash waitlist promotion before full flow exists', async () => {
+  it('promotes split cash without a free confirmation or a payment', async () => {
     const event = await eventService.create({ userId: ownerId }, orgId, split())
     const [waiting] = await db
       .insert(bookings)
@@ -275,10 +280,20 @@ describe('pricing validation and staging safety (PostgreSQL)', () => {
       db.transaction((tx) =>
         bookingService.promoteFromWaitlist({ userId: ownerId, db: tx, notifications }, event.id),
       ),
-    ).rejects.toThrow()
+    ).resolves.toMatchObject({
+      status: 'pending_payment',
+      method: 'cash',
+      paymentId: null,
+      allocatedAmount: null,
+    })
     expect(
       await db.query.bookings.findFirst({ where: eq(bookings.id, waiting!.id) }),
-    ).toMatchObject({ status: 'waitlisted', method: 'cash', paymentId: null })
+    ).toMatchObject({
+      status: 'pending_payment',
+      method: 'cash',
+      paymentId: null,
+      allocatedAmount: null,
+    })
     expect(await db.select().from(payments)).toHaveLength(0)
     expect(notifications).toEqual([])
   })
@@ -338,8 +353,10 @@ describe('pricing validation and staging safety (PostgreSQL)', () => {
       release.resolve()
       await locker
     }
-    expect(await book).toMatchObject({ error: { code: 'booking.event_not_bookable' } })
-    expect(await db.select().from(bookings)).toHaveLength(0)
+    expect(await book).toMatchObject({
+      value: { status: 'pending_payment', method: 'cash', paymentId: null, allocatedAmount: null },
+    })
+    expect(await db.select().from(bookings)).toHaveLength(1)
     expect(await db.select().from(payments)).toHaveLength(0)
     expect(notifications).toEqual([])
   })

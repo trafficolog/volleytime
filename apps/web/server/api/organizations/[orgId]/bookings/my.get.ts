@@ -1,4 +1,4 @@
-import { bookingService, requireOrgMember } from '@volley-time/core'
+import { bookingService, readEventPricing, requireOrgMember } from '@volley-time/core'
 import { z } from 'zod'
 
 const Query = z.object({
@@ -17,5 +17,14 @@ export default defineApiHandler(async (event) => {
     filter,
     { limit, offset },
   )
-  return { bookings, limit, offset }
+  return {
+    bookings: await Promise.all(
+      bookings.map(async (booking) => ({
+        ...booking,
+        pricing: await readEventPricing(ctx, booking.eventId),
+      })),
+    ),
+    limit,
+    offset,
+  }
 })

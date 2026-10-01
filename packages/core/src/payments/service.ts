@@ -50,6 +50,17 @@ async function transitionPayment(
   throw from === 'succeeded' ? new PaymentNotSucceededError() : new PaymentNotPendingError()
 }
 
+/** Booking money operations share the event-first lock order with settlement and cancellation. */
+async function lockPaymentEvent(db: ReturnType<typeof getDb>, paymentId: number): Promise<void> {
+  const [bookingEvent] = await db
+    .select({ eventId: bookings.eventId })
+    .from(payments)
+    .innerJoin(bookings, eq(bookings.id, payments.bookingId))
+    .where(eq(payments.id, paymentId))
+    .limit(1)
+  if (bookingEvent) await db.execute(sql`SELECT pg_advisory_xact_lock(${bookingEvent.eventId})`)
+}
+
 /** Контекст платежа для уведомлений (8.8.5): событие или план абонемента. */
 async function paymentContext(
   db: ReturnType<typeof getDb>,
@@ -136,12 +147,14 @@ export const paymentService = {
       currency: string
       method: 'cash' | 'transfer'
     },
+    options: { notifyOrganizers?: boolean } = {},
   ): Promise<Payment> {
     const [p] = await getDb(ctx)
       .insert(payments)
       .values({ ...params, subscriptionId: null, status: 'pending' })
       .returning()
-    await notifyOrganizersAboutPending(ctx, p!, await paymentContext(getDb(ctx), p!))
+    if (options.notifyOrganizers !== false)
+      await notifyOrganizersAboutPending(ctx, p!, await paymentContext(getDb(ctx), p!))
     return p!
   },
 
@@ -234,6 +247,7 @@ export const paymentService = {
     const db = getDb(ctx)
     return db.transaction(async (tx) => {
       // атомарно: только pending → succeeded; параллельный confirm получит 409 (6.8.1)
+      await lockPaymentEvent(tx, paymentId)
       const succeeded = await transitionPayment(
         tx,
         paymentId,
@@ -405,6 +419,7 @@ export const paymentService = {
   async refund(ctx: ServiceContext, paymentId: number, reason?: string): Promise<Payment> {
     const db = getDb(ctx)
     return db.transaction(async (tx) => {
+      await lockPaymentEvent(tx, paymentId)
       const refunded = await transitionPayment(tx, paymentId, 'succeeded', {
         status: 'refunded',
         refundedAt: new Date(),

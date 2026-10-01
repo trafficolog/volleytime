@@ -7,8 +7,10 @@ import {
   events,
   gte,
   inArray,
+  isNotNull,
   lt,
   ne,
+  or,
   organizationMembers,
   payments,
   sql,
@@ -312,7 +314,12 @@ export const eventService = {
       if (existing.status === 'cancelled') return existing
 
       const activeBookings = await tx.query.bookings.findMany({
-        where: and(eq(bookings.eventId, eventId), ne(bookings.status, 'cancelled')),
+        where: and(
+          eq(bookings.eventId, eventId),
+          existing.priceMode === 'split'
+            ? or(ne(bookings.status, 'cancelled'), isNotNull(bookings.allocatedAmount))
+            : ne(bookings.status, 'cancelled'),
+        ),
       })
 
       for (const b of activeBookings) {

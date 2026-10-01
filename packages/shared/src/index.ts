@@ -23,3 +23,8 @@ export {
   formatTime,
   zonedInputToDate,
 } from './datetime/datetime'
+export type {
+  EventPricingView,
+  PricingFinancials,
+  PricingPermissions,
+} from './events/pricing-types'
