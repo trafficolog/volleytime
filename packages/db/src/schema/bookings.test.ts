@@ -59,6 +59,23 @@ describe('bookings schema (integration)', () => {
     expect(b?.status).toBe('confirmed')
     expect(b?.method).toBe('free')
     expect(b?.bookedAt).toBeInstanceOf(Date)
+    expect(b?.allocatedAmount).toBeNull()
+  })
+
+  it('retains allocated cents on a cancelled booking', async () => {
+    const { ev, player, org } = await setup()
+    const [booking] = await db
+      .insert(bookings)
+      .values({ ...bk(ev.id, player.id, org.id), status: 'cancelled', allocatedAmount: 3334 })
+      .returning()
+    expect(booking?.allocatedAmount).toBe(3334)
+  })
+
+  it.each([0, -1])('rejects nonpositive allocation %s', async (allocatedAmount) => {
+    const { ev, player, org } = await setup()
+    await expect(
+      db.insert(bookings).values({ ...bk(ev.id, player.id, org.id), allocatedAmount }),
+    ).rejects.toThrow()
   })
 
   it('enforces unique (event, user)', async () => {

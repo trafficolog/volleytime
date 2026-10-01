@@ -65,12 +65,17 @@ export const bookingService = {
     const db = getDb(ctx)
 
     return db.transaction(async (tx) => {
+      // Read pricing only after the shared event lock: a mode edit may have just committed.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(${eventId})`)
       // 1. событие
       const event = await tx.query.events.findFirst({ where: eq(events.id, eventId) })
       if (!event || event.organizationId !== orgId) throw new EventNotBookableError('not found')
       if (event.status === 'cancelled') throw new EventNotBookableError('cancelled')
       if (event.status !== 'published') throw new EventNotBookableError('not open')
       if (event.startsAt < new Date()) throw new EventNotBookableError('already started')
+      // Task 5.16.1 staging guard; replaced by the split reservation flow in 6.11.1.
+      if (event.priceMode === 'split')
+        throw new EventNotBookableError('split reservation is not available yet')
       // метод должен соответствовать цене (Task 5.13.9): платное — только абонемент/наличные/перевод
       if (event.price > 0 && !PAID_METHODS.includes(parsed.method)) {
         throw new BookingMethodNotAllowedError(parsed.method)
@@ -99,10 +104,6 @@ export const bookingService = {
         where: and(eq(bookings.eventId, eventId), eq(bookings.userId, ctx.userId)),
       })
       if (existing && existing.status !== 'cancelled') throw new AlreadyBookedError()
-
-      // CONCURRENCY GUARD: сериализуем allocation для этого события.
-      // pg_advisory_xact_lock освобождается автоматически в конце транзакции.
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(${eventId})`)
 
       // 4. место? (confirmed + pending_payment занимают слот)
       const [countRow] = await tx
@@ -505,6 +506,9 @@ export const bookingService = {
     await db.execute(sql`SELECT pg_advisory_xact_lock(${eventId})`)
     const event = await db.query.events.findFirst({ where: eq(events.id, eventId) })
     if (!event) return null
+    // Task 5.16.1 staging guard, after the event lock and fresh pricing read.
+    if (event.priceMode === 'split')
+      throw new EventNotBookableError('split promotion is not available yet')
 
     // есть ли место? (confirmed + pending_payment)
     const [countRow] = await db

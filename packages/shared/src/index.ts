@@ -1,4 +1,5 @@
 export const APP_NAME = 'Volley Time'
+export { allocateSplitAmount, previewSplitAmount } from './events/pricing'
 
 export { formatMoney, toMajor, toMinor } from './money/money'
 export { slugify, uniqueSlug } from './slug/slug'

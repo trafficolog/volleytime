@@ -1,4 +1,14 @@
-import { index, integer, pgEnum, pgTable, serial, timestamp, unique } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
+import {
+  check,
+  index,
+  integer,
+  pgEnum,
+  pgTable,
+  serial,
+  timestamp,
+  unique,
+} from 'drizzle-orm/pg-core'
 
 import { events } from './events'
 import { organizations } from './organizations'
@@ -42,6 +52,7 @@ export const bookings = pgTable(
     }),
     // FK → payments(id) ON DELETE SET NULL добавлен SQL-миграцией 0014 (цикл импортов bookings↔payments)
     paymentId: integer('payment_id'),
+    allocatedAmount: integer('allocated_amount'), // immutable minor units after split settlement
     bookedAt: timestamp('booked_at', { withTimezone: true }).notNull().defaultNow(),
     confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
     cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
@@ -53,6 +64,10 @@ export const bookings = pgTable(
     index('bookings_event_status_idx').on(t.eventId, t.status),
     index('bookings_user_idx').on(t.userId),
     index('bookings_waitlist_order_idx').on(t.eventId, t.bookedAt),
+    check(
+      'bookings_allocated_amount_positive',
+      sql`${t.allocatedAmount} IS NULL OR ${t.allocatedAmount} > 0`,
+    ),
   ],
 )
 
