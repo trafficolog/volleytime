@@ -135,6 +135,46 @@ describe('pricing validation and staging safety (PostgreSQL)', () => {
       }),
     ).toMatchObject({ priceMode: 'split', targetAmount: 10000 })
   })
+  it('rejects retained closed status on fixed-to-split conversion and preserves the fixed event', async () => {
+    const event = await eventService.create({ userId: ownerId }, orgId, base())
+    expect(
+      (await eventService.update({ userId: ownerId }, event.id, { status: 'closed' })).status,
+    ).toBe('closed')
+    await expect(
+      eventService.update({ userId: ownerId }, event.id, {
+        priceMode: 'split',
+        targetAmount: 10000,
+      }),
+    ).rejects.toMatchObject({ code: 'event.settlement_required' })
+    expect(await eventService.getById({ userId: ownerId }, event.id)).toMatchObject({
+      priceMode: 'fixed',
+      status: 'closed',
+      targetAmount: null,
+      pricingSettledAt: null,
+      pricingParticipantCount: null,
+    })
+  })
+  it.each(['published', 'draft'] as const)(
+    'allows closed fixed conversion when the same PATCH explicitly changes status to %s',
+    async (status) => {
+      const event = await eventService.create({ userId: ownerId }, orgId, base())
+      await eventService.update({ userId: ownerId }, event.id, { status: 'closed' })
+      expect(
+        await eventService.update({ userId: ownerId }, event.id, {
+          priceMode: 'split',
+          targetAmount: 10000,
+          status,
+        }),
+      ).toMatchObject({
+        priceMode: 'split',
+        status,
+        targetAmount: 10000,
+        pricingSettledAt: null,
+        pricingParticipantCount: null,
+      })
+    },
+  )
+
   it.each(['cancelled', 'waitlisted'] as const)(
     'rejects mode change after %s-only booking history',
     async (status) => {

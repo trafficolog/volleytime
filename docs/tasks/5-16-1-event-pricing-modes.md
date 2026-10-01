@@ -5,7 +5,7 @@ epic: '5.16'
 status: in_progress
 release: 'v0.1.7'
 last_reviewed: 2026-10-01
-status_note: '5.16.1 локально реализована: RED/GREEN, PostgreSQL/API regression, пять gates PASS (138 файлов / 974 теста; final preview edge отдельно 20/20). Independent review, CI и merge ещё не выполнены; split booking guard заменяется в 6.11.1.'
+status_note: '5.16.1 локально реализована: RED/GREEN и пять gates PASS. Review I1 исправлено: resulting status проверяется при fixed → split; service/API regression RED → GREEN (54/54), format/lint/typecheck PASS. Повторное independent review, CI и merge pending; split booking guard заменяется в 6.11.1.'
 roles: [BE, DB, QA]
 depends_on: ['8.10.2', '5.15.1']
 tags: [mvp, events, split, money]

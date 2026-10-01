@@ -82,6 +82,64 @@ describe('event pricing API contract (5.16.1)', () => {
     expect(closed.status).toBe(409)
     expect(closed.body).toMatchObject({ data: { code: 'event.settlement_required' } })
   })
+  it('rejects closed fixed conversion with omitted PATCH status and preserves the event', async () => {
+    const created = await request('POST', `/api/organizations/${orgId}/events`, {
+      user: ownerId,
+      body: { ...body(), priceMode: 'fixed', targetAmount: null },
+    })
+    expect(created.status).toBe(200)
+    const eventId = (created.body as { event: { id: number } }).event.id
+    const route = `/api/organizations/${orgId}/events/${eventId}`
+    const closed = await request('PATCH', route, { user: ownerId, body: { status: 'closed' } })
+    expect(closed.status).toBe(200)
+    expect(closed.body).toMatchObject({ event: { priceMode: 'fixed', status: 'closed' } })
+    const converted = await request('PATCH', route, {
+      user: ownerId,
+      body: { priceMode: 'split', targetAmount: 10000 },
+    })
+    expect(converted.status).toBe(409)
+    expect(converted.body).toMatchObject({ data: { code: 'event.settlement_required' } })
+    const persisted = await request('GET', route, { user: ownerId })
+    expect(persisted.status).toBe(200)
+    expect(persisted.body).toMatchObject({
+      event: {
+        priceMode: 'fixed',
+        status: 'closed',
+        targetAmount: null,
+        pricingSettledAt: null,
+        pricingParticipantCount: null,
+      },
+    })
+  })
+  it.each(['published', 'draft'] as const)(
+    'permits closed fixed conversion through PATCH with explicit %s status',
+    async (status) => {
+      const created = await request('POST', `/api/organizations/${orgId}/events`, {
+        user: ownerId,
+        body: { ...body(), priceMode: 'fixed', targetAmount: null },
+      })
+      const eventId = (created.body as { event: { id: number } }).event.id
+      const route = `/api/organizations/${orgId}/events/${eventId}`
+      expect(
+        (await request('PATCH', route, { user: ownerId, body: { status: 'closed' } })).status,
+      ).toBe(200)
+      const converted = await request('PATCH', route, {
+        user: ownerId,
+        body: { priceMode: 'split', targetAmount: 10000, status },
+      })
+      expect(converted.status).toBe(200)
+      expect(converted.body).toMatchObject({
+        event: {
+          priceMode: 'split',
+          status,
+          targetAmount: 10000,
+          pricingSettledAt: null,
+          pricingParticipantCount: null,
+        },
+      })
+    },
+  )
+
   it('returns a conflict for mode change after cancelled-only history', async () => {
     const created = await request('POST', `/api/organizations/${orgId}/events`, {
       user: ownerId,

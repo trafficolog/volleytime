@@ -239,10 +239,8 @@ export const eventService = {
         throw new EventError('event.pricing_locked', 'Split target cannot change after settlement')
       }
       if (priceMode === 'split') {
-        if (
-          existing.pricingSettledAt === null &&
-          (data.status === 'closed' || data.status === 'finished')
-        ) {
+        const status = data.status ?? existing.status
+        if (existing.pricingSettledAt === null && (status === 'closed' || status === 'finished')) {
           throw new EventError(
             'event.settlement_required',
             'Split pricing must be settled before closing or finishing',
