@@ -2,10 +2,10 @@
 id: '6.11.1'
 phase: '6'
 epic: '6.11'
-status: in_progress
+status: done
 release: 'v0.1.7'
 last_reviewed: 2026-10-01
-status_note: 'Review I1 исправлена локально: refund-флаг только после реального refund/restore; RED 5 → GREEN 99 focused tests. Исходные пять gates: 141 файл / 999 тестов; повторное review, exact-head CI и merge ещё не выполнены.'
+status_note: 'Реализация и приёмка завершены: пять gates PASS (141 файл / 999 тестов), I1 исправлена с RED 5 → GREEN 99 и чистым independent re-review. CI 36831447289 на 19d1a88: все четыре jobs SUCCESS. PR #81 проводит принятую задачу в main; production не изменяется. Новые уведомления и UI остаются зависимыми задачами.'
 roles: [BE, QA]
 depends_on: ['5.16.1']
 tags: [mvp, split, payments, concurrency]
