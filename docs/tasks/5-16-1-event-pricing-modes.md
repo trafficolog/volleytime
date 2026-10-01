@@ -2,10 +2,10 @@
 id: '5.16.1'
 phase: '5'
 epic: '5.16'
-status: in_progress
+status: done
 release: 'v0.1.7'
 last_reviewed: 2026-10-01
-status_note: '5.16.1 локально реализована: RED/GREEN и пять gates PASS. Review I1 исправлено: resulting status проверяется при fixed → split; service/API regression RED → GREEN (54/54), format/lint/typecheck PASS. Повторное independent review, CI и merge pending; split booking guard заменяется в 6.11.1.'
+status_note: 'Реализация и приёмка завершены: пять gates PASS, полный набор 138 файлов / 974 теста; I1 исправлен, independent re-review чисто. CI 36827665551 на a6a0d49: все четыре jobs SUCCESS. PR #80 проводит принятую задачу в main; production не изменяется. Split booking guard заменяется в 6.11.1.'
 roles: [BE, DB, QA]
 depends_on: ['8.10.2', '5.15.1']
 tags: [mvp, events, split, money]
