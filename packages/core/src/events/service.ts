@@ -9,6 +9,7 @@ import {
   inArray,
   lt,
   ne,
+  organizationMembers,
   payments,
   sql,
   venues,
@@ -19,25 +20,35 @@ import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
 import { collectNotification } from '../notifier/collect'
 import { paymentService } from '../payments/service'
+import { requireCanManageContent } from '../permissions/policies'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
 import { resolveOrgCurrency } from '../shared/currency'
 import { subscriptionService } from '../subscriptions/service'
 
 import {
+  EventError,
   EventCapacityBelowTakenError,
   EventNotEditableError,
   EventNotFoundError,
   EventStartsInPastError,
   VenueNotInOrgError,
 } from './errors'
+import { isSplitPricingEnabled } from './pricing-capability'
 import {
   CreateEventInput,
+  EventPricingInput,
   ListEventsQuery,
   UpdateEventInput,
   type ListEventsQuery as ListQuery,
   type CreateEventInput as CreateInput,
   type UpdateEventInput as UpdateInput,
 } from './schemas'
+
+function requireSplitCapability(): void {
+  if (!isSplitPricingEnabled(process.env.EVENT_SPLIT_PRICING_ENABLED)) {
+    throw new EventError('event.split_pricing_disabled', 'Split pricing is not enabled')
+  }
+}
 
 async function assertVenueInOrg(
   db: ReturnType<typeof getDb>,
@@ -61,6 +72,7 @@ export interface EventStats {
 export const eventService = {
   async create(ctx: ServiceContext, orgId: number, input: CreateInput): Promise<Event> {
     const data = CreateEventInput.parse(input)
+    if (data.priceMode === 'split') requireSplitCapability()
     // мутация и audit атомарны (5.13.12)
     return inTransaction(ctx, async (ctx) => {
       const db = getDb(ctx)
@@ -81,6 +93,8 @@ export const eventService = {
           endsAt: data.endsAt,
           capacity: data.capacity,
           price: data.price,
+          priceMode: data.priceMode,
+          targetAmount: data.targetAmount,
           currency: await resolveOrgCurrency(ctx, orgId, data.currency),
           cancellationDeadlineHours: data.cancellationDeadlineHours ?? null,
           status: data.status,
@@ -182,9 +196,67 @@ export const eventService = {
     // мутация и audit атомарны (5.13.12)
     return inTransaction(ctx, async (ctx) => {
       const db = getDb(ctx)
-      const existing = await this.getById(ctx, eventId)
+      // Same lock as bookings/settlement, before reading any financial state.
+      await db.execute(sql`SELECT pg_advisory_xact_lock(${eventId})`)
+      const [existing] = await db.select().from(events).where(eq(events.id, eventId)).for('update')
+      if (!existing) throw new EventNotFoundError(eventId)
       if (existing.status === 'cancelled' || existing.status === 'finished') {
         throw new EventNotEditableError()
+      }
+      if (
+        data.priceMode !== undefined ||
+        data.price !== undefined ||
+        data.targetAmount !== undefined
+      ) {
+        const member = await db.query.organizationMembers.findFirst({
+          where: and(
+            eq(organizationMembers.organizationId, existing.organizationId),
+            eq(organizationMembers.userId, ctx.userId),
+          ),
+        })
+        requireCanManageContent(member ?? null)
+      }
+      const priceMode = data.priceMode ?? existing.priceMode
+      if (priceMode !== existing.priceMode) {
+        const history = await db.query.bookings.findFirst({
+          where: eq(bookings.eventId, eventId),
+          columns: { id: true },
+        })
+        if (history || existing.pricingSettledAt !== null) {
+          throw new EventError(
+            'event.pricing_locked',
+            'Pricing mode cannot change after booking history or settlement',
+          )
+        }
+        if (priceMode === 'split') requireSplitCapability()
+      }
+      const pricing = EventPricingInput.parse({
+        priceMode,
+        price: data.price ?? existing.price,
+        targetAmount: data.targetAmount === undefined ? existing.targetAmount : data.targetAmount,
+      })
+      if (existing.pricingSettledAt !== null && pricing.targetAmount !== existing.targetAmount) {
+        throw new EventError('event.pricing_locked', 'Split target cannot change after settlement')
+      }
+      if (priceMode === 'split') {
+        if (
+          existing.pricingSettledAt === null &&
+          (data.status === 'closed' || data.status === 'finished')
+        ) {
+          throw new EventError(
+            'event.settlement_required',
+            'Split pricing must be settled before closing or finishing',
+          )
+        }
+        if (
+          existing.pricingSettledAt !== null &&
+          (data.status === 'published' || data.status === 'draft')
+        ) {
+          throw new EventError(
+            'event.pricing_locked',
+            'Settled split registration cannot be reopened',
+          )
+        }
       }
       if (data.venueId) await assertVenueInOrg(db, data.venueId, existing.organizationId)
 
@@ -212,7 +284,7 @@ export const eventService = {
 
       const [updated] = await db
         .update(events)
-        .set({ ...data, updatedAt: new Date() })
+        .set({ ...data, ...pricing, updatedAt: new Date() })
         .where(eq(events.id, eventId))
         .returning()
       await auditService.record(ctx, {

@@ -141,6 +141,13 @@
       "when": 1790251168768,
       "tag": "0019_strange_pet_avengers",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790836285238,
+      "tag": "0020_overjoyed_stick",
+      "breakpoints": true
     }
   ]
 }

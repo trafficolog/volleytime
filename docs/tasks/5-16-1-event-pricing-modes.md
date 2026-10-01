@@ -2,10 +2,10 @@
 id: '5.16.1'
 phase: '5'
 epic: '5.16'
-status: todo
+status: in_progress
 release: 'v0.1.7'
 last_reviewed: 2026-10-01
-status_note: 'Спецификация и письменный план утверждены пользователем 2026-10-01. Код и acceptance ещё не выполнены.'
+status_note: '5.16.1 локально реализована: RED/GREEN, PostgreSQL/API regression, пять gates PASS (138 файлов / 974 теста; final preview edge отдельно 20/20). Independent review, CI и merge ещё не выполнены; split booking guard заменяется в 6.11.1.'
 roles: [BE, DB, QA]
 depends_on: ['8.10.2', '5.15.1']
 tags: [mvp, events, split, money]
@@ -28,6 +28,7 @@ tags: [mvp, events, split, money]
 3. Чистый алгоритм распределяет целые копейки поровну с остатком по bookedAt/id; empty и total<N отклоняются. Формировать прогноз без деления на ноль.
 4. Create/update validation не принимает клиентские settlement поля. Смена режима запрещена после любой истории брони; target меняется только до settlement. Финансовое изменение использует event lock.
 5. Split creation защищён серверной `EVENT_SPLIT_PRICING_ENABLED` (только `true`, default false), UI получает несекретную capability. Флаг проверяется в create/переходе mode; уже существующие split продолжают обслуживаться. Промежуточные task PR не делают незавершённую функцию доступной на production.
+6. До реализации 6.11.1 текущие booking/promotion paths временно отклоняют split через существующий domain error после event advisory lock и свежего чтения. Это staging guard, согласованный 2026-10-01: он исключает бесплатную confirmed-бронь/платёж/уведомление по price=0. Task 6.11.1 заменяет его полноценным split reservation/settlement flow; UI/notifier в 5.16.1 не расширяются.
 
 ## Критерии приёмки
 
