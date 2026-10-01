@@ -5,7 +5,7 @@ epic: '5.16'
 status: todo
 release: 'v0.1.7'
 last_reviewed: 2026-10-01
-status_note: 'SDD подготовлена; пользовательские financial rules ждут review, UI не реализован.'
+status_note: 'Financial rules утверждены 2026-10-01; план ожидает review, UI не реализован.'
 roles: [FE, QA]
 depends_on: ['6.11.1', '8.11.1']
 tags: [mvp, split, miniapp, desktop, organizer]

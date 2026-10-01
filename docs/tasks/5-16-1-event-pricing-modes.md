@@ -5,7 +5,7 @@ epic: '5.16'
 status: todo
 release: 'v0.1.7'
 last_reviewed: 2026-10-01
-status_note: 'SDD подготовлена; письменные финансовые правила ожидают review пользователя. Код и acceptance ещё не выполнены.'
+status_note: 'Финансовая спецификация утверждена 2026-10-01; письменный план ожидает review. Код и acceptance ещё не выполнены.'
 roles: [BE, DB, QA]
 depends_on: ['8.10.2', '5.15.1']
 tags: [mvp, events, split, money]

@@ -5,7 +5,7 @@ epic: '6.11'
 status: todo
 release: 'v0.1.7'
 last_reviewed: 2026-10-01
-status_note: 'SDD подготовлена; зависит от утверждения спецификации и 5.16.1. Реализация не начата.'
+status_note: 'Спецификация утверждена 2026-10-01; план ожидает review. Зависит от 5.16.1, реализация не начата.'
 roles: [BE, QA]
 depends_on: ['5.16.1']
 tags: [mvp, split, payments, concurrency]
