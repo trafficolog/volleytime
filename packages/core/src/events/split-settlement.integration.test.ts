@@ -158,8 +158,12 @@ describe('atomic split settlement (PostgreSQL)', () => {
       refunded: 0,
       currency: 'BYN',
     })
-    await eventService.cancel(ctx(), eventId)
-    await eventService.cancel(ctx(), eventId)
+    const notifications: PendingNotification[] = []
+    await eventService.cancel({ ...ctx(), notifications }, eventId)
+    await eventService.cancel({ ...ctx(), notifications }, eventId)
+    expect(notifications.filter((n) => n.userId === first!.userId)).toMatchObject([
+      { type: 'event_cancelled', params: { refunded: true } },
+    ])
     expect((await paymentService.getById(ctx(), first!.paymentId!)).status).toBe('refunded')
     expect(await db.select().from(ledgerEntries)).toMatchObject([
       { type: 'income', amount: 3334 },
@@ -174,6 +178,32 @@ describe('atomic split settlement (PostgreSQL)', () => {
       currency: 'BYN',
     })
   })
+
+  it.each(['pending', 'rejected', 'removed'] as const)(
+    'full cancellation does not claim a refund for %s unpaid split bookings',
+    async (state) => {
+      await reserve(1)
+      await settle()
+      const [booking] = await db.query.bookings.findMany({ orderBy: bookings.id })
+      if (state === 'rejected') await paymentService.cancel(ctx(), booking!.paymentId!)
+      if (state === 'removed') await bookingService.cancel(ctx(), booking!.id, { byAdmin: true })
+      const notifications: PendingNotification[] = []
+      await eventService.cancel({ ...ctx(), notifications }, eventId)
+      expect(notifications).toMatchObject([
+        { userId: booking!.userId, type: 'event_cancelled', params: { refunded: false } },
+      ])
+      expect(await db.select().from(ledgerEntries)).toEqual([])
+      expect(await paymentService.getById(ctx(), booking!.paymentId!)).toMatchObject({
+        status: 'cancelled',
+      })
+      expect(await bookingService.getById(ctx(), booking!.id)).toMatchObject({
+        status: 'cancelled',
+        allocatedAmount: 10000,
+      })
+      await eventService.cancel({ ...ctx(), notifications }, eventId)
+      expect(notifications).toHaveLength(1)
+    },
+  )
 
   it.each([0, 3])(
     'rejects invalid participant/target counts (%s participants) atomically',
