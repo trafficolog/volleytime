@@ -265,17 +265,17 @@ Task 6 (2026-09-30): пять локальных gates прошли, PostgreSQL 
 
 2026-10-01 пользователь подтвердил реализацию fixed/split из дизайн-референса. Это расширение R0/MVP: общая сумма делится на фактически занявших места после ручного закрытия записи; игрок до него видит прогноз, после — собственный точный платёж. Наличные/перевод и действующее подтверждение денег сохраняются, абонементы в split недоступны. R0.6 остаётся выложенным кандидатом с открытой Telegram/pilot приёмкой; будущие задачи её не закрывают.
 
-[Письменная спецификация](./superpowers/specs/2026-10-01-event-split-pricing-design.md) и [план семи задач](./superpowers/plans/2026-10-01-event-split-pricing.md) утверждены пользователем 2026-10-01; выбран Subagent-driven с отдельной проверкой каждой задачи. Распределение остатка копеек, неизменные доли после фиксации и правила выхода согласованы. Карточки todo, реализация не начата; код, migration и production не изменены этой подготовкой.
+[Письменная спецификация](./superpowers/specs/2026-10-01-event-split-pricing-design.md) и [план семи задач](./superpowers/plans/2026-10-01-event-split-pricing.md) утверждены пользователем 2026-10-01; выбран Subagent-driven с отдельной проверкой каждой задачи. Распределение остатка копеек, неизменные доли после фиксации и правила выхода согласованы. Задачи 5.16.1 и 6.11.1 приняты в main через [PR #80](https://github.com/trafficolog/volleytime/pull/80) / [CI 36828093886](https://github.com/trafficolog/volleytime/actions/runs/36828093886) и [PR #81](https://github.com/trafficolog/volleytime/pull/81) / [CI 36831883906](https://github.com/trafficolog/volleytime/actions/runs/36831883906). Уведомления 8.11.1 локально реализуются со статусом in_progress до review/CI/merge; задачи 4–7 остаются todo. Production по последнему подтверждённому deploy остаётся `967aff3`; capability split не включалась, Telegram/pilot acceptance R0.6 и R0.7 не закрыта.
 
-| Задача                                                  | Результат                                                   | Статус |
-| ------------------------------------------------------- | ----------------------------------------------------------- | ------ |
-| [5.16.1](./tasks/5-16-1-event-pricing-modes.md)         | Модель, валидация, миграция и расчёт копеек                 | todo   |
-| [6.11.1](./tasks/6-11-1-split-booking-settlement.md)    | Запись и атомарное распределение/платежи                    | todo   |
-| [8.11.1](./tasks/8-11-1-split-pricing-notifications.md) | Запись без ложной оплаты и персональное уведомление расчёта | todo   |
-| [5.16.2](./tasks/5-16-2-organizer-split-pricing-ui.md)  | Mini App/desktop организатора                               | todo   |
-| [8.11.2](./tasks/8-11-2-player-split-pricing-ui.md)     | Игрок, roster/deep links и применимый лендинг               | todo   |
-| [6.11.2](./tasks/6-11-2-split-money-race-tests.md)      | Денежные гонки и сквозная интеграция                        | todo   |
-| [9.8.11](./tasks/9-8-11-split-pricing-release-qa.md)    | Общая QA, controlled deploy и Telegram/pilot acceptance     | todo   |
+| Задача                                                  | Результат                                                   | Статус      |
+| ------------------------------------------------------- | ----------------------------------------------------------- | ----------- |
+| [5.16.1](./tasks/5-16-1-event-pricing-modes.md)         | Модель, валидация, миграция и расчёт копеек                 | done        |
+| [6.11.1](./tasks/6-11-1-split-booking-settlement.md)    | Запись и атомарное распределение/платежи                    | done        |
+| [8.11.1](./tasks/8-11-1-split-pricing-notifications.md) | Запись без ложной оплаты и персональное уведомление расчёта | in_progress |
+| [5.16.2](./tasks/5-16-2-organizer-split-pricing-ui.md)  | Mini App/desktop организатора                               | todo        |
+| [8.11.2](./tasks/8-11-2-player-split-pricing-ui.md)     | Игрок, roster/deep links и применимый лендинг               | todo        |
+| [6.11.2](./tasks/6-11-2-split-money-race-tests.md)      | Денежные гонки и сквозная интеграция                        | todo        |
+| [9.8.11](./tasks/9-8-11-split-pricing-release-qa.md)    | Общая QA, controlled deploy и Telegram/pilot acceptance     | todo        |
 
 DoD: каждая task branch/PR принята после RED→GREEN, собственных пяти gates, review и exact-head CI. Release-задача 9.8.11 имеет промежуточный merge checkpoint: code/local acceptance + свежие review + exact-head CI → merge в main со статусом in_progress и открытыми deployment/manual критериями; затем integrated-main gates/review/exact-main CI → reviewed FF prod → Actions deploy с backup-before-migrations/exact SHA/runtime smoke → реальная Telegram/pilot acceptance. Только финальное evidence закрывает карточку/релиз и разрешает tag/Release v0.1.7. Полный кандидат проходит визуальную/функциональную matrix; создание split включается capability только для полного кандидата.
 

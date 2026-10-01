@@ -13,6 +13,7 @@ import {
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { bookingService } from '../bookings/service'
+import { renderMessage } from '../notifier/templates'
 import type { PendingNotification } from '../notifier/types'
 import { organizationService } from '../organizations/service'
 
@@ -261,7 +262,12 @@ describe('pricing validation and staging safety (PostgreSQL)', () => {
     })
     expect(await db.select().from(bookings)).toHaveLength(1)
     expect(await db.select().from(payments)).toHaveLength(0)
-    expect(notifications).toEqual([])
+    expect(notifications).toMatchObject([
+      { userId: ownerId, type: 'split_booking_reserved', params: { eventId: event.id } },
+    ])
+    const message = renderMessage(notifications[0]!.type, notifications[0]!.params)
+    expect(message.text).toContain('Точная сумма после закрытия записи')
+    expect(message.text).not.toMatch(/Бесплатно|оплатите|Вы записаны/i)
   })
   it('promotes split cash without a free confirmation or a payment', async () => {
     const event = await eventService.create({ userId: ownerId }, orgId, split())
@@ -295,7 +301,12 @@ describe('pricing validation and staging safety (PostgreSQL)', () => {
       allocatedAmount: null,
     })
     expect(await db.select().from(payments)).toHaveLength(0)
-    expect(notifications).toEqual([])
+    expect(notifications).toMatchObject([
+      { userId: ownerId, type: 'split_booking_reserved', params: { eventId: event.id } },
+    ])
+    const message = renderMessage(notifications[0]!.type, notifications[0]!.params)
+    expect(message.text).toContain('Точная сумма после закрытия записи')
+    expect(message.text).not.toMatch(/Бесплатно|оплатите|Вы записаны/i)
   })
 
   it('reads settlement only after waiting for the event lock during target edit', async () => {
@@ -358,6 +369,11 @@ describe('pricing validation and staging safety (PostgreSQL)', () => {
     })
     expect(await db.select().from(bookings)).toHaveLength(1)
     expect(await db.select().from(payments)).toHaveLength(0)
-    expect(notifications).toEqual([])
+    expect(notifications).toMatchObject([
+      { userId: ownerId, type: 'split_booking_reserved', params: { eventId: event.id } },
+    ])
+    const message = renderMessage(notifications[0]!.type, notifications[0]!.params)
+    expect(message.text).toContain('Точная сумма после закрытия записи')
+    expect(message.text).not.toMatch(/Бесплатно|оплатите|Вы записаны/i)
   })
 })

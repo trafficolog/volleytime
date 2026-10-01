@@ -98,3 +98,50 @@ describe('booking pending payment notification (8.9.1)', () => {
     expect(msg.text).toContain('переводом')
   })
 })
+
+describe('split pricing notifications (8.11.1)', () => {
+  it('split_reservation_is_not_free_or_payment_request', () => {
+    const message = renderMessage('split_booking_reserved', {
+      eventTitle: '<Тренировка> & команда',
+      eventDate: '2 октября, 19:00',
+      miniAppUrl: 'https://volleytime.by/m/?startapp=event_5',
+    })
+    expect(message?.text).toContain('Точная сумма после закрытия записи')
+    expect(message?.text).toContain('Место')
+    expect(message?.text).toContain('&lt;Тренировка&gt; &amp; команда')
+    expect(message?.text).not.toContain('Бесплатно')
+    expect(message?.text).not.toMatch(/оплатите|не забудьте оплатить|BYN/i)
+    expect(message?.keyboard?.[0]?.[0]?.webAppUrl).toContain('startapp=event_5')
+  })
+
+  it.each([
+    { method: 'cash', wording: 'наличными' },
+    { method: 'transfer', wording: 'переводом' },
+  ])('split_price_settled states exact personal amount and $method', ({ method, wording }) => {
+    const message = renderMessage('split_price_settled', {
+      eventTitle: '<Игра>',
+      amount: 3334,
+      currency: 'BYN',
+      method,
+      miniAppUrl: 'https://volleytime.by/m/?startapp=event_5',
+    })
+    expect(message?.text).toContain('33,34 BYN')
+    expect(message?.text).toContain(wording)
+    expect(message?.text).toContain('&lt;Игра&gt;')
+    expect(message?.text).not.toMatch(/прогноз|Бесплатно/)
+    expect(message?.keyboard?.[0]?.[0]?.webAppUrl).toContain('startapp=event_5')
+  })
+
+  it('organizer summary distinguishes allocation from received payment', () => {
+    const message = renderMessage('split_settled_organizer', {
+      eventTitle: '<Игра>',
+      targetAmount: 10000,
+      participantCount: 3,
+      currency: 'BYN',
+    })
+    expect(message?.text).toContain('100,00 BYN')
+    expect(message?.text).toContain('Участников: 3')
+    expect(message?.text).toContain('&lt;Игра&gt;')
+    expect(message?.text).not.toMatch(/получено|оплата подтверждена/i)
+  })
+})
