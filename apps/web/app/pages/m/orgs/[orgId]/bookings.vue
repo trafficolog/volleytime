@@ -27,9 +27,11 @@ const loadError = ref('')
 const accessNotice = ref<ReturnType<typeof playerAccessFromApiError>>(null)
 const actionError = ref('')
 const cancelling = ref<number | null>(null)
-const cancellationGuard = createPlayerRequestGuard(
+let currentViewKey: string | null = `${orgId.value}:${filter.value}`
+const confirmationGuard = createPlayerRequestGuard(
   () => `${route.fullPath}:${orgId.value}:${filter.value}`,
 )
+const cancellationGuard = createPlayerRequestGuard(() => currentViewKey)
 const loadView = createPlayerBookingsLoader<MyBooking>(
   () => orgId.value,
   () => filter.value,
@@ -48,7 +50,6 @@ const loadView = createPlayerBookingsLoader<MyBooking>(
 )
 let currentLoad: ReturnType<typeof loadView> | null = null
 let alive = true
-let currentViewKey: string | null = `${orgId.value}:${filter.value}`
 const pathname = () => route.fullPath.split(/[?#]/, 1)[0]
 
 async function load() {
@@ -76,13 +77,14 @@ async function load() {
 watch(
   [orgId, filter, () => route.fullPath],
   () => {
-    cancellationGuard.invalidate()
-    actionError.value = ''
-    cancelling.value = null
+    confirmationGuard.invalidate()
     const nextViewKey =
       pathname() === `/m/orgs/${orgId.value}/bookings` ? `${orgId.value}:${filter.value}` : null
     if (nextViewKey === currentViewKey) return
+    cancellationGuard.invalidate()
     currentViewKey = nextViewKey
+    actionError.value = ''
+    cancelling.value = null
     currentLoad = null
     loading.value = false
     items.value = []
@@ -93,6 +95,7 @@ watch(
 onUnmounted(() => {
   alive = false
   currentLoad = null
+  confirmationGuard.invalidate()
   cancellationGuard.invalidate()
 })
 await load()
@@ -107,12 +110,13 @@ const TONE: Record<string, 'grass' | 'amber' | 'default' | 'rose'> = {
 
 async function onCancel(b: MyBooking) {
   if (cancelling.value !== null || !canCancel(b)) return
-  const request = cancellationGuard.begin()
+  const confirmation = confirmationGuard.begin()
   actionError.value = ''
   if (!(await confirm(`Отменить запись на «${b.event.title}»?`))) return
-  if (!request.isCurrent()) return
+  if (!confirmation.isCurrent()) return
   const currentBooking = items.value.find((item) => item.id === b.id)
   if (!currentBooking || !canCancel(currentBooking)) return
+  const request = cancellationGuard.begin()
   cancelling.value = b.id
   const requestedOrgId = orgId.value
   const outcome = await runPlayerBookingCancellation(

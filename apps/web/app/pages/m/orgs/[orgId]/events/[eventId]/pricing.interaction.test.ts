@@ -156,6 +156,24 @@ const cancellableBooking = () => ({
   pricing: { ...pricing },
   event: fixture(),
 })
+async function beginHeldBookingCancellation() {
+  apiFetch.mockResolvedValueOnce({ bookings: [cancellableBooking()] })
+  const wrapper = await renderBookings()
+  let resolvePost!: (value: Record<string, unknown>) => void
+  let rejectPost!: (error: Error) => void
+  apiFetch.mockImplementationOnce(
+    () =>
+      new Promise<Record<string, unknown>>((resolve, reject) => {
+        resolvePost = resolve
+        rejectPost = reject
+      }),
+  )
+  await wrapper
+    .findAll('button')
+    .find((button) => button.text() === 'Отменить запись')!
+    .trigger('click')
+  return { wrapper, resolvePost, rejectPost }
+}
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date('2026-10-02T12:00:00Z'))
@@ -689,6 +707,105 @@ describe('player split pricing interactions', () => {
     ).toHaveLength(2)
     wrapper.unmount()
   })
+  it.each(['?period=upcoming', '#top'] as const)(
+    'my bookings keeps an in-flight cancel disabled across same-view %s change',
+    async (suffix) => {
+      const { wrapper, resolvePost } = await beginHeldBookingCancellation()
+      try {
+        route.fullPath += suffix
+        await flushPromises()
+        const button = wrapper.findAll('button').find((item) => item.text() === 'Отменить запись')!
+        expect(button.attributes('disabled')).toBeDefined()
+        await button.trigger('click')
+        expect(apiFetch.mock.calls.filter(([url]) => String(url).endsWith('/cancel'))).toHaveLength(
+          1,
+        )
+        apiFetch.mockResolvedValueOnce({ bookings: [] })
+        resolvePost({})
+        await flushPromises()
+        expect(
+          apiFetch.mock.calls.filter(([url]) => String(url).endsWith('/bookings/my')),
+        ).toHaveLength(2)
+        expect(wrapper.findAll('button').some((item) => item.text() === 'Отменить запись')).toBe(
+          false,
+        )
+      } finally {
+        wrapper.unmount()
+        resolvePost({})
+      }
+    },
+  )
+  it.each(['?period=upcoming', '#top'] as const)(
+    'my bookings refreshes after in-flight cancel refusal across same-view %s change',
+    async (suffix) => {
+      const { wrapper, rejectPost } = await beginHeldBookingCancellation()
+      try {
+        route.fullPath += suffix
+        apiFetch.mockResolvedValueOnce({
+          bookings: [
+            {
+              ...cancellableBooking(),
+              pricing: {
+                ...pricing,
+                basis: 'settled',
+                myAllocatedAmount: 3334,
+                myPaymentStatus: 'refunded',
+              },
+            },
+          ],
+        })
+        rejectPost(new Error('booking.settled'))
+        await flushPromises()
+        expect(
+          apiFetch.mock.calls.filter(([url]) => String(url).endsWith('/bookings/my')),
+        ).toHaveLength(2)
+        expect(wrapper.text()).toContain('Возвращено')
+        expect(wrapper.findAll('button').some((item) => item.text() === 'Отменить запись')).toBe(
+          false,
+        )
+      } finally {
+        wrapper.unmount()
+      }
+    },
+  )
+  it.each(['sibling', 'organization', 'filter', 'unmount', 'leave-return'] as const)(
+    'my bookings discards in-flight cancel refusal after leaving the %s view',
+    async (exit) => {
+      const { wrapper, rejectPost } = await beginHeldBookingCancellation()
+      try {
+        if (exit === 'sibling' || exit === 'leave-return') {
+          route.fullPath = '/m/orgs/30/events'
+          if (exit === 'leave-return') {
+            apiFetch.mockResolvedValueOnce({ bookings: [] })
+            route.fullPath = '/m/orgs/30/bookings'
+          }
+        } else if (exit === 'organization') {
+          apiFetch.mockResolvedValueOnce({ bookings: [] })
+          route.params.orgId = '31'
+          route.fullPath = '/m/orgs/31/bookings'
+        } else if (exit === 'filter') {
+          apiFetch.mockResolvedValueOnce({ bookings: [] })
+          await wrapper
+            .findAll('button')
+            .find((button) => button.text() === 'Прошедшие')!
+            .trigger('click')
+        } else {
+          wrapper.unmount()
+        }
+        rejectPost(new Error('booking.settled'))
+        await flushPromises()
+        expect(apiFetch.mock.calls.filter(([url]) => String(url).endsWith('/cancel'))).toHaveLength(
+          1,
+        )
+        expect(
+          apiFetch.mock.calls.filter(([url]) => String(url).endsWith('/bookings/my')),
+        ).toHaveLength(exit === 'sibling' || exit === 'unmount' ? 1 : 2)
+        if (exit !== 'unmount') expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+      } finally {
+        if (exit !== 'unmount') wrapper.unmount()
+      }
+    },
+  )
   it.each(['cash', 'transfer'] as const)(
     'split_booking_allows_only_cash_or_transfer: %s reaches the API',
     async (method) => {
