@@ -1,3 +1,6 @@
+import type { EventPricingView } from '@volley-time/shared'
+
+import { splitBookingPaymentLabel } from './event-pricing-label'
 import { isDeniedOrgError } from './player-home'
 
 export function playerEventReady(sources: {
@@ -106,6 +109,7 @@ export function projectPlayerEvent(
     capacity: number
     taken: number
     price: number
+    pricing?: EventPricingView
     myBooking: { status: string } | null
   },
   context: {
@@ -120,9 +124,11 @@ export function projectPlayerEvent(
   const hasBooking = bookingStatus !== null && bookingStatus !== 'cancelled'
   const bookable = context.memberActive && event.status === 'published' && !started && !hasBooking
   const action = bookable ? (event.taken >= event.capacity ? 'waitlist' : 'book') : 'none'
+  const split = event.pricing?.mode === 'split'
   const paymentMethods: ('free' | 'cash' | 'transfer' | 'subscription')[] =
-    action === 'none' ? [] : event.price === 0 ? ['free'] : ['cash', 'transfer']
+    action === 'none' ? [] : !split && event.price === 0 ? ['free'] : ['cash', 'transfer']
   if (
+    !split &&
     event.price > 0 &&
     action !== 'none' &&
     context.subscriptionsEnabled === true &&
@@ -136,15 +142,28 @@ export function projectPlayerEvent(
       : new Date(new Date(event.startsAt).getTime() - event.cancellationDeadlineHours * 3600_000)
   const canCancel =
     context.memberActive &&
+    !(split && event.pricing?.myAllocatedAmount !== null) &&
     !started &&
     ['confirmed', 'pending_payment', 'waitlisted'].includes(bookingStatus ?? '') &&
     (deadline === null || now <= deadline)
 
+  const bookingCard = bookingStatus ? (BOOKING_CARDS[bookingStatus] ?? null) : null
+  const splitPayment =
+    event.pricing && bookingStatus ? splitBookingPaymentLabel(event.pricing, bookingStatus) : null
   return {
     action,
     paymentMethods,
     bookingStatus,
-    bookingCard: bookingStatus ? (BOOKING_CARDS[bookingStatus] ?? null) : null,
+    bookingCard:
+      bookingCard && splitPayment
+        ? {
+            ...bookingCard,
+            ...(bookingStatus === 'pending_payment' && event.pricing?.myAllocatedAmount === null
+              ? { title: 'Место забронировано' }
+              : {}),
+            text: splitPayment.description,
+          }
+        : bookingCard,
     hasBooking,
     canCancel,
   }

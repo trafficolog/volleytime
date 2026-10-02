@@ -4,6 +4,7 @@ import {
   eventService,
   ledgerService,
   paymentService,
+  readEventPricing,
   requireOrgMember,
   subscriptionService,
 } from '@volley-time/core'
@@ -52,16 +53,20 @@ export default defineApiHandler(async (event) => {
 
   return {
     isManager,
-    myBookings: myBookings.map((b) => ({
-      id: b.id,
-      status: b.status,
-      event: {
-        id: b.event.id,
-        title: b.event.title,
-        startsAt: b.event.startsAt,
-        venue: b.event.venue ? { name: b.event.venue.name } : null,
-      },
-    })),
+    myBookings: await Promise.all(
+      myBookings.map(async (b) => ({
+        id: b.id,
+        status: b.status,
+        pricing: await readEventPricing(ctx, b.eventId),
+        event: {
+          id: b.event.id,
+          title: b.event.title,
+          startsAt: b.event.startsAt,
+          currency: b.event.currency,
+          venue: b.event.venue ? { name: b.event.venue.name } : null,
+        },
+      })),
+    ),
     subscription: activeSub
       ? {
           id: activeSub.id,
@@ -70,7 +75,13 @@ export default defineApiHandler(async (event) => {
           expiresAt: activeSub.expiresAt,
         }
       : null,
-    upcoming: upcoming.map((e) => ({ ...e, ...stats.get(e.id)! })),
+    upcoming: await Promise.all(
+      upcoming.map(async (e) => ({
+        ...e,
+        ...stats.get(e.id)!,
+        pricing: await readEventPricing(ctx, e.id),
+      })),
+    ),
     manager,
   }
 })

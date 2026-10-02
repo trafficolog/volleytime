@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import type { Event, Organization, OrganizationMember, Subscription } from '@volley-time/db'
-import { formatDay, formatTime } from '@volley-time/shared'
+import { formatDay, formatTime, type EventPricingView } from '@volley-time/shared'
 
-import { displayName, formatPrice } from '~/utils/labels'
+import { eventPricingLabel, splitBookingPaymentLabel } from '~/utils/event-pricing-label'
+import { displayName } from '~/utils/labels'
 import {
   playerEventLoadErrorNotice,
   playerEventPageState,
@@ -19,6 +20,7 @@ import { createPlayerRequestGuard } from '~/utils/player-request-guard'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
 type EventDetails = Event & {
+  pricing: EventPricingView
   taken: number
   waitlist: number
   myBooking: { id: number; status: string; method: string; paymentId: number | null } | null
@@ -88,6 +90,12 @@ const isManager = computed(() => {
 const subscriptionsEnabled = computed(() => organization.value?.subscriptionsEnabled ?? null)
 
 const my = computed(() => ev.value?.myBooking ?? null)
+const priceLabel = computed(() =>
+  ev.value ? eventPricingLabel(ev.value.pricing, ev.value.currency) : null,
+)
+const paymentLabel = computed(() =>
+  ev.value && my.value ? splitBookingPaymentLabel(ev.value.pricing, my.value.status) : null,
+)
 const full = computed(() => !!ev.value && ev.value.taken >= ev.value.capacity)
 const started = computed(() => !!ev.value && new Date(ev.value.startsAt) <= new Date())
 const subs = ref<Subscription[]>([])
@@ -122,8 +130,8 @@ const actionError = ref('')
 const loadErrorNotice = computed(() =>
   playerEventLoadErrorNotice(apiErrorStatus(loadError.value), actionError.value),
 )
-const routeGuard = createPlayerRequestGuard(() => `${orgId.value}:${eventId.value}`)
-const optionsGuard = createPlayerRequestGuard(() => `${orgId.value}:${eventId.value}`)
+const routeGuard = createPlayerRequestGuard(() => route.fullPath)
+const optionsGuard = createPlayerRequestGuard(() => route.fullPath)
 
 watch(sourcesReady, (ready) => {
   if (ready) return
@@ -136,7 +144,7 @@ async function retryPage() {
 }
 
 watch(
-  [orgId, eventId],
+  [orgId, eventId, () => route.fullPath],
   () => {
     routeGuard.invalidate()
     optionsGuard.invalidate()
@@ -152,8 +160,8 @@ async function openBooking() {
   if (submitting.value || !bookable.value) return
   actionError.value = ''
   if (!ev.value) return
-  if (ev.value.price === 0) return doBook('free')
-  if (subscriptionsEnabled.value !== true) {
+  if (ev.value.pricing.mode === 'fixed' && ev.value.price === 0) return doBook('free')
+  if (ev.value.pricing.mode === 'split' || subscriptionsEnabled.value !== true) {
     subs.value = []
     sheetOpen.value = true
     return
@@ -241,9 +249,15 @@ onUnmounted(() => mainButtonCleanup?.())
 async function cancelMine() {
   if (submitting.value || !my.value || !canCancel.value) return
   const requestedOrgId = orgId.value
+  const requestedFullPath = route.fullPath
   const bookingId = my.value.id
   if (!(await confirm('Отменить запись на тренировку?'))) return
-  if (requestedOrgId !== orgId.value || bookingId !== my.value?.id) return
+  if (
+    requestedFullPath !== route.fullPath ||
+    requestedOrgId !== orgId.value ||
+    bookingId !== my.value?.id
+  )
+    return
   const request = routeGuard.begin()
   submitting.value = true
   actionError.value = ''
@@ -355,7 +369,8 @@ async function cancelMine() {
             :tone="eventView.bookingCard.tone"
             dot
             >{{
-              my?.status === 'pending_payment' ? 'Ждёт оплаты' : eventView.bookingCard.title
+              paymentLabel?.text ??
+              (my?.status === 'pending_payment' ? 'Ждёт оплаты' : eventView.bookingCard.title)
             }}</VtChip
           >
           <VtChip v-else-if="started">Запись закрыта</VtChip>
@@ -366,7 +381,10 @@ async function cancelMine() {
         <div class="grid grid-cols-2 gap-2.5">
           <div>
             <div class="vt-cap text-vt-mute-2">Цена</div>
-            <div class="vt-mono text-base mt-1">{{ formatPrice(ev.price, ev.currency) }}</div>
+            <div class="vt-mono text-base mt-1 break-words">{{ priceLabel?.text }}</div>
+            <p v-if="priceLabel?.description" class="text-xs text-vt-mute-2 mt-2">
+              {{ priceLabel.description }}
+            </p>
           </div>
           <div>
             <div class="vt-cap text-vt-mute-2">Длительность</div>
@@ -422,6 +440,10 @@ async function cancelMine() {
       >
         <VtChip :tone="eventView.bookingCard.tone" dot>{{ eventView.bookingCard.title }}</VtChip>
         <p class="text-sm text-vt-mute-2 mt-2">{{ eventView.bookingCard.text }}</p>
+        <div v-if="paymentLabel" class="mt-2 space-y-1">
+          <p v-if="my.status !== 'waitlisted'" class="vt-mono text-sm">{{ priceLabel?.text }}</p>
+          <VtChip :tone="paymentLabel.tone">{{ paymentLabel.text }}</VtChip>
+        </div>
         <button
           v-if="canCancel"
           type="button"
@@ -435,7 +457,11 @@ async function cancelMine() {
           v-else-if="['confirmed', 'pending_payment', 'waitlisted'].includes(my.status) && !started"
           class="text-xs text-vt-mute-2 mt-3"
         >
-          Дедлайн отмены прошёл — если не сможете прийти, напишите организатору.
+          {{
+            ev.pricing.mode === 'split' && ev.pricing.settledAt
+              ? 'Доля зафиксирована — для отмены напишите организатору.'
+              : 'Дедлайн отмены прошёл — если не сможете прийти, напишите организатору.'
+          }}
         </p>
       </section>
 
@@ -477,6 +503,10 @@ async function cancelMine() {
       :title="full ? 'Лист ожидания: способ оплаты' : 'Как оплатите участие?'"
     >
       <div class="space-y-2">
+        <p v-if="ev?.pricing.mode === 'split'" class="text-sm text-vt-mute-2">
+          {{ full ? 'В листе ожидания начисления нет.' : priceLabel?.text }}
+          {{ priceLabel?.description }}
+        </p>
         <button
           v-for="s in eventView?.paymentMethods.includes('subscription') ? subs : []"
           :key="s.id"
@@ -505,7 +535,12 @@ async function cancelMine() {
           <span class="flex-1 text-left">
             <span class="block text-sm font-semibold">Наличными организатору</span>
             <span class="block text-xs text-vt-mute-2"
-              >{{ formatPrice(ev?.price ?? 0, ev?.currency) }} · подтвердит организатор</span
+              >{{
+                ev?.pricing.mode === 'split'
+                  ? 'Точная сумма после закрытия записи'
+                  : priceLabel?.text
+              }}
+              · подтвердит организатор</span
             >
           </span>
         </button>

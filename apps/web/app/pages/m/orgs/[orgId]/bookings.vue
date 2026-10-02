@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { Booking, Event, Venue } from '@volley-time/db'
-import { formatDay, formatTime } from '@volley-time/shared'
+import { formatDay, formatTime, type EventPricingView } from '@volley-time/shared'
 
+import { eventPricingLabel, splitBookingPaymentLabel } from '~/utils/event-pricing-label'
 import { BOOKING_STATUS_LABELS, label } from '~/utils/labels'
 import {
   canCancelPlayerBooking,
@@ -12,7 +13,7 @@ import { playerAccessFromApiError } from '~/utils/player-home'
 import { createPlayerRequestGuard } from '~/utils/player-request-guard'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
-type MyBooking = Booking & { event: Event & { venue: Venue | null } }
+type MyBooking = Booking & { pricing: EventPricingView; event: Event & { venue: Venue | null } }
 
 const route = useRoute()
 const orgId = computed(() => Number(route.params.orgId))
@@ -37,7 +38,8 @@ const loadView = createPlayerBookingsLoader<MyBooking>(
       })
     ).bookings.filter(
       (booking) =>
-        booking.status !== 'cancelled' &&
+        (booking.status !== 'cancelled' ||
+          (booking.pricing?.mode === 'split' && booking.pricing.myAllocatedAmount !== null)) &&
         booking.organizationId === requestedOrgId &&
         booking.event.organizationId === requestedOrgId,
     ),
@@ -85,7 +87,7 @@ const TONE: Record<string, 'grass' | 'amber' | 'default' | 'rose'> = {
 }
 
 async function onCancel(b: MyBooking) {
-  if (cancelling.value !== null || filter.value !== 'upcoming') return
+  if (cancelling.value !== null || !canCancel(b)) return
   const request = cancellationGuard.begin()
   actionError.value = ''
   if (!(await confirm(`Отменить запись на «${b.event.title}»?`))) return
@@ -123,7 +125,11 @@ function bookingPolicy(booking: MyBooking) {
 }
 
 function canCancel(booking: MyBooking) {
-  return filter.value === 'upcoming' && canCancelPlayerBooking(bookingPolicy(booking), new Date())
+  return (
+    filter.value === 'upcoming' &&
+    booking.pricing.myAllocatedAmount === null &&
+    canCancelPlayerBooking(bookingPolicy(booking), new Date())
+  )
 }
 </script>
 
@@ -180,8 +186,28 @@ function canCancel(booking: MyBooking) {
                 {{ formatDay(b.event.startsAt, tz)
                 }}<template v-if="b.event.venue"> · {{ b.event.venue.name }}</template>
               </div>
+              <div class="vt-mono text-xs mt-1">
+                {{ eventPricingLabel(b.pricing, b.event.currency).text }}
+              </div>
+              <p
+                v-if="b.pricing.mode === 'split' && b.pricing.basis !== 'settled'"
+                class="text-xs text-vt-mute-2 mt-1"
+              >
+                {{ eventPricingLabel(b.pricing, b.event.currency).description }}
+              </p>
+              <p
+                v-if="b.status === 'waitlisted' && b.pricing.mode === 'split'"
+                class="text-xs text-vt-mute-2 mt-1"
+              >
+                {{ splitBookingPaymentLabel(b.pricing, b.status)?.description }}
+              </p>
             </div>
-            <VtChip :tone="TONE[b.status] ?? 'default'">{{
+            <VtChip
+              v-if="splitBookingPaymentLabel(b.pricing, b.status)"
+              :tone="splitBookingPaymentLabel(b.pricing, b.status)!.tone"
+              >{{ splitBookingPaymentLabel(b.pricing, b.status)!.text }}</VtChip
+            >
+            <VtChip v-else :tone="TONE[b.status] ?? 'default'">{{
               label(BOOKING_STATUS_LABELS, b.status)
             }}</VtChip>
           </NuxtLink>
