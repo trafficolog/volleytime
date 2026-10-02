@@ -1,5 +1,9 @@
 # Релиз-план Volley Time
 
+> **Task4 Chrome checkpoint, 2026-10-02:** локальные проверки форм, native cancel/confirm, распределения и visual matrix320/390/1280 light/dark завершены; настоящий Chrome200% проверен, успешный desktop compositor frame просмотрен inline контроллером (не сохранён как PNG). [Канонический QA-report](./operations/qa/2026-10-02-organizer-split-chrome.md) фиксирует границы evidence. Независимый acceptance supplement PASS с исправленным здесь замечанием D1 к rollup. Свежие пять gates PASS (147files/1075tests); Task4 in_progress, exact-head CI/PR/merge открыты. Этот checkpoint заменяет прежний локальный checklist, но не закрывает Tasks5/7 и production/manual acceptance.
+
+> **R0.7 checkpoint 2026-10-02:** Tasks 1/2/3/6 приняты в GitHub main; PR #83 merged, `main=8dd26b413d30a9d8ac6c8b11fae93ae87063d7d8`, integrated CI `36840806743` success (сверено через GitHub API). Task 4 / 5.16.2 — in_progress: локальный `cad35c35`, I1/I2 исправлены и отдельный re-review PASS, пять gates PASS (147 файлов / 1075 тестов). Нативное подтверждение, новые controls при 200%, exact-head CI и merge ещё открыты. Tasks 5/7 остаются todo. `prod=967aff312f962196e7347cc0e50f879f25f6dffa`; продвижения production не было. Нижние checkpoints исторические.
+
 > **R0.7 checkpoint 2026-10-01:** Tasks 1–3 приняты через PR #80/#81/#82; финальный CI Task 3 `36836542260` success, main/base Task 6 `73e18757db0a7055f8bfcb5dc0055fb9c835b1a1`. Task 6 / 6.11.2 — in_progress: локально 3×37 денежных тестов и пять gates PASS (143 файла / 1031 тест); review/CI/merge открыты. Tasks 4/5 (UI) и 7 (release) открыты. Controller разрешил Task 6 перед UI, поскольку обе зависимости 6.11.1/8.11.1 приняты. Это не закрывает production/Telegram/pilot acceptance.
 
 > Привязка фаз/эпиков/задач к релизам. Определяет точку MVP и последующие этапы.
@@ -274,9 +278,9 @@ Task 6 (2026-09-30): пять локальных gates прошли, PostgreSQL 
 | [5.16.1](./tasks/5-16-1-event-pricing-modes.md)         | Модель, валидация, миграция и расчёт копеек                 | done        |
 | [6.11.1](./tasks/6-11-1-split-booking-settlement.md)    | Запись и атомарное распределение/платежи                    | done        |
 | [8.11.1](./tasks/8-11-1-split-pricing-notifications.md) | Запись без ложной оплаты и персональное уведомление расчёта | done        |
-| [5.16.2](./tasks/5-16-2-organizer-split-pricing-ui.md)  | Mini App/desktop организатора                               | todo        |
+| [5.16.2](./tasks/5-16-2-organizer-split-pricing-ui.md)  | Mini App/desktop организатора                               | in_progress |
 | [8.11.2](./tasks/8-11-2-player-split-pricing-ui.md)     | Игрок, roster/deep links и применимый лендинг               | todo        |
-| [6.11.2](./tasks/6-11-2-split-money-race-tests.md)      | Денежные гонки и сквозная интеграция                        | in_progress |
+| [6.11.2](./tasks/6-11-2-split-money-race-tests.md)      | Денежные гонки и сквозная интеграция                        | done        |
 | [9.8.11](./tasks/9-8-11-split-pricing-release-qa.md)    | Общая QA, controlled deploy и Telegram/pilot acceptance     | todo        |
 
 DoD: каждая task branch/PR принята после RED→GREEN, собственных пяти gates, review и exact-head CI. Release-задача 9.8.11 имеет промежуточный merge checkpoint: code/local acceptance + свежие review + exact-head CI → merge в main со статусом in_progress и открытыми deployment/manual критериями; затем integrated-main gates/review/exact-main CI → reviewed FF prod → Actions deploy с backup-before-migrations/exact SHA/runtime smoke → реальная Telegram/pilot acceptance. Только финальное evidence закрывает карточку/релиз и разрешает tag/Release v0.1.7. Полный кандидат проходит визуальную/функциональную matrix; создание split включается capability только для полного кандидата.

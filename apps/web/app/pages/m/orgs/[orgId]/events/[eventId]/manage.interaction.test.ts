@@ -15,6 +15,8 @@ import {
 
 import Manage from './manage.vue'
 
+import EventPricingPanel from '~/components/EventPricingPanel.vue'
+
 const managePath = '/m/orgs/30/events/71/manage'
 const route = reactive({ params: { orgId: '30', eventId: '71' }, fullPath: managePath })
 const routerRoute = ref({ params: { orgId: '30', eventId: '71' }, fullPath: managePath })
@@ -27,6 +29,20 @@ const event = {
   capacity: 2,
   taken: 1,
   waitlist: 0,
+  currency: 'BYN',
+  pricing: {
+    mode: 'split',
+    targetAmount: 10000,
+    settledAt: null,
+    participantCount: 1,
+    minAmount: 10000,
+    maxAmount: 10000,
+    basis: 'current',
+    myAllocatedAmount: null,
+    myPaymentStatus: null,
+  },
+  pricingPermissions: { canChangePriceMode: false, canChangeTargetAmount: true, canSettle: true },
+  pricingFinancials: { collected: 0, pending: 0, cancelled: 0, refunded: 0, currency: 'BYN' },
 }
 const booking = {
   id: 5,
@@ -63,6 +79,7 @@ const apiFetch = vi.fn(async (url: string, options?: { method?: string }) => {
   if (url.endsWith('/payments')) return { payments: paymentsFixture }
   throw new Error(`Unexpected GET ${url}`)
 })
+const refreshEvent = vi.fn()
 
 vi.stubGlobal('definePageMeta', () => undefined)
 vi.stubGlobal('useRoute', () => route)
@@ -75,12 +92,12 @@ vi.stubGlobal('watch', watch)
 vi.stubGlobal('nextTick', nextTick)
 vi.stubGlobal('onUnmounted', onUnmounted)
 vi.stubGlobal('$fetch', apiFetch)
-vi.stubGlobal('apiErrorMessage', () => 'Не удалось загрузить состав')
+vi.stubGlobal('apiErrorMessage', (_cause: unknown, fallback: string) => fallback)
 vi.stubGlobal('apiErrorCode', () => null)
 vi.stubGlobal('useFetch', (url: () => string) => {
   if (url().endsWith('/30'))
     return { data: orgData, error: ref(null), status: ref('success'), refresh: vi.fn() }
-  return { data: eventData, error: ref(null), status: ref('success'), refresh: vi.fn() }
+  return { data: eventData, error: ref(null), status: ref('success'), refresh: refreshEvent }
 })
 
 async function renderManage() {
@@ -89,6 +106,7 @@ async function renderManage() {
   })
   const wrapper = mount(host, {
     global: {
+      components: { EventPricingPanel },
       stubs: {
         NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
         VtMiniHeader: { template: '<header><slot name="right" /></header>' },
@@ -121,6 +139,7 @@ beforeEach(() => {
   resolveConfirmation = null
   confirm.mockClear()
   apiFetch.mockClear()
+  refreshEvent.mockClear()
 })
 
 afterEach(() => {
@@ -129,6 +148,163 @@ afterEach(() => {
 })
 
 describe('event management interactions', () => {
+  it.each([
+    ['?other=1', false],
+    ['#other', false],
+    ['?other=1', true],
+    ['#other', true],
+  ] as const)(
+    'recovers its busy state after confirmation leaves %s (confirmed=%s)',
+    async (suffix, ok) => {
+      const wrapper = await renderManage()
+      const button = wrapper
+        .findAll('button')
+        .find((b) => b.text() === 'Закрыть запись и распределить')!
+      await button.trigger('click')
+      routerRoute.value.fullPath = `${managePath}${suffix}`
+      route.fullPath = `${managePath}${suffix}`
+      resolveConfirmation?.(ok)
+      await flushPromises()
+      expect(apiFetch.mock.calls.filter(([, opts]) => opts?.method === 'POST')).toHaveLength(0)
+      expect(refreshEvent).not.toHaveBeenCalled()
+      expect(button.attributes('disabled')).toBeUndefined()
+      routerRoute.value.fullPath = managePath
+      route.fullPath = managePath
+      await button.trigger('click')
+      resolveConfirmation?.(true)
+      await flushPromises()
+      expect(
+        apiFetch.mock.calls.filter(
+          ([url, opts]) => url.endsWith('/settle') && opts?.method === 'POST',
+        ),
+      ).toHaveLength(1)
+      wrapper.unmount()
+    },
+  )
+  it.each(['?other=1', '#other'])(
+    'cleans up late settlement on retained %s without writing stale data',
+    async (suffix) => {
+      const wrapper = await renderManage()
+      let completePost: (() => void) | undefined
+      apiFetch.mockImplementationOnce(async () => {
+        await new Promise<void>((resolve) => (completePost = resolve))
+        return {}
+      })
+      const button = wrapper
+        .findAll('button')
+        .find((b) => b.text() === 'Закрыть запись и распределить')!
+      await button.trigger('click')
+      resolveConfirmation?.(true)
+      await flushPromises()
+      await button.trigger('click')
+      expect(apiFetch.mock.calls.filter(([, opts]) => opts?.method === 'POST')).toHaveLength(1)
+      const readsBefore = apiFetch.mock.calls.filter(([, opts]) => !opts?.method).length
+      routerRoute.value.fullPath = `${managePath}${suffix}`
+      route.fullPath = `${managePath}${suffix}`
+      completePost?.()
+      await flushPromises()
+      expect(refreshEvent).not.toHaveBeenCalled()
+      expect(apiFetch.mock.calls.filter(([, opts]) => !opts?.method)).toHaveLength(readsBefore)
+      expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+      expect(wrapper.text()).toContain('100,00')
+      expect(button.attributes('disabled')).toBeUndefined()
+      routerRoute.value.fullPath = managePath
+      route.fullPath = managePath
+      await button.trigger('click')
+      resolveConfirmation?.(true)
+      await flushPromises()
+      expect(apiFetch.mock.calls.filter(([, opts]) => opts?.method === 'POST')).toHaveLength(2)
+      expect(refreshEvent).toHaveBeenCalledOnce()
+      wrapper.unmount()
+    },
+  )
+  it('ignores a late settlement response after leaving the full route', async () => {
+    const wrapper = await renderManage()
+    let resolveSettlement: (() => void) | undefined
+    apiFetch.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        resolveSettlement = resolve
+      })
+      return {}
+    })
+    const button = wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Закрыть запись и распределить')!
+    await button.trigger('click')
+    resolveConfirmation?.(true)
+    await flushPromises()
+    routerRoute.value.fullPath = '/m/orgs/30/events/71/edit'
+    resolveSettlement?.()
+    await flushPromises()
+    expect(refreshEvent).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+  it('keeps pricing after failed settlement and provides an event GET retry', async () => {
+    const wrapper = await renderManage()
+    apiFetch.mockRejectedValueOnce(new Error('conflict'))
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Закрыть запись и распределить')!
+      .trigger('click')
+    resolveConfirmation?.(true)
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toContain('Обновите событие')
+    expect(wrapper.text()).toContain('100,00')
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Обновить событие')!
+      .trigger('click')
+    expect(refreshEvent).toHaveBeenCalledOnce()
+    wrapper.unmount()
+  })
+  it.each(['edit', 'org', 'event', 'unmount'])(
+    'settlement_is_guarded_by_full_route_and_lifecycle: %s',
+    async (change) => {
+      const wrapper = await renderManage()
+      await wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'Закрыть запись и распределить')!
+        .trigger('click')
+      expect(confirm).toHaveBeenCalledWith(expect.stringContaining('100'))
+      if (change === 'edit') routerRoute.value.fullPath = '/m/orgs/30/events/71/edit'
+      if (change === 'org')
+        routerRoute.value = {
+          params: { orgId: '31', eventId: '71' },
+          fullPath: '/m/orgs/31/events/71/manage',
+        }
+      if (change === 'event')
+        routerRoute.value = {
+          params: { orgId: '30', eventId: '72' },
+          fullPath: '/m/orgs/30/events/72/manage',
+        }
+      if (change === 'unmount') wrapper.unmount()
+      resolveConfirmation?.(true)
+      await flushPromises()
+      expect(apiFetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toEqual([])
+      if (change !== 'unmount') wrapper.unmount()
+    },
+  )
+  it('coalesces double settlement confirmation into one POST and cancel sends none', async () => {
+    const wrapper = await renderManage()
+    const settle = wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Закрыть запись и распределить')!
+    await settle.trigger('click')
+    await settle.trigger('click')
+    expect(confirm).toHaveBeenCalledTimes(1)
+    resolveConfirmation?.(false)
+    await flushPromises()
+    expect(apiFetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toEqual([])
+    await settle.trigger('click')
+    resolveConfirmation?.(true)
+    await flushPromises()
+    expect(
+      apiFetch.mock.calls.filter(
+        ([url, options]) => url.endsWith('/settle') && options?.method === 'POST',
+      ),
+    ).toHaveLength(1)
+    wrapper.unmount()
+  })
   it('offers attendance marking after the event starts and hides future-only controls', async () => {
     vi.setSystemTime(new Date('2027-09-27T20:00:00.000Z'))
     const wrapper = await renderManage()

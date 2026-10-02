@@ -45,6 +45,10 @@ export default defineConfig({
         },
       },
       {
+        plugins: [vue()],
+        resolve: {
+          alias: { '~': fileURLToPath(new URL('./apps/web/app', import.meta.url)) },
+        },
         test: {
           ...shared,
           name: 'integration',

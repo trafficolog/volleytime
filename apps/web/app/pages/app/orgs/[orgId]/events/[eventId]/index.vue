@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import type { EventBookingRow } from '@volley-time/core'
 import type { Event } from '@volley-time/db'
-import { formatDay, formatTime } from '@volley-time/shared'
+import {
+  formatDay,
+  formatTime,
+  type EventPricingView,
+  type PricingFinancials,
+  type PricingPermissions,
+} from '@volley-time/shared'
 
 import { canSubmitDesktopEventAction } from '~/utils/desktop-event-actions'
 import {
@@ -10,17 +16,27 @@ import {
   EVENT_STATUS_LABELS,
   displayName,
   formatPrice,
+  formatMoneyRu,
 } from '~/utils/labels'
 
 definePageMeta({ layout: 'desktop-org', middleware: ['auth'] })
 
 const route = useRoute()
+const router = useRouter()
+const mountedPath = route.fullPath
 const orgId = computed(() => Number(route.params.orgId))
 const eventId = computed(() => Number(route.params.eventId))
 const base = computed(() => `/app/orgs/${orgId.value}/events`)
 const { tz } = useOrgTimezone(orgId)
 const { data, pending, error, refresh } = await useFetch<{
-  event: Event & { taken: number; waitlist: number; venue: { name: string } | null }
+  event: Event & {
+    taken: number
+    waitlist: number
+    venue: { name: string } | null
+    pricing: EventPricingView
+    pricingPermissions?: PricingPermissions
+    pricingFinancials?: PricingFinancials
+  }
 }>(() => `/api/organizations/${orgId.value}/events/${eventId.value}`, {
   key: () => `desktop-event-${orgId.value}-${eventId.value}`,
 })
@@ -35,6 +51,7 @@ const rosterLoading = ref(false)
 const rosterError = ref('')
 const actionError = ref('')
 const busy = ref(false)
+let settlementOperation = 0
 let generation = 0
 let alive = true
 
@@ -95,6 +112,54 @@ const inRoster = computed(() =>
 )
 const waitlist = computed(() => rows.value.filter((booking) => booking.status === 'waitlisted'))
 const started = computed(() => !!event.value && new Date(event.value.startsAt) <= new Date())
+
+function settlementRouteCurrent(targetOrgId: number, targetEventId: number) {
+  const current = router.currentRoute.value
+  return (
+    alive &&
+    current.fullPath === mountedPath &&
+    route.fullPath === mountedPath &&
+    Number(current.params.orgId) === targetOrgId &&
+    Number(current.params.eventId) === targetEventId
+  )
+}
+
+async function settlePricing() {
+  const target = event.value
+  if (
+    !target?.pricingPermissions?.canSettle ||
+    busy.value ||
+    !settlementRouteCurrent(target.organizationId, target.id)
+  )
+    return
+  const operation = ++settlementOperation
+  busy.value = true
+  actionError.value = ''
+  try {
+    const ok = window.confirm(
+      `Закрыть запись и распределить ${formatMoneyRu(target.pricing.targetAmount ?? 0, target.currency)} между ${target.taken} участниками? Доли будут зафиксированы; лист ожидания не участвует. Состав и суммы окончательно проверит сервер.`,
+    )
+    if (
+      !ok ||
+      !settlementRouteCurrent(target.organizationId, target.id) ||
+      !event.value?.pricingPermissions?.canSettle
+    )
+      return
+    await $fetch(`/api/organizations/${target.organizationId}/events/${target.id}/settle`, {
+      method: 'POST',
+    })
+    if (settlementRouteCurrent(target.organizationId, target.id))
+      await Promise.all([refresh(), loadRoster()])
+  } catch (cause) {
+    if (settlementRouteCurrent(target.organizationId, target.id))
+      actionError.value = apiErrorMessage(
+        cause,
+        'Не удалось распределить сумму. Обновите событие и попробуйте снова.',
+      )
+  } finally {
+    if (alive && operation === settlementOperation) busy.value = false
+  }
+}
 
 async function afterAction(targetOrgId: number, targetEventId: number) {
   if (!alive || route.path !== livePath(targetOrgId, targetEventId)) return
@@ -215,7 +280,10 @@ async function removeBooking(booking: EventBookingRow) {
         </div>
         <div class="vt-card">
           <strong class="vt-mono">{{
-            inRoster.filter((b) => b.status === 'pending_payment').length
+            rosterLoading || rosterError
+              ? '—'
+              : inRoster.filter((b) => b.status === 'pending_payment' && b.paymentId !== null)
+                  .length
           }}</strong
           ><span>Ждут оплаты</span>
         </div>
@@ -224,7 +292,11 @@ async function removeBooking(booking: EventBookingRow) {
           ><span>В ожидании</span>
         </div>
         <div class="vt-card">
-          <strong class="vt-mono">{{ formatPrice(event.price, event.currency) }}</strong
+          <strong class="vt-mono">{{
+            event.pricing?.mode === 'split'
+              ? 'После закрытия'
+              : formatPrice(event.price, event.currency)
+          }}</strong
           ><span>Цена участия</span>
         </div>
       </div>
@@ -239,6 +311,24 @@ async function removeBooking(booking: EventBookingRow) {
         {{ event.description }}
       </p>
       <p v-if="actionError" class="text-vt-rose-ink" role="alert">{{ actionError }}</p>
+      <button
+        v-if="actionError && event.pricing?.mode === 'split'"
+        class="vt-btn vt-btn--ghost"
+        type="button"
+        :disabled="busy"
+        @click="refresh()"
+      >
+        Обновить событие
+      </button>
+      <EventPricingPanel
+        v-if="event.pricing?.mode === 'split'"
+        :pricing="event.pricing"
+        :financials="event.pricingFinancials ?? null"
+        :currency="event.currency"
+        :can-settle="event.pricingPermissions?.canSettle === true"
+        :pending="busy"
+        @settle="settlePricing"
+      />
 
       <section
         class="vt-card vt-desktop-event-detail__roster"
@@ -260,7 +350,13 @@ async function removeBooking(booking: EventBookingRow) {
               <strong>{{ displayName(booking.user) }}</strong>
               <span>{{ BOOKING_METHOD_LABELS[booking.method] ?? booking.method }}</span>
             </div>
-            <span>{{ BOOKING_STATUS_LABELS[booking.status] ?? booking.status }}</span>
+            <span>{{
+              booking.status === 'pending_payment' &&
+              !booking.paymentId &&
+              event.pricing?.mode === 'split'
+                ? 'Сумма после закрытия'
+                : (BOOKING_STATUS_LABELS[booking.status] ?? booking.status)
+            }}</span>
             <div class="vt-desktop-event-detail__actions">
               <template
                 v-if="
