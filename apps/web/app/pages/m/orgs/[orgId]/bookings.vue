@@ -27,7 +27,9 @@ const loadError = ref('')
 const accessNotice = ref<ReturnType<typeof playerAccessFromApiError>>(null)
 const actionError = ref('')
 const cancelling = ref<number | null>(null)
-const cancellationGuard = createPlayerRequestGuard(() => `${orgId.value}:${filter.value}`)
+const cancellationGuard = createPlayerRequestGuard(
+  () => `${route.fullPath}:${orgId.value}:${filter.value}`,
+)
 const loadView = createPlayerBookingsLoader<MyBooking>(
   () => orgId.value,
   () => filter.value,
@@ -45,38 +47,55 @@ const loadView = createPlayerBookingsLoader<MyBooking>(
     ),
 )
 let currentLoad: ReturnType<typeof loadView> | null = null
+let alive = true
+let currentViewKey: string | null = `${orgId.value}:${filter.value}`
+const pathname = () => route.fullPath.split(/[?#]/, 1)[0]
 
 async function load() {
+  if (!alive) return
+  const requestedPath = pathname()
   const request = loadView()
   currentLoad = request
+  const isCurrentLoad = () => alive && currentLoad === request && pathname() === requestedPath
   loading.value = true
   loadError.value = ''
   accessNotice.value = null
   try {
     const result = await request
-    if (result.stale) return
+    if (result.stale || !isCurrentLoad()) return
     items.value = result.bookings
   } catch (e) {
-    if (currentLoad === request) {
+    if (isCurrentLoad()) {
       loadError.value = apiErrorMessage(e, 'Не удалось загрузить записи')
       accessNotice.value = playerAccessFromApiError(apiErrorCode(e))
     }
   } finally {
-    if (currentLoad === request) loading.value = false
+    if (isCurrentLoad()) loading.value = false
   }
 }
-await load()
 watch(
-  [orgId, filter],
+  [orgId, filter, () => route.fullPath],
   () => {
     cancellationGuard.invalidate()
-    items.value = []
     actionError.value = ''
     cancelling.value = null
-    void load()
+    const nextViewKey =
+      pathname() === `/m/orgs/${orgId.value}/bookings` ? `${orgId.value}:${filter.value}` : null
+    if (nextViewKey === currentViewKey) return
+    currentViewKey = nextViewKey
+    currentLoad = null
+    loading.value = false
+    items.value = []
+    if (nextViewKey !== null) void load()
   },
   { flush: 'sync' },
 )
+onUnmounted(() => {
+  alive = false
+  currentLoad = null
+  cancellationGuard.invalidate()
+})
+await load()
 
 const TONE: Record<string, 'grass' | 'amber' | 'default' | 'rose'> = {
   confirmed: 'grass',
@@ -91,11 +110,13 @@ async function onCancel(b: MyBooking) {
   const request = cancellationGuard.begin()
   actionError.value = ''
   if (!(await confirm(`Отменить запись на «${b.event.title}»?`))) return
-  if (!request.isCurrent() || !items.value.some((item) => item.id === b.id)) return
+  if (!request.isCurrent()) return
+  const currentBooking = items.value.find((item) => item.id === b.id)
+  if (!currentBooking || !canCancel(currentBooking)) return
   cancelling.value = b.id
   const requestedOrgId = orgId.value
   const outcome = await runPlayerBookingCancellation(
-    bookingPolicy(b),
+    bookingPolicy(currentBooking),
     new Date(),
     (bookingId) =>
       $fetch<void>(`/api/organizations/${requestedOrgId}/bookings/${bookingId}/cancel` as string, {
@@ -109,6 +130,7 @@ async function onCancel(b: MyBooking) {
   } else if (outcome.kind === 'error') {
     haptic('error')
     actionError.value = apiErrorMessage(outcome.error, 'Не удалось отменить запись')
+    if (request.isCurrent()) await load()
   } else if (outcome.kind === 'blocked') {
     actionError.value = 'Отменить запись уже нельзя — прошёл дедлайн отмены.'
   }

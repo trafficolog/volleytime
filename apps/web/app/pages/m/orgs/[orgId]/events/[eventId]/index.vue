@@ -122,6 +122,13 @@ const cancelDeadline = computed(() => {
   )
 })
 const canCancel = computed(() => eventView.value?.canCancel === true)
+const noCancelExplanation = computed(() => {
+  if (ev.value?.pricing.mode === 'split' && ev.value.pricing.myAllocatedAmount !== null)
+    return 'Доля зафиксирована — для отмены напишите организатору.'
+  if (cancelDeadline.value && new Date() > cancelDeadline.value)
+    return 'Дедлайн отмены прошёл — если не сможете прийти, напишите организатору.'
+  return 'Самостоятельная отмена недоступна — напишите организатору.'
+})
 
 // выбор способа
 const sheetOpen = ref(false)
@@ -457,11 +464,7 @@ async function cancelMine() {
           v-else-if="['confirmed', 'pending_payment', 'waitlisted'].includes(my.status) && !started"
           class="text-xs text-vt-mute-2 mt-3"
         >
-          {{
-            ev.pricing.mode === 'split' && ev.pricing.settledAt
-              ? 'Доля зафиксирована — для отмены напишите организатору.'
-              : 'Дедлайн отмены прошёл — если не сможете прийти, напишите организатору.'
-          }}
+          {{ noCancelExplanation }}
         </p>
       </section>
 

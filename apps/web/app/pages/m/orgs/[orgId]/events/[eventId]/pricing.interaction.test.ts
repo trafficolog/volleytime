@@ -46,7 +46,7 @@ const fixture = () => ({
   price: 0,
   currency: 'BYN',
   description: null,
-  cancellationDeadlineHours: null,
+  cancellationDeadlineHours: null as number | null,
   venue: null,
   locationText: null,
   pricing: { ...pricing },
@@ -125,6 +125,37 @@ async function renderPage() {
   await flushPromises()
   return wrapper
 }
+async function renderBookings() {
+  route.fullPath = `/m/orgs/${route.params.orgId}/bookings`
+  const wrapper = mount(
+    defineComponent({ render: () => h(Suspense, null, { default: () => h(Bookings) }) }),
+    {
+      global: {
+        stubs: {
+          NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
+          VtMiniHeader: true,
+          VtChip: { template: '<span><slot /></span>' },
+          PlayerAccessNotice: true,
+          SkeletonList: true,
+          EmptyState: true,
+          ErrorState: {
+            props: ['message'],
+            template: '<div role="alert">{{ message }}</div>',
+          },
+        },
+      },
+    },
+  )
+  await flushPromises()
+  return wrapper
+}
+const cancellableBooking = () => ({
+  id: 5,
+  organizationId: 30,
+  status: 'confirmed',
+  pricing: { ...pricing },
+  event: fixture(),
+})
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date('2026-10-02T12:00:00Z'))
@@ -376,6 +407,288 @@ describe('player split pricing interactions', () => {
     expect(wrapper.text()).not.toContain('Бесплатно')
     wrapper.unmount()
   })
+  it.each(['sibling route', 'unmount'] as const)(
+    'my bookings aborts pending cancellation confirmation after %s',
+    async (exit) => {
+      apiFetch.mockResolvedValueOnce({ bookings: [cancellableBooking()] })
+      let answer!: (value: boolean) => void
+      confirm.mockImplementationOnce(
+        () =>
+          new Promise<boolean>((resolve) => {
+            answer = resolve
+          }),
+      )
+      const wrapper = await renderBookings()
+      await wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'Отменить запись')!
+        .trigger('click')
+      if (exit === 'sibling route') {
+        route.fullPath = '/m/orgs/30/events'
+      } else {
+        wrapper.unmount()
+      }
+      answer(true)
+      await flushPromises()
+      expect(apiFetch.mock.calls.filter(([url]) => String(url).endsWith('/cancel'))).toHaveLength(0)
+      expect(
+        apiFetch.mock.calls.filter(([url]) => String(url).endsWith('/bookings/my')),
+      ).toHaveLength(1)
+      if (exit !== 'unmount') wrapper.unmount()
+    },
+  )
+  it('my bookings rechecks a settled same-ID row after confirmation', async () => {
+    apiFetch.mockResolvedValueOnce({ bookings: [cancellableBooking()] })
+    let answer!: (value: boolean) => void
+    confirm.mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolve) => {
+          answer = resolve
+        }),
+    )
+    const wrapper = await renderBookings()
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Отменить запись')!
+      .trigger('click')
+    apiFetch.mockResolvedValueOnce({
+      bookings: [
+        {
+          ...cancellableBooking(),
+          pricing: { ...pricing, myAllocatedAmount: 3334, basis: 'settled' },
+        },
+      ],
+    })
+    const page = wrapper.findComponent(Bookings).vm as unknown as {
+      $: { setupState: { load: () => Promise<void> } }
+    }
+    await page.$.setupState.load()
+    await flushPromises()
+    expect(wrapper.text()).toContain('33,34 BYN')
+    answer(true)
+    await flushPromises()
+    expect(apiFetch.mock.calls.filter(([url]) => String(url).endsWith('/cancel'))).toHaveLength(0)
+    wrapper.unmount()
+  })
+  it('my bookings refreshes the row after a late server cancellation refusal', async () => {
+    apiFetch.mockResolvedValueOnce({ bookings: [cancellableBooking()] })
+    const wrapper = await renderBookings()
+    apiFetch.mockRejectedValueOnce(new Error('booking.settled'))
+    apiFetch.mockResolvedValueOnce({
+      bookings: [
+        {
+          ...cancellableBooking(),
+          pricing: { ...pricing, myAllocatedAmount: 3334, basis: 'settled' },
+        },
+      ],
+    })
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Отменить запись')!
+      .trigger('click')
+    await flushPromises()
+    expect(
+      apiFetch.mock.calls.filter(([url]) => String(url).endsWith('/bookings/my')),
+    ).toHaveLength(2)
+    expect(wrapper.text()).toContain('33,34 BYN')
+    expect(wrapper.text()).not.toContain('≈')
+    expect(wrapper.findAll('button').some((button) => button.text() === 'Отменить запись')).toBe(
+      false,
+    )
+    wrapper.unmount()
+  })
+  it('my bookings does not refetch after a refusal on an abandoned route', async () => {
+    apiFetch.mockResolvedValueOnce({ bookings: [cancellableBooking()] })
+    const wrapper = await renderBookings()
+    let refuse!: (error: Error) => void
+    apiFetch.mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          refuse = reject
+        }),
+    )
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Отменить запись')!
+      .trigger('click')
+    route.fullPath = '/m/orgs/30/events'
+    refuse(new Error('booking.settled'))
+    await flushPromises()
+    expect(
+      apiFetch.mock.calls.filter(([url]) => String(url).endsWith('/bookings/my')),
+    ).toHaveLength(1)
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+  it.each(['sibling route', 'leave and return'] as const)(
+    'my bookings discards a refusal refresh held across %s',
+    async (navigation) => {
+      apiFetch.mockResolvedValueOnce({ bookings: [cancellableBooking()] })
+      const wrapper = await renderBookings()
+      apiFetch.mockRejectedValueOnce(new Error('booking.settled'))
+      let finishRefresh!: (value: Record<string, unknown>) => void
+      apiFetch.mockImplementationOnce(
+        () =>
+          new Promise<Record<string, unknown>>((resolve) => {
+            finishRefresh = resolve
+          }),
+      )
+      await wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'Отменить запись')!
+        .trigger('click')
+      await flushPromises()
+      expect(
+        apiFetch.mock.calls.filter(([url]) => String(url).endsWith('/bookings/my')),
+      ).toHaveLength(2)
+      route.fullPath = '/m/orgs/30/events'
+      await flushPromises()
+      if (navigation === 'leave and return') {
+        apiFetch.mockResolvedValueOnce({ bookings: [cancellableBooking()] })
+        route.fullPath = '/m/orgs/30/bookings'
+        await flushPromises()
+      }
+      finishRefresh({
+        bookings: [
+          {
+            ...cancellableBooking(),
+            pricing: {
+              ...pricing,
+              basis: 'settled',
+              myAllocatedAmount: 3334,
+              myPaymentStatus: 'refunded',
+            },
+          },
+        ],
+      })
+      await flushPromises()
+      expect(wrapper.text()).not.toContain('Возвращено')
+      expect(
+        apiFetch.mock.calls.filter(([url]) => String(url).endsWith('/bookings/my')),
+      ).toHaveLength(navigation === 'leave and return' ? 3 : 2)
+      wrapper.unmount()
+    },
+  )
+  it.each(['params first', 'path first', 'same tick'] as const)(
+    'my bookings loads the destination organization when route updates %s',
+    async (ordering) => {
+      apiFetch.mockResolvedValueOnce({ bookings: [cancellableBooking()] })
+      const wrapper = await renderBookings()
+      try {
+        let finishDestination!: (value: Record<string, unknown>) => void
+        apiFetch.mockImplementationOnce(
+          () =>
+            new Promise<Record<string, unknown>>((resolve) => {
+              finishDestination = resolve
+            }),
+        )
+        if (ordering === 'path first') {
+          route.fullPath = '/m/orgs/31/bookings'
+          await flushPromises()
+          route.params.orgId = '31'
+        } else {
+          route.params.orgId = '31'
+          if (ordering === 'params first') await flushPromises()
+          route.fullPath = '/m/orgs/31/bookings'
+        }
+        finishDestination({
+          bookings: [
+            {
+              ...cancellableBooking(),
+              organizationId: 31,
+              event: { ...fixture(), organizationId: 31, title: 'Новая группа' },
+            },
+          ],
+        })
+        await flushPromises()
+        expect(apiFetch.mock.calls.map(([url]) => url)).toEqual([
+          '/api/organizations/30/bookings/my',
+          '/api/organizations/31/bookings/my',
+        ])
+        expect(wrapper.text()).toContain('Новая группа')
+        expect(wrapper.text()).not.toContain('Тренировка')
+      } finally {
+        wrapper.unmount()
+      }
+    },
+  )
+  it('my bookings ignores a late GET error after leaving the route', async () => {
+    apiFetch.mockResolvedValueOnce({ bookings: [cancellableBooking()] })
+    const wrapper = await renderBookings()
+    let failRefresh!: (error: Error) => void
+    apiFetch.mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          failRefresh = reject
+        }),
+    )
+    const page = wrapper.findComponent(Bookings).vm as unknown as {
+      $: { setupState: { load: () => Promise<void> } }
+    }
+    const pending = page.$.setupState.load()
+    route.fullPath = '/m/orgs/30/events'
+    failRefresh(new Error('late GET failed'))
+    await pending
+    await flushPromises()
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(
+      apiFetch.mock.calls.filter(([url]) => String(url).endsWith('/bookings/my')),
+    ).toHaveLength(2)
+    wrapper.unmount()
+  })
+  it.each(['?period=upcoming', '#top'] as const)(
+    'my bookings aborts pending confirmation after fullPath %s change',
+    async (suffix) => {
+      apiFetch.mockResolvedValueOnce({ bookings: [cancellableBooking()] })
+      let answer!: (value: boolean) => void
+      confirm.mockImplementationOnce(
+        () =>
+          new Promise<boolean>((resolve) => {
+            answer = resolve
+          }),
+      )
+      const wrapper = await renderBookings()
+      await wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'Отменить запись')!
+        .trigger('click')
+      route.fullPath += suffix
+      answer(true)
+      await flushPromises()
+      expect(apiFetch.mock.calls.filter(([url]) => String(url).endsWith('/cancel'))).toHaveLength(0)
+      expect(
+        apiFetch.mock.calls.filter(([url]) => String(url).endsWith('/bookings/my')),
+      ).toHaveLength(1)
+      wrapper.unmount()
+    },
+  )
+  it('my bookings aborts pending confirmation after filter change', async () => {
+    apiFetch.mockResolvedValueOnce({ bookings: [cancellableBooking()] })
+    let answer!: (value: boolean) => void
+    confirm.mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolve) => {
+          answer = resolve
+        }),
+    )
+    const wrapper = await renderBookings()
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Отменить запись')!
+      .trigger('click')
+    apiFetch.mockResolvedValueOnce({ bookings: [] })
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Прошедшие')!
+      .trigger('click')
+    answer(true)
+    await flushPromises()
+    expect(apiFetch.mock.calls.filter(([url]) => String(url).endsWith('/cancel'))).toHaveLength(0)
+    expect(
+      apiFetch.mock.calls.filter(([url]) => String(url).endsWith('/bookings/my')),
+    ).toHaveLength(2)
+    wrapper.unmount()
+  })
   it.each(['cash', 'transfer'] as const)(
     'split_booking_allows_only_cash_or_transfer: %s reaches the API',
     async (method) => {
@@ -503,6 +816,28 @@ describe('player split pricing interactions', () => {
     const wrapper = await renderPage()
     expect(wrapper.find('[aria-label="Ваша запись"]').text()).toContain('Начисления нет')
     expect(wrapper.text()).not.toContain('Оплачено')
+    wrapper.unmount()
+  })
+  it('settled waitlist after cancellation deadline does not claim an allocated share', async () => {
+    data.value.event.startsAt = '2026-10-03T16:00:00Z'
+    data.value.event.cancellationDeadlineHours = 48
+    data.value.event.pricing = {
+      ...pricing,
+      basis: 'settled',
+      settledAt: '2026-10-02T11:00:00Z',
+      myAllocatedAmount: null,
+    }
+    data.value.event.myBooking = {
+      id: 5,
+      status: 'waitlisted',
+      method: 'transfer',
+      paymentId: null,
+    }
+    const wrapper = await renderPage()
+    const own = wrapper.find('[aria-label="Ваша запись"]').text()
+    expect(own).toContain('Начисления нет')
+    expect(own).toContain('Дедлайн отмены прошёл')
+    expect(own).not.toContain('Доля зафиксирована')
     wrapper.unmount()
   })
   it('fixed free booking still submits free directly', async () => {
