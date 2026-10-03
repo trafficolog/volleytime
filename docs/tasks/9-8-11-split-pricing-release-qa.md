@@ -5,7 +5,7 @@ epic: '9.8'
 status: in_progress
 release: 'v0.1.7'
 last_reviewed: 2026-10-03
-status_note: 'Локальный code checkpoint Task 7 продолжается: после stop требуется доказанный drain PostgreSQL backend sessions всех owned writers. Пользователь остановил QA runtime 3317; build разрешён после собственного listener check. Review/CI/deployment/manual acceptance открыты; статус in_progress до live evidence.'
+status_note: 'Task 7 review fix round1: I1 hostname overrides/ambiguous attached-network DNS failclosed; I2 exact configured PostgreSQL service ID/endpoint proof portable to CI. Предыдущий local checkpoint ed0def9 не принят до исправлений; статус in_progress, review/CI/integrated/live acceptance открыты. QA runtime3317 остановлен пользователем; build только после свежего listener check.'
 roles: [QA, DEVOPS]
 depends_on: ['8.11.2', '6.11.2']
 tags: [mvp, split, release, production, telegram]
@@ -35,6 +35,7 @@ tags: [mvp, split, release, production, telegram]
 - Перечисленные реальные проверки подтверждены отдельно; repository tests не подменяют production dump/health/Telegram результаты.
 - Dangerous rollback на fixed-only версию при split-данных блокируется; рабочие старые образы/backup сохраняются. Не выполнять DB restore или удаление данных ради rollback.
 - Повторный recovery сохраняет все additional writer network snapshots неудачных попыток и доказывает drain полного union до любого restart; validator failclosed не отключается Python optimization.
+- Review I1: override hostname postgres через ExtraHosts и ambiguous DNS aliases на любых attached networks запрещают guard до stop; нормальные frontend+backend web/bot остаются допустимы. Review I2: реальные PG race tests используют явный exact POSTGRES_TEST_CONTAINER_ID (Actions service ID или настроенный local ID), проверяют database/image/container identity и соответствие configured endpoint реальному transport; arbitrary discovery/skip запрещены.
 - По прямому решению пользователя тяжёлые одиночные shell deploy/rollback/recovery проверки получают явный per-test бюджет 35000ms для ограниченной локальной конфигурации; multi-operation 60000ms сохраняется. Production timeouts и assertions не меняются, глобальный Vitest override не используется.
 - Детерминированный DB race: container reports stopped, но реальный writer PostgreSQL backend ещё жив/queued — guard не разрешает query/switch до доказанного drain; in-flight split до stop либо commit до authoritative query (old rejected), либо rollback. Позднее capture→stop соединение тоже drained; unrelated PG session выживает. Новый split не commit в guard→old activation window. Shell contracts доказывают stop всех writers/duplicate/scaled, IPv4/IPv6 ownership/topology failclosed, writer/backend recheck, неизменный runtime до stop failure и recovery только captured compatible current runtime после stop query/incompatibility/activation failure. Fake Docker evidence отдельно от реальной PostgreSQL race.
 - Отдельные checkpoint: local/code acceptance + свежий review + exact-head CI допускают Task 7 merge, но статус остаётся in_progress с открытыми deploy/manual критериями; exact integrated-main gates/review/CI предшествуют promotion/deploy, финальные Telegram/pilot evidence предшествуют done/tag/Release.

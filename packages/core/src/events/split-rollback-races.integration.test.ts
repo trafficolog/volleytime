@@ -1,9 +1,12 @@
-import { spawn, spawnSync } from 'node:child_process'
-import { createRequire } from 'node:module'
+import { spawn } from 'node:child_process'
 
 import { closeDb, db, eq, events, organizations, sql, users } from '@volley-time/db'
 import { afterAll, describe, expect, it } from 'vitest'
 
+import {
+  postgresTestClient as postgres,
+  postgresTestTransport,
+} from '../__tests__/split-rollback-postgres-transport'
 import { splitRollbackFixture } from '../__tests__/split-rollback-shell-fixture'
 import { organizationService } from '../organizations/service'
 
@@ -23,44 +26,6 @@ function barrier() {
 }
 
 // Isolate killed runtime connections from the shared application test pool.
-const require = createRequire(import.meta.url)
-const postgres = require(
-  require.resolve('postgres', { paths: [require.resolve('@volley-time/db')] }),
-) as (url: string, options: Record<string, unknown>) => typeof db.$client
-
-function testPsql(query: string) {
-  const inspected = spawnSync(
-    'docker',
-    ['inspect', '--format', '{{.Id}}|{{.Config.Image}}|{{.State.Running}}', 'volleytime_postgres'],
-    { encoding: 'utf8' },
-  )
-  expect(inspected.status, inspected.stderr).toBe(0)
-  const [id, image, running] = inspected.stdout.trim().split('|')
-  expect(id).toMatch(/^[0-9a-f]{64}$/)
-  expect(image).toBe('postgres:16-alpine')
-  expect(running).toBe('true')
-  const args = [
-    'exec',
-    id!,
-    'psql',
-    '-X',
-    '-U',
-    'postgres',
-    '-d',
-    'volleytime_test',
-    '-v',
-    'ON_ERROR_STOP=1',
-    '-Atc',
-  ]
-  const verified = spawnSync('docker', [...args, 'SELECT current_database();'], {
-    encoding: 'utf8',
-  })
-  expect(verified.stdout.trim()).toBe('volleytime_test')
-  const result = spawnSync('docker', [...args, query], { encoding: 'utf8' })
-  if (result.status !== 0) throw new Error(result.stderr)
-  return result.stdout.trim()
-}
-
 describe(
   'split rollback races (real PostgreSQL, simulated container stop)',
   { timeout: 30_000 },
@@ -70,38 +35,8 @@ describe(
       'stopped_container_requires_actual_backend_drain_and_preserves_unrelated_session: %s',
       async (connectionTime) => {
         // Explicitly authorized test-only container; never discover or operate app containers.
-        const inspected = spawnSync(
-          'docker',
-          [
-            'inspect',
-            '--format',
-            '{{.Id}}|{{.Config.Image}}|{{.State.Running}}',
-            'volleytime_postgres',
-          ],
-          { encoding: 'utf8' },
-        )
-        expect(inspected.status, inspected.stderr).toBe(0)
-        const [container, image, running] = inspected.stdout.trim().split('|')
-        expect(container).toMatch(/^[0-9a-f]{64}$/)
-        expect(image).toBe('postgres:16-alpine')
-        expect(running).toBe('true')
-        const psqlArgs = [
-          'exec',
-          '-i',
-          container!,
-          'psql',
-          '-X',
-          '-U',
-          'postgres',
-          '-d',
-          'volleytime_test',
-          '-At',
-        ]
-        const verified = spawnSync('docker', [...psqlArgs, '-c', 'SELECT current_database();'], {
-          encoding: 'utf8',
-        })
-        expect(verified.status, verified.stderr).toBe(0)
-        expect(verified.stdout.trim()).toBe('volleytime_test')
+        const transport = await postgresTestTransport()
+        const { psqlArgs } = transport
         const f = await splitRollbackFixture()
         // Mock production ownership uses one real loopback runtime address; host pool is unrelated.
         f.addresses = ['127.0.0.1']
@@ -173,9 +108,7 @@ describe(
                   await db.execute(sql`SELECT pid FROM pg_stat_activity WHERE pid=${pid}`),
                   'authoritative query requires actual backend exit',
                 ).toHaveLength(0)
-              const result = spawnSync('docker', [...psqlArgs, '-c', query], { encoding: 'utf8' })
-              if (result.status !== 0) throw new Error(result.stderr)
-              return result.stdout.trim()
+              return transport.query(query)
             }
           }
           const result = await f.run()
@@ -202,6 +135,7 @@ describe(
     it.each(['commit', 'terminate'] as const)(
       'inflight_split_before_stop_is_seen_or_rolled_back: %s',
       async (finish) => {
+        const transport = await postgresTestTransport()
         const f = await splitRollbackFixture()
         const [owner] = await db
           .insert(users)
@@ -252,7 +186,7 @@ describe(
               return ''
             }
             if (args.includes('psql')) {
-              return testPsql(args.at(-1)!)
+              return transport.query(args.at(-1)!)
             }
           }
           const result = await f.run()
@@ -281,6 +215,7 @@ describe(
     )
 
     it('split_cannot_commit_between_guard_and_old_activation', async () => {
+      const transport = await postgresTestTransport()
       const f = await splitRollbackFixture()
       const [owner] = await db
         .insert(users)
@@ -335,7 +270,7 @@ describe(
             return ''
           }
           if (args.includes('psql')) {
-            return testPsql(args.at(-1)!)
+            return transport.query(args.at(-1)!)
           }
         }
         const result = await f.run()

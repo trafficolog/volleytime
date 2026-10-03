@@ -18,7 +18,7 @@ if [ "$1" = inspect ] && [ "$2" != --format ]; then
   shift; printf '['; separator=''
   for id in "$@"; do
     service=web; octet=3; running=true
-    if [ "$id" = vt_postgres ]; then id="$(printf '%064d' 4)"; service=postgres; octet=2
+    if [ "$id" = vt_postgres ] || [ "$id" = "$(printf '%064d' 4)" ]; then id="$(printf '%064d' 4)"; service=postgres; octet=2
     elif [ "$id" = "$(rollback_id bot)" ]; then service=bot; octet=4
     elif [ "$id" = "$(printf '%064d' 3)" ]; then octet=5; fi
     if [ "$service" != postgres ] && [ -f "$ROOT_PATH/.deploy/writers-stopped" ]; then running=false; fi

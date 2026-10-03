@@ -40,6 +40,11 @@ export async function splitRollbackFixture() {
   let preflightError = false
   let writerAfterQuery = false
   let stopError = false
+  let extraHosts: string[] = []
+  let ambiguousPostgresAlias = false
+  let ambiguousOtherPostgresAlias = false
+  const frontendId = 'a'.repeat(64)
+  const caddyId = 'f'.repeat(64)
   let ownedAddresses: string[] | undefined
   const networkId = 'd'.repeat(64)
   const pgId = 'e'.repeat(64)
@@ -73,15 +78,31 @@ export async function splitRollbackFixture() {
     if (args[0] === 'inspect') {
       if (args[1] !== '--format') {
         const inspected = args.slice(1).map((id) => {
+          if (id === caddyId)
+            return {
+              Id: caddyId,
+              Name: '/vt_caddy',
+              State: { Running: true },
+              NetworkSettings: {
+                Networks: {
+                  volleytime_frontend: {
+                    NetworkID: frontendId,
+                    Aliases: [ambiguousOtherPostgresAlias ? 'postgres' : 'caddy'],
+                    IPAddress: '172.21.0.9',
+                    GlobalIPv6Address: '',
+                  },
+                },
+              },
+            }
           const index = containers.findIndex((c) => c.id === id)
-          const isPg = id === 'vt_postgres'
+          const isPg = id === 'vt_postgres' || id === pgId
           if (!isPg && index < 0) throw new Error('Unknown fake container identity')
           const c = containers[index]
           const addresses = isPg ? ['172.20.0.2', 'fd00::2'] : containerAddresses(index)
           return {
             Id: isPg ? pgId : c!.id,
             State: { Running: isPg || c!.running },
-            HostConfig: { NetworkMode: 'volleytime_backend' },
+            HostConfig: { NetworkMode: 'volleytime_backend', ExtraHosts: isPg ? [] : extraHosts },
             Config: {
               Labels: {
                 'com.docker.compose.project': 'volleytime',
@@ -92,6 +113,16 @@ export async function splitRollbackFixture() {
             NetworkSettings: {
               Ports: {},
               Networks: {
+                ...(!isPg
+                  ? {
+                      volleytime_frontend: {
+                        NetworkID: frontendId,
+                        Aliases: [ambiguousPostgresAlias ? 'postgres' : c!.service],
+                        IPAddress: `172.21.0.${index + 3}`,
+                        GlobalIPv6Address: '',
+                      },
+                    }
+                  : {}),
                 volleytime_backend: {
                   NetworkID: networkId,
                   Aliases: [isPg ? 'postgres' : c!.service],
@@ -122,7 +153,25 @@ export async function splitRollbackFixture() {
           ),
         },
       }
-      return [0, JSON.stringify([networkTransform?.(value) ?? value])]
+      const frontend = {
+        Id: frontendId,
+        Driver: 'bridge',
+        Scope: 'local',
+        Containers: {
+          [caddyId]: member(['172.21.0.9']),
+          ...Object.fromEntries(
+            containers.map((c, index) => [c.id, member([`172.21.0.${index + 3}`])]),
+          ),
+        },
+      }
+      return [
+        0,
+        JSON.stringify(
+          args
+            .slice(2)
+            .map((id) => (id === frontendId ? frontend : (networkTransform?.(value) ?? value))),
+        ),
+      ]
     }
     if (args[0] === 'ps') {
       const service = args
@@ -227,6 +276,9 @@ exit "$code"
       preflightError?: boolean
       writerAfterQuery?: boolean
       stopError?: boolean
+      extraHosts?: string[]
+      ambiguousPostgresAlias?: boolean
+      ambiguousOtherPostgresAlias?: boolean
     }) {
       schema = value.schema ?? schema
       splitRows = value.splitRows ?? splitRows
@@ -234,6 +286,9 @@ exit "$code"
       preflightError = value.preflightError ?? preflightError
       writerAfterQuery = value.writerAfterQuery ?? writerAfterQuery
       stopError = value.stopError ?? stopError
+      extraHosts = value.extraHosts ?? extraHosts
+      ambiguousPostgresAlias = value.ambiguousPostgresAlias ?? ambiguousPostgresAlias
+      ambiguousOtherPostgresAlias = value.ambiguousOtherPostgresAlias ?? ambiguousOtherPostgresAlias
     },
     set hook(value: (args: string[]) => Promise<string | undefined>) {
       hook = value

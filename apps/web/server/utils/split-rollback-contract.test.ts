@@ -5,6 +5,55 @@ import { describe, expect, it } from 'vitest'
 import { splitRollbackFixture } from '../../../../packages/core/src/__tests__/split-rollback-shell-fixture'
 
 describe('split rollback boundary (fake Docker shell evidence)', { timeout: 35_000 }, () => {
+  it.each(['postgres:172.20.0.1', 'postgres:host-gateway', 'POSTGRES:fd00::1'])(
+    'hostname override is refused before stop: %s',
+    async (override) => {
+      const f = await splitRollbackFixture()
+      try {
+        f.options = { extraHosts: [override] }
+        const result = await f.run()
+        expect(result.status).toBe(1)
+        expect(result.stderr).toContain('ownership')
+        expect(f.calls.some((args) => args[0] === 'stop')).toBe(false)
+        expect(f.containers.every((c) => c.running)).toBe(true)
+      } finally {
+        await f.close()
+      }
+    },
+  )
+  it('postgres alias on frontend makes two-network resolution ambiguous and fails before stop', async () => {
+    const f = await splitRollbackFixture()
+    try {
+      f.options = { ambiguousPostgresAlias: true }
+      const result = await f.run()
+      expect(result.status).toBe(1)
+      expect(f.calls.some((args) => args[0] === 'stop')).toBe(false)
+    } finally {
+      await f.close()
+    }
+  })
+  it('normal production frontend plus backend network remains valid', async () => {
+    const f = await splitRollbackFixture()
+    try {
+      const result = await f.run()
+      expect(result.status, result.stderr).toBe(0)
+      expect(f.containers.every((c) => !c.running)).toBe(true)
+    } finally {
+      await f.close()
+    }
+  })
+  it('another frontend container alias makes two-network resolution ambiguous before stop', async () => {
+    const f = await splitRollbackFixture()
+    try {
+      f.options = { ambiguousOtherPostgresAlias: true }
+      const result = await f.run()
+      expect(result.status).toBe(1)
+      expect(f.calls.some((args) => args[0] === 'stop')).toBe(false)
+      expect(f.containers.every((c) => c.running)).toBe(true)
+    } finally {
+      await f.close()
+    }
+  })
   it('retry recovery still drains additional writers stopped by an earlier failed recovery', async () => {
     const f = await splitRollbackFixture()
     try {

@@ -6,6 +6,8 @@ import re
 import sys
 from urllib.parse import urlsplit
 
+sys.stdout.reconfigure(newline="\n")
+
 
 def ensure(condition):
     if not condition:
@@ -17,8 +19,9 @@ def addresses(member):
 
 
 def network(identity, values):
-    ensure(len(values) == 1)
-    value = values[0]
+    matched = [value for value in values if value["Id"] == identity]
+    ensure(len(matched) == 1)
+    value = matched[0]
     ensure(value["Id"] == identity and value["Driver"] == "bridge" and value["Scope"] == "local")
     return value
 
@@ -50,12 +53,31 @@ def capture(project, ids, inspected):
         ensure(labels["com.docker.compose.project"] == project)
         ensure(labels["com.docker.compose.service"] in ("web", "bot"))
         ensure(writer["HostConfig"]["NetworkMode"] not in ("host", "none"))
+        # URL text alone cannot prove the endpoint: /etc/hosts overrides Docker DNS.
+        ensure(not any(entry.split(":", 1)[0].strip().rstrip(".").lower() == "postgres" for entry in (writer["HostConfig"].get("ExtraHosts") or [])))
+        ensure(not any(writer["HostConfig"].get(key) for key in ("Dns", "DnsSearch", "DnsOptions")))
         urls = [item.split("=", 1)[1] for item in writer["Config"]["Env"] if item.startswith("DATABASE_URL=")]
         ensure(len(urls) == 1)
         url = urlsplit(urls[0])
         ensure(url.scheme in ("postgres", "postgresql") and url.hostname == "postgres")
         ensure(url.port == 5432 and url.path == "/volleytime" and url.username == "volley")
         ensure(not url.query and not url.fragment)
+        # Docker DNS searches all attached networks. Prove there is only the captured
+        # PostgreSQL endpoint, including aliases of OTHER containers on frontend.
+        candidates = set()
+        resolution = {value["Id"]: value for value in inspected["resolution"]}
+        for attached_name, attached in writer["NetworkSettings"]["Networks"].items():
+            attached_net = network(attached["NetworkID"], inspected["network"])
+            ensure(identity in attached_net["Containers"])
+            for member_id in attached_net["Containers"]:
+                member = resolution[member_id]
+                member_endpoint = member["NetworkSettings"]["Networks"][attached_name]
+                ensure(member_endpoint["NetworkID"] == attached_net["Id"])
+                aliases = (member_endpoint.get("Aliases") or []) + (member_endpoint.get("DNSNames") or [])
+                aliases.append(member.get("Name", "").lstrip("/"))
+                if any(alias.rstrip(".").lower() == "postgres" for alias in aliases):
+                    candidates.add(member_id)
+        ensure(candidates == {postgres["Id"]})
         endpoint = writer["NetworkSettings"]["Networks"][name]
         ensure(endpoint["NetworkID"] == net["Id"])
         owned = addresses(net["Containers"][identity])
@@ -87,7 +109,15 @@ def validate(value, inspected):
 
 
 try:
-    if sys.argv[1] == "network-id":
+    if sys.argv[1] == "attached-network-ids":
+        identities = {endpoint["NetworkID"] for container in json.load(sys.stdin) for endpoint in container["NetworkSettings"]["Networks"].values()}
+        ensure(identities and all(re.fullmatch(r"[0-9a-f]{64}", identity) for identity in identities))
+        print("\n".join(sorted(identities)))
+    elif sys.argv[1] == "network-member-ids":
+        identities = {identity for value in json.load(sys.stdin) for identity in value["Containers"]}
+        ensure(identities and all(re.fullmatch(r"[0-9a-f]{64}", identity) for identity in identities))
+        print("\n".join(sorted(identities)))
+    elif sys.argv[1] == "network-id":
         if len(sys.argv) == 3:
             with open(sys.argv[2], encoding="utf-8") as source:
                 identity = json.load(source)["network"]

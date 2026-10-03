@@ -51,11 +51,16 @@ quiescent() {
   [ -z "$running" ]
 }
 capture_network() {
-  local containers network_id inspected
+  local containers identities inspected resolution
+  local -a network_ids member_ids
   containers="$(docker inspect vt_postgres "$@")" || return 1
-  network_id="$(printf '%s' "$containers" | "${PYTHON_BIN:-python3}" "$network_helper" network-id)" || return 1
-  inspected="$(docker network inspect "$network_id")" || return 1
-  printf '{"containers":%s,"network":%s}' "$containers" "$inspected" | "${PYTHON_BIN:-python3}" "$network_helper" capture "$project" "$@"
+  identities="$(printf '%s' "$containers" | "${PYTHON_BIN:-python3}" "$network_helper" attached-network-ids)" || return 1
+  mapfile -t network_ids <<< "$identities"
+  inspected="$(docker network inspect "${network_ids[@]}")" || return 1
+  identities="$(printf '%s' "$inspected" | "${PYTHON_BIN:-python3}" "$network_helper" network-member-ids)" || return 1
+  mapfile -t member_ids <<< "$identities"
+  resolution="$(docker inspect "${member_ids[@]}")" || return 1
+  printf '{"containers":%s,"network":%s,"resolution":%s}' "$containers" "$inspected" "$resolution" | "${PYTHON_BIN:-python3}" "$network_helper" capture "$project" "$@"
 }
 drained() {
   local predicate result network_id inspected
