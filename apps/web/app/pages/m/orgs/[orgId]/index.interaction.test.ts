@@ -155,6 +155,16 @@ describe('organizer Home', () => {
         },
         { id: 6, status: 'pending_payment', event: { ...event, id: 74 }, pricing },
         { id: 7, status: 'waitlisted', event: { ...event, id: 75 }, pricing },
+        {
+          id: 8,
+          status: 'waitlisted',
+          event: { ...event, id: 76, status: 'closed' },
+          pricing: {
+            ...pricing,
+            basis: 'settled',
+            settledAt: '2026-10-02T12:00:00Z',
+          },
+        },
       ],
     })
     const wrapper = mount(HomeHost, {
@@ -183,6 +193,11 @@ describe('organizer Home', () => {
     expect(wrapper.get('a[href="/m/orgs/30/events/73"]').text()).toContain('Возвращено')
     expect(wrapper.get('a[href="/m/orgs/30/events/74"]').text()).toContain('Прогноз')
     expect(wrapper.get('a[href="/m/orgs/30/events/75"]').text()).toContain('Начисления нет')
+    expect(wrapper.get('a[href="/m/orgs/30/events/75"]').text()).toContain('Доля появится')
+    expect(wrapper.get('a[href="/m/orgs/30/events/76"]').text()).toContain(
+      'переход из листа ожидания в состав недоступен',
+    )
+    expect(wrapper.get('a[href="/m/orgs/30/events/76"]').text()).not.toContain('Доля появится')
     expect(wrapper.text()).not.toContain('Бесплатно')
     wrapper.unmount()
   })

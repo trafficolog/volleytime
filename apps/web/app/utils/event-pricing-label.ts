@@ -41,7 +41,9 @@ export function splitBookingPaymentLabel(pricing: EventPricingView, bookingStatu
     return {
       text: 'В листе ожидания',
       description:
-        'Начисления нет. Доля появится только после перехода в состав и закрытия записи.',
+        pricing.basis === 'settled'
+          ? 'Начисления нет. Запись закрыта; переход из листа ожидания в состав недоступен.'
+          : 'Начисления нет. Доля появится только после перехода в состав и закрытия записи.',
       tone: 'default' as const,
     }
   if (pricing.myPaymentStatus === 'refunded')

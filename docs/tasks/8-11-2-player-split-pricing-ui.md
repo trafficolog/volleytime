@@ -35,6 +35,8 @@ tags: [mvp, split, miniapp, player, landing]
 
 ## Критерии приёмки
 
+- Уточнение review 2026-10-03: settled split waitlist без собственной суммы явно сообщает, что начисления нет и переход в состав после закрытия недоступен. Не обещать будущую долю для уже рассчитанного события; для ещё открытого события сохранить пояснение о переходе и последующем расчёте. Проверить общий helper и его отображение на event, Home и «Моих записях».
+
 - RED→GREEN проверяет N0, forecast при смене состава, 100/3 персональную копейку, waitlist, server refusal subscription и отказ self cancel после фиксации.
 - Browser320/390 light/dark с реальным локальным API доказывает запись→прогноз→закрытие организатором→личный итог, error/retry и deep link. Fixed/free/subscription regressions проходят.
 - Нет false paid в public roster, не раскрыты чужие платежи; пять gates и review проходят. Telegram доставка проверяется 9.8.11.

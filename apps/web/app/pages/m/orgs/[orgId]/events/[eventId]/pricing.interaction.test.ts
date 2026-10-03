@@ -276,6 +276,35 @@ describe('player split pricing interactions', () => {
       wrapper.unmount()
     },
   )
+  it.each(['card', 'schedule'] as const)(
+    'event %s does not promise promotion after split settlement',
+    (presentation) => {
+      const wrapper = mount(EventCard, {
+        props: {
+          event: {
+            ...fixture(),
+            status: 'closed',
+            taken: 4,
+            myBooking: { id: 5, status: 'waitlisted' },
+            pricing: { ...pricing, basis: 'settled', settledAt: '2026-10-02T11:00:00Z' },
+          },
+          tz: 'Europe/Minsk',
+          to: '/m/orgs/30/events/71',
+          presentation,
+        },
+        global: {
+          stubs: {
+            NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
+            VtChip: { template: '<span><slot /></span>' },
+            VtMeter: true,
+          },
+        },
+      })
+      expect(wrapper.text()).toContain('переход из листа ожидания в состав недоступен')
+      expect(wrapper.text()).not.toContain('Доля появится')
+      wrapper.unmount()
+    },
+  )
   it('my bookings keeps settled personal amount and removes cancellation', async () => {
     apiFetch.mockResolvedValueOnce({
       bookings: [
@@ -399,6 +428,13 @@ describe('player split pricing interactions', () => {
           pricing: { ...pricing },
           event: { ...fixture(), id: 72, taken: 4 },
         },
+        {
+          id: 7,
+          organizationId: 30,
+          status: 'waitlisted',
+          pricing: { ...pricing, basis: 'settled', settledAt: '2026-10-02T11:00:00Z' },
+          event: { ...fixture(), id: 73, status: 'closed', taken: 4 },
+        },
       ],
     })
     const wrapper = mount(
@@ -422,6 +458,11 @@ describe('player split pricing interactions', () => {
     expect(wrapper.text()).toContain('Прогноз')
     expect(wrapper.text()).toContain('Расчёт позже')
     expect(wrapper.text()).toContain('Начисления нет')
+    expect(wrapper.get('a[href="/m/orgs/30/events/72"]').text()).toContain('Доля появится')
+    expect(wrapper.get('a[href="/m/orgs/30/events/73"]').text()).toContain(
+      'переход из листа ожидания в состав недоступен',
+    )
+    expect(wrapper.get('a[href="/m/orgs/30/events/73"]').text()).not.toContain('Доля появится')
     expect(wrapper.text()).not.toContain('Бесплатно')
     wrapper.unmount()
   })
@@ -936,6 +977,7 @@ describe('player split pricing interactions', () => {
     wrapper.unmount()
   })
   it('settled waitlist after cancellation deadline does not claim an allocated share', async () => {
+    data.value.event.status = 'closed'
     data.value.event.startsAt = '2026-10-03T16:00:00Z'
     data.value.event.cancellationDeadlineHours = 48
     data.value.event.pricing = {
@@ -953,6 +995,8 @@ describe('player split pricing interactions', () => {
     const wrapper = await renderPage()
     const own = wrapper.find('[aria-label="Ваша запись"]').text()
     expect(own).toContain('Начисления нет')
+    expect(own).toContain('переход из листа ожидания в состав недоступен')
+    expect(own).not.toContain('Доля появится')
     expect(own).toContain('Дедлайн отмены прошёл')
     expect(own).not.toContain('Доля зафиксирована')
     wrapper.unmount()

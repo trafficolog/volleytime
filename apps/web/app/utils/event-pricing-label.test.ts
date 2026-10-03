@@ -1,7 +1,7 @@
 import type { EventPricingView } from '@volley-time/shared'
 import { describe, expect, it } from 'vitest'
 
-import { eventPricingLabel } from './event-pricing-label'
+import { eventPricingLabel, splitBookingPaymentLabel } from './event-pricing-label'
 
 const current: EventPricingView = {
   mode: 'split',
@@ -16,6 +16,26 @@ const current: EventPricingView = {
 }
 
 describe('event pricing labels', () => {
+  it('keeps an open split waitlist uncharged while explaining possible promotion', () => {
+    expect(splitBookingPaymentLabel(current, 'waitlisted')).toEqual({
+      text: 'В листе ожидания',
+      description:
+        'Начисления нет. Доля появится только после перехода в состав и закрытия записи.',
+      tone: 'default',
+    })
+  })
+  it('does not promise promotion or a future charge for a settled split waitlist', () => {
+    expect(
+      splitBookingPaymentLabel(
+        { ...current, basis: 'settled', settledAt: '2026-10-02T11:00:00Z' },
+        'waitlisted',
+      ),
+    ).toEqual({
+      text: 'В листе ожидания',
+      description: 'Начисления нет. Запись закрыта; переход из листа ожидания в состав недоступен.',
+      tone: 'default',
+    })
+  })
   it('unsettled_split_is_not_free_or_paid', () => {
     const label = eventPricingLabel(current, 'BYN')
     expect(label.text).toBe('≈ 33,33–33,34 BYN')
