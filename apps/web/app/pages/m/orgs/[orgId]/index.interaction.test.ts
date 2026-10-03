@@ -13,9 +13,10 @@ import {
   watch,
 } from 'vue'
 
-import { apiErrorMessage } from '~/utils/api-error'
-
 import Home from './index.vue'
+
+import EventCard from '~/components/EventCard.vue'
+import { apiErrorMessage } from '~/utils/api-error'
 
 const HomeHost = defineComponent({ render: () => h(Suspense, null, { default: () => h(Home) }) })
 
@@ -92,6 +93,114 @@ afterEach(() => {
 })
 
 describe('organizer Home', () => {
+  it('shows the server split forecast on hero/schedule and personal settlement on bookings', async () => {
+    orgData.value.myMember.role = 'player'
+    const pricing = {
+      mode: 'split',
+      targetAmount: 10000,
+      settledAt: null,
+      participantCount: 3,
+      minAmount: 3333,
+      maxAmount: 3334,
+      basis: 'current',
+      myAllocatedAmount: null,
+      myPaymentStatus: null,
+    }
+    const event = {
+      id: 71,
+      title: 'Делим зал',
+      status: 'published',
+      startsAt: '2027-10-01T16:00:00Z',
+      endsAt: '2027-10-01T18:00:00Z',
+      capacity: 4,
+      taken: 3,
+      price: 0,
+      currency: 'BYN',
+      waitlist: 0,
+      myBooking: null,
+      venue: null,
+      locationText: null,
+      pricing,
+    }
+    fetchDashboard.mockResolvedValueOnce({
+      isManager: false,
+      manager: null,
+      subscription: null,
+      upcoming: [
+        {
+          ...event,
+          taken: 0,
+          pricing: {
+            ...pricing,
+            basis: 'capacity',
+            participantCount: 4,
+            minAmount: 2500,
+            maxAmount: 2500,
+          },
+        },
+        { ...event, id: 72, startsAt: '2027-10-02T16:00:00Z' },
+      ],
+      myBookings: [
+        {
+          id: 5,
+          status: 'confirmed',
+          event: { ...event, id: 73 },
+          pricing: {
+            ...pricing,
+            basis: 'settled',
+            settledAt: '2026-10-02T12:00:00Z',
+            myAllocatedAmount: 3334,
+            myPaymentStatus: 'refunded',
+          },
+        },
+        { id: 6, status: 'pending_payment', event: { ...event, id: 74 }, pricing },
+        { id: 7, status: 'waitlisted', event: { ...event, id: 75 }, pricing },
+        {
+          id: 8,
+          status: 'waitlisted',
+          event: { ...event, id: 76, status: 'closed' },
+          pricing: {
+            ...pricing,
+            basis: 'settled',
+            settledAt: '2026-10-02T12:00:00Z',
+          },
+        },
+      ],
+    })
+    const wrapper = mount(HomeHost, {
+      global: {
+        components: { EventCard },
+        stubs: {
+          NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
+          VtSheet: { template: '<div />' },
+          VtIcon: true,
+          VtChip: { template: '<span><slot /></span>' },
+          VtMeter: true,
+          VtMiniHeader: true,
+          ErrorState: true,
+          SkeletonList: true,
+          EmptyState: true,
+          OrganizerEventRow: true,
+        },
+      },
+    })
+    await flushPromises()
+    expect(wrapper.get('a[href="/m/orgs/30/events/71"]').text()).toContain('≈ 25,00 BYN')
+    expect(wrapper.get('a[href="/m/orgs/30/events/71"]').text()).toContain('При полном составе')
+    expect(wrapper.get('a[href="/m/orgs/30/events/72"]').text()).toContain('≈ 33,33–33,34 BYN')
+    expect(wrapper.get('a[href="/m/orgs/30/events/72"]').text()).toContain('Прогноз')
+    expect(wrapper.get('a[href="/m/orgs/30/events/73"]').text()).toContain('33,34 BYN')
+    expect(wrapper.get('a[href="/m/orgs/30/events/73"]').text()).toContain('Возвращено')
+    expect(wrapper.get('a[href="/m/orgs/30/events/74"]').text()).toContain('Прогноз')
+    expect(wrapper.get('a[href="/m/orgs/30/events/75"]').text()).toContain('Начисления нет')
+    expect(wrapper.get('a[href="/m/orgs/30/events/75"]').text()).toContain('Доля появится')
+    expect(wrapper.get('a[href="/m/orgs/30/events/76"]').text()).toContain(
+      'переход из листа ожидания в состав недоступен',
+    )
+    expect(wrapper.get('a[href="/m/orgs/30/events/76"]').text()).not.toContain('Доля появится')
+    expect(wrapper.text()).not.toContain('Бесплатно')
+    wrapper.unmount()
+  })
   it('links pending and suspended switcher choices to their informational pages without selecting them', async () => {
     orgData.value.myMember.role = 'player'
     groupList.value = [

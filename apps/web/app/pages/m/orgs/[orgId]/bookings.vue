@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { Booking, Event, Venue } from '@volley-time/db'
-import { formatDay, formatTime } from '@volley-time/shared'
+import { formatDay, formatTime, type EventPricingView } from '@volley-time/shared'
 
+import { eventPricingLabel, splitBookingPaymentLabel } from '~/utils/event-pricing-label'
 import { BOOKING_STATUS_LABELS, label } from '~/utils/labels'
 import {
   canCancelPlayerBooking,
@@ -12,7 +13,7 @@ import { playerAccessFromApiError } from '~/utils/player-home'
 import { createPlayerRequestGuard } from '~/utils/player-request-guard'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
-type MyBooking = Booking & { event: Event & { venue: Venue | null } }
+type MyBooking = Booking & { pricing: EventPricingView; event: Event & { venue: Venue | null } }
 
 const route = useRoute()
 const orgId = computed(() => Number(route.params.orgId))
@@ -26,7 +27,11 @@ const loadError = ref('')
 const accessNotice = ref<ReturnType<typeof playerAccessFromApiError>>(null)
 const actionError = ref('')
 const cancelling = ref<number | null>(null)
-const cancellationGuard = createPlayerRequestGuard(() => `${orgId.value}:${filter.value}`)
+let currentViewKey: string | null = `${orgId.value}:${filter.value}`
+const confirmationGuard = createPlayerRequestGuard(
+  () => `${route.fullPath}:${orgId.value}:${filter.value}`,
+)
+const cancellationGuard = createPlayerRequestGuard(() => currentViewKey)
 const loadView = createPlayerBookingsLoader<MyBooking>(
   () => orgId.value,
   () => filter.value,
@@ -37,44 +42,63 @@ const loadView = createPlayerBookingsLoader<MyBooking>(
       })
     ).bookings.filter(
       (booking) =>
-        booking.status !== 'cancelled' &&
+        (booking.status !== 'cancelled' ||
+          (booking.pricing?.mode === 'split' && booking.pricing.myAllocatedAmount !== null)) &&
         booking.organizationId === requestedOrgId &&
         booking.event.organizationId === requestedOrgId,
     ),
 )
 let currentLoad: ReturnType<typeof loadView> | null = null
+let alive = true
+const pathname = () => route.fullPath.split(/[?#]/, 1)[0]
 
 async function load() {
+  if (!alive) return
+  const requestedPath = pathname()
   const request = loadView()
   currentLoad = request
+  const isCurrentLoad = () => alive && currentLoad === request && pathname() === requestedPath
   loading.value = true
   loadError.value = ''
   accessNotice.value = null
   try {
     const result = await request
-    if (result.stale) return
+    if (result.stale || !isCurrentLoad()) return
     items.value = result.bookings
   } catch (e) {
-    if (currentLoad === request) {
+    if (isCurrentLoad()) {
       loadError.value = apiErrorMessage(e, 'Не удалось загрузить записи')
       accessNotice.value = playerAccessFromApiError(apiErrorCode(e))
     }
   } finally {
-    if (currentLoad === request) loading.value = false
+    if (isCurrentLoad()) loading.value = false
   }
 }
-await load()
 watch(
-  [orgId, filter],
+  [orgId, filter, () => route.fullPath],
   () => {
+    confirmationGuard.invalidate()
+    const nextViewKey =
+      pathname() === `/m/orgs/${orgId.value}/bookings` ? `${orgId.value}:${filter.value}` : null
+    if (nextViewKey === currentViewKey) return
     cancellationGuard.invalidate()
-    items.value = []
+    currentViewKey = nextViewKey
     actionError.value = ''
     cancelling.value = null
-    void load()
+    currentLoad = null
+    loading.value = false
+    items.value = []
+    if (nextViewKey !== null) void load()
   },
   { flush: 'sync' },
 )
+onUnmounted(() => {
+  alive = false
+  currentLoad = null
+  confirmationGuard.invalidate()
+  cancellationGuard.invalidate()
+})
+await load()
 
 const TONE: Record<string, 'grass' | 'amber' | 'default' | 'rose'> = {
   confirmed: 'grass',
@@ -85,15 +109,18 @@ const TONE: Record<string, 'grass' | 'amber' | 'default' | 'rose'> = {
 }
 
 async function onCancel(b: MyBooking) {
-  if (cancelling.value !== null || filter.value !== 'upcoming') return
-  const request = cancellationGuard.begin()
+  if (cancelling.value !== null || !canCancel(b)) return
+  const confirmation = confirmationGuard.begin()
   actionError.value = ''
   if (!(await confirm(`Отменить запись на «${b.event.title}»?`))) return
-  if (!request.isCurrent() || !items.value.some((item) => item.id === b.id)) return
+  if (!confirmation.isCurrent()) return
+  const currentBooking = items.value.find((item) => item.id === b.id)
+  if (!currentBooking || !canCancel(currentBooking)) return
+  const request = cancellationGuard.begin()
   cancelling.value = b.id
   const requestedOrgId = orgId.value
   const outcome = await runPlayerBookingCancellation(
-    bookingPolicy(b),
+    bookingPolicy(currentBooking),
     new Date(),
     (bookingId) =>
       $fetch<void>(`/api/organizations/${requestedOrgId}/bookings/${bookingId}/cancel` as string, {
@@ -107,6 +134,7 @@ async function onCancel(b: MyBooking) {
   } else if (outcome.kind === 'error') {
     haptic('error')
     actionError.value = apiErrorMessage(outcome.error, 'Не удалось отменить запись')
+    if (request.isCurrent()) await load()
   } else if (outcome.kind === 'blocked') {
     actionError.value = 'Отменить запись уже нельзя — прошёл дедлайн отмены.'
   }
@@ -123,7 +151,11 @@ function bookingPolicy(booking: MyBooking) {
 }
 
 function canCancel(booking: MyBooking) {
-  return filter.value === 'upcoming' && canCancelPlayerBooking(bookingPolicy(booking), new Date())
+  return (
+    filter.value === 'upcoming' &&
+    booking.pricing.myAllocatedAmount === null &&
+    canCancelPlayerBooking(bookingPolicy(booking), new Date())
+  )
 }
 </script>
 
@@ -180,8 +212,28 @@ function canCancel(booking: MyBooking) {
                 {{ formatDay(b.event.startsAt, tz)
                 }}<template v-if="b.event.venue"> · {{ b.event.venue.name }}</template>
               </div>
+              <div class="vt-mono text-xs mt-1">
+                {{ eventPricingLabel(b.pricing, b.event.currency).text }}
+              </div>
+              <p
+                v-if="b.pricing.mode === 'split' && b.pricing.basis !== 'settled'"
+                class="text-xs text-vt-mute-2 mt-1"
+              >
+                {{ eventPricingLabel(b.pricing, b.event.currency).description }}
+              </p>
+              <p
+                v-if="b.status === 'waitlisted' && b.pricing.mode === 'split'"
+                class="text-xs text-vt-mute-2 mt-1"
+              >
+                {{ splitBookingPaymentLabel(b.pricing, b.status)?.description }}
+              </p>
             </div>
-            <VtChip :tone="TONE[b.status] ?? 'default'">{{
+            <VtChip
+              v-if="splitBookingPaymentLabel(b.pricing, b.status)"
+              :tone="splitBookingPaymentLabel(b.pricing, b.status)!.tone"
+              >{{ splitBookingPaymentLabel(b.pricing, b.status)!.text }}</VtChip
+            >
+            <VtChip v-else :tone="TONE[b.status] ?? 'default'">{{
               label(BOOKING_STATUS_LABELS, b.status)
             }}</VtChip>
           </NuxtLink>

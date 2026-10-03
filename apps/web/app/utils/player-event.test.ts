@@ -1,3 +1,4 @@
+import type { EventPricingView } from '@volley-time/shared'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -185,6 +186,39 @@ describe('player event view state', () => {
     ).toBe(false)
     expect(
       projectPlayerEvent({ ...event, myBooking: { status: 'attended' } }, access, now).canCancel,
+    ).toBe(false)
+  })
+
+  it('locks only an allocated split booking after settlement', () => {
+    const pricing: EventPricingView = {
+      mode: 'split',
+      targetAmount: 10000,
+      settledAt: '2026-09-24T09:00:00Z',
+      participantCount: 3,
+      minAmount: 3333,
+      maxAmount: 3334,
+      basis: 'settled',
+      myAllocatedAmount: null,
+      myPaymentStatus: null,
+    }
+    expect(
+      projectPlayerEvent(
+        { ...event, price: 0, pricing, myBooking: { status: 'waitlisted' } },
+        access,
+        now,
+      ).canCancel,
+    ).toBe(true)
+    expect(
+      projectPlayerEvent(
+        {
+          ...event,
+          price: 0,
+          pricing: { ...pricing, myAllocatedAmount: 3334, myPaymentStatus: 'pending' },
+          myBooking: { status: 'pending_payment' },
+        },
+        access,
+        now,
+      ).canCancel,
     ).toBe(false)
   })
 })

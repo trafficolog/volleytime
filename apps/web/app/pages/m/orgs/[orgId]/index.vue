@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import type { Organization, OrganizationMember } from '@volley-time/db'
-import { formatDay, formatShortDate, formatTime } from '@volley-time/shared'
+import { formatDay, formatShortDate, formatTime, type EventPricingView } from '@volley-time/shared'
 
 import type { EventListItem } from '~/components/EventCard.vue'
+import { eventPricingLabel, splitBookingPaymentLabel } from '~/utils/event-pricing-label'
 import { groupEntryState, visibleGroup } from '~/utils/group-entry-state'
 import { formatMoneyRu } from '~/utils/labels'
 import {
@@ -21,7 +22,14 @@ interface Dashboard {
   myBookings: {
     id: number
     status: string
-    event: { id: number; title: string; startsAt: string; venue: { name: string } | null }
+    pricing?: EventPricingView
+    event: {
+      id: number
+      title: string
+      startsAt: string
+      currency?: string
+      venue: { name: string } | null
+    }
   }[]
   subscription: { id: number; left: number; total: number; expiresAt: string | null } | null
   upcoming: EventListItem[]
@@ -337,6 +345,20 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
                 <div class="font-semibold text-sm mt-2">
                   {{ playerHome.hero.title }}
                 </div>
+                <div v-if="playerHome.hero.pricing" class="text-xs text-white/90 mt-2">
+                  {{ eventPricingLabel(playerHome.hero.pricing, playerHome.hero.currency).text }}
+                </div>
+                <p
+                  v-if="
+                    playerHome.hero.pricing?.mode === 'split' &&
+                    playerHome.hero.pricing.basis !== 'settled'
+                  "
+                  class="text-[11px] text-white/75 mt-1"
+                >
+                  {{
+                    eventPricingLabel(playerHome.hero.pricing, playerHome.hero.currency).description
+                  }}
+                </p>
                 <div
                   v-if="playerHome.hero.venue || playerHome.hero.locationText"
                   class="text-xs text-white/75 mt-1"
@@ -410,8 +432,34 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
                       {{ formatDay(b.event.startsAt, tz) }}
                       <template v-if="b.event.venue"> · {{ b.event.venue.name }}</template>
                     </div>
+                    <div v-if="b.pricing && b.event.currency" class="vt-mono text-xs mt-1">
+                      {{ eventPricingLabel(b.pricing, b.event.currency).text }}
+                    </div>
+                    <p
+                      v-if="
+                        b.pricing?.mode === 'split' &&
+                        b.pricing.basis !== 'settled' &&
+                        b.event.currency
+                      "
+                      class="text-xs text-vt-mute-2 mt-1"
+                    >
+                      {{ eventPricingLabel(b.pricing, b.event.currency).description }}
+                    </p>
+                    <p
+                      v-if="b.status === 'waitlisted' && b.pricing?.mode === 'split'"
+                      class="text-xs text-vt-mute-2 mt-1"
+                    >
+                      {{ splitBookingPaymentLabel(b.pricing, b.status)?.description }}
+                    </p>
                   </div>
-                  <VtChip v-if="b.status === 'pending_payment'" tone="amber">Ждёт оплаты</VtChip>
+                  <VtChip
+                    v-if="b.pricing && splitBookingPaymentLabel(b.pricing, b.status)"
+                    :tone="splitBookingPaymentLabel(b.pricing, b.status)!.tone"
+                    >{{ splitBookingPaymentLabel(b.pricing, b.status)!.text }}</VtChip
+                  >
+                  <VtChip v-else-if="b.status === 'pending_payment'" tone="amber"
+                    >Ждёт оплаты</VtChip
+                  >
                   <VtChip v-else-if="b.status === 'waitlisted'">В ожидании</VtChip>
                   <VtChip v-else tone="grass" dot>Записан</VtChip>
                 </NuxtLink>
