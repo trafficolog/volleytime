@@ -19,6 +19,8 @@ import { gunzipSync } from 'node:zlib'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
+import { splitRollbackDockerFixture } from './split-rollback-docker-fixture'
+
 const script = fileURLToPath(
   new URL('../../../../scripts/package-release-images.sh', import.meta.url),
 )
@@ -560,6 +562,14 @@ function activationFixture() {
   writeFileSync(join(repo, '.env.images.previous'), manifest(old))
   writeFileSync(join(repo, '.deploy', 'previous-git-sha'), `${old}\n`)
   copyFileSync(deployScript, join(repo, '.deploy', 'scripts', 'deploy-image-bundle.sh'))
+  copyFileSync(
+    fileURLToPath(new URL('../../../../scripts/verify-split-rollback.sh', import.meta.url)),
+    join(repo, '.deploy', 'scripts', 'verify-split-rollback.sh'),
+  )
+  copyFileSync(
+    fileURLToPath(new URL('../../../../scripts/capture-split-writer-network.py', import.meta.url)),
+    join(repo, '.deploy', 'scripts', 'capture-split-writer-network.py'),
+  )
   const rollbackEnvHelper = fileURLToPath(
     new URL('../../../../scripts/verify-live-rollback-env.sh', import.meta.url),
   )
@@ -583,6 +593,7 @@ function activationFixture() {
     join(bin, 'docker'),
     `#!/usr/bin/env bash
 printf '%s\\n' "docker $*" >> "$CALLS"
+${splitRollbackDockerFixture}
 case "$1 $2" in
   'inspect --format')
     name="\${@: -1}"
@@ -628,6 +639,8 @@ case "$1 $2" in
       [ "\${FAKE_MIGRATE_FAIL:-0}" != 1 ] || exit 1
     fi
     if [[ "$*" == *'up --no-build -d web bot'* ]]; then
+      rm -f "$ROOT_PATH/.deploy/writers-stopped"
+      if [ "\${FAKE_OLD_UP_FAIL:-0}" = 1 ] && grep -q "$OLD_SHA" "$ROOT_PATH/.env.images"; then exit 1; fi
       [ -z "\${FAKE_UP_STATUS:-}" ] || exit "$FAKE_UP_STATUS"
       if [ "\${FAKE_PARTIAL_UP:-0}" = 1 ] && grep -q "$NEXT_SHA" "$ROOT_PATH/.env.images"; then
         printf '%s\n' "$NEXT_SHA" > "$PARTIAL_WEB_SHA"
@@ -887,7 +900,7 @@ describe('image bundle activation', () => {
       expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(ghcrManifest)
       expect(f.commands()).not.toMatch(/ pull | build |prune/)
     },
-    20000,
+    35000,
   )
 
   it('deploys A, confirms smoke, deploys B and rolls back to A', () => {
@@ -904,7 +917,7 @@ describe('image bundle activation', () => {
     expect(readFileSync(join(f.repo, '.env.images.previous'), 'utf8')).toBe(f.manifest(f.next))
     expect(f.run('rollback', {}, b).status).toBe(0)
     expect(f.git('rev-parse', 'HEAD')).toBe(f.next)
-  }, 30000)
+  }, 60000)
 
   it.each(['activated', 'backed-up', 'interrupted', 'smoke-passed'])(
     'rejects a mismatched %s phase before load or backup',
@@ -1125,7 +1138,7 @@ describe('image bundle activation', () => {
     expect(retry.status, retry.stderr).toBe(0)
     expect(readFileSync(join(f.repo, '.deploy', 'previous-git-sha'), 'utf8').trim()).toBe(f.old)
     expect(readFileSync(f.live, 'utf8').trim()).toBe(f.next)
-  }, 30000)
+  }, 35000)
 
   it('retries the original partial state where checkout and manifest already equal the target', () => {
     const f = activationFixture()
@@ -1137,7 +1150,7 @@ describe('image bundle activation', () => {
     expect(retry.status, retry.stderr).toBe(0)
     expect(readFileSync(join(f.repo, '.deploy', 'previous-git-sha'), 'utf8').trim()).toBe(f.old)
     expect(readFileSync(f.live, 'utf8').trim()).toBe(f.next)
-  }, 30000)
+  }, 35000)
 
   it('migration failure never switches web or bot', () => {
     const f = activationFixture()
@@ -1147,7 +1160,49 @@ describe('image bundle activation', () => {
     expect(f.commands()).toContain('compose-env DB_PASSWORD=candidate')
     expect(readFileSync(join(f.repo, '.env'), 'utf8')).toBe('DB_PASSWORD=old\n')
     expect(f.commands()).not.toContain('up --no-build -d web bot')
-  }, 15000)
+  }, 35000)
+
+  it.each(['migration', 'activation', 'smoke', 'manual'])(
+    'split rollback denies unsafe fixed target in %s recovery before source/config/history mutation',
+    (path) => {
+      const f = activationFixture()
+      const env = { FAKE_FIXED_TARGET: '1', FAKE_SPLIT_ROWS: '1', FAKE_DUPLICATE_WRITERS: '1' }
+      if (path === 'manual') expect(f.run().status).toBe(0)
+      const result = f.run(path === 'manual' ? 'rollback' : 'deploy', {
+        ...env,
+        ...(path === 'migration'
+          ? { FAKE_MIGRATE_FAIL: '1' }
+          : path === 'activation'
+            ? { FAKE_PARTIAL_UP: '1' }
+            : path === 'smoke'
+              ? { FAKE_HEALTH_FAIL: '1' }
+              : {}),
+      })
+      expect(result.status).not.toBe(0)
+      expect(result.stderr).toContain('split compatibility guard denied downgrade')
+      expect(f.git('rev-parse', 'HEAD')).toBe(f.next)
+      expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(f.manifest(f.next))
+      expect(readFileSync(join(f.repo, '.env'), 'utf8')).toBe('DB_PASSWORD=candidate\n')
+      expect(readFileSync(join(f.repo, '.env.images.previous'), 'utf8')).toBe(f.manifest(f.old))
+      expect(readFileSync(join(f.repo, '.deploy', 'previous-git-sha'), 'utf8')).toBe(`${f.old}\n`)
+      expect(f.commands()).toContain('stop ')
+      expect(f.commands()).not.toContain('restore')
+    },
+    35000,
+  )
+
+  it('old activation failure restores boundary source/config and starts captured current only', () => {
+    const f = activationFixture()
+    expect(f.run().status).toBe(0)
+    const result = f.run('rollback', { FAKE_OLD_UP_FAIL: '1' })
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toContain('captured current restored')
+    expect(f.git('rev-parse', 'HEAD')).toBe(f.next)
+    expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(f.manifest(f.next))
+    expect(readFileSync(join(f.repo, '.env'), 'utf8')).toBe('DB_PASSWORD=candidate\n')
+    expect(readFileSync(f.live, 'utf8').trim()).toBe(f.next)
+    expect(f.commands()).toContain('docker start ')
+  }, 35000)
 
   it.each([
     ['up failure', { FAKE_UP_FAIL: '1' }],
@@ -1170,7 +1225,7 @@ describe('image bundle activation', () => {
         /docker (?:build|image prune|system prune|compose .* build\b)|restore/,
       )
     },
-    15000,
+    35000,
   )
 
   it('restores old images after web starts but bot does not', () => {
@@ -1181,7 +1236,7 @@ describe('image bundle activation', () => {
     expect(readFileSync(f.live, 'utf8').trim()).toBe(f.old)
     expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(f.manifest(f.old))
     expect(f.commands()).not.toMatch(/docker (?:build|image prune|system prune)/)
-  }, 15000)
+  }, 35000)
 
   it('waits for the new public health to become ready before declaring failure', () => {
     const f = activationFixture()
@@ -1204,5 +1259,5 @@ describe('image bundle activation', () => {
     expect(readFileSync(f.live, 'utf8').trim()).toBe(f.old)
     expect(readFileSync(join(f.repo, '.env'), 'utf8')).toBe('DB_PASSWORD=old\n')
     expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(f.manifest(f.old))
-  }, 15000)
+  }, 35000)
 })

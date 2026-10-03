@@ -2,10 +2,10 @@
 id: '8.11.2'
 phase: '8'
 epic: '8.11'
-status: in_progress
+status: done
 release: 'v0.1.7'
 last_reviewed: 2026-10-03
-status_note: 'Код e4634cd, пять gates и независимые source/local Chrome QA review приняты; exact-head CI, PR/merge открыты. Production/Telegram/pilot проверяются отдельно в 9.8.11.'
+status_note: 'PR85 merged в main ebfc5bf после exact-head CI37133275458: все4success на 8e29442; merged tree совпадает с принятым кодом. Пять gates и независимые source/local Chrome QA review приняты. Production/Telegram/pilot проверяются отдельно в 9.8.11.'
 roles: [FE, QA]
 depends_on: ['5.16.2']
 tags: [mvp, split, miniapp, player, landing]

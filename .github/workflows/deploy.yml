@@ -145,7 +145,7 @@ jobs:
           git bundle create "$stage/release.bundle" HEAD
           git bundle verify "$stage/release.bundle"
           install -d -m 700 "$stage/scripts"
-          install -m 600 scripts/release-bundle.sh scripts/verify-release-images.sh scripts/verify-live-rollback-env.sh scripts/backup-local.sh scripts/deploy-image-bundle.sh scripts/compose-images-only.yml "$stage/scripts/"
+          install -m 600 scripts/release-bundle.sh scripts/verify-release-images.sh scripts/verify-live-rollback-env.sh scripts/verify-split-rollback.sh scripts/capture-split-writer-network.py scripts/backup-local.sh scripts/deploy-image-bundle.sh scripts/compose-images-only.yml "$stage/scripts/"
       - name: Create GHCR release bundle
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'ghcr' }}
         run: |
@@ -153,7 +153,7 @@ jobs:
           stage="ghcr-${{ github.sha }}"
           install -d -m 700 "$stage/scripts"
           git bundle create "$stage/release.bundle" HEAD
-          install -m 600 scripts/release-bundle.sh scripts/deploy-ghcr-manual.sh scripts/backup-local.sh scripts/verify-ghcr-deploy-state.sh "$stage/scripts/"
+          install -m 600 scripts/release-bundle.sh scripts/deploy-ghcr-manual.sh scripts/backup-local.sh scripts/verify-ghcr-deploy-state.sh scripts/verify-split-rollback.sh scripts/capture-split-writer-network.py "$stage/scripts/"
       - name: Prepare production env
         env:
           DOMAIN: ${{ secrets.DOMAIN }}
@@ -167,6 +167,7 @@ jobs:
           BOT_INTERNAL_SECRET: ${{ secrets.BOT_INTERNAL_SECRET }}
           WEB_URL: ${{ secrets.WEB_URL }}
           BOT_MODE: ${{ vars.PRODUCTION_BOT_MODE }}
+          EVENT_SPLIT_PRICING_ENABLED: ${{ vars.EVENT_SPLIT_PRICING_ENABLED }}
           SENTRY_DSN_WEB: ${{ secrets.SENTRY_DSN_WEB }}
           SENTRY_DSN_BOT: ${{ secrets.SENTRY_DSN_BOT }}
           S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
