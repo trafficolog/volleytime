@@ -2,10 +2,10 @@
 id: '5.16.2'
 phase: '5'
 epic: '5.16'
-status: in_progress
+status: done
 release: 'v0.1.7'
 last_reviewed: 2026-10-02
-status_note: 'UI реализован; I1/I2 исправлены RED→GREEN, независимый re-review cad35c35 PASS. Свежие пять gates PASS147files/1075tests; исходные timeout и форматирование QA helper сохранены в отчёте. Chrome local QA и отдельный acceptance supplement PASS; evidence docs/operations/qa/2026-10-02-organizer-split-chrome.md. Exact-head CI и merge открыты. M1 consequence copy сохраняется для итогового triage; production/Telegram не закрыты.'
+status_note: 'Принята через PR84: local Chrome QA, независимые source re-review/acceptance supplement и свежие пять gates PASS147files/1075tests. Exact-head CI37021357261 все4success на b27cd789; merged main035ee142, tree identical. Evidence docs/operations/qa/2026-10-02-organizer-split-chrome.md. Исторические timeout/format FAIL сохранены. Minor M1 consequence copy для финального whole-branch triage; production/Telegram не закрыты.'
 roles: [FE, QA]
 depends_on: ['6.11.1', '8.11.1']
 tags: [mvp, split, miniapp, desktop, organizer]
@@ -57,6 +57,10 @@ tags: [mvp, split, miniapp, desktop, organizer]
 ## Итог локальной Chrome QA 2026-10-02
 
 [Фактический отчёт](../operations/qa/2026-10-02-organizer-split-chrome.md) дополняет предыдущий checkpoint: real PATCH/validation, keyboard320/390/1280, desktop error→loading→real GET retry и native200% compositor frame просмотрены. Дополнительные Mini320/390 PATCH200 сохранены как raw CLI-result; Mini edit retry не заявляется (существующий ErrorState имеет retry=false). Прежние обрезанные200% PNG не являются acceptance evidence. Native zoom возвращён100%; сеть разблокирована. Независимый local acceptance supplement PASS, Minor D1 release rollup исправлен. Свежие gates/CI/merge остаются открытыми; статус in_progress.
+
+## Приёмка / integration checkpoint 2026-10-02
+
+Предыдущие локальные open-checkpoints исторические. [PR84](https://github.com/trafficolog/volleytime/pull/84) merged после четырёх успешных проверок [CI37021357261](https://github.com/trafficolog/volleytime/actions/runs/37021357261) на b27cd789. Main035ee142 имеет идентичное проверенному head дерево; [post-merge CI37021874080](https://github.com/trafficolog/volleytime/actions/runs/37021874080) также все4success на точном main. Task5.16.2 done, release/manual/Telegram acceptance не закрыты. Minor M1 передан в финальный whole-branch triage.
 
 ## Не делать
 

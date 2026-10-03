@@ -39,3 +39,7 @@ Expected console errors correspond to deliberately aborted event GET and the int
 Fresh five gates on unchanged product `cad35c35`: lint PASS (12 baseline warnings), typecheck6/6 PASS, PostgreSQL147files/1075tests PASS (548.03s), build2/2 PASS (zero cache), format retry PASS. Initial format failed only on preserved untracked `output/task4-reserve-qa-events.mts`; mechanical Prettier formatting fixed that helper, initial log retained. Earlier source-suite timeout is also retained, not relabelled as PASS. Full logs `output/task4-final-20261002-{format,lint,typecheck,test,build,format-retry}.log` and private owning task report retain execution evidence.
 
 Independent code re-review and local acceptance supplement PASS. Browser evidence does not replace exact-head CI or PR merge, still open. Player/landing Task8.11.2 and rollback/release9.8.11 remain outstanding; prod/VPS/capability/tag unchanged. Post-deploy real Telegram/pilot checks remain mandatory.
+
+## Integration checkpoint (supersedes earlier open CI/merge)
+
+PR84 merged at14:43:32UTC into main035ee142 after exact-head CI37021357261 all4success on b27cd789. Merged tree identical to reviewed head; exact-main CI37021874080 also all4success. Task5.16.2 accepted; Task8.11.2/release9.8.11 and post-deploy manual acceptance remain separate/open. No production promotion.

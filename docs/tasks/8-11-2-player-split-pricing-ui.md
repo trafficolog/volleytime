@@ -4,8 +4,8 @@ phase: '8'
 epic: '8.11'
 status: in_progress
 release: 'v0.1.7'
-last_reviewed: 2026-10-02
-status_note: 'Реализация по утверждённому плану; browser acceptance, независимое review и CI остаются открыты.'
+last_reviewed: 2026-10-03
+status_note: 'Код e4634cd, пять gates и независимые source/local Chrome QA review приняты; exact-head CI, PR/merge открыты. Production/Telegram/pilot проверяются отдельно в 9.8.11.'
 roles: [FE, QA]
 depends_on: ['5.16.2']
 tags: [mvp, split, miniapp, player, landing]
