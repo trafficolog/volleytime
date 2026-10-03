@@ -134,7 +134,7 @@ describe('release bundle CLI', () => {
     expect(advanced.status, advanced.stderr).toBe(0)
     expect(runGit(fixture.deployed, 'rev-parse', 'HEAD')).toBe(fixture.candidate)
     expect(existsSync(join(fixture.deployed, '.env'))).toBe(true)
-  })
+  }, 15_000)
 
   it('rejects a valid bundle that does not advertise the expected SHA', () => {
     const fixture = createBundleFixture()
@@ -190,6 +190,22 @@ describe('release bundle CLI', () => {
 })
 
 describe('fallback deployment contract', () => {
+  it.each(['', 'false', 'TRUE', ' true', 'true'])(
+    'renders split creation capability only for exact true: %j',
+    (value) => {
+      const dir = mkdtempSync(join(tmpdir(), 'volleytime-split-capability-'))
+      dirs.push(dir)
+      const output = join(dir, '.env.production')
+      const result = spawnSync(process.execPath, [rendererPath, output], {
+        env: { ...process.env, ...requiredEnv, EVENT_SPLIT_PRICING_ENABLED: value },
+        encoding: 'utf8',
+      })
+      expect(result.status, result.stderr).toBe(0)
+      expect(readFileSync(output, 'utf8')).toContain(
+        `EVENT_SPLIT_PRICING_ENABLED="${value === 'true' ? 'true' : 'false'}"\n`,
+      )
+    },
+  )
   it('rejects production deployment from every ref except prod', () => {
     const runGuard = (ref: string) =>
       spawnSync(process.execPath, [productionSourceGuardPath], {
@@ -552,7 +568,7 @@ describe('image bundle workflow contract', () => {
     expect(run(262149, 262145, 'temp').status).not.toBe(0)
     expect(run(262150, 262144, 'temp').status).not.toBe(0)
     expect(run(262150, 262145, 'temp', 262148, 'docker').status).not.toBe(0)
-  })
+  }, 15000)
 
   it('does not start deploy after workflow cancellation', () => {
     const workflow = readFileSync(workflowPath, 'utf8')

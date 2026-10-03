@@ -103,7 +103,7 @@ check_image_checkpoint() {
   }
 }
 restore_previous() {
-  local old="$1" candidate="$2" switch_started="$3" old_web old_bot
+  local old="$1" candidate="$2" switch_started="$3" old_web old_bot recovery_state captured
   valid_sha "$old" || fail "old runtime SHA is invalid"
   [ -f "$old_snapshot" ] || fail "old manifest snapshot is missing"
   [ -d "$history_snapshot" ] || fail "previous history snapshot is missing"
@@ -119,25 +119,59 @@ restore_previous() {
   for image in "$old_web" "$old_bot" "$(manifest_value "$old_snapshot" MIGRATOR_IMAGE)"; do
     docker image inspect "$image" >/dev/null 2>&1 || fail "old image is unavailable before rollback"
   done
+  recovery_state="$(mktemp -d .deploy/.split-recovery.XXXXXX)"
+  captured="$recovery_state/runtime"
+  install -m 600 .env "$recovery_state/env"
+  install -m 600 "$manifest" "$recovery_state/manifest"
+  for path in "$previous_manifest" "$previous_pointer"; do
+    [ ! -e "$path" ] || install -m 600 "$path" "$recovery_state/$(basename "$path")"
+  done
+  printf '%s\n' "$candidate" > "$recovery_state/git-sha"
+  if bash "$helper_dir/verify-split-rollback.sh" "$old_web" "$old_bot" "$captured"; then :; else
+    mark rollback-denied
+    fail "split compatibility guard denied downgrade; Git=$candidate, manifest/env/history unchanged, captured=$captured"
+  fi
+  recover_captured_current() {
+    local reason="$1"
+    git reset --hard "$candidate" >/dev/null &&
+      atomic_install "$recovery_state/manifest" "$manifest" &&
+      atomic_install "$recovery_state/env" .env || fail "$reason; exact source/config recovery failed; snapshot=$recovery_state"
+    for path in "$previous_manifest" "$previous_pointer"; do
+      if [ -f "$recovery_state/$(basename "$path")" ]; then
+        atomic_install "$recovery_state/$(basename "$path")" "$path" || fail "$reason; exact history recovery failed; snapshot=$recovery_state"
+      else
+        rm -f -- "$path" || fail "$reason; exact history recovery failed; snapshot=$recovery_state"
+      fi
+    done
+    bash "$helper_dir/verify-split-rollback.sh" recover "$captured" || {
+      mark rollback-recovery-failed
+      fail "$reason; captured recovery unconfirmed; Git=$(git rev-parse HEAD), manifest=$manifest, env=.env, snapshot=$recovery_state; reviewed roll-forward required"
+    }
+    mark rollback-denied
+    fail "$reason; captured current restored; Git=$candidate, manifest/env/history restored from $recovery_state; review runtime health before roll-forward"
+  }
+  bash "$helper_dir/verify-split-rollback.sh" recheck "$captured" || recover_captured_current "writer recheck failed"
   mark rolling-back
-  git reset --hard "$old" >/dev/null || fail "Git rollback failed"
-  atomic_install "$old_snapshot" "$manifest" || fail "old manifest restore failed"
+  git reset --hard "$old" >/dev/null || recover_captured_current "Git rollback failed"
+  atomic_install "$old_snapshot" "$manifest" || recover_captured_current "old manifest restore failed"
+  bash "$helper_dir/verify-split-rollback.sh" recheck "$captured" || recover_captured_current "writer recheck failed before activation"
   if [ "$switch_started" = yes ]; then
-    "${compose[@]}" up --no-build -d web bot || fail "old runtime restart failed"
+    "${compose[@]}" up --no-build -d web bot || recover_captured_current "old runtime activation failed"
+  else
+    bash "$helper_dir/verify-split-rollback.sh" recover "$captured" || recover_captured_current "unchanged runtime restart failed"
   fi
   for path in "$previous_manifest" "$previous_pointer"; do
     if [ -f "$history_snapshot/$(basename "$path")" ]; then
-      atomic_install "$history_snapshot/$(basename "$path")" "$path" || fail "previous history restore failed"
+      atomic_install "$history_snapshot/$(basename "$path")" "$path" || recover_captured_current "previous history restore failed"
     else
-      rm -f -- "$path" || fail "previous history removal failed"
+      rm -f -- "$path" || recover_captured_current "previous history removal failed"
     fi
   done
   if wait_ready; then
     mark rolled-back
   else
     result=$?
-    controlled_failure "$result"
-    fail "old runtime readiness exhausted after rollback; previous history restored"
+    recover_captured_current "old runtime readiness exhausted after rollback"
   fi
 }
 
