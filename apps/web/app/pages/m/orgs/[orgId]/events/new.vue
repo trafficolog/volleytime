@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Organization } from '@volley-time/db'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 const route = useRoute()
 const router = useRouter()
@@ -8,12 +9,7 @@ const {
   error: orgError,
   status: orgStatus,
 } = await useFetch<{
-  organization: {
-    id: number
-    defaultTimezone: string
-    subscriptionsEnabled: boolean
-    currency: string
-  }
+  organization: Organization
   capabilities: { eventSplitPricing: boolean }
   myMember: { role: string; status: string }
 }>(() => `/api/organizations/${orgId.value}`, { key: () => `event-new-org-${orgId.value}` })
@@ -56,7 +52,7 @@ function onSaved(event: { id: number; organizationId: number }) {
         :org-id="orgId"
         :tz="org!.defaultTimezone"
         :subscriptions-enabled="org!.subscriptionsEnabled"
-        :currency="org!.currency"
+        :currency="org!.defaultCurrency"
         :split-pricing-enabled="orgData?.capabilities?.eventSplitPricing === true"
         submit-label="Создать событие"
         @saved="onSaved"

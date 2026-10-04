@@ -82,7 +82,11 @@ export function validatePostgresTestIdentity(endpoint: string, transport: string
 // developer name fallback, skip, database reset or shared-pool termination.
 export async function postgresTestTransport() {
   const config = postgresTestConfig()
-  const inspected = spawnSync('docker', ['inspect', config.containerId], { encoding: 'utf8' })
+  const inspected = spawnSync('docker', ['inspect', config.containerId], {
+    encoding: 'utf8',
+    timeout: 10_000,
+    windowsHide: true,
+  })
   if (inspected.status !== 0) fail()
   try {
     validatePostgresTestContainer(config, JSON.parse(inspected.stdout))
@@ -104,7 +108,11 @@ export async function postgresTestTransport() {
     '-At',
   ]
   const query = (statement: string) => {
-    const result = spawnSync('docker', [...psqlArgs, '-c', statement], { encoding: 'utf8' })
+    const result = spawnSync('docker', [...psqlArgs, '-c', statement], {
+      encoding: 'utf8',
+      timeout: 10_000,
+      windowsHide: true,
+    })
     if (result.status !== 0) fail()
     return result.stdout.trim()
   }

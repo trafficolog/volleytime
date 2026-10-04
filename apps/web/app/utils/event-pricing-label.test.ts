@@ -41,6 +41,7 @@ describe('event pricing labels', () => {
     expect(label.text).toBe('≈ 33,33–33,34 BYN')
     expect(label.description).toContain('Прогноз')
     expect(label.description).toContain('закроет запись')
+    expect(label.description).toContain('одну копейку')
     expect(label.payable).toBe(false)
     const changed = eventPricingLabel(
       { ...current, participantCount: 2, minAmount: 5000, maxAmount: 5000 },

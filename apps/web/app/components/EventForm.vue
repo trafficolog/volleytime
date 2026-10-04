@@ -297,14 +297,15 @@ async function submit() {
       </p>
       <div v-else id="ev-split-hint" class="vt-card space-y-2 p-3 text-sm">
         <p v-if="forecast" class="font-semibold tabular-nums">
-          Прогноз за место при полном составе: {{ formatMoneyRu(forecast.minAmount, currency)
+          Прогноз за место при полном составе: ≈ {{ formatMoneyRu(forecast.minAmount, currency)
           }}<template v-if="forecast.maxAmount !== forecast.minAmount">
             – {{ formatMoneyRu(forecast.maxAmount, currency) }}</template
           >
         </p>
         <p class="text-vt-mute-2">
           Точная сумма распределится после ручного закрытия записи. Оплата наличными или переводом.
-          Абонементы в этом режиме недоступны.
+          Абонементы в этом режиме недоступны. Из-за округления доли могут отличаться на одну
+          копейку.
         </p>
         <p v-if="targetLocked" class="text-vt-mute-2">
           Общая сумма зафиксирована и больше не меняется.

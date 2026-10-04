@@ -309,7 +309,11 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
   try {
     if (action === 'reject') {
       const ok = await confirm(
-        `Отклонить оплату ${displayName(payment.user)}? Запись будет отменена, место перейдёт следующему в листе ожидания.`,
+        `Отклонить оплату ${displayName(payment.user)}? ${
+          ev.value.pricing?.mode === 'split' && ev.value.pricing.settledAt
+            ? 'Запись будет отменена. Лист ожидания не продвигается. Доли остальных не изменятся.'
+            : 'Запись будет отменена, место перейдёт следующему в листе ожидания.'
+        }`,
       )
       if (!ok || !routeStillCurrent(key)) return
     }
@@ -411,6 +415,7 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
         :pricing="ev.pricing"
         :financials="ev.pricingFinancials ?? null"
         :currency="ev.currency"
+        :tz="tz"
         :can-settle="ev.pricingPermissions?.canSettle === true"
         :pending="mutationBusy"
         @settle="settlePricing"

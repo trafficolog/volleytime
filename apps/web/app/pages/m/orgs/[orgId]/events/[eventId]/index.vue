@@ -137,7 +137,11 @@ const actionError = ref('')
 const loadErrorNotice = computed(() =>
   playerEventLoadErrorNotice(apiErrorStatus(loadError.value), actionError.value),
 )
-const routeGuard = createPlayerRequestGuard(() => route.fullPath)
+const pathname = () => route.fullPath.split(/[?#]/, 1)[0]
+let currentViewKey: string | null = `${orgId.value}:${eventId.value}`
+let alive = true
+const confirmationGuard = createPlayerRequestGuard(() => route.fullPath)
+const routeGuard = createPlayerRequestGuard(() => currentViewKey)
 const optionsGuard = createPlayerRequestGuard(() => route.fullPath)
 
 watch(sourcesReady, (ready) => {
@@ -153,10 +157,17 @@ async function retryPage() {
 watch(
   [orgId, eventId, () => route.fullPath],
   () => {
-    routeGuard.invalidate()
+    confirmationGuard.invalidate()
     optionsGuard.invalidate()
     sheetOpen.value = false
     subs.value = []
+    const nextViewKey =
+      pathname() === `/m/orgs/${orgId.value}/events/${eventId.value}`
+        ? `${orgId.value}:${eventId.value}`
+        : null
+    if (nextViewKey === currentViewKey) return
+    routeGuard.invalidate()
+    currentViewKey = nextViewKey
     actionError.value = ''
     submitting.value = false
   },
@@ -164,7 +175,7 @@ watch(
 )
 
 async function openBooking() {
-  if (submitting.value || !bookable.value) return
+  if (!alive || currentViewKey === null || submitting.value || !bookable.value) return
   actionError.value = ''
   if (!ev.value) return
   if (ev.value.pricing.mode === 'fixed' && ev.value.price === 0) return doBook('free')
@@ -199,7 +210,13 @@ async function doBook(
   method: 'free' | 'cash' | 'transfer' | 'subscription',
   subscriptionId?: number,
 ) {
-  if (submitting.value || !eventView.value?.paymentMethods.includes(method)) return
+  if (
+    !alive ||
+    currentViewKey === null ||
+    submitting.value ||
+    !eventView.value?.paymentMethods.includes(method)
+  )
+    return
   const requestedOrgId = orgId.value
   const requestedEventId = eventId.value
   const request = routeGuard.begin()
@@ -217,6 +234,7 @@ async function doBook(
     request.isCurrent,
     async () => {
       await refresh()
+      if (!request.isCurrent()) return
       await refreshNuxtData(`org-nav-balances-${requestedOrgId}`)
     },
   )
@@ -251,16 +269,25 @@ function syncMainButton() {
 }
 onMounted(syncMainButton)
 watch([bookable, () => eventView.value?.action], syncMainButton)
-onUnmounted(() => mainButtonCleanup?.())
+onUnmounted(() => {
+  alive = false
+  confirmationGuard.invalidate()
+  routeGuard.invalidate()
+  optionsGuard.invalidate()
+  mainButtonCleanup?.()
+})
 
 async function cancelMine() {
-  if (submitting.value || !my.value || !canCancel.value) return
+  if (!alive || currentViewKey === null || submitting.value || !my.value || !canCancel.value) return
   const requestedOrgId = orgId.value
-  const requestedFullPath = route.fullPath
+  const confirmation = confirmationGuard.begin()
   const bookingId = my.value.id
   if (!(await confirm('Отменить запись на тренировку?'))) return
   if (
-    requestedFullPath !== route.fullPath ||
+    !alive ||
+    !confirmation.isCurrent() ||
+    submitting.value ||
+    !canCancel.value ||
     requestedOrgId !== orgId.value ||
     bookingId !== my.value?.id
   )
@@ -276,6 +303,7 @@ async function cancelMine() {
     request.isCurrent,
     async () => {
       await refresh()
+      if (!request.isCurrent()) return
       await refreshNuxtData(`org-nav-balances-${requestedOrgId}`)
     },
   )
@@ -436,7 +464,15 @@ async function cancelMine() {
             <span class="text-[13px] flex-1 truncate">{{ displayName(r.user) }}</span>
           </li>
         </ul>
-        <p v-else class="text-sm text-vt-mute-2 mt-3">Пока никто не записался — будьте первым.</p>
+        <p v-else class="text-sm text-vt-mute-2 mt-3">
+          {{
+            ev.status === 'cancelled'
+              ? 'Событие отменено — состав пуст.'
+              : bookable
+                ? 'Пока никто не записался — будьте первым.'
+                : 'Состав пуст.'
+          }}
+        </p>
       </section>
 
       <section

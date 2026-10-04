@@ -2,10 +2,10 @@
 id: '5.16.2'
 phase: '5'
 epic: '5.16'
-status: done
+status: in_progress
 release: 'v0.1.7'
-last_reviewed: 2026-10-02
-status_note: 'Принята через PR84: local Chrome QA, независимые source re-review/acceptance supplement и свежие пять gates PASS147files/1075tests. Exact-head CI37021357261 все4success на b27cd789; merged main035ee142, tree identical. Evidence docs/operations/qa/2026-10-02-organizer-split-chrome.md. Исторические timeout/format FAIL сохранены. Minor M1 consequence copy для финального whole-branch triage; production/Telegram не закрыты.'
+last_reviewed: 2026-10-04
+status_note: 'Историческое принятие PR84 сохранено; integrated review I1/M1-M3 исправляются в единой Task9.8.11 final fix wave. Новые local gates, independent combined re-review, exact-head CI и targeted Chrome checkpoint ещё открыты; production/Telegram отдельно.'
 roles: [FE, QA]
 depends_on: ['6.11.1', '8.11.1']
 tags: [mvp, split, miniapp, desktop, organizer]
@@ -30,6 +30,8 @@ tags: [mvp, split, miniapp, desktop, organizer]
 5. Pending без paymentId отображается как «сумма после закрытия»; финансовая очередь показывает только существующие payments. Decline/remove не вызывает нового распределения.
 
 ## Критерии приёмки
+
+- Integrated review checkpoint 2026-10-04 (Task9.8.11 combined fix wave): I1 — actual organization `defaultCurrency` на Mini/desktop create parents с API→parent→EventForm non-BYN fixed/split coverage без client currency override/conversion. M1 — settled rejection сообщает no promotion/unchanged shares; M2 — persisted settlement timestamp в organization timezone на обоих manage surfaces; M3 — ≈ только provisional forecasts и пояснение разницы в одну копейку. Историческое принятие PR84 не доказывает текущий correction checkpoint; новые gates/re-review/targeted Chrome открыты.
 
 - RED→GREEN mounted tests переключают режим и проверяют соответствующий body, amount validation, lock при edit, valid cancel/confirm диалога и stale route.
 - API-to-form evidence: реальные manager GET ответы cancelled-only/waitlist-only при taken=0 передаются через оба edit parents в EventForm и блокируют mode; target/settle следуют своим разрешениям. Проверен server refusal после устаревшего GET; только hand-written mounted fixtures недостаточны.

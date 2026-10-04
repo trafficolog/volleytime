@@ -23,6 +23,8 @@ export async function behindEventLock(eventId: number, operations: (() => Promis
   const pending: Promise<PromiseSettledResult<unknown>>[] = []
   const queuedPids: number[] = []
   let outcomes: PromiseSettledResult<unknown>[] = []
+  let barrierFailed = false
+  let failure: unknown
   try {
     await locked
     for (const operation of operations) {
@@ -54,10 +56,22 @@ export async function behindEventLock(eventId: number, operations: (() => Promis
       expect(added).toHaveLength(1)
       queuedPids.push(added[0]!)
     }
+  } catch (error) {
+    barrierFailed = true
+    failure = error
   } finally {
     unlock()
-    await blocker
-    outcomes = await Promise.all(pending)
+    try {
+      await blocker
+    } catch (error) {
+      if (!barrierFailed) {
+        barrierFailed = true
+        failure = error
+      }
+    } finally {
+      outcomes = await Promise.all(pending)
+    }
   }
+  if (barrierFailed) throw failure
   return outcomes
 }

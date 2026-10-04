@@ -48,7 +48,11 @@ describe('money races (integration)', { timeout: 30_000 }, () => {
       price: 1500,
     })
   const incomes = (paymentId: number) =>
-    db.select().from(ledgerEntries).where(eq(ledgerEntries.paymentId, paymentId))
+    db
+      .select()
+      .from(ledgerEntries)
+      .where(eq(ledgerEntries.paymentId, paymentId))
+      .orderBy(ledgerEntries.id)
 
   beforeEach(async () => {
     fixtureUsers = []
@@ -157,7 +161,9 @@ describe('money races (integration)', { timeout: 30_000 }, () => {
       status: 'refunded',
       amount: 5001,
     })
-    expect(await incomes(removedPaymentId)).toMatchObject([
+    const removedEntries = await incomes(removedPaymentId)
+    expect(removedEntries).toHaveLength(2)
+    expect(removedEntries).toMatchObject([
       { type: 'income', amount: 5001 },
       { category: 'refund', amount: 5001 },
     ])

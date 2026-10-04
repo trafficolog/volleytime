@@ -4,8 +4,8 @@ phase: '9'
 epic: '9.8'
 status: in_progress
 release: 'v0.1.7'
-last_reviewed: 2026-10-03
-status_note: 'Task 7 review fix round1: I1 hostname overrides/ambiguous attached-network DNS failclosed; I2 exact configured PostgreSQL service ID/endpoint proof portable to CI. Предыдущий local checkpoint ed0def9 не принят до исправлений; статус in_progress, review/CI/integrated/live acceptance открыты. QA runtime3317 остановлен пользователем; build только после свежего listener check.'
+last_reviewed: 2026-10-04
+status_note: 'Final integrated review I1/I2 and scoped M1-M7: combined correction checkpoint, final frozen gates/re-review/exact-head CI/targeted Chrome pending. Human-authorized exact manual GHCR case budget60000ms; historic integrated35000ms timeout retained. M8 broad harness/M9 baseline tooling deferred. Production/Telegram/pilot/tag remain open; build only after fresh3317absence, no automatic runtime changes.'
 roles: [QA, DEVOPS]
 depends_on: ['8.11.2', '6.11.2']
 tags: [mvp, split, release, production, telegram]
@@ -31,6 +31,9 @@ tags: [mvp, split, release, production, telegram]
 6. Два реальных Telegram-аккаунта: состав, прогноз, waitlist, закрытие, личные суммы/уведомления, confirm/reject, disabled subscription, repeat, light/dark и pilot. Зафиксировать owner acceptance перед tag/Release.
 
 ## Критерии приёмки
+
+- Final integrated review fix wave (2026-10-04, base ade78281): устранить I1/I2 и M1–M7 по `.superpowers/sdd/2026-10-01-event-split-pricing/final-wholebranch-review.md` одним scoped изменением с RED→GREEN. I1: реальные organization responses/defaultCurrency проходят оба create parents; currency остаётся server-owned. I2: отдельный mounted event-consumer suite проверяет confirmation lifetime/full-route/latest permission и сохранение busy/result/refusal refresh уже отправленного POST при query/hash. M1–M3/M7: корректная consequence/forecast/rounding/empty copy и persisted settlement time в timezone организации. M4–M6: barrier joins при отказе, deterministic exact ledger pair и bounded cleanup только owned subprocesses, synchronous Docker timeout. M8 broad harness rewrite и M9 baseline tooling/wrapper deferred.
+- Сохранить прежний integrated FAILED test log и unchanged focused GHCR diagnostic17.07s. Уточнение прямого решения пользователя2026-10-04: ТОЛЬКО `apps/web/server/utils/ghcr-manual-deploy-contract.test.ts` case `old activation failure restores exact boundary history and captured current only` получает60000ms вместо35000ms. Аналогичный image-bundle case и все остальные budgets неизменны; это локальный test budget, не root-cause repair и не production timeout. После source freeze — пять новых gates с exact authorized PostgreSQL test identity, hashes/logs и fresh separate3317absence перед build; runtime не запускать/останавливать. Independent combined re-review, exact-head CI, targeted Chrome и integrated/live acceptance остаются отдельными checkpoint; task in_progress.
 
 - Перечисленные реальные проверки подтверждены отдельно; repository tests не подменяют production dump/health/Telegram результаты.
 - Dangerous rollback на fixed-only версию при split-данных блокируется; рабочие старые образы/backup сохраняются. Не выполнять DB restore или удаление данных ради rollback.

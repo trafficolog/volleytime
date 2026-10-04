@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { Organization } from '@volley-time/db'
+
 import { canSubmitDesktopEventAction } from '~/utils/desktop-event-actions'
 
 definePageMeta({ layout: 'desktop-org', middleware: ['auth'] })
@@ -15,7 +17,7 @@ const {
   error: orgError,
   refresh: refreshOrg,
 } = await useFetch<{
-  organization: { id: number; currency: string; subscriptionsEnabled: boolean }
+  organization: Organization
   myMember: { role: string; status: string }
   capabilities: { eventSplitPricing: boolean }
 }>(() => `/api/organizations/${orgId.value}`, { key: () => `desktop-event-new-org-${orgId.value}` })
@@ -56,7 +58,7 @@ function saved(event: { id: number }) {
       <EventForm
         :org-id="orgId"
         :tz="tz"
-        :currency="orgData!.organization.currency"
+        :currency="orgData!.organization.defaultCurrency"
         :subscriptions-enabled="orgData!.organization.subscriptionsEnabled"
         :split-pricing-enabled="orgData?.capabilities?.eventSplitPricing === true"
         submit-label="Создать событие"

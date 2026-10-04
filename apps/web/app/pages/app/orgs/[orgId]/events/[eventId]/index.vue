@@ -325,6 +325,7 @@ async function removeBooking(booking: EventBookingRow) {
         :pricing="event.pricing"
         :financials="event.pricingFinancials ?? null"
         :currency="event.currency"
+        :tz="tz"
         :can-settle="event.pricingPermissions?.canSettle === true"
         :pending="busy"
         @settle="settlePricing"
