@@ -90,6 +90,8 @@ jobs:
       - name: Apply migrations to test DB
         run: pnpm -F @volley-time/db db:migrate
       - name: Run tests
+        env:
+          POSTGRES_TEST_CONTAINER_ID: ${{ job.services.postgres.id }}
         run: pnpm test
 
   build:

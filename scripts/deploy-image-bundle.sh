@@ -230,7 +230,7 @@ check_ghcr_checkpoint() {
 }
 
 rollback_to_previous() {
-  local candidate="$1" old="$2" old_web old_bot
+  local candidate="$1" old="$2" switch_started="${3:-yes}" old_web old_bot recovery_state captured
   valid_sha "$old" || fail "previous SHA is not validated"
   [ "$(read_manifest_sha "$previous_manifest" || true)" = "$old" ] || fail "previous manifest mismatch"
   [ "$(cat "$previous_pointer" 2>/dev/null || true)" = "$old" ] || fail "previous pointer mismatch"
@@ -245,12 +245,42 @@ rollback_to_previous() {
   for image_sha in "$old_web" "$old_bot"; do
     [ "$image_sha" = "$old" ] || [ "$image_sha" = "$candidate" ] || fail "runtime identity is ambiguous; no automatic rollback"
   done
+  recovery_state="$(mktemp -d .deploy/.split-recovery.XXXXXX)"
+  captured="$recovery_state/runtime"
+  install -m 600 .env "$recovery_state/env"
+  install -m 600 "$manifest" "$recovery_state/manifest"
+  printf '%s\n' "$candidate" > "$recovery_state/git-sha"
+  # Guard captures ACTUAL current IDs/images, including partially activated candidates.
+  if bash "$helper_dir/verify-split-rollback.sh" "$(sed -n 's/^WEB_IMAGE=//p' "$previous_manifest")" "$(sed -n 's/^BOT_IMAGE=//p' "$previous_manifest")" "$captured"; then :; else
+    mark rollback-denied
+    fail "split compatibility guard denied downgrade; Git=$candidate, manifest/env unchanged, captured=$captured"
+  fi
+  recover_captured_current() {
+    local reason="$1"
+    # No unsafe fallback: restore the exact boundary source/config, then start
+    # only still-existing, verified captured compatible current container IDs.
+    git reset --hard "$candidate" >/dev/null &&
+      copy_manifest "$recovery_state/manifest" "$manifest" &&
+      install -m 600 "$recovery_state/env" .env &&
+      bash "$helper_dir/verify-split-rollback.sh" recover "$captured" || {
+        mark rollback-recovery-failed
+        fail "$reason; captured recovery unconfirmed; Git=$(git rev-parse HEAD), manifest=$manifest, env=.env, snapshot=$recovery_state; reviewed roll-forward required"
+      }
+    mark rollback-denied
+    fail "$reason; captured current restored; Git=$candidate, manifest/env restored from $recovery_state; review runtime health before roll-forward"
+  }
+  bash "$helper_dir/verify-split-rollback.sh" recheck "$captured" || recover_captured_current "writer recheck failed"
   mark rollback-started
-  git reset --hard "$old" >/dev/null || fail "Git rollback failed"
-  copy_manifest "$previous_manifest" "$manifest"
-  install -m 600 "$previous_env" .env || fail "previous production env restore failed"
-  "${compose[@]}" up --no-build -d web bot || { result=$?; interrupted "$result"; fail "old application restart failed"; }
-  wait_health "$old" || { result=$?; interrupted "$result"; fail "old release health failed after rollback"; }
+  git reset --hard "$old" >/dev/null || recover_captured_current "Git rollback failed"
+  copy_manifest "$previous_manifest" "$manifest" || recover_captured_current "manifest rollback failed"
+  install -m 600 "$previous_env" .env || recover_captured_current "env rollback failed"
+  bash "$helper_dir/verify-split-rollback.sh" recheck "$captured" || recover_captured_current "writer recheck failed before activation"
+  if [ "$switch_started" = no ]; then
+    bash "$helper_dir/verify-split-rollback.sh" recover "$captured" || recover_captured_current "unchanged runtime restart failed"
+  else
+    "${compose[@]}" up --no-build -d web bot || recover_captured_current "old application activation failed"
+  fi
+  wait_health "$old" || recover_captured_current "old release health failed after rollback"
   mark rolled-back
 }
 
@@ -369,13 +399,7 @@ if "${compose[@]}" run --rm --no-deps --pull never migrate; then :; else
   result=$?
   interrupted "$result"
   mark migration-failed
-  # No application switch occurred; restore source and manifest only.
-  clean_prod || fail "migration failed and checkout is ambiguous"
-  git reset --hard "$previous" >/dev/null || fail "migration failed and Git rollback failed"
-  copy_manifest "$previous_manifest" "$manifest"
-  install -m 600 "$previous_env" .env || fail "migration failed and previous production env restore failed"
-  check_health "$previous" || operation_failed "$?" "migration failed and previous runtime health is not exact"
-  mark rolled-back
+  rollback_to_previous "$wanted" "$previous" no
   fail "migration failed; source and manifest restored"
 fi
 mark migrated

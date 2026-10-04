@@ -23,6 +23,7 @@ RUN pnpm --filter @volley-time/web build
 
 # ---- Runtime ----
 FROM node:22-alpine AS runtime
+LABEL org.volleytime.event-split-pricing="1"
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000

@@ -66,6 +66,11 @@ for (const [key, fallback] of Object.entries(DEFAULTS)) {
   values.set(key, valueOf(key).trim() === '' ? fallback : valueOf(key))
 }
 for (const key of OPTIONAL) values.set(key, valueOf(key))
+// Creation opens only for the exact repository-variable value approved by release gates.
+values.set(
+  'EVENT_SPLIT_PRICING_ENABLED',
+  valueOf('EVENT_SPLIT_PRICING_ENABLED') === 'true' ? 'true' : 'false',
+)
 
 const output = resolve(process.argv[2] ?? '.env.production')
 const body = [...values].map(([key, value]) => `${key}=${quote(value)}`).join('\n') + '\n'

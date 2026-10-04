@@ -1,6 +1,6 @@
 # R0.7 player split — local Chrome acceptance
 
-Status: **local browser QA independently accepted for e4634cd; exact-head CI / PR / merge pending**. Task8.11.2 is in_progress. Repository tests and source review do not establish visual or functional browser acceptance. All dated sections below the current checkpoint are historical evidence, not current blockers or launcher instructions.
+Status: **Task8.11.2 done: local browser QA independently accepted for e4634cd and PR85 merged into main ebfc5bf**. Exact-head CI37133275458 passed all four jobs on documentation head8e29442; runtime source is unchanged from accepted e4634cd. Post-merge CI37133566327 passed all four jobs on exact main ebfc5bf, including runner image bundle. Release9.8.11 is in_progress; production/Telegram/pilot acceptance remains open. Repository tests and source review do not establish visual or functional browser acceptance. All dated sections below the current checkpoint are historical evidence, not current blockers or launcher instructions.
 
 ## Current checkpoint — 2026-10-03 18:25 Europe/Minsk
 
