@@ -265,36 +265,60 @@ exit "$code"
       let stdout = ''
       let stderr = ''
       let stopped: string | null = null
+      let terminationError: Error | undefined
+      let closeTimer: ReturnType<typeof setTimeout> | undefined
       let joined!: () => void
+      let joinFailed!: (error: Error) => void
+      const stopError = (detail: string) =>
+        new Error(
+          `${stopped}; owned PID ${child.pid ?? 'unavailable'}, root ${root}; ${detail}${terminationError ? `; ${terminationError.message}` : ''}`,
+          { cause: terminationError },
+        )
       const owned = {
-        closed: new Promise<void>((resolve) => {
+        closed: new Promise<void>((resolve, reject) => {
           joined = resolve
+          joinFailed = reject
         }),
         stop(reason: string) {
           if (stopped !== null) return
           stopped = reason
-          if (!child.pid) return
-          if (process.platform === 'win32') {
+          if (!child.pid) {
+            terminationError = new Error('Missing owned child PID')
+          } else if (process.platform === 'win32') {
             // Exact owned PID and descendants only; never a process-name/global kill.
             const killed = spawnSync('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], {
               timeout: 5000,
               windowsHide: true,
               encoding: 'utf8',
             })
-            if (killed.error) stderr += `Owned tree termination failed: ${killed.error.message}\n`
+            terminationError =
+              killed.error ??
+              (killed.status !== 0
+                ? new Error(
+                    `taskkill exited with status ${killed.status}, signal ${killed.signal}: ${killed.stderr}`,
+                  )
+                : undefined)
           } else {
             try {
               process.kill(-child.pid, 'SIGKILL')
-            } catch {
-              /* The owned group already exited. */
+            } catch (error) {
+              terminationError = error instanceof Error ? error : new Error(String(error))
             }
           }
           // Windows pipe handles can outlive taskkill's successful tree exit.
           child.stdin.destroy()
           child.stdout.destroy()
           child.stderr.destroy()
+          // A successful kill call also needs an observed close; failure never releases ownership.
+          closeTimer = setTimeout(() => {
+            const error = stopError('child close unconfirmed after 1000ms; temp root retained')
+            joinFailed(error)
+            reject(error)
+          }, 1000)
         },
       }
+      // run() may fail before the caller attempts close(); retain the same failure for close().
+      void owned.closed.catch(() => {})
       active.add(owned)
       const timer = setTimeout(
         () => owned.stop(`Rollback subprocess timed out after ${timeoutMs}ms`),
@@ -302,18 +326,23 @@ exit "$code"
       )
       const finish = () => {
         clearTimeout(timer)
+        clearTimeout(closeTimer)
         active.delete(owned)
         joined()
       }
       child.stdout.on('data', (part) => (stdout += String(part)))
       child.stderr.on('data', (part) => (stderr += String(part)))
       child.on('error', (error) => {
-        finish()
         reject(error)
       })
       child.on('close', (status) => {
         finish()
-        if (stopped !== null) reject(new Error(stopped))
+        if (stopped !== null)
+          reject(
+            terminationError
+              ? stopError('child close observed after failed termination')
+              : new Error(stopped),
+          )
         else resolve({ status, stdout, stderr })
       })
     })
@@ -361,11 +390,14 @@ exit "$code"
     async close() {
       closing = true
       for (const owned of active) owned.stop('Rollback fixture closed')
-      await Promise.all(Array.from(active, (owned) => owned.closed))
+      const joined = await Promise.allSettled(Array.from(active, (owned) => owned.closed))
       server.closeAllConnections()
-      await new Promise<void>((resolve, reject) =>
-        server.close((error) => (error ? reject(error) : resolve())),
-      )
+      if (server.listening)
+        await new Promise<void>((resolve, reject) =>
+          server.close((error) => (error ? reject(error) : resolve())),
+        )
+      const failed = joined.find((result) => result.status === 'rejected')
+      if (failed) throw failed.reason
       // Bounded filesystem cleanup after owned Windows process handles are released.
       await rm(root, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 })
     },
