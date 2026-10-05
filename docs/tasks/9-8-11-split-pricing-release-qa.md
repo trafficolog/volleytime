@@ -4,8 +4,8 @@ phase: '9'
 epic: '9.8'
 status: in_progress
 release: 'v0.1.7'
-last_reviewed: 2026-10-04
-status_note: 'Final integrated review I1/I2 and scoped M1-M7: combined correction checkpoint, final frozen gates/re-review/exact-head CI/targeted Chrome pending. Human-authorized exact manual GHCR case budget60000ms; historic integrated35000ms timeout retained. M8 broad harness/M9 baseline tooling deferred. Production/Telegram/pilot/tag remain open; build only after fresh3317absence, no automatic runtime changes.'
+last_reviewed: 2026-10-05
+status_note: 'Полный reviewed source22c0850 интегрирован в main003968944 через принятые PR86–90; шесть feature tasks и follow-ups приняты. I1/I2/M1–M7/N1 закрыты в соответствующем scope; M8/M9 и query/final-join latency limit сохранены. Frozen final local gates фиксируются отдельно; final independent review/exact docs-head/main CI, production/Telegram/pilot/tag открыты.'
 roles: [QA, DEVOPS]
 depends_on: ['8.11.2', '6.11.2']
 tags: [mvp, split, release, production, telegram]
@@ -31,6 +31,14 @@ tags: [mvp, split, release, production, telegram]
 6. Два реальных Telegram-аккаунта: состав, прогноз, waitlist, закрытие, личные суммы/уведомления, confirm/reject, disabled subscription, repeat, light/dark и pilot. Зафиксировать owner acceptance перед tag/Release.
 
 ## Критерии приёмки
+
+### Authoritative final code/pre-deploy checkpoint — 2026-10-05
+
+- Все шесть feature cards приняты; PR86 rollback, PR87 budgets, PR88 final corrections, PR89 owned-shell fixture и PR90 trailing-route интегрированы. Exact accepted main `003968944c4e5f5f3a48685c2deb316e0e8a014a`, tree `43921551ee01b6ffd7c28db191a350425490802e`; [exact-main CI37294307936](https://github.com/trafficolog/volleytime/actions/runs/37294307936) all4SUCCESS. [Sanitized QA provenance](../operations/qa/2026-10-05-r07-final-code-checkpoint.md) содержит точные PR/head/main/CI identities и closure-map; прежние pending checkpoints ниже исторические.
+- Worker заново сравнил literal binary bytes всех 802 tracked paths вне `docs/` с сохранённым original `22c085090420db5012a9610ccbd0a352bdb0d84c`: changed=[]; financial/privacy/fixed/split/rounding и production/test источники идентичны принятому source. Только документация синхронизируется. Final Chrome100% и native200 supplement принят в своём scope: E1 closed, E2 controller-owned functional provenance retained; без нового browser replay и без claims native Telegram delivery.
+- Whole-branch I1/M1–M5/M7 закрыты reviewed correction PR88; canonical I2 и отдельный N1 закрыты PR88/PR90; M6 failure-bound закрыт PR89. Task6 Minor1→M4 join/error correction, Minor2→M5 exact ordered ledger pair, Minor3→M9 baseline tooling. Task4M1→M1, Task5 harness/emptycopy→M8/M7, Task7 subprocess→M6. M8 broad harness и M9 wrapper/warnings остаются deferred; 10s polling deadline не ограничивает все awaited DB queries/final joins. Исторические FAILED/diagnostics и ранние12 warnings не удалены; текущие11 warnings раскрываются отдельно.
+- После всех documentation edits один freeze и ровно пять отдельных последовательных gates, existing exact PostgreSQL container и только `volleytime_test`; full suite уже содержит deployment contracts и реальные PG races, дополнительный covering run не требуется. Complete logs, binary mapping, source manifest, dynamic3317/output isolation и результаты: target `output/playwright/final-r07-main`, original ignored `final-release-checkpoint-report.md`. Этот report фиксирует фактические результаты после freeze; status metadata не подменяет gate evidence.
+- Это только local code/pre-deploy checkpoint. Controller final independent release/integration review и exact final docs-head CI/merge-tree/exact-main CI с runner bundle/capacity остаются отдельными. После merge требуется равенство tested tree/source bytes. До promotion нужны fresh keys/live identity/capacity/phase audit, полный candidate capability, reviewed FF prod, Actions backup-before-migrations/exact runtime SHA/smoke-cleanup; затем real two-account Telegram/pilot/owner acceptance. Task9.8.11/release остаётся `in_progress`, tag/Release отсутствуют.
 
 ### Main integration checkpoint — 2026-10-05
 

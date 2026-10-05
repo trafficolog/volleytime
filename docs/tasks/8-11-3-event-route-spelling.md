@@ -2,10 +2,10 @@
 id: '8.11.3'
 phase: '8'
 epic: '8.11'
-status: in_progress
+status: done
 release: 'v0.1.7'
-last_reviewed: 2026-10-04
-status_note: 'N1 реализовано: RED 8 trailing failures → GREEN 72 actual-consumer cases canonical/trailing. Infrastructure8583cba source review approved; inherited fullgate FAILED (4 image-bundle timeouts), pnpm test на этом HEAD не повторяется без решения controller. Frozen scoped checks, Chrome/review/CI и acceptance остаются открыты.'
+last_reviewed: 2026-10-05
+status_note: 'N1 accepted: original RED8→GREEN72, source/Chrome/native200 and independent integration review approved; PR90 mergedc8dd12ed→main003968944, CI37293801825/37294307936 all4SUCCESS, exact trees. Frozen five gates157/1316 PASS; original historical FAILED logs/E2 limits retained. Release9.8.11/Telegram/pilot separately open.'
 roles: [FRONTEND, QA]
 depends_on: []
 tags: [mvp, miniapp, review-fix]
@@ -43,6 +43,8 @@ Scoped review6f586ab N1: router strict:false принимает optional trailin
 Не менять формы/дизайн/финансовые правила/тестовые процессы/таймауты/dependencies, не ослаблять stale guard, не публиковать/deploy, не удалять evidence/images/backup и не reset DB.
 
 ## Integration checkpoint — 2026-10-05
+
+Authoritative acceptance: [PR90](https://github.com/trafficolog/volleytime/pull/90), head `c8dd12edde97134d708e1329ebceedf8da93f44b`, main `003968944c4e5f5f3a48685c2deb316e0e8a014a`, identical tree `43921551ee01b6ffd7c28db191a350425490802e`; CI37293801825/37294307936 all4SUCCESS. Independent integration spec PASS/quality APPROVED, no new finding. Literal binary equality of full non-doc candidate to original22c0850 reverified for final checkpoint; affected Chrome100/native200 accepted with E1 closed and E2 functional provenance retained. [Final provenance](../operations/qa/2026-10-05-r07-final-code-checkpoint.md). Pending prose below is historical;9.8.11/live/manual remain open.
 
 Approved replay of reviewed `e946b2c4631ba6c3a399920c8807a5783c6e0a9c` onto accepted main `c5bdaa8c47ec57a9c576cce41f3bbd9b2a5d0f52` in isolated `verify-9-8-5-final/volleytime`. Player index and interaction test remain exact reviewed bytes; only this additive owning-card checkpoint differs. The eight accepted main timing-policy files and already-integrated rollback fixture remain unchanged. Original RED eight trailing failures → GREEN 72 cases and the historical failed typecheck/full image-bundle gates remain preserved evidence; they are not new target outcomes.
 
