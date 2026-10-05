@@ -25,17 +25,73 @@ const inspected = () => [
   },
 ]
 
+// Read only the test job's environment and the actual pnpm test step. An env
+// attached to a migration/lint step or another job cannot reach this consumer.
+function workflowTestEnvironment(workflow: string): NodeJS.ProcessEnv {
+  const job = workflow
+    .replace(/\r\n/g, '\n')
+    .match(/^ {2}test:\n([\s\S]*?)(?=^ {2}[\w-]+:|$(?![\s\S]))/m)?.[1]
+  if (!job) throw new Error('Missing test job')
+  const steps = job.split('    steps:\n')[1]?.split(/(?=^ {6}- )/m) ?? []
+  const testSteps = steps.filter((step) => /^(?: {6}- | {8})run: pnpm test\s*$/m.test(step))
+  if (testSteps.length !== 1) throw new Error('Expected one pnpm test step')
+  const result: NodeJS.ProcessEnv = {}
+  for (const [block, indent] of [
+    [job.split('    steps:\n')[0]!, 4],
+    [testSteps[0]!, 8],
+  ] as const) {
+    const env =
+      block.match(
+        new RegExp(`^${' '.repeat(indent)}env:\\n((?:${' '.repeat(indent + 2)}[^\\n]*\\n?)*)`, 'm'),
+      )?.[1] ?? ''
+    for (const line of env.trim().split('\n')) {
+      const entry = line.trim().match(/^([A-Z_]+): (.+)$/)
+      if (!entry) continue
+      const [, key, value] = entry
+      result[key!] = value === '${{ job.services.postgres.id }}' ? id : value
+    }
+  }
+  return result
+}
+
 describe('split rollback PostgreSQL transport contract', () => {
   afterAll(closeDb)
-  it('binds the exact Actions PostgreSQL service identity to the test command', () => {
-    const workflow = readFileSync(
-      new URL('../../../../.github/workflows/ci.yml', import.meta.url),
-      'utf8',
-    )
-    const runTests = workflow.split('      - name: Run tests\n')[1]!.split('\n  build:')[0]!
-    expect(runTests).toContain('POSTGRES_TEST_CONTAINER_ID: ${{ job.services.postgres.id }}')
-    expect(runTests).toContain('run: pnpm test')
-  })
+  it.each(['ci', 'deploy'])(
+    '%s passes its test-step service identity to postgresTestConfig',
+    (name) => {
+      const workflow = readFileSync(
+        new URL(`../../../../.github/workflows/${name}.yml`, import.meta.url),
+        'utf8',
+      )
+      expect(postgresTestConfig(workflowTestEnvironment(workflow))).toEqual({
+        containerId: id,
+        port: '5432',
+      })
+    },
+  )
+
+  it.each(['another step', 'another job'])(
+    'rejects service identity attached to %s',
+    (location) => {
+      const workflow = readFileSync(
+        new URL('../../../../.github/workflows/ci.yml', import.meta.url),
+        'utf8',
+      ).replace('          POSTGRES_TEST_CONTAINER_ID: ${{ job.services.postgres.id }}', '')
+      const misplaced =
+        location === 'another step'
+          ? workflow.replace(
+              '        run: pnpm -F @volley-time/db db:migrate',
+              '        run: pnpm -F @volley-time/db db:migrate\n        env:\n          POSTGRES_TEST_CONTAINER_ID: ${{ job.services.postgres.id }}',
+            )
+          : workflow.replace(
+              '  build:\n',
+              '  build:\n    env:\n      POSTGRES_TEST_CONTAINER_ID: ${{ job.services.postgres.id }}\n',
+            )
+      expect(() => postgresTestConfig(workflowTestEnvironment(misplaced))).toThrow(
+        'identity is unproven',
+      )
+    },
+  )
 
   it('never discovers the transport using a developer container name', () => {
     const races = readFileSync(

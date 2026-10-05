@@ -68,6 +68,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm -F @volley-time/db db:migrate
       - run: pnpm test
+        env:
+          POSTGRES_TEST_CONTAINER_ID: ${{ job.services.postgres.id }}
       - run: pnpm lint
       - run: pnpm typecheck
 
