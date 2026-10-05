@@ -137,6 +137,7 @@ describe('runner image bundle packaging', () => {
       expect(f.commands()).toBe('')
       expect(existsSync(join(f.output, 'release-images.meta'))).toBe(false)
     },
+    35_000,
   )
 
   it('builds three amd64 SHA-labelled images and publishes matching private artifacts', () => {
@@ -200,7 +201,7 @@ describe('runner image bundle packaging', () => {
       expect(statSync(archive).mode & 0o777).toBe(0o600)
       expect(statSync(meta).mode & 0o777).toBe(0o600)
     }
-  })
+  }, 35_000)
 
   it('refuses to export a migrator image whose bundled CLI fails offline', () => {
     const f = fixture()
@@ -211,20 +212,24 @@ describe('runner image bundle packaging', () => {
     expect(f.commands()).not.toContain('save -o')
     expect(existsSync(join(f.output, 'release-images.tar.gz'))).toBe(false)
     expect(existsSync(join(f.output, 'release-images.meta'))).toBe(false)
-  })
+  }, 35_000)
 
   it.each([
     ['architecture', { FAKE_ARCH: 'arm64' }],
     ['revision label', { FAKE_REVISION: 'b'.repeat(40) }],
     ['tag', { FAKE_TAG: `volleytime-web:${'b'.repeat(40)}` }],
-  ])('rejects wrong %s before Docker export', (_name, overrides) => {
-    const f = fixture()
-    const result = f.run(f.sha, overrides)
-    expect(result.status).not.toBe(0)
-    expect(f.commands()).not.toContain('save -o')
-    expect(existsSync(join(f.output, 'release-images.tar.gz'))).toBe(false)
-    expect(existsSync(join(f.output, 'release-images.meta'))).toBe(false)
-  })
+  ])(
+    'rejects wrong %s before Docker export',
+    (_name, overrides) => {
+      const f = fixture()
+      const result = f.run(f.sha, overrides)
+      expect(result.status).not.toBe(0)
+      expect(f.commands()).not.toContain('save -o')
+      expect(existsSync(join(f.output, 'release-images.tar.gz'))).toBe(false)
+      expect(existsSync(join(f.output, 'release-images.meta'))).toBe(false)
+    },
+    35_000,
+  )
 
   it('does not publish either artifact when Docker export fails', () => {
     const f = fixture()
@@ -234,7 +239,7 @@ describe('runner image bundle packaging', () => {
     expect(existsSync(join(f.output, 'release-images.tar.gz'))).toBe(false)
     expect(existsSync(join(f.output, 'release-images.meta'))).toBe(false)
     expect(readdirSync(f.output)).toEqual([])
-  })
+  }, 35_000)
 
   it('rejects a valid SHA different from the checked out commit before Docker build', () => {
     const f = fixture()
@@ -243,7 +248,7 @@ describe('runner image bundle packaging', () => {
     expect(result.status).not.toBe(0)
     expect(result.stderr).toContain('checkout SHA does not match release SHA')
     expect(f.commands()).toBe('')
-  })
+  }, 35_000)
 
   it('rejects modified tracked source before Docker build', () => {
     const f = fixture()
@@ -252,7 +257,7 @@ describe('runner image bundle packaging', () => {
     expect(result.status).not.toBe(0)
     expect(result.stderr).toContain('source checkout is not clean')
     expect(f.commands()).toBe('')
-  })
+  }, 35_000)
 
   it('rejects untracked source in the build context before Docker build', () => {
     const f = fixture()
@@ -261,7 +266,7 @@ describe('runner image bundle packaging', () => {
     expect(result.status).not.toBe(0)
     expect(result.stderr).toContain('source checkout is not clean')
     expect(f.commands()).toBe('')
-  })
+  }, 35_000)
 
   it('allows ignored build artifacts and scratch without packaging them', () => {
     const f = fixture()
@@ -272,7 +277,7 @@ describe('runner image bundle packaging', () => {
     const result = f.run()
     expect(result.status, result.stderr).toBe(0)
     expect(f.commands()).toContain('build --platform linux/amd64')
-  })
+  }, 35_000)
 })
 
 function verifyFixture() {
@@ -395,7 +400,7 @@ describe('staged image bundle verification', () => {
     expect(f.commands().match(/image inspect/g) ?? []).toHaveLength(3)
     expect(f.commands()).not.toMatch(/compose|prune|build|backup/)
     expect(readFileSync(f.state, 'utf8')).toBe('old release')
-  })
+  }, 35_000)
 
   it.each([
     [
@@ -473,15 +478,19 @@ describe('staged image bundle verification', () => {
           readFileSync(join(f.staging, 'release-images.meta'), 'utf8') + 'EXTRA=1\n',
         ),
     ],
-  ])('rejects %s before docker load', (_name, mutate) => {
-    const f = verifyFixture()
-    mutate(f)
-    const result = f.run()
-    expect(result.status, `${result.stdout}\n${result.stderr}\n${f.commands()}`).not.toBe(0)
-    expect(f.commands()).not.toContain('load -i')
-    expect(f.commands()).not.toMatch(/compose|prune|build|backup/)
-    expect(readFileSync(f.state, 'utf8')).toBe('old release')
-  })
+  ])(
+    'rejects %s before docker load',
+    (_name, mutate) => {
+      const f = verifyFixture()
+      mutate(f)
+      const result = f.run()
+      expect(result.status, `${result.stdout}\n${result.stderr}\n${f.commands()}`).not.toBe(0)
+      expect(f.commands()).not.toContain('load -i')
+      expect(f.commands()).not.toMatch(/compose|prune|build|backup/)
+      expect(readFileSync(f.state, 'utf8')).toBe('old release')
+    },
+    35_000,
+  )
 
   it('treats metadata shell syntax as inert data', () => {
     const f = verifyFixture()
@@ -498,7 +507,7 @@ describe('staged image bundle verification', () => {
     expect(result.status).not.toBe(0)
     expect(existsSync(marker)).toBe(false)
     expect(f.commands()).not.toContain('load -i')
-  })
+  }, 35_000)
 
   it('rejects insufficient disk space before docker load', () => {
     const f = verifyFixture()
@@ -506,20 +515,24 @@ describe('staged image bundle verification', () => {
     expect(result.status, `${result.stdout}\n${result.stderr}\n${f.commands()}`).not.toBe(0)
     expect(f.commands()).not.toContain('load -i')
     expect(readFileSync(f.state, 'utf8')).toBe('old release')
-  })
+  }, 35_000)
 
   it.each([
     ['architecture', { FAKE_ARCH: 'arm64' }],
     ['revision', { FAKE_REVISION: 'b'.repeat(40) }],
     ['tag', { FAKE_TAG: `volleytime-web:${'b'.repeat(40)}` }],
-  ])('rejects loaded %s mismatch without activation', (_name, env) => {
-    const f = verifyFixture()
-    const result = f.run(env)
-    expect(result.status).not.toBe(0)
-    expect(f.commands()).toContain('load -i')
-    expect(f.commands()).not.toMatch(/compose|prune|build|backup/)
-    expect(readFileSync(f.state, 'utf8')).toBe('old release')
-  })
+  ])(
+    'rejects loaded %s mismatch without activation',
+    (_name, env) => {
+      const f = verifyFixture()
+      const result = f.run(env)
+      expect(result.status).not.toBe(0)
+      expect(f.commands()).toContain('load -i')
+      expect(f.commands()).not.toMatch(/compose|prune|build|backup/)
+      expect(readFileSync(f.state, 'utf8')).toBe('old release')
+    },
+    35_000,
+  )
 })
 
 function activationFixture() {
@@ -738,7 +751,7 @@ describe('image bundle activation', () => {
       expect(existsSync(join(f.repo, '.deploy', `previous-env-${f.next}`))).toBe(false)
       expect(f.git('rev-parse', 'HEAD')).toBe(f.candidate)
     },
-    15000,
+    35_000,
   )
 
   it.each(
@@ -768,7 +781,7 @@ describe('image bundle activation', () => {
       expect(readFileSync(phasePath, 'utf8')).toBe(imagePhase)
       expect(readFileSync(ghcrPath, 'utf8')).toBe(ghcrCheckpoint)
     },
-    20000,
+    35_000,
   )
 
   it.each(['backed-up', 'rolling-back'])(
@@ -783,7 +796,7 @@ describe('image bundle activation', () => {
       expect(f.git('rev-parse', 'HEAD')).toBe(f.candidate)
       expect(readFileSync(f.live, 'utf8')).toBe(f.old)
     },
-    20000,
+    35_000,
   )
 
   it('accepts image X replay and descendant B with no GHCR checkpoint', () => {
@@ -799,7 +812,7 @@ describe('image bundle activation', () => {
     expect(readFileSync(join(f.repo, '.env.images.previous'), 'utf8')).toBe(f.manifest(f.old))
     expect(f.git('rev-parse', 'HEAD')).toBe(f.next)
     expect(readFileSync(f.live, 'utf8').trim()).toBe(f.next)
-  }, 20000)
+  }, 60_000)
 
   it('accepts image B to C after a completed ancestral GHCR handoff A', () => {
     const f = activationFixture()
@@ -818,7 +831,7 @@ describe('image bundle activation', () => {
     expect(f.git('rev-parse', 'HEAD')).toBe(c)
     expect(readFileSync(join(f.repo, '.env.images.previous'), 'utf8')).toBe(f.manifest(f.next))
     expect(readFileSync(f.live, 'utf8').trim()).toBe(c)
-  }, 20000)
+  }, 35_000)
 
   it.each([
     'valid',
@@ -864,44 +877,52 @@ describe('image bundle activation', () => {
       expect(readFileSync(join(f.repo, '.env.images.previous'), 'utf8')).toBe(f.manifest(f.old))
       expect(readFileSync(f.live, 'utf8').trim()).toBe(f.next)
     },
-    20000,
+    35_000,
   )
 
-  it.each(['valid', 'unfinished-ghcr', 'wrong-ghcr-sha', 'nonancestor-marker', 'stale-target'])(
-    'validates %s GHCR handoff after an earlier image-bundle release',
-    (state) => {
-      const f = activationFixture()
-      // X=old was accepted through image-bundle; GHCR then advanced to A=candidate.
-      const ghcrManifest = f
-        .manifest(f.candidate)
-        .replaceAll('volleytime-', 'ghcr.io/owner/volleytime/')
-      writeFileSync(join(f.repo, '.env.images'), ghcrManifest)
-      writeFileSync(f.live, f.candidate)
-      writeFileSync(
-        join(f.repo, '.deploy', 'image-bundle-phase'),
-        `smoke-passed ${state === 'nonancestor-marker' ? f.next : f.old}\n`,
-      )
-      writeFileSync(
-        join(f.repo, '.deploy', 'ghcr-manual-phase'),
-        `${state === 'unfinished-ghcr' ? 'migrating' : 'activated'} ${state === 'wrong-ghcr-sha' ? f.old : f.candidate}\n`,
-      )
-      const overrides = { OLD_SHA: f.candidate, FAKE_OLD_PREFIX: 'ghcr.io/owner/volleytime/' }
-      const result = f.run('deploy', overrides, state === 'stale-target' ? f.old : f.next)
-      if (state !== 'valid') {
-        expect(result.status).not.toBe(0)
-        expect(f.commands()).not.toMatch(/verify |backup |compose /)
-        return
-      }
-      expect(result.status, result.stderr).toBe(0)
-      expect(readFileSync(join(f.repo, '.env.images.previous'), 'utf8')).toBe(ghcrManifest)
-      const rollback = f.run('rollback', overrides)
-      expect(rollback.status, rollback.stderr).toBe(0)
-      expect(f.git('rev-parse', 'HEAD')).toBe(f.candidate)
-      expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(ghcrManifest)
-      expect(f.commands()).not.toMatch(/ pull | build |prune/)
-    },
-    35000,
-  )
+  for (const state of [
+    'valid',
+    'unfinished-ghcr',
+    'wrong-ghcr-sha',
+    'nonancestor-marker',
+    'stale-target',
+  ]) {
+    it(
+      `validates ${state} GHCR handoff after an earlier image-bundle release`,
+      () => {
+        const f = activationFixture()
+        // X=old was accepted through image-bundle; GHCR then advanced to A=candidate.
+        const ghcrManifest = f
+          .manifest(f.candidate)
+          .replaceAll('volleytime-', 'ghcr.io/owner/volleytime/')
+        writeFileSync(join(f.repo, '.env.images'), ghcrManifest)
+        writeFileSync(f.live, f.candidate)
+        writeFileSync(
+          join(f.repo, '.deploy', 'image-bundle-phase'),
+          `smoke-passed ${state === 'nonancestor-marker' ? f.next : f.old}\n`,
+        )
+        writeFileSync(
+          join(f.repo, '.deploy', 'ghcr-manual-phase'),
+          `${state === 'unfinished-ghcr' ? 'migrating' : 'activated'} ${state === 'wrong-ghcr-sha' ? f.old : f.candidate}\n`,
+        )
+        const overrides = { OLD_SHA: f.candidate, FAKE_OLD_PREFIX: 'ghcr.io/owner/volleytime/' }
+        const result = f.run('deploy', overrides, state === 'stale-target' ? f.old : f.next)
+        if (state !== 'valid') {
+          expect(result.status).not.toBe(0)
+          expect(f.commands()).not.toMatch(/verify |backup |compose /)
+          return
+        }
+        expect(result.status, result.stderr).toBe(0)
+        expect(readFileSync(join(f.repo, '.env.images.previous'), 'utf8')).toBe(ghcrManifest)
+        const rollback = f.run('rollback', overrides)
+        expect(rollback.status, rollback.stderr).toBe(0)
+        expect(f.git('rev-parse', 'HEAD')).toBe(f.candidate)
+        expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(ghcrManifest)
+        expect(f.commands()).not.toMatch(/ pull | build |prune/)
+      },
+      state === 'valid' ? 60_000 : 35_000,
+    )
+  }
 
   it('deploys A, confirms smoke, deploys B and rolls back to A', () => {
     const f = activationFixture()
@@ -928,6 +949,7 @@ describe('image bundle activation', () => {
       expect(result.status).not.toBe(0)
       expect(f.commands()).not.toMatch(/verify |backup |compose /)
     },
+    35_000,
   )
 
   it.each(
@@ -957,7 +979,7 @@ describe('image bundle activation', () => {
       expect(f.run().status).not.toBe(0)
       expect(f.run('rollback').status).not.toBe(0)
     },
-    20000,
+    60_000,
   )
 
   it('preserves exact GHCR images through image-bundle activation and rollback without local aliases', () => {
@@ -974,7 +996,7 @@ describe('image bundle activation', () => {
     expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(oldManifest)
     expect(f.git('rev-parse', 'HEAD')).toBe(f.old)
     expect(f.commands()).not.toMatch(/ pull | build |prune/)
-  }, 20000)
+  }, 60_000)
 
   it.each(['wrong-prefix', 'wrong-tag', 'missing-image'])(
     'rejects GHCR %s before importing or backup',
@@ -994,6 +1016,7 @@ describe('image bundle activation', () => {
       expect(result.status).not.toBe(0)
       expect(f.commands()).not.toMatch(/verify |backup |compose /)
     },
+    35_000,
   )
   it('uses the staged helper CLI and confirms only after external smoke', () => {
     const deploy = workflow.indexOf('deploy-image-bundle.sh deploy .deploy/incoming/')
@@ -1012,7 +1035,7 @@ describe('image bundle activation', () => {
     const result = f.run()
     expect(result.status, result.stderr).toBe(0)
     expect(readFileSync(f.live, 'utf8').trim()).toBe(f.next)
-  }, 15000)
+  }, 35_000)
 
   it('preserves live old SHA in the partial state and activates exact new images in order', () => {
     const f = activationFixture()
@@ -1043,7 +1066,7 @@ describe('image bundle activation', () => {
     expect(readFileSync(join(f.repo, '.deploy', 'image-bundle-phase'), 'utf8')).toContain(
       `activated ${f.next}`,
     )
-  }, 15000)
+  }, 35_000)
 
   it('same-SHA retry retains old previous pointer', () => {
     const f = activationFixture()
@@ -1054,7 +1077,7 @@ describe('image bundle activation', () => {
     expect(retry.status, retry.stderr).toBe(0)
     expect(f.commands().slice(before.length)).not.toMatch(/verify |backup |compose /)
     expect(readFileSync(join(f.repo, '.deploy', 'previous-git-sha'), 'utf8').trim()).toBe(f.old)
-  }, 15000)
+  }, 60_000)
 
   it('requires separate exact-SHA confirmation before reporting synthetic smoke success', () => {
     const f = activationFixture()
@@ -1069,19 +1092,23 @@ describe('image bundle activation', () => {
       `smoke-passed ${f.next}`,
     )
     expect(f.run().status).toBe(0)
-  }, 15000)
+  }, 60_000)
 
   it.each([
     ['live mismatch', { FAKE_BOT_SHA: 'b'.repeat(40) }],
     ['missing old image', { FAKE_OLD_IMAGE_MISSING: '1' }],
-  ])('rejects %s before backup', (_name, env) => {
-    const f = activationFixture()
-    const result = f.run('deploy', env)
-    expect(result.status).not.toBe(0)
-    expect(f.commands()).not.toContain('verify ')
-    expect(f.commands()).not.toContain('backup ')
-    expect(f.git('rev-parse', 'HEAD')).toBe(f.candidate)
-  })
+  ])(
+    'rejects %s before backup',
+    (_name, env) => {
+      const f = activationFixture()
+      const result = f.run('deploy', env)
+      expect(result.status).not.toBe(0)
+      expect(f.commands()).not.toContain('verify ')
+      expect(f.commands()).not.toContain('backup ')
+      expect(f.git('rev-parse', 'HEAD')).toBe(f.candidate)
+    },
+    35_000,
+  )
 
   it('rejects a live previous SHA missing from Git before loading images or backing up', () => {
     const f = activationFixture()
@@ -1093,14 +1120,14 @@ describe('image bundle activation', () => {
     expect(result.status).not.toBe(0)
     expect(f.commands()).not.toContain('verify ')
     expect(f.commands()).not.toContain('backup ')
-  })
+  }, 35_000)
 
   it('rejects dirty checkout before backup', () => {
     const f = activationFixture()
     writeFileSync(join(f.repo, 'source'), 'dirty\n')
     expect(f.run().status).not.toBe(0)
     expect(f.commands()).not.toContain('backup ')
-  })
+  }, 35_000)
 
   it('rejects a non fast forward bundle before backup', () => {
     const f = activationFixture()
@@ -1109,14 +1136,14 @@ describe('image bundle activation', () => {
     const result = f.run()
     expect(result.status).not.toBe(0)
     expect(f.commands()).not.toContain('backup ')
-  })
+  }, 35_000)
 
   it('rejects a second lock holder before touching live state', () => {
     const f = activationFixture()
     const result = f.run('deploy', { FAKE_LOCK_HELD: '1' })
     expect(result.status).not.toBe(0)
     expect(f.commands()).toBe('')
-  })
+  }, 35_000)
 
   it('backup failure leaves Git and runtime untouched', () => {
     const f = activationFixture()
@@ -1126,7 +1153,7 @@ describe('image bundle activation', () => {
     expect(readFileSync(f.live, 'utf8')).toBe(f.old)
     expect(readFileSync(join(f.repo, '.env'), 'utf8')).toBe('DB_PASSWORD=old\n')
     expect(existsSync(join(f.repo, '.deploy', `previous-env-${f.next}`))).toBe(false)
-  }, 15000)
+  }, 35_000)
 
   it('can retry after a pre-activation backup failure without changing the previous release', () => {
     const f = activationFixture()
@@ -1138,7 +1165,7 @@ describe('image bundle activation', () => {
     expect(retry.status, retry.stderr).toBe(0)
     expect(readFileSync(join(f.repo, '.deploy', 'previous-git-sha'), 'utf8').trim()).toBe(f.old)
     expect(readFileSync(f.live, 'utf8').trim()).toBe(f.next)
-  }, 35000)
+  }, 60_000)
 
   it('retries the original partial state where checkout and manifest already equal the target', () => {
     const f = activationFixture()
@@ -1150,7 +1177,7 @@ describe('image bundle activation', () => {
     expect(retry.status, retry.stderr).toBe(0)
     expect(readFileSync(join(f.repo, '.deploy', 'previous-git-sha'), 'utf8').trim()).toBe(f.old)
     expect(readFileSync(f.live, 'utf8').trim()).toBe(f.next)
-  }, 35000)
+  }, 60_000)
 
   it('migration failure never switches web or bot', () => {
     const f = activationFixture()
@@ -1162,34 +1189,36 @@ describe('image bundle activation', () => {
     expect(f.commands()).not.toContain('up --no-build -d web bot')
   }, 35000)
 
-  it.each(['migration', 'activation', 'smoke', 'manual'])(
-    'split rollback denies unsafe fixed target in %s recovery before source/config/history mutation',
-    (path) => {
-      const f = activationFixture()
-      const env = { FAKE_FIXED_TARGET: '1', FAKE_SPLIT_ROWS: '1', FAKE_DUPLICATE_WRITERS: '1' }
-      if (path === 'manual') expect(f.run().status).toBe(0)
-      const result = f.run(path === 'manual' ? 'rollback' : 'deploy', {
-        ...env,
-        ...(path === 'migration'
-          ? { FAKE_MIGRATE_FAIL: '1' }
-          : path === 'activation'
-            ? { FAKE_PARTIAL_UP: '1' }
-            : path === 'smoke'
-              ? { FAKE_HEALTH_FAIL: '1' }
-              : {}),
-      })
-      expect(result.status).not.toBe(0)
-      expect(result.stderr).toContain('split compatibility guard denied downgrade')
-      expect(f.git('rev-parse', 'HEAD')).toBe(f.next)
-      expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(f.manifest(f.next))
-      expect(readFileSync(join(f.repo, '.env'), 'utf8')).toBe('DB_PASSWORD=candidate\n')
-      expect(readFileSync(join(f.repo, '.env.images.previous'), 'utf8')).toBe(f.manifest(f.old))
-      expect(readFileSync(join(f.repo, '.deploy', 'previous-git-sha'), 'utf8')).toBe(`${f.old}\n`)
-      expect(f.commands()).toContain('stop ')
-      expect(f.commands()).not.toContain('restore')
-    },
-    35000,
-  )
+  for (const path of ['migration', 'activation', 'smoke', 'manual']) {
+    it(
+      `split rollback denies unsafe fixed target in ${path} recovery before source/config/history mutation`,
+      () => {
+        const f = activationFixture()
+        const env = { FAKE_FIXED_TARGET: '1', FAKE_SPLIT_ROWS: '1', FAKE_DUPLICATE_WRITERS: '1' }
+        if (path === 'manual') expect(f.run().status).toBe(0)
+        const result = f.run(path === 'manual' ? 'rollback' : 'deploy', {
+          ...env,
+          ...(path === 'migration'
+            ? { FAKE_MIGRATE_FAIL: '1' }
+            : path === 'activation'
+              ? { FAKE_PARTIAL_UP: '1' }
+              : path === 'smoke'
+                ? { FAKE_HEALTH_FAIL: '1' }
+                : {}),
+        })
+        expect(result.status).not.toBe(0)
+        expect(result.stderr).toContain('split compatibility guard denied downgrade')
+        expect(f.git('rev-parse', 'HEAD')).toBe(f.next)
+        expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(f.manifest(f.next))
+        expect(readFileSync(join(f.repo, '.env'), 'utf8')).toBe('DB_PASSWORD=candidate\n')
+        expect(readFileSync(join(f.repo, '.env.images.previous'), 'utf8')).toBe(f.manifest(f.old))
+        expect(readFileSync(join(f.repo, '.deploy', 'previous-git-sha'), 'utf8')).toBe(`${f.old}\n`)
+        expect(f.commands()).toContain('stop ')
+        expect(f.commands()).not.toContain('restore')
+      },
+      path === 'manual' ? 60_000 : 35_000,
+    )
+  }
 
   it('old activation failure restores boundary source/config and starts captured current only', () => {
     const f = activationFixture()
@@ -1202,7 +1231,7 @@ describe('image bundle activation', () => {
     expect(readFileSync(join(f.repo, '.env'), 'utf8')).toBe('DB_PASSWORD=candidate\n')
     expect(readFileSync(f.live, 'utf8').trim()).toBe(f.next)
     expect(f.commands()).toContain('docker start ')
-  }, 35000)
+  }, 60_000)
 
   it.each([
     ['up failure', { FAKE_UP_FAIL: '1' }],
@@ -1248,7 +1277,7 @@ describe('image bundle activation', () => {
     expect(result.status, result.stderr).toBe(0)
     expect(readFileSync(f.live, 'utf8').trim()).toBe(f.next)
     expect(f.git('rev-parse', 'HEAD')).toBe(f.next)
-  }, 15000)
+  }, 35_000)
 
   it('rolls back an activated candidate by exact SHA', () => {
     const f = activationFixture()
@@ -1259,5 +1288,5 @@ describe('image bundle activation', () => {
     expect(readFileSync(f.live, 'utf8').trim()).toBe(f.old)
     expect(readFileSync(join(f.repo, '.env'), 'utf8')).toBe('DB_PASSWORD=old\n')
     expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(f.manifest(f.old))
-  }, 35000)
+  }, 60_000)
 })

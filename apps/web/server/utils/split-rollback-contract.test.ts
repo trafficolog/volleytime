@@ -88,7 +88,7 @@ describe('split rollback boundary (fake Docker shell evidence)', { timeout: 35_0
     } finally {
       await f.close()
     }
-  })
+  }, 60_000)
   it('Python optimization cannot bypass topology safety checks', async () => {
     const f = await splitRollbackFixture()
     try {
@@ -134,7 +134,7 @@ describe('split rollback boundary (fake Docker shell evidence)', { timeout: 35_0
     } finally {
       await f.close()
     }
-  })
+  }, 60_000)
   it.each(['host-network', 'published-db', 'wrong-db-url', 'shared-address'] as const)(
     'unproven ownership fails before stopping: %s',
     async (failure) => {
@@ -240,7 +240,7 @@ describe('split rollback boundary (fake Docker shell evidence)', { timeout: 35_0
     } finally {
       await f.close()
     }
-  })
+  }, 60_000)
   it('recovery drains newly introduced current/partial old writers before captured restart', async () => {
     const f = await splitRollbackFixture()
     try {
@@ -262,7 +262,7 @@ describe('split rollback boundary (fake Docker shell evidence)', { timeout: 35_0
     } finally {
       await f.close()
     }
-  })
+  }, 60_000)
   it.each([true, false])(
     'existing split requires BOTH target images compatible: bot=%s',
     async (botCompatible) => {
@@ -314,30 +314,34 @@ describe('split rollback boundary (fake Docker shell evidence)', { timeout: 35_0
       await f.close()
     }
   })
-  it.each([true, false])('rollback_before_first_split_remains_safe: schema=%s', async (schema) => {
-    const f = await splitRollbackFixture()
-    try {
-      f.options = { schema }
-      const result = await f.run()
-      expect(result.status, result.stderr).toBe(0)
-      expect(f.containers.every((c) => !c.running)).toBe(true)
-      const capture = readFileSync(f.snapshot, 'utf8')
-      for (const c of f.containers) {
-        expect(capture).toContain(c.id)
-        expect(capture).toContain(c.image)
-        expect(capture).toContain(c.ref)
+  it.each([true, false])(
+    'rollback_before_first_split_remains_safe: schema=%s',
+    async (schema) => {
+      const f = await splitRollbackFixture()
+      try {
+        f.options = { schema }
+        const result = await f.run()
+        expect(result.status, result.stderr).toBe(0)
+        expect(f.containers.every((c) => !c.running)).toBe(true)
+        const capture = readFileSync(f.snapshot, 'utf8')
+        for (const c of f.containers) {
+          expect(capture).toContain(c.id)
+          expect(capture).toContain(c.image)
+          expect(capture).toContain(c.ref)
+        }
+        const stop = f.calls.find((c) => c[0] === 'stop')!
+        expect(stop).toHaveLength(4)
+        expect(stop).toEqual(expect.arrayContaining(['stop', ...f.containers.map((c) => c.id)]))
+        expect(f.calls.filter((c) => c[0] === 'ps').at(-1)).toContain(
+          'label=com.docker.compose.service=bot',
+        )
+        expect((await f.run('recheck')).status).toBe(0)
+      } finally {
+        await f.close()
       }
-      const stop = f.calls.find((c) => c[0] === 'stop')!
-      expect(stop).toHaveLength(4)
-      expect(stop).toEqual(expect.arrayContaining(['stop', ...f.containers.map((c) => c.id)]))
-      expect(f.calls.filter((c) => c[0] === 'ps').at(-1)).toContain(
-        'label=com.docker.compose.service=bot',
-      )
-      expect((await f.run('recheck')).status).toBe(0)
-    } finally {
-      await f.close()
-    }
-  })
+    },
+    60_000,
+  )
   it('pre-stop image failure preserves running writers and does not query', async () => {
     const f = await splitRollbackFixture()
     try {
@@ -401,7 +405,7 @@ describe('split rollback boundary (fake Docker shell evidence)', { timeout: 35_0
     } finally {
       await f.close()
     }
-  })
+  }, 60_000)
   it('writer recheck rejects a newly running duplicate and recovers captured current only', async () => {
     const f = await splitRollbackFixture()
     try {

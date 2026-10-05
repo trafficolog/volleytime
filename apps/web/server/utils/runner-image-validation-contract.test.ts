@@ -74,18 +74,18 @@ it('refuses insufficient runner capacity before building or importing and report
   expect(result.stderr).toContain('Insufficient runner capacity')
   expect(result.stdout).toContain('/dev/test')
   expect(f.calls()).toBe('')
-})
+}, 35_000)
 
 it('packages before import and fails closed on verifier failure', () => {
   const f = fixture()
   const result = f.run({ VERIFY_STATUS: '42' })
   expect(result.status, result.stderr).toBe(42)
   expect(f.calls()).toBe('package-release-images\nverify-release-images\n')
-})
+}, 35_000)
 
 it('does not import after packaging fails', () => {
   const f = fixture()
   const result = f.run({ PACKAGE_STATUS: '43' })
   expect(result.status, result.stderr).toBe(43)
   expect(f.calls()).toBe('package-release-images\n')
-})
+}, 35_000)

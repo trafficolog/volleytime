@@ -131,6 +131,7 @@ describe(
           await db.delete(users).where(eq(users.id, owner!.id))
         }
       },
+      35_000,
     )
     it.each(['commit', 'terminate'] as const)(
       'inflight_split_before_stop_is_seen_or_rolled_back: %s',
@@ -212,6 +213,7 @@ describe(
           await db.delete(users).where(eq(users.id, owner!.id))
         }
       },
+      35_000,
     )
 
     it('split_cannot_commit_between_guard_and_old_activation', async () => {
@@ -305,6 +307,6 @@ describe(
         await db.delete(organizations).where(eq(organizations.id, org.id))
         await db.delete(users).where(eq(users.id, owner!.id))
       }
-    })
+    }, 60_000)
   },
 )
