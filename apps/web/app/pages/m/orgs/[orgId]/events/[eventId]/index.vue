@@ -137,7 +137,7 @@ const actionError = ref('')
 const loadErrorNotice = computed(() =>
   playerEventLoadErrorNotice(apiErrorStatus(loadError.value), actionError.value),
 )
-const pathname = () => route.fullPath.split(/[?#]/, 1)[0]
+const pathname = () => route.fullPath.split(/[?#]/, 1)[0]?.replace(/\/$/, '')
 let currentViewKey: string | null = `${orgId.value}:${eventId.value}`
 let alive = true
 const confirmationGuard = createPlayerRequestGuard(() => route.fullPath)

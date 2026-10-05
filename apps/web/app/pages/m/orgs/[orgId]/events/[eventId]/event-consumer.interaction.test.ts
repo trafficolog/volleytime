@@ -149,89 +149,128 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('isolated real player event consumer: action ownership and confirmation lifetime', () => {
-  for (const action of ['cancel', 'booking'] as const) {
-    for (const suffix of ['?view=roster', '#roster']) {
-      it.each(['success', 'refusal'] as const)(
-        `${action} held POST retains busy/result on ${suffix}: %s`,
-        async (outcome) => {
-          if (action === 'booking') data.value.event.myBooking = null
-          wrapper = await render()
-          const pending = deferred<Record<string, unknown>>()
-          post.mockImplementationOnce(() => pending.promise)
-          if (action === 'booking') {
-            await button('Записаться').trigger('click')
-            await button('Наличными').trigger('click')
-          } else await button('Отменить запись').trigger('click')
-          expect(post).toHaveBeenCalledOnce()
-          route.fullPath = `${path}${suffix}`
-          await flushPromises()
-          if (action === 'cancel') {
-            expect(button('Отменить запись').attributes('disabled')).toBeDefined()
-            await button('Отменить запись').trigger('click')
-          } else await button('Записаться').trigger('click')
-          expect(post).toHaveBeenCalledOnce()
-          if (outcome === 'success') pending.resolve({})
-          else {
-            refresh.mockImplementationOnce(async () => {
-              settleLatest()
-            })
-            pending.reject({
-              statusCode: 409,
-              data: {
-                code:
-                  action === 'cancel' ? 'booking.not_cancellable' : 'booking.event_not_bookable',
-              },
-            })
-          }
-          await flushPromises()
-          expect(refresh).toHaveBeenCalledOnce()
-          expect(haptic).toHaveBeenCalledWith(outcome === 'success' ? 'success' : 'error')
-          if (outcome === 'refusal') {
-            expect(wrapper.text()).toContain(
-              action === 'cancel' ? 'Не удалось отменить запись' : 'Не удалось записаться',
+describe.each([path, `${path}/`])(
+  'isolated real player event consumer at %s: action ownership and confirmation lifetime',
+  (eventPath) => {
+    beforeEach(() => {
+      route.fullPath = eventPath
+    })
+    for (const action of ['cancel', 'booking'] as const) {
+      for (const suffix of ['?view=roster', '#roster']) {
+        it.each(['success', 'refusal'] as const)(
+          `${action} held POST retains busy/result on ${suffix}: %s`,
+          async (outcome) => {
+            if (action === 'booking') data.value.event.myBooking = null
+            wrapper = await render()
+            const pending = deferred<Record<string, unknown>>()
+            post.mockImplementationOnce(() => pending.promise)
+            if (action === 'booking') {
+              await button('Записаться').trigger('click')
+              await button('Наличными').trigger('click')
+            } else await button('Отменить запись').trigger('click')
+            expect(post).toHaveBeenCalledExactlyOnceWith(
+              action === 'cancel'
+                ? '/api/organizations/30/bookings/5/cancel'
+                : '/api/organizations/30/events/71/bookings',
+              action === 'cancel'
+                ? { method: 'POST' }
+                : { method: 'POST', body: { method: 'cash' } },
             )
-            expect(wrapper.text()).toContain('33,34')
-          }
-        },
-      )
+            route.fullPath = `${eventPath}${suffix}`
+            await flushPromises()
+            const actionButton = button(action === 'cancel' ? 'Отменить запись' : 'Записаться')
+            expect(actionButton.attributes('disabled')).toBeDefined()
+            await actionButton.trigger('click')
+            expect(post).toHaveBeenCalledOnce()
+            const fetched = deferred<undefined>()
+            if (outcome === 'success') pending.resolve({})
+            else {
+              refresh.mockImplementationOnce(() => fetched.promise)
+              pending.reject({
+                statusCode: 409,
+                data: {
+                  code:
+                    action === 'cancel' ? 'booking.not_cancellable' : 'booking.event_not_bookable',
+                },
+              })
+            }
+            await flushPromises()
+            expect(refresh).toHaveBeenCalledOnce()
+            if (outcome === 'refusal') {
+              expect(actionButton.attributes('disabled')).toBeDefined()
+              await actionButton.trigger('click')
+              expect(post).toHaveBeenCalledOnce()
+              settleLatest()
+              fetched.resolve(undefined)
+              await flushPromises()
+            }
+            expect(haptic).toHaveBeenCalledWith(outcome === 'success' ? 'success' : 'error')
+            if (outcome === 'refusal') {
+              expect(wrapper.text()).toContain(
+                action === 'cancel' ? 'Не удалось отменить запись' : 'Не удалось записаться',
+              )
+              expect(wrapper.text()).toContain('33,34')
+            } else {
+              expect(actionButton.attributes('disabled')).toBeUndefined()
+              expect(wrapper.text()).not.toContain('Не удалось')
+              expect(refreshOther).toHaveBeenCalledExactlyOnceWith('org-nav-balances-30')
+            }
+          },
+        )
+      }
+      for (const outcome of ['success', 'refusal'] as const) {
+        it.each(['leave-return', 'unmount', 'edit', 'other-event', 'other-org'] as const)(
+          `${action} sent POST suppresses late ${outcome} after %s`,
+          async (departure) => {
+            if (action === 'booking') data.value.event.myBooking = null
+            wrapper = await render()
+            const pending = deferred<Record<string, unknown>>()
+            post.mockImplementationOnce(() => pending.promise)
+            if (action === 'booking') {
+              await button('Записаться').trigger('click')
+              await button('Наличными').trigger('click')
+            } else await button('Отменить запись').trigger('click')
+            if (departure === 'unmount') wrapper.unmount()
+            else if (departure === 'leave-return') {
+              route.fullPath = '/m/orgs/30/events'
+              route.fullPath = eventPath
+            } else if (departure === 'edit') route.fullPath = `${path}/edit`
+            else if (departure === 'other-event') {
+              route.params.eventId = '72'
+              route.fullPath = '/m/orgs/30/events/72'
+            } else {
+              route.params.orgId = '31'
+              route.fullPath = '/m/orgs/31/events/71'
+            }
+            if (outcome === 'success') pending.resolve({})
+            else pending.reject({ statusCode: 409, data: { code: 'booking.not_cancellable' } })
+            await flushPromises()
+            expect(refresh).not.toHaveBeenCalled()
+            expect(refreshOther).not.toHaveBeenCalled()
+            expect(haptic).not.toHaveBeenCalled()
+            expect(wrapper.text()).not.toContain('Не удалось')
+            expect(post).toHaveBeenCalledOnce()
+          },
+        )
+      }
     }
-    it.each(['leave-return', 'unmount'] as const)(
-      `${action} sent POST suppresses late refusal after %s`,
-      async (departure) => {
-        if (action === 'booking') data.value.event.myBooking = null
-        wrapper = await render()
-        const pending = deferred<Record<string, unknown>>()
-        post.mockImplementationOnce(() => pending.promise)
-        if (action === 'booking') {
-          await button('Записаться').trigger('click')
-          await button('Наличными').trigger('click')
-        } else await button('Отменить запись').trigger('click')
-        if (departure === 'unmount') wrapper.unmount()
-        else {
-          route.fullPath = '/m/orgs/30/events'
-          route.fullPath = path
-        }
-        pending.reject({ statusCode: 409, data: { code: 'booking.not_cancellable' } })
-        await flushPromises()
-        expect(refresh).not.toHaveBeenCalled()
-        expect(refreshOther).not.toHaveBeenCalled()
-        expect(haptic).not.toHaveBeenCalled()
-      },
-    )
-  }
-  it.each(['query', 'hash', 'leave-return', 'unmount', 'latest-no-cancel', 'latest-row'] as const)(
-    'pending confirmation never posts after %s',
-    async (change) => {
+    it.each([
+      'query',
+      'hash',
+      'leave-return',
+      'unmount',
+      'latest-no-cancel',
+      'latest-row',
+    ] as const)('pending confirmation never posts after %s', async (change) => {
       wrapper = await render()
       const pending = deferred<boolean>()
       confirm.mockImplementationOnce(() => pending.promise)
       await button('Отменить запись').trigger('click')
-      if (change === 'query') route.fullPath = `${path}?view=roster`
-      if (change === 'hash') route.fullPath = `${path}#roster`
+      if (change === 'query') route.fullPath = `${eventPath}?view=roster`
+      if (change === 'hash') route.fullPath = `${eventPath}#roster`
       if (change === 'leave-return') {
         route.fullPath = '/m/orgs/30/events'
-        route.fullPath = path
+        route.fullPath = eventPath
       }
       if (change === 'unmount') wrapper.unmount()
       if (change === 'latest-no-cancel') settleLatest()
@@ -240,32 +279,34 @@ describe('isolated real player event consumer: action ownership and confirmation
       await flushPromises()
       expect(post).not.toHaveBeenCalled()
       expect(refresh).not.toHaveBeenCalled()
-    },
-  )
-  it('only the latest confirmation owns one POST and an in-flight action rejects another confirmation', async () => {
-    wrapper = await render()
-    const first = deferred<boolean>()
-    const second = deferred<boolean>()
-    const sent = deferred<Record<string, unknown>>()
-    confirm.mockImplementationOnce(() => first.promise).mockImplementationOnce(() => second.promise)
-    post.mockImplementationOnce(() => sent.promise)
-    await button('Отменить запись').trigger('click')
-    await button('Отменить запись').trigger('click')
-    second.resolve(true)
-    await flushPromises()
-    first.resolve(true)
-    await flushPromises()
-    expect(post).toHaveBeenCalledOnce()
-    sent.resolve({})
-    await flushPromises()
-    expect(refresh).toHaveBeenCalledOnce()
-  })
-  it('cancelled empty roster does not invite a new booking', async () => {
-    data.value.event.status = 'cancelled'
-    data.value.event.myBooking = null
-    wrapper = await render()
-    expect(wrapper.text()).toContain('Событие отменено')
-    expect(wrapper.text()).not.toContain('будьте первым')
-    expect(wrapper.findAll('button').some((b) => b.text() === 'Записаться')).toBe(false)
-  })
-})
+    })
+    it('only the latest confirmation owns one POST and an in-flight action rejects another confirmation', async () => {
+      wrapper = await render()
+      const first = deferred<boolean>()
+      const second = deferred<boolean>()
+      const sent = deferred<Record<string, unknown>>()
+      confirm
+        .mockImplementationOnce(() => first.promise)
+        .mockImplementationOnce(() => second.promise)
+      post.mockImplementationOnce(() => sent.promise)
+      await button('Отменить запись').trigger('click')
+      await button('Отменить запись').trigger('click')
+      second.resolve(true)
+      await flushPromises()
+      first.resolve(true)
+      await flushPromises()
+      expect(post).toHaveBeenCalledOnce()
+      sent.resolve({})
+      await flushPromises()
+      expect(refresh).toHaveBeenCalledOnce()
+    })
+    it('cancelled empty roster does not invite a new booking', async () => {
+      data.value.event.status = 'cancelled'
+      data.value.event.myBooking = null
+      wrapper = await render()
+      expect(wrapper.text()).toContain('Событие отменено')
+      expect(wrapper.text()).not.toContain('будьте первым')
+      expect(wrapper.findAll('button').some((b) => b.text() === 'Записаться')).toBe(false)
+    })
+  },
+)
