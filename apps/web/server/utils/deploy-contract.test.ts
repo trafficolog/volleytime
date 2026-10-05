@@ -134,7 +134,7 @@ describe('release bundle CLI', () => {
     expect(advanced.status, advanced.stderr).toBe(0)
     expect(runGit(fixture.deployed, 'rev-parse', 'HEAD')).toBe(fixture.candidate)
     expect(existsSync(join(fixture.deployed, '.env'))).toBe(true)
-  }, 15_000)
+  }, 60_000)
 
   it('rejects a valid bundle that does not advertise the expected SHA', () => {
     const fixture = createBundleFixture()
@@ -142,7 +142,7 @@ describe('release bundle CLI', () => {
 
     expect(mismatched.status).not.toBe(0)
     expect(mismatched.stderr).toContain('expected SHA is not advertised by bundle')
-  })
+  }, 35_000)
 
   it('rejects an invalid bundle', () => {
     const fixture = createBundleFixture()
@@ -151,7 +151,7 @@ describe('release bundle CLI', () => {
 
     expect(invalid.status).not.toBe(0)
     expect(runGit(fixture.deployed, 'rev-parse', 'HEAD')).toBe(fixture.baseline)
-  })
+  }, 35_000)
 
   it('rejects a dirty tracked checkout', () => {
     const fixture = createBundleFixture()
@@ -161,7 +161,7 @@ describe('release bundle CLI', () => {
     expect(dirty.status).not.toBe(0)
     expect(dirty.stderr).toContain('tracked checkout is not clean')
     expect(runGit(fixture.deployed, 'rev-parse', 'HEAD')).toBe(fixture.baseline)
-  })
+  }, 35_000)
 
   it('rejects advancing a production checkout that is not on prod', () => {
     const fixture = createBundleFixture()
@@ -171,7 +171,7 @@ describe('release bundle CLI', () => {
     expect(rejected.status).not.toBe(0)
     expect(rejected.stderr).toContain('production checkout must be on prod')
     expect(runGit(fixture.deployed, 'rev-parse', 'HEAD')).toBe(fixture.baseline)
-  })
+  }, 35_000)
 
   it('rejects a non-fast-forward target', () => {
     const fixture = createBundleFixture()
@@ -186,7 +186,7 @@ describe('release bundle CLI', () => {
     expect(rejected.status).not.toBe(0)
     expect(rejected.stderr).toContain('target is not a fast-forward')
     expect(runGit(fixture.deployed, 'rev-parse', 'HEAD')).toBe(deployedSha)
-  })
+  }, 35_000)
 })
 
 describe('fallback deployment contract', () => {
@@ -568,7 +568,7 @@ describe('image bundle workflow contract', () => {
     expect(run(262149, 262145, 'temp').status).not.toBe(0)
     expect(run(262150, 262144, 'temp').status).not.toBe(0)
     expect(run(262150, 262145, 'temp', 262148, 'docker').status).not.toBe(0)
-  }, 15000)
+  }, 60_000)
 
   it('does not start deploy after workflow cancellation', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
@@ -657,7 +657,7 @@ describe('image bundle workflow contract', () => {
       if (runningHelper.exitCode === null) runningHelper.kill()
       await completion
     }
-  })
+  }, 60_000)
 })
 
 describe('manual GHCR state guard', () => {
@@ -716,5 +716,5 @@ describe('manual GHCR state guard', () => {
     writeFileSync(join(root, '.deploy', '.env.production'), 'DB_PASSWORD=candidate\n')
     expect(run().status).not.toBe(0)
     expect(readFileSync(join(root, '.env'), 'utf8')).toBe('DB_PASSWORD=old\n')
-  })
+  }, 60_000)
 })

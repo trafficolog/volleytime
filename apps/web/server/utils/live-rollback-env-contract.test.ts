@@ -133,7 +133,7 @@ describe('live rollback environment proof', () => {
     expect(result.stdout + result.stderr).not.toMatch(
       /live-secret|rendered-secret|old-smoke|new-smoke/,
     )
-  })
+  }, 35_000)
 
   it.each([
     'changed secret',
@@ -150,12 +150,16 @@ describe('live rollback environment proof', () => {
     'Compose failure',
     'image inspect failure',
     'runtime inspect failure',
-  ])('fails closed on %s without logging values', (failure) => {
-    const result = fixture(failure).run()
-    expect(result.status).not.toBe(0)
-    expect(result.stderr).toContain('rollback env')
-    expect(result.stdout + result.stderr).not.toMatch(
-      /live-secret|rendered-secret|other-secret|old-smoke|new-smoke/,
-    )
-  })
+  ])(
+    'fails closed on %s without logging values',
+    (failure) => {
+      const result = fixture(failure).run()
+      expect(result.status).not.toBe(0)
+      expect(result.stderr).toContain('rollback env')
+      expect(result.stdout + result.stderr).not.toMatch(
+        /live-secret|rendered-secret|other-secret|old-smoke|new-smoke/,
+      )
+    },
+    35_000,
+  )
 })

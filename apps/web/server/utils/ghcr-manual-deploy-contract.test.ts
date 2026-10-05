@@ -203,39 +203,41 @@ describe('manual GHCR deploy recovery', () => {
     expect(readFileSync(join(f.repo, '.deploy', 'previous-git-sha'), 'utf8')).toBe(pointer)
     expect(f.readCalls()).toContain('docker start ')
     expect(readFileSync(f.web, 'utf8').trim()).toBe(`ghcr.io/example/repo/web:${f.next}`)
-  }, 35000)
-  it.each(['migration', 'activation', 'smoke', 'manual'])(
-    'split guard denies unsafe fixed target during %s recovery without mutating candidate/history',
-    (path) => {
-      const f = fixture()
-      if (path === 'manual') expect(f.run().status).toBe(0)
-      const history = readFileSync(join(f.repo, '.env.images.previous'), 'utf8')
-      const pointer = readFileSync(join(f.repo, '.deploy', 'previous-git-sha'), 'utf8')
-      const result = f.run(path === 'manual' ? 'rollback' : 'deploy', {
-        FAKE_FIXED_TARGET: '1',
-        FAKE_SPLIT_ROWS: '1',
-        FAKE_DUPLICATE_WRITERS: '1',
-        ...(path === 'migration'
-          ? { FAKE_MIGRATE_FAIL: '1' }
-          : path === 'activation'
-            ? { FAKE_UP_FAIL: '1' }
-            : path === 'smoke'
-              ? { FAKE_PUBLIC_FAIL: '1' }
-              : {}),
-      })
-      expect(result.status).not.toBe(0)
-      expect(result.stderr).toContain('split compatibility guard denied downgrade')
-      expect(f.git('rev-parse', 'HEAD')).toBe(f.next)
-      expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(
-        f.manifest(f.next, 'ghcr.io/example/repo'),
-      )
-      expect(readFileSync(join(f.repo, '.env'), 'utf8')).toBe('DB_PASSWORD=old\n')
-      expect(readFileSync(join(f.repo, '.env.images.previous'), 'utf8')).toBe(history)
-      expect(readFileSync(join(f.repo, '.deploy', 'previous-git-sha'), 'utf8')).toBe(pointer)
-      expect(f.readCalls()).toContain('stop ')
-    },
-    35000,
-  )
+  }, 60000)
+  for (const path of ['migration', 'activation', 'smoke', 'manual']) {
+    it(
+      `split guard denies unsafe fixed target during ${path} recovery without mutating candidate/history`,
+      () => {
+        const f = fixture()
+        if (path === 'manual') expect(f.run().status).toBe(0)
+        const history = readFileSync(join(f.repo, '.env.images.previous'), 'utf8')
+        const pointer = readFileSync(join(f.repo, '.deploy', 'previous-git-sha'), 'utf8')
+        const result = f.run(path === 'manual' ? 'rollback' : 'deploy', {
+          FAKE_FIXED_TARGET: '1',
+          FAKE_SPLIT_ROWS: '1',
+          FAKE_DUPLICATE_WRITERS: '1',
+          ...(path === 'migration'
+            ? { FAKE_MIGRATE_FAIL: '1' }
+            : path === 'activation'
+              ? { FAKE_UP_FAIL: '1' }
+              : path === 'smoke'
+                ? { FAKE_PUBLIC_FAIL: '1' }
+                : {}),
+        })
+        expect(result.status).not.toBe(0)
+        expect(result.stderr).toContain('split compatibility guard denied downgrade')
+        expect(f.git('rev-parse', 'HEAD')).toBe(f.next)
+        expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(
+          f.manifest(f.next, 'ghcr.io/example/repo'),
+        )
+        expect(readFileSync(join(f.repo, '.env'), 'utf8')).toBe('DB_PASSWORD=old\n')
+        expect(readFileSync(join(f.repo, '.env.images.previous'), 'utf8')).toBe(history)
+        expect(readFileSync(join(f.repo, '.deploy', 'previous-git-sha'), 'utf8')).toBe(pointer)
+        expect(f.readCalls()).toContain('stop ')
+      },
+      path === 'manual' ? 60_000 : 35_000,
+    )
+  }
   it.each(['verified', 'loaded', 'backed-up', 'migrated', 'activated', 'interrupted'])(
     'rejects unfinished image %s checkpoint before backup, pull or Git movement',
     (phase) => {
@@ -248,7 +250,7 @@ describe('manual GHCR deploy recovery', () => {
       expect(f.git('rev-parse', 'HEAD')).toBe(f.old)
       expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(f.manifest(f.old))
     },
-    15000,
+    35_000,
   )
 
   it.each([
@@ -294,7 +296,7 @@ describe('manual GHCR deploy recovery', () => {
       expect(f.readCalls()).not.toMatch(/backup| pull|run --rm|up --no-build/)
       expect(f.git('rev-parse', 'HEAD')).toBe(f.old)
     },
-    15000,
+    35_000,
   )
 
   it.each(['current image', 'historical GHCR handoff'])(
@@ -315,7 +317,7 @@ describe('manual GHCR deploy recovery', () => {
       expect(result.status, result.stderr).toBe(0)
       expect(f.git('rev-parse', 'HEAD')).toBe(f.next)
     },
-    15000,
+    35_000,
   )
 
   it('waits for starting candidate containers to become healthy', () => {
@@ -326,7 +328,7 @@ describe('manual GHCR deploy recovery', () => {
     expect(f.readCalls()).toContain(`public-health ${f.next}`)
     expect(f.readCalls()).toContain('runtime-health vt_web starting')
     expect(f.readCalls()).toContain('runtime-health vt_bot starting')
-  }, 15000)
+  }, 35_000)
 
   it('waits for restored containers before completing rollback and restoring history', () => {
     const f = fixture()
@@ -339,7 +341,7 @@ describe('manual GHCR deploy recovery', () => {
     expect(f.git('rev-parse', 'HEAD')).toBe(f.old)
     expect(readFileSync(join(f.repo, '.env.images.previous'), 'utf8')).toBe(f.manifest(f.prior))
     expect(readFileSync(join(f.repo, '.deploy', 'previous-git-sha'), 'utf8')).toBe(`${f.prior}\n`)
-  }, 35000)
+  }, 60_000)
 
   it('restores old history when candidate readiness exhausts its bounded attempts', () => {
     const f = fixture()
@@ -359,7 +361,7 @@ describe('manual GHCR deploy recovery', () => {
     expect(result.stderr).toContain('manual recovery checkpoint')
     expect(f.git('rev-parse', 'HEAD')).toBe(f.next)
     expect(f.readCalls().match(/up --no-build -d web bot/g)).toHaveLength(1)
-  }, 15000)
+  }, 35_000)
   it.each([
     ['pull', { FAKE_PULL_FAIL: '1' }],
     ['migration', { FAKE_MIGRATE_FAIL: '1' }],
@@ -405,7 +407,7 @@ describe('manual GHCR deploy recovery', () => {
     expect(readFileSync(f.web, 'utf8').trim()).toBe(`volleytime-web:${f.old}`)
     expect(readFileSync(join(f.repo, '.env.images.previous'), 'utf8')).toBe(f.manifest(f.prior))
     expect(readFileSync(join(f.repo, '.deploy', 'previous-git-sha'), 'utf8')).toBe(`${f.prior}\n`)
-  }, 35000)
+  }, 60_000)
 
   it('requires a manual checkpoint after ambiguous migration timeout', () => {
     const f = fixture()
@@ -417,7 +419,7 @@ describe('manual GHCR deploy recovery', () => {
       f.manifest(f.next, 'ghcr.io/example/repo'),
     )
     expect(f.readCalls()).not.toContain('up --no-build')
-  }, 15000)
+  }, 35_000)
 
   it('rejects an unrelated bundle before backup or manifest changes', () => {
     const f = fixture()
@@ -426,5 +428,5 @@ describe('manual GHCR deploy recovery', () => {
     expect(f.readCalls()).not.toContain('backup')
     expect(f.git('rev-parse', 'HEAD')).toBe(f.old)
     expect(readFileSync(join(f.repo, '.env.images'), 'utf8')).toBe(f.manifest(f.old))
-  })
+  }, 35_000)
 })

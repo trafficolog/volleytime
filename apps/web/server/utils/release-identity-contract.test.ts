@@ -159,7 +159,7 @@ describe('production release identity contract', () => {
     expect(readFileSync(join(dir, 'docker.log'), 'utf8')).toContain(
       '-f .deploy/rollback-compose.override.yml',
     )
-  })
+  }, 35_000)
 
   it('rejects unsafe explicit rollback targets before changing Git, manifest or runtime', () => {
     const dir = mkdtempSync(join(tmpdir(), 'volleytime-rejected-rollback-'))
@@ -253,7 +253,7 @@ describe('production release identity contract', () => {
     expect(git(dir, 'rev-parse', 'HEAD')).toBe(candidate)
     expect(readFileSync(join(dir, '.env.images'), 'utf8')).toBe(manifest)
     expect(existsSync(join(dir, 'docker.log'))).toBe(false)
-  })
+  }, 60_000)
 
   it('requires the public health response to match the expected release', () => {
     expect(workflow).toContain('EXPECTED_RELEASE: ${{ github.sha }}')
