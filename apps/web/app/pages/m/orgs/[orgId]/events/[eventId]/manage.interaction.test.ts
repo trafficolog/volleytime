@@ -33,7 +33,7 @@ const event = {
   pricing: {
     mode: 'split',
     targetAmount: 10000,
-    settledAt: null,
+    settledAt: null as string | null,
     participantCount: 1,
     minAmount: 10000,
     maxAmount: 10000,
@@ -65,7 +65,9 @@ let paymentsFixture: (typeof payment)[] = []
 let holdPaymentPost = false
 let resolvePaymentPost: (() => void) | null = null
 let resolveConfirmation: ((value: boolean) => void) | null = null
-const confirm = vi.fn(() => new Promise<boolean>((resolve) => (resolveConfirmation = resolve)))
+const confirm = vi.fn(
+  (_message: string) => new Promise<boolean>((resolve) => (resolveConfirmation = resolve)),
+)
 const apiFetch = vi.fn(async (url: string, options?: { method?: string }) => {
   if (options?.method) {
     if (holdPaymentPost && url.endsWith('/confirm'))
@@ -148,6 +150,51 @@ afterEach(() => {
 })
 
 describe('event management interactions', () => {
+  it('shows persisted settlement time in the organization timezone and no provisional marker', async () => {
+    eventData = ref({
+      event: {
+        ...event,
+        pricing: { ...event.pricing, settledAt: '2026-10-03T23:15:00Z', basis: 'settled' },
+      },
+    }) as typeof eventData
+    const wrapper = await renderManage()
+    expect(wrapper.get('time').attributes('datetime')).toBe('2026-10-03T23:15:00Z')
+    expect(wrapper.get('time').text()).toContain('02:15')
+    expect(wrapper.get('time').text()).toContain('4 октября')
+    expect(wrapper.findComponent(EventPricingPanel).text()).not.toContain('≈')
+    wrapper.unmount()
+  })
+  it('open organizer forecast is approximate and explains one-cent differences', async () => {
+    const wrapper = await renderManage()
+    expect(wrapper.findComponent(EventPricingPanel).text()).toContain('≈')
+    expect(wrapper.findComponent(EventPricingPanel).text()).toContain('одну копейку')
+    wrapper.unmount()
+  })
+  it('settled split payment rejection promises no promotion or redistribution', async () => {
+    paymentsFixture = [payment]
+    eventData = ref({
+      event: {
+        ...event,
+        status: 'closed',
+        pricing: { ...event.pricing, settledAt: '2026-10-03T23:15:00Z', basis: 'settled' },
+      },
+    }) as typeof eventData
+    const wrapper = await renderManage()
+    await wrapper
+      .findAll('[role="tab"]')
+      .find((tab) => tab.text() === 'Оплаты')!
+      .trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Отклонить')!
+      .trigger('click')
+    expect(confirm.mock.calls[0]?.[0]).toContain('не продвигается')
+    expect(confirm.mock.calls[0]?.[0]).toContain('Доли остальных не изменятся')
+    resolveConfirmation?.(false)
+    await flushPromises()
+    expect(apiFetch.mock.calls.filter(([, opts]) => opts?.method === 'POST')).toHaveLength(0)
+    wrapper.unmount()
+  })
   it.each([
     ['?other=1', false],
     ['#other', false],

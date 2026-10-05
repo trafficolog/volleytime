@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Event } from '@volley-time/db'
+import type { Event, Organization } from '@volley-time/db'
 import type { PricingPermissions } from '@volley-time/shared'
 
 import { canSubmitDesktopEventAction } from '~/utils/desktop-event-actions'
@@ -19,7 +19,7 @@ const {
   pending: orgPending,
   refresh: refreshOrg,
 } = await useFetch<{
-  organization: { id: number; currency: string; subscriptionsEnabled: boolean }
+  organization: Organization
   myMember: { role: string; status: string }
   capabilities: { eventSplitPricing: boolean }
 }>(() => `/api/organizations/${orgId.value}`, {

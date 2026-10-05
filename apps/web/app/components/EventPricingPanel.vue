@@ -7,12 +7,26 @@ const props = defineProps<{
   pricing: EventPricingView
   financials: PricingFinancials | null
   currency: string
+  tz: string
   canSettle: boolean
   pending: boolean
 }>()
 defineEmits<{ settle: [] }>()
 const amounts = computed(() =>
   props.financials?.currency === props.currency ? props.financials : null,
+)
+const settledTime = computed(() =>
+  props.pricing.settledAt
+    ? new Intl.DateTimeFormat('ru-RU', {
+        timeZone: props.tz,
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+      }).format(new Date(props.pricing.settledAt))
+    : null,
 )
 </script>
 
@@ -44,10 +58,17 @@ const amounts = computed(() =>
           {{ pricing.settledAt ? 'Сумма за место' : 'Прогноз за место' }}
         </dt>
         <dd class="font-semibold tabular-nums">
+          <template v-if="!pricing.settledAt">≈ </template>
           {{ formatMoneyRu(pricing.minAmount, currency)
           }}<template v-if="pricing.maxAmount !== pricing.minAmount">
             – {{ formatMoneyRu(pricing.maxAmount, currency) }}</template
           >
+        </dd>
+      </div>
+      <div v-if="settledTime" class="sm:col-span-2">
+        <dt class="text-vt-mute-2">Время распределения</dt>
+        <dd>
+          <time :datetime="pricing.settledAt!">{{ settledTime }}</time>
         </dd>
       </div>
     </dl>
@@ -58,6 +79,7 @@ const amounts = computed(() =>
           : 'Точная сумма определится после ручного закрытия записи. Абонементы недоступны; лист ожидания не участвует в распределении.'
       }}
     </p>
+    <p class="text-sm text-vt-mute-2">Из-за округления доли могут отличаться на одну копейку.</p>
     <dl v-if="amounts" class="grid gap-3 text-sm sm:grid-cols-2">
       <div>
         <dt class="text-vt-mute-2">Получено</dt>

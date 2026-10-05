@@ -1,5 +1,6 @@
-import { spawn } from 'node:child_process'
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { spawn, spawnSync } from 'node:child_process'
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { rm } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -230,8 +231,14 @@ exit "$code"
   writeFileSync(join(root, '.env'), 'fixture\n')
   writeFileSync(join(root, '.env.images'), 'fixture\n')
   const snapshot = join(root, 'captured-runtime')
-  const run = (mode?: 'recheck' | 'recover') =>
+  const active = new Set<{ stop: (reason: string) => void; closed: Promise<void> }>()
+  let closing = false
+  const run = (mode?: 'recheck' | 'recover', timeoutMs = 30_000) =>
     new Promise<{ status: number | null; stdout: string; stderr: string }>((resolve, reject) => {
+      if (closing) {
+        reject(new Error('Rollback fixture closed'))
+        return
+      }
       const child = spawn(
         bash,
         [
@@ -245,6 +252,7 @@ exit "$code"
         ],
         {
           cwd: root,
+          detached: process.platform !== 'win32',
           env: {
             ...process.env,
             ...fixtureEnvironment,
@@ -256,10 +264,58 @@ exit "$code"
       )
       let stdout = ''
       let stderr = ''
+      let stopped: string | null = null
+      let joined!: () => void
+      const owned = {
+        closed: new Promise<void>((resolve) => {
+          joined = resolve
+        }),
+        stop(reason: string) {
+          if (stopped !== null) return
+          stopped = reason
+          if (!child.pid) return
+          if (process.platform === 'win32') {
+            // Exact owned PID and descendants only; never a process-name/global kill.
+            const killed = spawnSync('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], {
+              timeout: 5000,
+              windowsHide: true,
+              encoding: 'utf8',
+            })
+            if (killed.error) stderr += `Owned tree termination failed: ${killed.error.message}\n`
+          } else {
+            try {
+              process.kill(-child.pid, 'SIGKILL')
+            } catch {
+              /* The owned group already exited. */
+            }
+          }
+          // Windows pipe handles can outlive taskkill's successful tree exit.
+          child.stdin.destroy()
+          child.stdout.destroy()
+          child.stderr.destroy()
+        },
+      }
+      active.add(owned)
+      const timer = setTimeout(
+        () => owned.stop(`Rollback subprocess timed out after ${timeoutMs}ms`),
+        timeoutMs,
+      )
+      const finish = () => {
+        clearTimeout(timer)
+        active.delete(owned)
+        joined()
+      }
       child.stdout.on('data', (part) => (stdout += String(part)))
       child.stderr.on('data', (part) => (stderr += String(part)))
-      child.on('error', reject)
-      child.on('close', (status) => resolve({ status, stdout, stderr }))
+      child.on('error', (error) => {
+        finish()
+        reject(error)
+      })
+      child.on('close', (status) => {
+        finish()
+        if (stopped !== null) reject(new Error(stopped))
+        else resolve({ status, stdout, stderr })
+      })
     })
   return {
     root,
@@ -303,10 +359,15 @@ exit "$code"
       networkTransform = value
     },
     async close() {
+      closing = true
+      for (const owned of active) owned.stop('Rollback fixture closed')
+      await Promise.all(Array.from(active, (owned) => owned.closed))
+      server.closeAllConnections()
       await new Promise<void>((resolve, reject) =>
         server.close((error) => (error ? reject(error) : resolve())),
       )
-      rmSync(root, { recursive: true, force: true })
+      // Bounded filesystem cleanup after owned Windows process handles are released.
+      await rm(root, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 })
     },
   }
 }

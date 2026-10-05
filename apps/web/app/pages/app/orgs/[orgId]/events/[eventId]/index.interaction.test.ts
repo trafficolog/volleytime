@@ -91,6 +91,31 @@ beforeEach(() => {
   hold = false
 })
 describe('desktop settlement full route and lifecycle', () => {
+  it('renders the saved timestamp in organization timezone on the desktop surface', async () => {
+    vi.stubGlobal('useFetch', async () => ({
+      data: ref({
+        event: {
+          ...event,
+          pricing: { ...pricing, settledAt: '2026-10-03T23:15:00Z', basis: 'settled' },
+        },
+      }),
+      pending: ref(false),
+      error: ref(null),
+      refresh,
+    }))
+    const wrapper = await render()
+    expect(wrapper.get('time').attributes('datetime')).toBe('2026-10-03T23:15:00Z')
+    expect(wrapper.get('time').text()).toContain('02:15')
+    expect(wrapper.get('time').text()).toContain('4 октября')
+    expect(wrapper.findComponent(EventPricingPanel).text()).not.toContain('≈')
+    wrapper.unmount()
+    vi.stubGlobal('useFetch', async () => ({
+      data: ref({ event }),
+      pending: ref(false),
+      error: ref(null),
+      refresh,
+    }))
+  })
   it.each([
     ['?other=1', false],
     ['#other', false],

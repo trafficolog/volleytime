@@ -2,10 +2,10 @@
 id: '8.11.2'
 phase: '8'
 epic: '8.11'
-status: done
+status: in_progress
 release: 'v0.1.7'
-last_reviewed: 2026-10-03
-status_note: 'PR85 merged в main ebfc5bf после exact-head CI37133275458: все4success на 8e29442; merged tree совпадает с принятым кодом. Пять gates и независимые source/local Chrome QA review приняты. Production/Telegram/pilot проверяются отдельно в 9.8.11.'
+last_reviewed: 2026-10-04
+status_note: 'Историческое принятие PR85 сохранено; integrated review I2/M3/M7 исправляются в единой Task9.8.11 final fix wave с isolated event-consumer suite. Новые local gates, independent combined re-review, exact-head CI и targeted Chrome ещё открыты. Production/Telegram/pilot отдельно в9.8.11.'
 roles: [FE, QA]
 depends_on: ['5.16.2']
 tags: [mvp, split, miniapp, player, landing]
@@ -35,6 +35,8 @@ tags: [mvp, split, miniapp, player, landing]
 10. Уточнение inherited landing review 2026-10-03: конфликт тёмного предка с белыми поверхностями существовал в базе Task5 и исправляется в рамках применимой theme-приёмки этой задачи. `landing.css` локально закрепляет потребляемую reference-light palette, включая focus, статусные пары, ledger и inverse roster. DOM/CSSOM-тесты проверяют light, `html.dark`, `html.vt-dark`, `.dark`/`.vt-dark` на промежуточном предке и сохранение тёмных токенов вне landing. Это source/unit evidence; актуальная сборка, Chrome после reveal, независимое review и CI ещё обязательны.
 
 ## Критерии приёмки
+
+- Integrated review checkpoint 2026-10-04 (Task9.8.11 combined fix wave): I2 — actual event page получает full-route/lifetime confirmation guard и latest booking/canCancel/submitting recheck; уже отправленный booking/cancel POST сохраняет busy/result/refusal refresh на same-view query/hash, leave/unmount запрещает stale writes. Named isolated event-consumer regression suite: held POST, late409, duplicates, confirmation query/hash/unmount/leave-return/latest cannotCancel. M3 — concise one-cent explanation без payable forecast; M7 — cancelled empty roster не приглашает записаться. M8 broad shared-harness reorganization deferred. Историческое принятие PR85 не закрывает новый regression checkpoint; новые gates/re-review/targeted Chrome открыты.
 
 - Уточнение browser QA 2026-10-03: исправить унаследованный конфликт palette лендинга с `.dark`/`.vt-dark`. Лендинг сохраняет принятый светлый референс и его точные цвета/шрифты независимо от темы приложения: локально согласовать используемые foreground/background токены, не менять глобальные токены, `html.dark`, геометрию, анимации или содержимое. Белые поверхности не получают светлый текст, тёмный декоративный блок не становится белым. Подтвердить RED→GREEN и Chrome320/390/1280 после окончания reveal; ограничения исходного оранжевого не пересматривать.
 

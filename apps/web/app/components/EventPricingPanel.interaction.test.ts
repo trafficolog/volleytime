@@ -21,7 +21,14 @@ const pricing: EventPricingView = {
 describe('organizer pricing projection', () => {
   it('shows server range and target and emits only settlement intent', async () => {
     const wrapper = mount(EventPricingPanel, {
-      props: { pricing, financials: null, currency: 'EUR', canSettle: true, pending: false },
+      props: {
+        pricing,
+        financials: null,
+        currency: 'EUR',
+        tz: 'Europe/Minsk',
+        canSettle: true,
+        pending: false,
+      },
     })
     expect(wrapper.text()).toContain('100,01')
     expect(wrapper.text()).toContain('33,33')
@@ -40,6 +47,7 @@ describe('organizer pricing projection', () => {
         pricing: { ...pricing, settledAt: '2026-10-01T12:00:00Z', basis: 'settled' },
         financials: { collected: 10001, pending: 0, cancelled: 0, refunded: 0, currency: 'USD' },
         currency: 'EUR',
+        tz: 'Europe/Minsk',
         canSettle: false,
         pending: false,
       },

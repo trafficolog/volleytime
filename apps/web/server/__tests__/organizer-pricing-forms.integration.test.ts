@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { organizationService } from '@volley-time/core'
-import { bookings, closeDb, db, organizations, users } from '@volley-time/db'
+import { bookings, closeDb, db, eq, organizations, users } from '@volley-time/db'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -16,7 +16,9 @@ import {
 
 import EventForm from '../../app/components/EventForm.vue'
 import DesktopEdit from '../../app/pages/app/orgs/[orgId]/events/[eventId]/edit.vue'
+import DesktopNew from '../../app/pages/app/orgs/[orgId]/events/new.vue'
 import MiniEdit from '../../app/pages/m/orgs/[orgId]/events/[eventId]/edit.vue'
+import MiniNew from '../../app/pages/m/orgs/[orgId]/events/new.vue'
 
 import { createTestApi } from './harness'
 
@@ -27,6 +29,7 @@ describe('real manager API through both organizer edit forms (5.16.2)', () => {
   let eventId: number
   const route = reactive({ params: { orgId: '', eventId: '' }, path: '', fullPath: '' })
   const requests: { method: string; url: string; status: number }[] = []
+  const bodies: unknown[] = []
   beforeAll(async () => {
     request = await createTestApi()
   })
@@ -40,6 +43,7 @@ describe('real manager API through both organizer edit forms (5.16.2)', () => {
     ownerId = owner!.id
     orgId = (await organizationService.create({ userId: ownerId }, { name: 'Pricing forms' })).id
     requests.length = 0
+    bodies.length = 0
     vi.stubEnv('EVENT_SPLIT_PRICING_ENABLED', 'true')
     Object.entries({
       computed,
@@ -56,6 +60,7 @@ describe('real manager API through both organizer edit forms (5.16.2)', () => {
     }).forEach(([key, value]) => vi.stubGlobal(key, value))
     vi.stubGlobal('$fetch', async (url: string, opts?: { method?: string; body?: unknown }) => {
       const method = opts?.method ?? 'GET'
+      if (method === 'POST') bodies.push(opts?.body)
       const response = await request(method, url, { user: ownerId, body: opts?.body })
       requests.push({ method, url, status: response.status })
       if (response.status >= 400) throw new Error(response.text)
@@ -99,12 +104,18 @@ describe('real manager API through both organizer edit forms (5.16.2)', () => {
     expect(result.status).toBe(200)
     eventId = (result.body as { event: { id: number } }).event.id
   }
-  async function render(surface: 'mini' | 'desktop') {
+  async function render(surface: 'mini' | 'desktop', creating = false) {
     route.params.orgId = String(orgId)
     route.params.eventId = String(eventId)
-    route.path = `/${surface === 'mini' ? 'm' : 'app'}/orgs/${orgId}/events/${eventId}/edit`
+    route.path = `/${surface === 'mini' ? 'm' : 'app'}/orgs/${orgId}/events/${creating ? 'new' : `${eventId}/edit`}`
     route.fullPath = route.path
-    const component = surface === 'mini' ? MiniEdit : DesktopEdit
+    const component = creating
+      ? surface === 'mini'
+        ? MiniNew
+        : DesktopNew
+      : surface === 'mini'
+        ? MiniEdit
+        : DesktopEdit
     const wrapper = mount(
       defineComponent({ render: () => h(Suspense, null, { default: () => h(component) }) }),
       {
@@ -125,6 +136,43 @@ describe('real manager API through both organizer edit forms (5.16.2)', () => {
     return wrapper
   }
   for (const surface of ['mini', 'desktop'] as const) {
+    it.each(['fixed', 'split'] as const)(
+      `actual non-BYN organization API through ${surface} create form: %s`,
+      async (mode) => {
+        await db
+          .update(organizations)
+          .set({ defaultCurrency: 'RUB' })
+          .where(eq(organizations.id, orgId))
+        const organization = await request('GET', `/api/organizations/${orgId}`, { user: ownerId })
+        expect(organization.body).toMatchObject({ organization: { defaultCurrency: 'RUB' } })
+        const wrapper = await render(surface, true)
+        expect(wrapper.get('label[for="ev-price"]').text()).toContain('RUB')
+        if (mode === 'split') {
+          await wrapper.get('input[value="split"]').setValue(true)
+          await wrapper.get('#ev-cap').setValue('3')
+          await wrapper.get('#ev-target').setValue('100')
+          expect(wrapper.get('label[for="ev-target"]').text()).toContain('RUB')
+          expect(wrapper.get('#ev-split-hint').text()).toContain('33,33 RUB')
+          expect(wrapper.get('#ev-split-hint').text()).toContain('≈')
+          expect(wrapper.get('#ev-split-hint').text()).toContain('одну копейку')
+        } else await wrapper.get('#ev-price').setValue('100')
+        await wrapper.get('form').trigger('submit')
+        await flushPromises()
+        await vi.waitFor(() => expect(requests.some((r) => r.method === 'POST')).toBe(true))
+        expect(bodies).toHaveLength(1)
+        expect(bodies[0]).not.toHaveProperty('currency')
+        expect(bodies[0]).toMatchObject({
+          priceMode: mode,
+          price: mode === 'fixed' ? 10000 : 0,
+          targetAmount: mode === 'split' ? 10000 : null,
+        })
+        const listed = await request('GET', `/api/organizations/${orgId}/events`, { user: ownerId })
+        expect(listed.body).toMatchObject({
+          events: [expect.objectContaining({ currency: 'RUB', priceMode: mode })],
+        })
+        wrapper.unmount()
+      },
+    )
     it(`locks target through a real settled manager GET: ${surface}`, async () => {
       await create('split')
       const booked = await request(
