@@ -2,10 +2,10 @@
 id: '8.11.2'
 phase: '8'
 epic: '8.11'
-status: in_progress
+status: done
 release: 'v0.1.7'
-last_reviewed: 2026-10-04
-status_note: 'Историческое принятие PR85 сохранено; integrated review I2/M3/M7 исправляются в единой Task9.8.11 final fix wave с isolated event-consumer suite. Новые local gates, independent combined re-review, exact-head CI и targeted Chrome ещё открыты. Production/Telegram/pilot отдельно в9.8.11.'
+last_reviewed: 2026-10-05
+status_note: 'PR85 и I2/M3/M7 corrections приняты PR88; N1 separately accepted PR90/main003968944, head/main CI37293801825/37294307936 all4SUCCESS. Final source22c0850 and targeted Chrome100/native200 accepted; M8 broad harness/M9 tooling deferred, E2 provenance retained. Production/Telegram/pilot отдельно в9.8.11.'
 roles: [FE, QA]
 depends_on: ['5.16.2']
 tags: [mvp, split, miniapp, player, landing]
@@ -35,6 +35,8 @@ tags: [mvp, split, miniapp, player, landing]
 10. Уточнение inherited landing review 2026-10-03: конфликт тёмного предка с белыми поверхностями существовал в базе Task5 и исправляется в рамках применимой theme-приёмки этой задачи. `landing.css` локально закрепляет потребляемую reference-light palette, включая focus, статусные пары, ledger и inverse roster. DOM/CSSOM-тесты проверяют light, `html.dark`, `html.vt-dark`, `.dark`/`.vt-dark` на промежуточном предке и сохранение тёмных токенов вне landing. Это source/unit evidence; актуальная сборка, Chrome после reveal, независимое review и CI ещё обязательны.
 
 ## Критерии приёмки
+
+Latest acceptance 2026-10-05: I2 canonical/lifetime protection и M3/M7 приняты в PR88, trailing-spelling N1 — отдельной8.11.3/PR90. [Final provenance](../operations/qa/2026-10-05-r07-final-code-checkpoint.md) связывает accepted exact source, local visual/native200 supplements и CI; historical open checkpoint ниже superseded. M8 broad mounted harness остаётся deferred; isolated actual event-consumer suite принят. Real Telegram asynchronous confirmation/delivery остаётся9.8.11.
 
 - Integrated review checkpoint 2026-10-04 (Task9.8.11 combined fix wave): I2 — actual event page получает full-route/lifetime confirmation guard и latest booking/canCancel/submitting recheck; уже отправленный booking/cancel POST сохраняет busy/result/refusal refresh на same-view query/hash, leave/unmount запрещает stale writes. Named isolated event-consumer regression suite: held POST, late409, duplicates, confirmation query/hash/unmount/leave-return/latest cannotCancel. M3 — concise one-cent explanation без payable forecast; M7 — cancelled empty roster не приглашает записаться. M8 broad shared-harness reorganization deferred. Историческое принятие PR85 не закрывает новый regression checkpoint; новые gates/re-review/targeted Chrome открыты.
 

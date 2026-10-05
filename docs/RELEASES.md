@@ -1,5 +1,7 @@
 # Релиз-план Volley Time
 
+> **Authoritative R0.7 code/pre-deploy checkpoint, 2026-10-05:** все шесть feature tasks и follow-ups9.8.12/9.8.13/8.11.3 приняты; PR86–90 интегрированы в exact main `003968944c4e5f5f3a48685c2deb316e0e8a014a`, [CI37294307936](https://github.com/trafficolog/volleytime/actions/runs/37294307936) all4SUCCESS и merge/head tree identical. Все802 tracked paths вне docs/ literal byte-identical accepted original22c0850; final Chrome100/native200 accepted within recorded limits. [Provenance/closure-map](operations/qa/2026-10-05-r07-final-code-checkpoint.md) и frozen final local gate report отделяют code acceptance от controller final review/docs-head/main CI и deployment/manual acceptance.9.8.11/release `in_progress`, M8/M9 deferred; production по последнему подтверждённому deploy967aff3, capability/tag/Release не продвинуты. Нижние checkpoints исторические.
+
 > **Task7 scoped review принят, 2026-10-04:** оба Important закрыты на `bafd9bb`, новых Critical/Important в исправлениях нет; пять локальных gates PASS. Разрешён code/local PR checkpoint9.8.11 со статусом `in_progress`, но merge требует exact-head Actions CI. Итоговые integrated-main gates/whole-branch review/CI и controlled deploy/Telegram/pilot остаются обязательными до окончательного выпуска. Production `967aff3` без изменений.
 
 > **Task7 fix round1 checkpoint, 2026-10-04:** `bafd9bb`, пять финальных gates PASS (154 файла / 1220 тестов). Исправления review по hostname/network resolution и PostgreSQL CI transport ожидают независимое scoped re-review и exact-head CI. Предыдущий сбой временного Git fixture сохранён отдельно; повторный полный прогон прошёл на неизменных исходниках. Task9.8.11 остаётся `in_progress`; integrated-main, controlled deploy и реальная Telegram/pilot acceptance ещё открыты, prod `967aff3` без изменений.
@@ -280,6 +282,8 @@ Task 6 (2026-09-30): пять локальных gates прошли, PostgreSQL 
 ---
 
 ## R0.7 — MVP: режим оплаты события `v0.1.7` (спецификация и план утверждены)
+
+Latest authoritative status2026-10-05: полный code candidate принят PR86–90 на main003968944, шесть feature tasks и три follow-ups done. Exact PR/head/main/CI identities, original whole-branch/scoped review closure, source equality и accepted visual provenance — в [final QA checkpoint](./operations/qa/2026-10-05-r07-final-code-checkpoint.md). Five frozen final local gates записываются отдельно после выполнения; их result не выводится из historical CI. Controller final independent review, exact docs-head CI/merge-tree/exact-main runner acceptance и production/manual workflow остаются открыты.9.8.11/release in_progress, no tag/Release. Старое prose ниже о ebfc5bf/реализуемом rollback сохранено как исторический checkpoint.
 
 2026-10-01 пользователь подтвердил реализацию fixed/split из дизайн-референса. Это расширение R0/MVP: общая сумма делится на фактически занявших места после ручного закрытия записи; игрок до него видит прогноз, после — собственный точный платёж. Наличные/перевод и действующее подтверждение денег сохраняются, абонементы в split недоступны. R0.6 остаётся выложенным кандидатом с открытой Telegram/pilot приёмкой; будущие задачи её не закрывают.
 

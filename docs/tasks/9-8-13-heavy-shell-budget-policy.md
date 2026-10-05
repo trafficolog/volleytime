@@ -2,10 +2,10 @@
 id: '9.8.13'
 phase: '9'
 epic: '9.8'
-status: in_progress
+status: done
 release: 'v0.1.7'
-last_reviewed: 2026-10-04
-status_note: 'Пользователь утвердил 35000ms для одиночных и 60000ms для составных тяжёлых shell-сценариев; existing60000 сохранить. Требуются scoped inventory, frozen gates и independent review; production не меняется.'
+last_reviewed: 2026-10-05
+status_note: 'Scoped inventory224/196/148/48, frozen gates и independent spec/quality review accepted; PR87 merged77dd104→main7e430b4, head/main CI37278198411/37278629925 all4SUCCESS, trees identical. Assertions/fixtures/production/global timeouts unchanged; historical timing cause unproved. Release9.8.11 отдельно.'
 roles: [DEVOPS, QA]
 depends_on: []
 tags: [mvp, test, rollback]
@@ -53,6 +53,8 @@ Review обнаружило шесть одиночных recovery-вариан�
 Не менять production, VPS, GitHub main/prod, flag, tag, global timeout, assertions, финансовые операции, fixtures или зависимости. Не удалять evidence/backup/images/данные; не reset DB и не terminate чужие процессы. Не трактовать рост бюджета как доказательство отсутствия performance defect.
 
 ## Main integration — 2026-10-05
+
+Authoritative acceptance: [PR87](https://github.com/trafficolog/volleytime/pull/87), head `77dd104fc37faf5aaf1bb8b7d6e9c882cfef9e95`, main `7e430b4763065c9a455c73409c0995bbf967477a`, identical tree `d6c695b0c0fc5e422cebed7462b45070b9de36a5`; CI37278198411/37278629925 all4SUCCESS. Independent spec/quality APPROVE; frozen covering224 and five gates154/1220 PASS. Accepted scope remains metadata only; prior FAILED logs and unproved performance cause remain historical. [Final provenance](../operations/qa/2026-10-05-r07-final-code-checkpoint.md); pending task prose below superseded, release/manual acceptance separate.
 
 Интеграция task9.8.13 ведётся отдельно от main `ade78281fb5e4f3bb20cd77043c1114ca9ad082c` в изолированном worktree `verify-9-8-5-final/volleytime`, ветка `trafficolog/test/9.8.13-main-budget-gates`. До source edits AST inventory подтвердил те же 224 expanded cases / 196 executable shell / 148 budget35000 / 48 budget60000. Все исходные имена, варианты/порядок и callback bodies совпадают с исторической базой `e946b2c`; три отличия относятся только к timeout metadata и перечислены в main-integration разделе inventory. Исторические counts/RED/отчёты сохраняются.
 

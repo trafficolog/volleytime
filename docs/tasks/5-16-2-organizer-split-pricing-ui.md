@@ -2,10 +2,10 @@
 id: '5.16.2'
 phase: '5'
 epic: '5.16'
-status: in_progress
+status: done
 release: 'v0.1.7'
-last_reviewed: 2026-10-04
-status_note: 'Историческое принятие PR84 сохранено; integrated review I1/M1-M3 исправляются в единой Task9.8.11 final fix wave. Новые local gates, independent combined re-review, exact-head CI и targeted Chrome checkpoint ещё открыты; production/Telegram отдельно.'
+last_reviewed: 2026-10-05
+status_note: 'PR84 и последующие I1/M1–M3 corrections приняты: reviewed PR88/main0d4668a, head/main CI37283819030/37284294028 all4SUCCESS. Полный source22c0850 совпадает с accepted main003968944; targeted Chrome100/native200 accepted (E1 closed, E2 provenance retained). Production/Telegram/pilot отдельно в9.8.11.'
 roles: [FE, QA]
 depends_on: ['6.11.1', '8.11.1']
 tags: [mvp, split, miniapp, desktop, organizer]
@@ -30,6 +30,8 @@ tags: [mvp, split, miniapp, desktop, organizer]
 5. Pending без paymentId отображается как «сумма после закрытия»; финансовая очередь показывает только существующие payments. Decline/remove не вызывает нового распределения.
 
 ## Критерии приёмки
+
+Latest acceptance 2026-10-05: I1/M1–M3 закрыты scoped source review и PR88; historical open checkpoint ниже superseded. Приёмка включает non-BYN API→parent→form, persisted timestamp/timezone, provisional ≈/penny и settled rejection no promotion/unchanged shares. [Final provenance](../operations/qa/2026-10-05-r07-final-code-checkpoint.md) сохраняет source/browser/CI identities и границы manual acceptance.
 
 - Integrated review checkpoint 2026-10-04 (Task9.8.11 combined fix wave): I1 — actual organization `defaultCurrency` на Mini/desktop create parents с API→parent→EventForm non-BYN fixed/split coverage без client currency override/conversion. M1 — settled rejection сообщает no promotion/unchanged shares; M2 — persisted settlement timestamp в organization timezone на обоих manage surfaces; M3 — ≈ только provisional forecasts и пояснение разницы в одну копейку. Историческое принятие PR84 не доказывает текущий correction checkpoint; новые gates/re-review/targeted Chrome открыты.
 

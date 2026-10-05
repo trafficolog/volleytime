@@ -55,6 +55,8 @@ tags: [mvp, split, tdd, concurrency, money]
 
 ## Приёмка реализации, 2026-10-01
 
+Latest deferred disposition 2026-10-05: Task6 Minor1 barrier cleanup/join→whole-branch M4, addressed in reviewed correction PR88; Minor2 unordered ledger expectation→M5, exact SQL ORDER BY/id and exact two-entry income/refund pair accepted in PR88. Minor3 baseline warnings/tooling→M9, remains deferred (earlier12 warnings historical; current11 disclosed). Awaited DB query/final pending-service join latency is not universally bounded by the10s polling deadline; this unchanged non-blocking limitation remains explicit. [Final closure-map](../operations/qa/2026-10-05-r07-final-code-checkpoint.md); historical observations below retained.
+
 [PR #83](https://github.com/trafficolog/volleytime/pull/83), test SHA `3f70c453c3f9e873e744f5ca423d5b7a6764f4af`, [CI 36839966460](https://github.com/trafficolog/volleytime/actions/runs/36839966460): all4SUCCESS, включая real runner image build/export/import. Независимое review: spec compliant, quality Approved, без Critical/Important. Все пять gates прошли; три final-source focused прогона дали37/37 каждый, полный набор143файла/1031тест.
 
 Это characterization GREEN без обнаруженного product-дефекта, а не выдуманный RED. Реальные SQL barriers подтверждают оба порядка операций и шесть confirm/reject/full-cancel перестановок; middle-allocation SQL failure проверяет атомарный rollback. Test-only TS2556 исправлен без ослабления денежных assertions.

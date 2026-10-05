@@ -2,10 +2,10 @@
 id: '9.8.12'
 phase: '9'
 epic: '9.8'
-status: in_progress
+status: done
 release: 'v0.1.7'
-last_reviewed: 2026-10-04
-status_note: 'Локальная реализация M6: 12 genuine RED→GREEN negative cases и 40 PostgreSQL covering cases; два утверждённых shell budgets 60000ms. Frozen five-gate evidence фиксируется отдельно в task-9812-report.md; независимый task review, exact-head CI и merge открыты. Не закрывает 9.8.11 или production/Telegram/pilot acceptance.'
+last_reviewed: 2026-10-05
+status_note: 'M6 source/independent integration review accepted, PR89 merged0ffc28d→mainc5bdaa8; exact head/main CI37287982764/37288439856 all4SUCCESS, trees identical. Frozen five gates157/1264 PASS, fixture/test byte-exact reviewed8583cba; accepted budgets preserved. Не закрывает9.8.11/production/Telegram/pilot.'
 sync_state: synced
 review_ref: M6
 priority: P2
@@ -47,6 +47,8 @@ tags: [mvp, test, rollback, review-fix]
 Не изменять production deploy/DB/schema/flag/timeouts, глобальный Vitest budget, SQL/assertions, dependency/tooling warnings. Не kill по process-name, не terminate unrelated processes/sessions, не удалять доказательства/backup/images/неподтверждённо живой temp root. Не публиковать/merge/deploy из implementation worker.
 
 ## Main integration — 2026-10-05
+
+Authoritative acceptance: [PR89](https://github.com/trafficolog/volleytime/pull/89), head `0ffc28ddb3c6a12f3446c91633a5f36b604d42a0`, main `c5bdaa8c47ec57a9c576cce41f3bbd9b2a5d0f52`, identical tree `3d0c3d7c2d3fb9042f54f64b143537f088b1d711`; CI37287982764/37288439856 all4SUCCESS. Independent integration spec/quality APPROVE, no new finding. Historical pending prose below is superseded for this task only; historical FAILED/RED/GREEN logs retained. [Final provenance](../operations/qa/2026-10-05-r07-final-code-checkpoint.md).
 
 Утверждённая Git-интеграция reviewed source `8583cbac087dce2aa2f51a0eaab367f7a5ba469a` выполняется отдельно от exact main `0d4668a2769d260c04f3bb1bbd76e80fb68b314d` в `verify-9-8-5-final/volleytime`. Сначала фиксируется этот additive checkpoint. Fixture и lifecycle tests сохраняют reviewed bytes; восемь budget files задачи9.8.13 сохраняют exact main registrations/budgets. Это replay, не новая implementation/TDD wave. Исторические RED/GREEN, FAILED full gate и diagnostic остаются в original task-9812-report.md и logs.
 
