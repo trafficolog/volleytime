@@ -5,7 +5,7 @@ epic: '9.8'
 status: in_progress
 release: 'v0.1.7'
 last_reviewed: 2026-10-05
-status_note: 'Полный reviewed source22c0850 интегрирован в main003968944 через принятые PR86–90; шесть feature tasks и follow-ups приняты. I1/I2/M1–M7/N1 закрыты в соответствующем scope; M8/M9 и query/final-join latency limit сохранены. Frozen final local gates фиксируются отдельно; final independent review/exact docs-head/main CI, production/Telegram/pilot/tag открыты.'
+status_note: 'Полный кандидат bbd6f41 принят PR91/exact-head/main CI; Deploy37328474440 остановился pre-VPS из-за missing PostgreSQL test service identity. Локальный env fix9.8.14 имеет отдельные RED/GREEN/gate evidence; scoped review/exact-head/main CI открыты. Controlled deployment и Telegram/pilot/tag остаются открыты; последнее подтверждённое production967aff3.'
 roles: [QA, DEVOPS]
 depends_on: ['8.11.2', '6.11.2']
 tags: [mvp, split, release, production, telegram]
@@ -31,6 +31,11 @@ tags: [mvp, split, release, production, telegram]
 6. Два реальных Telegram-аккаунта: состав, прогноз, waitlist, закрытие, личные суммы/уведомления, confirm/reject, disabled subscription, repeat, light/dark и pilot. Зафиксировать owner acceptance перед tag/Release.
 
 ## Критерии приёмки
+
+### Deploy test-environment recovery checkpoint — 2026-10-05
+
+- Полный candidate `bbd6f41e518f916b14d36180d5e510cf9fadaefc` принят PR91 и [exact-main CI37327727365](https://github.com/trafficolog/volleytime/actions/runs/37327727365), все четыре jobs SUCCESS. [Deploy37328474440](https://github.com/trafficolog/volleytime/actions/runs/37328474440) остановился на Test before deploy: 1310 passed / 6 failed из-за missing exact `POSTGRES_TEST_CONTAINER_ID`; build/deploy skipped, staging нового SHA отсутствует. Controller live checkpoint подтверждает прежние Git/health/phase `967aff312f962196e7347cc0e50f879f25f6dffa`, `smoke-passed` и healthy services. Это pre-VPS failure, а не неудачная активация/rollback.
+- [Task9.8.14](./9-8-14-deploy-postgres-test-identity.md) отдельно реализует минимальную передачу Actions service identity в deploy test command с RED→GREEN и frozen local gates, сохраняя failclosed guard/races. Business/schema/UI полного принятого кандидата не меняются; previous QA acceptance сохраняется в своём scope. После independent scoped review и exact-head CI нужны PR/main integration, exact-main CI и reviewed production workflow. Локальные gates не означают deployment acceptance; 9.8.11/release остаются `in_progress`, реальная Telegram/pilot/owner acceptance и tag/Release открыты.
 
 ### Authoritative final code/pre-deploy checkpoint — 2026-10-05
 
