@@ -2,10 +2,10 @@
 id: '9.8.14'
 phase: '9'
 epic: '9.8'
-status: in_progress
+status: done
 release: 'v0.1.7'
-last_reviewed: 2026-10-05
-status_note: 'Локальный RED→GREEN workflow→consumer и реальные PostgreSQL guard/races подтверждены; минимальный deploy test-step env fix реализован. Frozen five-gate evidence фиксируется отдельным локальным report. Independent scoped review, exact-head CI, PR/main integration и exact-main CI остаются открыты.'
+last_reviewed: 2026-10-06
+status_note: 'PR92 принят после scoped independent review и exact-head CI37366736109 attempt2 all4SUCCESS; merged main d98ed97 имеет идентичное tested tree и exact-main CI37419085625 all4SUCCESS. Исправленный Deploy37419396620 прошёл Test before deploy и controlled rollout. Реальная Telegram/pilot приёмка остаётся отдельно открытой в9.8.11.'
 roles: [DEVOPS, QA]
 depends_on: []
 tags: [mvp, split, deployment, tests]
@@ -29,6 +29,12 @@ tags: [mvp, split, deployment, tests]
 4. Синхронизировать release/status и owning release task9.8.11: failed attempt — pre-VPS, новый локальный checkpoint не означает deployment acceptance. Independent scoped spec/quality review и exact-head/main CI обязательны перед последующим reviewed FF prod.
 
 ## Критерии приёмки
+
+### Acceptance — 2026-10-06
+
+- [PR92](https://github.com/trafficolog/volleytime/pull/92) merged после независимого scoped review без Critical/Important и [exact-head CI37366736109 attempt2](https://github.com/trafficolog/volleytime/actions/runs/37366736109/attempts/2), все четыре jobs SUCCESS. Attempt1 не выполнял тесты: GitHub не выделил hosted runners во время инфраструктурного инцидента; этот результат сохранён, не объявлен ошибкой продукта.
+- Head `b8f14baf858cfd8db005d55450e7d723cbb937d9` и merged main `d98ed97b1ef81dd695f4a94aafbfeafc90d4836c` имеют одинаковое дерево `34ff5ffc149a90f96625bc1c22b0e57d6fdf1877` (full git diff exit0). [Exact-main CI37419085625](https://github.com/trafficolog/volleytime/actions/runs/37419085625) all4SUCCESS, включая реальные PostgreSQL tests и runner image export/import.
+- [Deploy37419396620](https://github.com/trafficolog/volleytime/actions/runs/37419396620) прошёл прежний отказавший Test before deploy и завершил controlled rollout. [Production evidence](../operations/qa/2026-10-06-r07-production-candidate.md) отдельно фиксирует runtime; эта карточка не закрывает ручную Telegram/pilot приёмку9.8.11. Нижний локальный checkpoint исторический.
 
 ### Local implementation checkpoint — 2026-10-05
 

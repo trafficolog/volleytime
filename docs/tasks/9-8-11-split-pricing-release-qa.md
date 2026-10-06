@@ -4,8 +4,8 @@ phase: '9'
 epic: '9.8'
 status: in_progress
 release: 'v0.1.7'
-last_reviewed: 2026-10-05
-status_note: 'Полный кандидат bbd6f41 принят PR91/exact-head/main CI; Deploy37328474440 остановился pre-VPS из-за missing PostgreSQL test service identity. Локальный env fix9.8.14 имеет отдельные RED/GREEN/gate evidence; scoped review/exact-head/main CI открыты. Controlled deployment и Telegram/pilot/tag остаются открыты; последнее подтверждённое production967aff3.'
+last_reviewed: 2026-10-06
+status_note: 'Полный кандидат d98ed97 опубликован Deploy37419396620 после PR92 и exact-head/main CI all4SUCCESS. Backup до migrations, точные Git/image/runtime SHA, healthy services и synthetic smoke/cleanup подтверждены. Открыты реальные два Telegram-аккаунта, pilot owner acceptance и tag/Release; историческая R0.6 ручная приёмка отдельно открыта.'
 roles: [QA, DEVOPS]
 depends_on: ['8.11.2', '6.11.2']
 tags: [mvp, split, release, production, telegram]
@@ -31,6 +31,12 @@ tags: [mvp, split, release, production, telegram]
 6. Два реальных Telegram-аккаунта: состав, прогноз, waitlist, закрытие, личные суммы/уведомления, confirm/reject, disabled subscription, repeat, light/dark и pilot. Зафиксировать owner acceptance перед tag/Release.
 
 ## Критерии приёмки
+
+### Production candidate — 2026-10-06
+
+- [Production evidence](../operations/qa/2026-10-06-r07-production-candidate.md) фиксирует успешные exact-head/main CI, reviewed fast-forward `main→prod` и [Deploy37419396620](https://github.com/trafficolog/volleytime/actions/runs/37419396620). На момент выкладки GitHub main/prod, clean VPS prod, три image revisions и live web/bot/public health совпали на `d98ed97b1ef81dd695f4a94aafbfeafc90d4836c`.
+- Новый private DB dump создан и проверен до миграций; migration/activation/synthetic auth/forgery/cleanup и `smoke-passed` подтверждены. Web/bot split image capability1, creation capability включена; bot polling. Это техническая публикация полного кандидата, не реальная Telegram delivery/owner acceptance и не проверенный DB restore/production rollback.
+- Следующий этап — [двухаккаунтная ручная matrix](../operations/qa/2026-10-06-r07-production-candidate.md#ручная-приёмка-остаётся-открытой). До фактических результатов и owner acceptance карточка/release остаются `in_progress`, tag/Release не создаются. Нижние pre-deploy/pending checkpoint исторические и не требуют повторения unchanged gates/Chrome QA.
 
 ### Deploy test-environment recovery checkpoint — 2026-10-05
 

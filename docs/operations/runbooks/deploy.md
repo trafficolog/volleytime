@@ -1,5 +1,7 @@
 # Production deploy runbook
 
+Current R0.7 candidate acceptance,2026-10-06: [Deploy37419396620](https://github.com/trafficolog/volleytime/actions/runs/37419396620) succeeded on `d98ed97b1ef81dd695f4a94aafbfeafc90d4836c` after exact-head/main CI and reviewed main→prod fast-forward. Backup preceded migration; exact Git/image/runtime/public health and synthetic smoke/cleanup agree, phase smoke-passed. [Production evidence](../qa/2026-10-06-r07-production-candidate.md) separates technical publication from still-open real two-account Telegram/pilot/owner acceptance. Split creation is enabled on the complete candidate; bot remains polling. Preserve previous967aff3 images/backups; any rollback must use the quiescent split compatibility guard below. The older acceptance entries are historical, not the current live SHA. No final v0.1.7 tag/Release yet.
+
 Current acceptance, 2026-09-30: corrected [Deploy 36772178900](https://github.com/trafficolog/volleytime/actions/runs/36772178900) succeeded on `967aff312f962196e7347cc0e50f879f25f6dffa`, including bundled Node migrator without runtime package-manager downloads. Backup preceded migration; Git/images/runtime/public health agree and synthetic smoke/cleanup passed. [Current production evidence](../qa/2026-09-30-r06-production-candidate.md#corrected-rollout-and-pilot-ui-fixes) supersedes the historical offline-runtime blocker below. Real Telegram/pilot, isolated restore and actual production rollback execution are not inferred from this rollout.
 
 ## Historical first-rollout checkpoint
