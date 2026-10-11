@@ -2,10 +2,10 @@
 id: '9.8.11'
 phase: '9'
 epic: '9.8'
-status: in_progress
+status: done
 release: 'v0.1.7'
-last_reviewed: 2026-10-06
-status_note: 'Полный кандидат d98ed97 опубликован Deploy37419396620 после PR92 и exact-head/main CI all4SUCCESS. Backup до migrations, точные Git/image/runtime SHA, healthy services и synthetic smoke/cleanup подтверждены. Открыты реальные два Telegram-аккаунта, pilot owner acceptance и tag/Release; историческая R0.6 ручная приёмка отдельно открыта.'
+last_reviewed: 2026-10-11
+status_note: 'R0.7 production e293e06 опубликован Deploy37673966652; техническое evidence подтверждено. Пользователь подтвердил двухаккаунтную Telegram matrix на Android/Desktop, повторные операции и owner pilot acceptance. Release acceptance выполнена; immutable tag/Release оформляются после reviewed closure-docs CI/merge. Историческая R0.6 и полная R0 operational acceptance отдельно не закрываются.'
 roles: [QA, DEVOPS]
 depends_on: ['8.11.2', '6.11.2']
 tags: [mvp, split, release, production, telegram]
@@ -31,6 +31,12 @@ tags: [mvp, split, release, production, telegram]
 6. Два реальных Telegram-аккаунта: состав, прогноз, waitlist, закрытие, личные суммы/уведомления, confirm/reject, disabled subscription, repeat, light/dark и pilot. Зафиксировать owner acceptance перед tag/Release.
 
 ## Критерии приёмки
+
+### Final R0.7 acceptance — 2026-10-11
+
+- [Итоговое evidence](../operations/qa/2026-10-11-r07-pilot-acceptance.md) связывает technical publication e293e06/Deploy37673966652 и пользовательскую ручную matrix/owner acceptance. Android/Desktop подтверждены; supplied version7.3.1 без привязки к отдельному клиенту. Native QA отмечена как user-reported, без claims прямой агентской проверки или непроверенных платформ.
+- Все manual сценарии, включая exact5.01/5.00, confirm/reject/refund/history, waitlist/promotion, split restrictions, fixed/free/subscription, repeat/light-dark/Back, подтверждены пользователем. Полные source/review/CI и local browser gates сохраняются в своих ранее принятых scopes.
+- Release acceptance satisfied; новый tag/Release v0.1.7 должен указывать на уже проверенный production e293e069dfc637db835c36a477639379c7e2bcb3 после CI/merge closure-docs. Позднейшие docs не требуют повторной выкладки. Нижние pending checkpoints — история; historical R0.6, monitoring/S3/restore/week-long R0 gates этим не закрыты.
 
 ### Production candidate — 2026-10-06
 
