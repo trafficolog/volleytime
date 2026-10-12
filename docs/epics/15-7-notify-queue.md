@@ -1,12 +1,13 @@
 ---
 id: '15.7'
 phase: '15'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-30
-status_note: 'Критичные уведомления через очередь с retry (notify.deliver). Закрывает долг Phase 8.'
+last_reviewed: 2026-10-12
+status_note: 'Поглощён задачей 20.3.2 (референс v3).'
 estimated_hours: '3-4'
 depends_on: ['15.1', '8.4']
+superseded_by: '20.3.2'
 ---
 
 # Epic 15.7: Очередь уведомлений с retry (notify.deliver)

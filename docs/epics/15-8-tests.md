@@ -1,12 +1,13 @@
 ---
 id: '15.8'
 phase: '15'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-30
-status_note: 'Тесты scheduler с freeze time.'
+last_reviewed: 2026-10-12
+status_note: 'Поглощён задачей 20.3.1 (референс v3).'
 estimated_hours: '3-4'
 depends_on: ['15.3', '15.4', '15.5', '15.6', '15.7']
+superseded_by: '20.3.1'
 ---
 
 # Epic 15.8: Tests (freeze time)

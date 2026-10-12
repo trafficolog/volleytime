@@ -1,12 +1,13 @@
 ---
 id: '15.2'
 phase: '15'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-30
-status_note: 'Регистрация задач при создании Event, отмена при cancel.'
+last_reviewed: 2026-10-12
+status_note: 'Поглощён задачей 20.3.1 (референс v3).'
 estimated_hours: '3-4'
 depends_on: ['15.1', '5.2']
+superseded_by: '20.3.1'
 ---
 
 # Epic 15.2: Регистрация/отмена задач Event (lifecycle)

@@ -2,10 +2,10 @@
 id: '10.3.2'
 phase: '10'
 epic: '10.3'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-29
-status_note: ''
+last_reviewed: 2026-10-12
+status_note: 'Поглощена задачей 22.1.1 (референс v3). Карточка — входной материал, не реализуется отдельно.'
 roles:
   - BACK
   - FE
@@ -17,6 +17,7 @@ tags:
   - beta
   - super-admin
   - metrics
+superseded_by: '22.1.1'
 ---
 
 # Task 10.3.2: Гейт-метрики агрегация + allowlist управление

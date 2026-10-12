@@ -1,9 +1,9 @@
 ---
 id: '14'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-25
-status_note: 'Отчёты и CSV-экспорт для НПД / Excel-анализа.'
+last_reviewed: 2026-10-12
+status_note: 'Поглощена задачами 21.2.7 и 21.1.3 в объёме макетов (референс v3); экспорт для НПД — backlog.'
 estimated_hours: '25-35'
 depends_on: ['10']
 ---

@@ -1,12 +1,13 @@
 ---
 id: '15.6'
 phase: '15'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-30
-status_note: 'TTL pending_payment — механизм готов, активен ТОЛЬКО для online (Phase 12). Cash НЕ трогаем.'
+last_reviewed: 2026-10-12
+status_note: 'Поглощён задачей 20.3.1 (референс v3).'
 estimated_hours: '1-2'
 depends_on: ['15.1', '6.1']
+superseded_by: '20.3.1'
 ---
 
 # Epic 15.6: TTL pending_payment (online-ready, cash не трогаем)

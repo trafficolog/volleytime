@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<link rel="icon" type="image/svg+xml" href="assets/logo/vt-favicon.svg">
+<title>VolleyTime · Гипотеза</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=deep2">
+<style>
+html,body{margin:0;background:var(--vt-bone);color:var(--vt-ink);font-family:var(--f-body);min-height:100%}
+a{color:var(--vt-flame-deep)}a:hover{color:var(--vt-blue-ink)}
+.D{font-family:var(--f-display);text-transform:uppercase;font-weight:700;letter-spacing:0;line-height:.95}
+.ia{display:grid;grid-template-columns:minmax(300px,380px) minmax(0,1fr);min-height:100vh}
+.ia-side{background:var(--vt-paper);padding:28px 28px 32px;display:flex;flex-direction:column;gap:14px;overflow:auto;max-height:100vh;position:sticky;top:0}
+.ia-back{align-self:flex-start;display:inline-flex;padding:8px 14px 8px 10px;border-radius:99px;background:var(--vt-bone);font-size:13px;font-weight:600;color:var(--vt-ink);text-decoration:none}
+.ia-num{font-family:var(--f-num);font-weight:700;font-size:13px;color:var(--vt-mute-2);margin-top:8px}
+.ia-side h1{font-size:clamp(40px,4vw,56px);margin:0}
+.ia-lead{font-size:14px;line-height:1.55;color:var(--vt-ink-3);margin:0;text-wrap:pretty}
+.ia-cap{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--vt-mute-2);margin-top:10px}
+.ia-map{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.ia-map button{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:10px 12px;border:0;border-radius:14px;background:transparent;cursor:pointer;font-family:inherit;color:var(--vt-ink)}
+.ia-map button:hover{background:var(--vt-bone)}
+.ia-map button.on{background:var(--vt-ink);color:#fff}
+.ia-map button:focus-visible{outline:2px solid var(--vt-flame);outline-offset:2px}
+.ia-map .i{width:26px;height:26px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-family:var(--f-num);font-weight:700;font-size:13px;background:var(--vt-bone);color:var(--vt-ink);flex-shrink:0}
+.ia-map button.on .i{background:var(--vt-flame);color:#fff}
+.ia-map .t{flex:1;min-width:0}
+.ia-map b{display:block;font-size:14px}
+.ia-map small{display:block;font-size:12px;color:var(--vt-mute-2);margin-top:1px}
+.ia-map button.on small{color:rgba(255,255,255,.74)}
+.ia-map .d{font-family:var(--f-num);font-weight:700;color:var(--vt-mute-2);letter-spacing:2px}
+.ia-map button.on .d{color:rgba(255,255,255,.74)}
+.ia-hint{font-size:12.5px;line-height:1.5;color:var(--vt-ink-3);background:var(--vt-blue-soft-tile);border-radius:14px;padding:12px 14px}
+.ia-pn{display:flex;justify-content:space-between;gap:12px;margin-top:auto;padding-top:10px;font-size:13px;font-weight:600}
+.ia-pn a{text-decoration:none}
+.ia-stage{position:sticky;top:0;height:100vh;align-self:start;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 16px;gap:12px;box-sizing:border-box;overflow:hidden}
+.ia-now{font-size:12.5px;color:var(--vt-mute-2)}
+.ia-now b{color:var(--vt-ink)}
+@media (max-width:860px){.ia{grid-template-columns:1fr}.ia-side{position:static;max-height:none}.ia-stage{position:static;height:auto;min-height:100vh}}
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="app-nav.jsx?v=deep1"></script>
+<script type="text/babel" src="atoms.jsx?v=deep1"></script>
+<script type="text/babel" src="screens-ideas-1.jsx?v=deep3"></script>
+<script type="text/babel" src="screens-ideas-2.jsx?v=deep3"></script>
+<script type="text/babel" src="idea-app.jsx?v=deep3"></script>
+<script type="text/babel" src="screens-ideas-deep-a.jsx?v=deep3"></script>
+<script type="text/babel" src="screens-ideas-deep-b.jsx?v=deep4"></script>
+</head>
+<body class="vt-frame">
+<div id="root"></div>
+<script type="text/babel" data-presets="env,react">
+ReactDOM.createRoot(document.getElementById('root')).render(<IdeaDeepApp/>);
+</script>
+</body>
+</html>

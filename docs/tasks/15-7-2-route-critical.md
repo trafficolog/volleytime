@@ -2,10 +2,10 @@
 id: '15.7.2'
 phase: '15'
 epic: '15.7'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-30
-status_note: ''
+last_reviewed: 2026-10-12
+status_note: 'Поглощена задачей 20.3.2 (референс v3). Карточка — входной материал, не реализуется отдельно.'
 roles:
   - BACK
 depends_on:
@@ -15,6 +15,7 @@ estimated_hours: '1-2'
 tags:
   - notifier
   - queue
+superseded_by: '20.3.2'
 ---
 
 # Task 15.7.2: Перевод критичных уведомлений на очередь

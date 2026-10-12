@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<link rel="icon" type="image/svg+xml" href="assets/logo/vt-favicon.svg">
+<title>VolleyTime · Brand & System</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=scr1">
+<style>
+html,body{margin:0;padding:0;min-height:100%;background:#FFFFFF;color:var(--vt-ink);font-family:'Golos Text',system-ui,sans-serif}
+a{color:var(--vt-flame)}a:hover{color:var(--vt-flame-deep)}
+.page{max-width:1160px;margin:0 auto;padding:72px 32px 96px}
+.scene-back{position:fixed;top:16px;left:16px;z-index:50;display:inline-flex;align-items:center;gap:8px;padding:8px 14px 8px 8px;border-radius:14px;background:var(--vt-ink);color:#fff;font-size:12.5px;font-weight:600;text-decoration:none;box-shadow:var(--vt-shadow-float)}
+.scene-back .b{width:20px;height:20px;border-radius:6px;background:#fff url('assets/logo/vt-mark-color.svg') center/74% no-repeat}
+.head{display:grid;grid-template-columns:1.3fr 1fr;gap:12px;margin-bottom:56px}
+.head .hero{background:var(--vt-blue-ink);color:#fff;border-radius:24px;padding:32px;box-shadow:var(--vt-shadow-accent)}
+.head .hero .cap{font:600 11px 'Golos Text';letter-spacing:.08em;text-transform:uppercase;opacity:.7}
+.head .hero h1{font:700 76px/.9 'Oswald';text-transform:uppercase;margin:14px 0 0}
+.head .hero h1 span{color:var(--vt-orange)}
+.head .hero p{font-size:15px;line-height:1.5;opacity:.8;margin:16px 0 0;max-width:420px}
+.head .side{display:grid;grid-template-rows:1fr 1fr;gap:12px}
+.head .tile{border-radius:24px;padding:24px;background:var(--vt-bone);display:flex;flex-direction:column;justify-content:flex-end;gap:10px}
+.head .tile.o{background:var(--vt-orange-soft)}
+.head .tile b{font:700 36px/1 'Oswald'}
+.head .tile span{font-size:13px;color:var(--vt-ink-3)}
+.sec{margin-top:64px}
+.sec h2{font:700 28px/1 'Oswald';text-transform:uppercase;margin:0}
+.sec .sub{font-size:14px;color:var(--vt-mute-2);margin-top:8px;max-width:620px;line-height:1.5}
+.frame{margin-top:24px;background:var(--vt-paper);border-radius:24px;padding:32px;box-shadow:var(--vt-shadow-card)}
+.principles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:24px}
+.principles div{background:var(--vt-bone);border-radius:20px;padding:22px}
+.principles b{display:block;font:700 18px/1.1 'Oswald';text-transform:uppercase}
+.principles p{font-size:13px;color:var(--vt-mute-2);line-height:1.5;margin:10px 0 0}
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="app-nav.jsx?v=scr1"></script>
+<script type="text/babel" src="atoms.jsx?v=scr1"></script>
+<script type="text/babel" src="brand.jsx?v=scr1"></script>
+<script type="text/babel" src="screens-schedule.jsx?v=scr1"></script>
+<script type="text/babel" src="brand-screens.jsx?v=scr3"></script>
+<script type="text/babel" src="screens-ideas-1.jsx?v=wu5"></script>
+<script type="text/babel" src="screens-ideas-2.jsx?v=br1"></script>
+<script type="text/babel" src="screens-ideas-future.jsx?v=br1"></script>
+<script type="text/babel" src="brand-ideas.jsx?v=2"></script>
+</head>
+<body class="vt-frame">
+<a href="Volley Time.html" class="scene-back"><span class="b"></span><span>Все разделы</span></a>
+<div class="page">
+  <div class="head">
+    <div class="hero">
+      <div class="cap">01 · Brand & Design System · Bento Bold</div>
+      <h1>Volley<span>Time</span></h1>
+      <p>Крупные цифры, один герой на экран, поверхности без обводок. Разделение — тоном, отступом и тенью.</p>
+    </div>
+    <div class="side">
+      <div class="tile o"><b>Oswald</b><span>заголовки и цифры</span></div>
+      <div class="tile"><b style="font-family:'Golos Text';letter-spacing:-.02em">Golos Text</b><span>интерфейс и текст</span></div>
+    </div>
+  </div>
+
+  <div class="sec"><h2>Основы</h2><div class="sub">Шкала отступов, скругления, три типа поверхностей и базовая бенто-композиция экрана.</div>
+    <div class="frame"><div id="brand-0"></div></div></div>
+
+  <div class="sec"><h2>Айдентика</h2><div class="sub">Логотип, палитра и роли цветов.</div>
+    <div class="frame"><div id="brand-1"></div></div></div>
+
+  <div class="sec"><h2>Типографика</h2><div class="sub">Oswald в верхнем регистре для заголовков, Oswald для всех чисел, Golos Text для интерфейса.</div>
+    <div class="frame"><div id="brand-2"></div></div></div>
+
+  <div class="sec"><h2>Компоненты</h2><div class="sub">Кнопки, чипы, аватары, шкалы.</div>
+    <div class="frame"><div id="brand-3"></div></div></div>
+
+  <div class="sec"><h2>Формы и контролы</h2><div class="sub">Поля на тоне без обводки, фокус — синим кольцом.</div>
+    <div class="frame"><div id="brand-4"></div></div></div>
+
+  <div class="sec"><h2>Поверхности и контролы</h2><div class="sub">Тест «серое на сером»: те же кнопки, поля и чипы на шести поверхностях. Переключите «До / После».</div>
+    <div class="frame"><div id="brand-6"></div></div></div>
+
+  <div class="sec"><h2>Доменные паттерны</h2><div class="sub">Оплата, места, статусы, опциональные модули.</div>
+    <div class="frame"><div id="brand-5"></div></div></div>
+
+  <div class="sec"><h2>Экранные паттерны</h2><div class="sub">Живые компоненты из Mini App: статусная модель, расписание на месяц, серия тренировок, шторки и состояния, логотип группы, навигация. Всё кликается.</div>
+    <div class="frame"><div id="brand-7"></div></div></div>
+
+  <div class="sec"><h2>Паттерны гипотез</h2><div class="sub">Компоненты из страницы гипотез и вариантов Mini App после их внедрения: общий календарь, блоки новой главной, контролы, программа события.</div>
+    <div class="frame"><div id="brand-8"></div></div></div>
+  <div class="sec"><h2>Принципы</h2>
+    <div class="principles">
+      <div><b>Telegram-first</b><p>Mini App работает там, где уже все. Без отдельного приложения и без экрана логина.</p></div>
+      <div><b>Инструмент, не маркетплейс</b><p>Платформа продаёт инструмент организатору. Деньги игроков идут напрямую организатору.</p></div>
+      <div><b>Ручные деньги — норма</b><p>Наличные, перевод, ЕРИП. Эквайринг приходит позже как опциональный модуль.</p></div>
+    </div>
+  </div>
+</div>
+<script type="text/babel" data-presets="env,react">
+[['brand-0',BrandBento],['brand-1',BrandIdentity],['brand-2',BrandType],['brand-3',BrandComponents],['brand-4',BrandControls],['brand-6',BrandSurfaces],['brand-5',BrandPatterns],['brand-8',BrandIdeas],['brand-7',BrandScreens]]
+  .forEach(([id,C]) => ReactDOM.createRoot(document.getElementById(id)).render(<C/>));
+</script>
+</body>
+</html>

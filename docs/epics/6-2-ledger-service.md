@@ -1,9 +1,9 @@
 ---
 id: '6.2'
 phase: '6'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-17
+last_reviewed: 2026-10-12
 status_note: 'Касса организации. Append-only, баланс через SUM.'
 estimated_hours: '4-5'
 depends_on: ['4.5']

@@ -1,9 +1,9 @@
 ---
 id: '4.3'
 phase: '4'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-17
+last_reviewed: 2026-10-12
 status_note: 'Cross-cutting: централизованный policy layer.'
 estimated_hours: '4-5'
 depends_on: ['4.2']

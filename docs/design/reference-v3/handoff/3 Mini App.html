@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<link rel="icon" type="image/svg+xml" href="assets/logo/vt-favicon.svg">
+<title>VolleyTime · Mini App</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="styles.css?v=surf1">
+
+<style>
+  html, body { margin:0; padding:0; height:100%; overflow:hidden;
+    font-family:'Golos Text', system-ui, sans-serif; background:#ECEBEF;
+  }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="tweaks-panel.jsx?v=surf1"></script>
+<script type="text/babel" src="app-nav.jsx?v=surf1"></script>
+<script type="text/babel" src="atoms.jsx?v=surf1"></script>
+<script type="text/babel" src="prototype-shell.jsx?v=surf1"></script>
+<script type="text/babel" src="screens-player.jsx?v=surf1"></script>
+<script type="text/babel" src="screens-organizer.jsx?v=surf1"></script>
+<script type="text/babel" src="screens-contributions.jsx?v=surf1"></script>
+<script type="text/babel" src="screens-schedule.jsx?v=surf1"></script>
+<script type="text/babel" src="screens-extra.jsx?v=surf1"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="env,react">
+const { useState, useEffect, useRef } = React;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "dark": false,
+  "density": "compact",
+  "accent": "#2437C9",
+  "role": "player",
+  "screen": "home",
+  "dataState": "data"
+}/*EDITMODE-END*/;
+
+const ACCENTS = ["#2437C9", "#1F2E96", "#FF6B1F", "#15161A", "#456F34"];
+
+const PLAYER_SCREENS = {
+  home:    { Component: () => <PlayerHome    /> },
+  event:   { Component: () => <PlayerEvent   /> },
+  book:    { Component: () => <PlayerBook    /> },
+  subs:    { Component: () => <PlayerSubs    /> },
+  buy:     { Component: () => <PlayerBuy     /> },
+  profile: { Component: () => <PlayerProfile /> },
+  onboard: { Component: () => <PlayerOnboard /> },
+  'contrib-hub':    { Component: () => <ContribHub    /> },
+  'contrib-detail': { Component: () => <ContribDetail /> },
+  'contrib-pledge': { Component: () => <ContribPledge /> },
+  notifications:    { Component: () => <PlayerNotifications /> },
+  bookings:         { Component: () => <PlayerBookings /> },
+  schedule:         { Component: () => <PlayerSchedule /> },
+  'org-new':        { Component: () => <OrgOnboarding /> },
+};
+
+const ORG_SCREENS = {
+  home:           { Component: () => <OrgHome     /> },
+  'event-detail': { Component: () => <OrgEvent    /> },
+  payments:       { Component: () => <OrgPayments /> },
+  ledger:         { Component: () => <OrgLedger   /> },
+  create:         { Component: () => <OrgCreate   /> },
+  contribs:         { Component: () => <OrgContribs      /> },
+  'contrib-manage': { Component: () => <OrgContribManage /> },
+  'contrib-create': { Component: () => <OrgContribCreate /> },
+  notifications:    { Component: () => <OrgNotifications /> },
+  schedule:         { Component: () => <OrgSchedule /> },
+  'org-new':        { Component: () => <OrgOnboarding /> },
+  members:          { Component: () => <OrgMembers       /> },
+  reports:          { Component: () => <OrgReports       /> },
+};
+
+const PLAYER_LABEL = {
+  home:'Главная', event:'Тренировка', book:'Запись', subs:'Абонементы',
+  buy:'Покупка абонемента', profile:'Профиль', onboard:'Приглашение',
+  'contrib-hub':'Сборы', 'contrib-detail':'Сбор', 'contrib-pledge':'Взнос',
+  notifications:'Уведомления', bookings:'Мои записи', 'org-new':'Своя группа', schedule:'Расписание'
+};
+const ORG_LABEL = {
+  home:'События', 'event-detail':'Состав события', payments:'Платежи',
+  ledger:'Касса', create:'Новая тренировка',
+  contribs:'Сборы', 'contrib-manage':'Управление сбором', 'contrib-create':'Новый сбор',
+  notifications:'Уведомления', members:'Игроки', reports:'Отчёт за месяц', schedule:'Расписание'
+};
+
+function InnerApp({ role, dataState }) {
+  const screens = role === 'organizer' ? ORG_SCREENS : PLAYER_SCREENS;
+  const labels = role === 'organizer' ? ORG_LABEL : PLAYER_LABEL;
+  const initial = role === 'organizer' ? 'home' : 'home';
+  const { ctx, sheet, popover, toast, alertCfg } = useNavState(initial);
+
+  // expose ctx via window for debugging
+  React.useEffect(() => { window.__nav = ctx; }, [ctx.current]);
+
+  const ScreenComponent = (screens[ctx.current] || screens[initial]).Component;
+  const label = labels[ctx.current] || ctx.current;
+
+  return (
+    <NavContext.Provider value={ctx}>
+      {/* StatusBar lives at prototype level so it's stable across nav */}
+      <StatusBar time="19:24"/>
+
+      {/* Screen body fills remaining height */}
+      <div style={{flex:1, display:'flex', flexDirection:'column', minHeight:0, position:'relative'}}>
+        <DataStateContext.Provider value={dataState}>
+          {dataState === 'offline' && <OfflineBanner onRetry={() => ctx.toast('Всё ещё нет сети')}/>}
+          <ScreenComponent />
+        </DataStateContext.Provider>
+      </div>
+
+      {/* Back-stack indicator (only when canGoBack) */}
+      {ctx.canGoBack && (
+        <button onClick={ctx.back} style={{
+          position:'absolute', left:14, top: 50, zIndex:30,
+          display:'none', // hidden — back lives in MiniHeader
+        }}>back</button>
+      )}
+
+      <NavOverlays sheet={sheet} popover={popover} toast={toast} alertCfg={alertCfg} ctx={ctx}/>
+    </NavContext.Provider>
+  );
+}
+
+function App() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--vt-flame', t.accent);
+  }, [t.accent]);
+
+  // Reset stack when role changes by remounting InnerApp via key
+  const frameCls = ["vt-frame", t.dark ? "vt-dark" : "vt-light", t.density === "compact" ? "vt-dense" : ""].filter(Boolean).join(" ");
+
+  const sceneLeft = (
+    <Segmented value={t.role} onChange={(v) => setTweak('role', v)}
+      options={[{value:'player', label:'Игрок'}, {value:'organizer', label:'Организатор'}]}/>
+  );
+
+  return (
+    <>
+      <PhonePrototype frameCls={frameCls} sceneLeft={sceneLeft}>
+        <InnerApp key={t.role} role={t.role} dataState={t.dataState}/>
+      </PhonePrototype>
+
+      <TweaksPanel title="Tweaks · Mini App">
+        <TweakSection label="Тема" />
+        <TweakToggle label="Тёмная" value={t.dark}
+          onChange={(v) => setTweak('dark', v)} />
+        <TweakRadio label="Плотность" value={t.density}
+          options={['compact','regular']}
+          onChange={(v) => setTweak('density', v)} />
+        <TweakSection label="Состояние данных" />
+        <TweakRadio label="Данные" value={t.dataState}
+          options={['data','empty','offline']}
+          onChange={(v) => setTweak('dataState', v)} />
+        <TweakSection label="Акцент" />
+        <TweakColor label="Primary" value={t.accent}
+          options={ACCENTS}
+          onChange={(v) => setTweak('accent', v)} />
+        <TweakSection label="Подсказка" />
+        <div style={{fontSize:11, color:'rgba(41,38,27,0.6)', lineHeight:1.4, padding:'2px 2px'}}>
+          Кликайте на карточки, ··· меню и кнопки — экраны связаны. Переключитесь между Игроком и Организатором сверху.
+        </div>
+      </TweaksPanel>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

@@ -2,10 +2,10 @@
 id: '15.8.2'
 phase: '15'
 epic: '15.8'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-30
-status_note: ''
+last_reviewed: 2026-10-12
+status_note: 'Поглощена задачей 20.3.1 (референс v3). Карточка — входной материал, не реализуется отдельно.'
 roles:
   - QA
   - BACK
@@ -19,6 +19,7 @@ tags:
   - waitlist
   - ttl
   - notifier
+superseded_by: '20.3.1'
 ---
 
 # Task 15.8.2: Waitlist confirm-flow + TTL + notify retry tests

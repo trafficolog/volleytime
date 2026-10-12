@@ -1,9 +1,9 @@
 ---
 id: '8.4'
 phase: '8'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-17
+last_reviewed: 2026-10-12
 status_note: 'NotifierService поверх grammY. Транспорт web→bot через internal HTTP.'
 estimated_hours: '3-4'
 depends_on: ['8.1', '8.3']

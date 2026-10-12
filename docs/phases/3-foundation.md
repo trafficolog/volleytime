@@ -1,8 +1,8 @@
 ---
 id: '3'
-status: todo
+status: done
 sync_state: drifted
-last_reviewed: 2026-05-26
+last_reviewed: 2026-10-12
 status_note: 'Стартовая фаза нового стека. 8 эпиков, 22 задачи. Чистый foundation без бизнес-логики.'
 estimated_hours: '30-40'
 depends_on: []

@@ -1,12 +1,13 @@
 ---
 id: '7.1'
 phase: '7'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-29
-status_note: 'EventCreditAccount + EventCreditTransaction. Append-only журнал.'
+last_reviewed: 2026-10-12
+status_note: 'Поглощён задачей 20.2.1 (референс v3).'
 estimated_hours: '3-4'
 depends_on: ['4.1']
+superseded_by: '20.2.1'
 ---
 
 # Epic 7.1: Credit account + transaction модели

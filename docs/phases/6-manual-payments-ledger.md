@@ -1,8 +1,8 @@
 ---
 id: '6'
-status: todo
+status: done
 sync_state: drifted
-last_reviewed: 2026-05-29
+last_reviewed: 2026-10-12
 status_note: 'Финансовый контур. Payment (polymorphic) + Ledger + mass refund. Уведомления → Phase 8.'
 estimated_hours: '20-30'
 depends_on: ['5']

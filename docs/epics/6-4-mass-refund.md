@@ -1,9 +1,9 @@
 ---
 id: '6.4'
 phase: '6'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-17
+last_reviewed: 2026-10-12
 status_note: 'Отмена события → restore сессий + refund payments + cancel pending.'
 estimated_hours: '3-4'
 depends_on: ['6.1', '6.2', '5.6']

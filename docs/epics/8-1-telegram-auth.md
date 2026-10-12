@@ -1,9 +1,9 @@
 ---
 id: '8.1'
 phase: '8'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-17
+last_reviewed: 2026-10-12
 status_note: 'Mini App auth через initData. Foundation.'
 estimated_hours: '5-7'
 depends_on: ['3.3', '3.4']

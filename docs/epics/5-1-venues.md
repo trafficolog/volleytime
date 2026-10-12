@@ -1,9 +1,9 @@
 ---
 id: '5.1'
 phase: '5'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-17
+last_reviewed: 2026-10-12
 status_note: 'Площадки. Опциональная сущность — event может ссылаться или иметь просто текст.'
 estimated_hours: '2-3'
 depends_on: ['4.5']

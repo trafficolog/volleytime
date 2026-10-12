@@ -1,8 +1,8 @@
 ---
 id: '8'
-status: todo
+status: in_progress
 sync_state: drifted
-last_reviewed: 2026-05-29
+last_reviewed: 2026-10-12
 status_note: 'MVP-RELEASE. Telegram-слой поверх готовых страниц 4-6. РАСПИСАНА ЦЕЛИКОМ (17 задач). Зависит от 3-6, НЕ от 7.'
 estimated_hours: '50-70'
 depends_on: ['6']

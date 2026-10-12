@@ -1,8 +1,8 @@
 ---
 id: '9'
-status: todo
+status: in_progress
 sync_state: drifted
-last_reviewed: 2026-05-29
+last_reviewed: 2026-10-12
 status_note: 'Production deploy на российском VPS. 4 контейнера (caddy/web/bot/postgres), webhook, S3-бэкапы, Sentry+UptimeRobot, CI/CD. Email-провайдер отложен.'
 estimated_hours: '15-25'
 depends_on: ['8']

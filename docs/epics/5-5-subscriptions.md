@@ -1,9 +1,9 @@
 ---
 id: '5.5'
 phase: '5'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-17
+last_reviewed: 2026-10-12
 status_note: 'Купленные абонементы. Atomic consume, FIFO по expires_at.'
 estimated_hours: '6-8'
 depends_on: ['5.4']

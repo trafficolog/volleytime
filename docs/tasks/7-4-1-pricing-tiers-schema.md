@@ -2,10 +2,10 @@
 id: '7.4.1'
 phase: '7'
 epic: '7.4'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-29
-status_note: 'Настраиваемая тарифная сетка + flat-tier расчёт.'
+last_reviewed: 2026-10-12
+status_note: 'Поглощена задачей 21.2.8 (референс v3). Карточка — входной материал, не реализуется отдельно.'
 roles:
   - BACK
   - DB
@@ -16,6 +16,7 @@ tags:
   - credits
   - pricing
   - schema
+superseded_by: '21.2.8'
 ---
 
 # Task 7.4.1: Schema pricing tiers + calculatePrice + seed

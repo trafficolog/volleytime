@@ -1,9 +1,9 @@
 ---
 id: '4.1'
 phase: '4'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-17
+last_reviewed: 2026-10-12
 status_note: 'Корневая сущность multi-tenancy. CRUD с soft-delete.'
 estimated_hours: '5-6'
 depends_on: ['3.2', '3.3']

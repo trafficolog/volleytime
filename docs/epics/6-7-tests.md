@@ -1,9 +1,9 @@
 ---
 id: '6.7'
 phase: '6'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-17
+last_reviewed: 2026-10-12
 status_note: 'Тесты финансового контура. Критично: деньги.'
 estimated_hours: '4-5'
 depends_on: ['6.1', '6.2', '6.3', '6.4']

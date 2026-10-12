@@ -1,9 +1,9 @@
 ---
 id: '4.2'
 phase: '4'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-17
+last_reviewed: 2026-10-12
 status_note: 'Many-to-many user × organization. Роли и статусы.'
 estimated_hours: '5-7'
 depends_on: ['4.1']

@@ -2,10 +2,10 @@
 id: '7.7.1'
 phase: '7'
 epic: '7.7'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-29
-status_note: ''
+last_reviewed: 2026-10-12
+status_note: 'Поглощена задачей 22.2.2 (референс v3). Карточка — входной материал, не реализуется отдельно.'
 roles:
   - BACK
   - FE
@@ -17,6 +17,7 @@ tags:
   - credits
   - admin
   - super-admin
+superseded_by: '22.2.2'
 ---
 
 # Task 7.7.1: Grant credits + confirm/reject заявок (super-admin)

@@ -1,12 +1,13 @@
 ---
 id: '15.4'
 phase: '15'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-30
-status_note: 'Авто-закрытие записи за 2ч + авто-finished через 30мин после.'
+last_reviewed: 2026-10-12
+status_note: 'Поглощён задачей 20.3.1 (референс v3).'
 estimated_hours: '2-3'
 depends_on: ['15.2', '5.2']
+superseded_by: '20.3.1'
 ---
 
 # Epic 15.4: Auto-close записи (2h) + auto-finished

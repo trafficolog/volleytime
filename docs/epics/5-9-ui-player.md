@@ -1,9 +1,9 @@
 ---
 id: '5.9'
 phase: '5'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-17
+last_reviewed: 2026-10-12
 status_note: 'UI игрока. Mini App. На основе паттернов Phase 4 UI + референсов.'
 estimated_hours: '8-10'
 depends_on: ['5.7']

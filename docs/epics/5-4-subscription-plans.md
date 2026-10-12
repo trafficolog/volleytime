@@ -1,9 +1,9 @@
 ---
 id: '5.4'
 phase: '5'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-17
+last_reviewed: 2026-10-12
 status_note: 'Планы абонементов per-org. Могут быть бесплатными.'
 estimated_hours: '3-4'
 depends_on: ['4.5']
