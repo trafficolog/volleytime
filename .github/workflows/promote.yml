@@ -1,8 +1,15 @@
 name: Promote to production
 
-# Fast-forwards prod to a main revision whose push CI succeeded, then dispatches
-# Deploy on prod. A GITHUB_TOKEN push does not trigger `on: push`, so Deploy is
-# started explicitly through workflow_dispatch (Task 9.8.17).
+# Fast-forwards prod to a main revision whose push CI succeeded and starts Deploy
+# on prod (Task 9.8.17).
+#
+# GITHUB_TOKEN cannot update refs whose range changes .github/workflows/ and its
+# pushes do not trigger `on: push`. Therefore:
+# - with secret PROMOTE_TOKEN (fine-grained PAT: contents + workflows write) the
+#   push goes through that token and Deploy starts from `on: push`;
+# - without it the push uses GITHUB_TOKEN and Deploy is dispatched explicitly;
+#   a range that touches workflows fails before pushing and needs a reviewed
+#   manual fast-forward (deploy runbook).
 
 on:
   workflow_dispatch:
@@ -12,11 +19,6 @@ on:
         required: false
         default: ''
         type: string
-      redeploy:
-        description: Dispatch Deploy even when prod already equals the SHA
-        required: false
-        default: false
-        type: boolean
 
 concurrency:
   group: promote-production
@@ -36,6 +38,8 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+          # Pushes below set their own credentials explicitly.
+          persist-credentials: false
 
       - name: Resolve and verify revision
         id: verify
@@ -43,9 +47,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           INPUT_SHA: ${{ inputs.sha }}
+          HAS_PROMOTE_TOKEN: ${{ secrets.PROMOTE_TOKEN != '' }}
         run: |
           set -euo pipefail
-          git fetch origin main prod
+          git fetch -q "https://github.com/$REPO.git" +refs/heads/main:refs/remotes/origin/main +refs/heads/prod:refs/remotes/origin/prod
           sha="${INPUT_SHA:-$(git rev-parse origin/main)}"
           [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "SHA must be a full lowercase 40-character hash" >&2; exit 1; }
           git merge-base --is-ancestor "$sha" origin/main || { echo "$sha is not in main history" >&2; exit 1; }
@@ -53,24 +58,40 @@ jobs:
           git merge-base --is-ancestor "$prev" "$sha" || { echo "prod $prev is not an ancestor of $sha; fast-forward impossible" >&2; exit 1; }
           ok="$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$sha&event=push&branch=main&status=success" -q '.total_count')"
           [ "$ok" -ge 1 ] || { echo "No successful main push CI run for $sha" >&2; exit 1; }
+          if [ "$sha" != "$prev" ] && [ "$HAS_PROMOTE_TOKEN" != "true" ] \
+            && [ -n "$(git diff --name-only "$prev" "$sha" -- .github/workflows)" ]; then
+            echo "Range $prev..$sha changes .github/workflows; GITHUB_TOKEN cannot push it." >&2
+            echo "Add secret PROMOTE_TOKEN or do the reviewed manual fast-forward from the deploy runbook." >&2
+            exit 1
+          fi
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
           echo "prev=$prev" >> "$GITHUB_OUTPUT"
+          echo "pat=$HAS_PROMOTE_TOKEN" >> "$GITHUB_OUTPUT"
 
       - name: Fast-forward prod
+        id: push
         if: ${{ steps.verify.outputs.sha != steps.verify.outputs.prev }}
         env:
           SHA: ${{ steps.verify.outputs.sha }}
+          REPO: ${{ github.repository }}
+          TOKEN: ${{ secrets.PROMOTE_TOKEN || github.token }}
         run: |
           set -euo pipefail
-          git push origin "$SHA:refs/heads/prod"
+          # Non-force push: GitHub rejects anything but a fast-forward.
+          git push "https://x-access-token:${TOKEN}@github.com/$REPO.git" "$SHA:refs/heads/prod"
 
       - name: Dispatch Deploy on prod
-        if: ${{ steps.verify.outputs.sha != steps.verify.outputs.prev || inputs.redeploy }}
+        id: dispatch
+        # A PROMOTE_TOKEN push already starts Deploy through `on: push`.
+        if: ${{ steps.push.outcome == 'success' && steps.verify.outputs.pat != 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
+          SHA: ${{ steps.verify.outputs.sha }}
         run: |
           set -euo pipefail
+          head="$(git ls-remote "https://github.com/$REPO.git" refs/heads/prod | cut -f1)"
+          [ "$head" = "$SHA" ] || { echo "prod moved to $head after promotion; not dispatching" >&2; exit 1; }
           gh workflow run deploy.yml --repo "$REPO" --ref prod -f deployment_mode=image-bundle
 
       - name: Summary
@@ -79,15 +100,24 @@ jobs:
           SHA: ${{ steps.verify.outputs.sha }}
           PREV: ${{ steps.verify.outputs.prev }}
           REPO: ${{ github.repository }}
-          REDEPLOY: ${{ inputs.redeploy }}
+          PUSH: ${{ steps.push.outcome }}
+          DISPATCH: ${{ steps.dispatch.outcome }}
+          PAT: ${{ steps.verify.outputs.pat }}
         run: |
           {
             echo "### Promotion"
             echo "- previous prod: \`$PREV\`"
-            echo "- promoted SHA: \`$SHA\`"
-            if [ "$SHA" = "$PREV" ] && [ "$REDEPLOY" != "true" ]; then
-              echo "- prod already at this SHA; Deploy not dispatched"
+            echo "- requested SHA: \`$SHA\`"
+            if [ "$SHA" = "$PREV" ]; then
+              echo "- prod already at this SHA; nothing pushed, Deploy not started"
+            elif [ "$PUSH" != "success" ]; then
+              echo "- **push failed**; prod unchanged, Deploy not started"
+            elif [ "$PAT" = "true" ]; then
+              echo "- prod fast-forwarded with PROMOTE_TOKEN; Deploy starts from the push"
+            elif [ "$DISPATCH" = "success" ]; then
+              echo "- prod fast-forwarded; Deploy dispatched on prod"
             else
-              echo "- Deploy: https://github.com/$REPO/actions/workflows/deploy.yml?query=branch%3Aprod"
+              echo "- **prod fast-forwarded but Deploy was not dispatched**; inspect before running Deploy manually"
             fi
+            echo "- Deploy runs: https://github.com/$REPO/actions/workflows/deploy.yml?query=branch%3Aprod"
           } >> "$GITHUB_STEP_SUMMARY"

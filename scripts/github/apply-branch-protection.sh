@@ -7,10 +7,12 @@ repo="${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner -q .nameWithOwner
 apply=false
 [ "${1:-}" = "--apply" ] && apply=true
 
-# Job names from .github/workflows/ci.yml.
+# Job names from .github/workflows/ci.yml. Admins are included: merges by the owner token
+# also need a PR and green checks. strict=false: main push CI re-checks every merged SHA
+# and Promote only accepts a SHA whose main CI succeeded.
 main_payload='{
   "required_status_checks": {
-    "strict": true,
+    "strict": false,
     "contexts": [
       "Lint · Format · Typecheck",
       "Test (unit + integration)",
@@ -18,7 +20,7 @@ main_payload='{
       "Runner image build-export-import"
     ]
   },
-  "enforce_admins": false,
+  "enforce_admins": true,
   "required_pull_request_reviews": {
     "required_approving_review_count": 0,
     "dismiss_stale_reviews": false

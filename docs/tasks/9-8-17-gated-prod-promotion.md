@@ -33,21 +33,22 @@ Push от `GITHUB_TOKEN` не запускает workflow по событию `p
 ## Что должно быть сделано
 
 1. `.github/workflows/promote.yml` (`workflow_dispatch`, вход `sha`, по умолчанию текущий `main`):
-   - SHA полный, лежит в истории `origin/main`;
-   - для этого SHA есть успешный запуск workflow `CI` по событию `push` в `main`;
-   - `prod` является предком SHA (только fast-forward, без force);
-   - при совпадении `prod` с SHA ничего не пушится, Deploy не запускается без явного флага `redeploy`;
-   - push `SHA:refs/heads/prod`, затем `gh workflow run deploy.yml --ref prod -f deployment_mode=image-bundle`;
-   - итог в `GITHUB_STEP_SUMMARY`: SHA, прежний prod, ссылка на Deploy.
+   - SHA полный, лежит в истории `origin/main`; для него есть успешный `CI` по push в `main`; `prod` — предок SHA;
+   - при совпадении `prod` с SHA ничего не делает (повторная выкладка того же SHA требует ручного аудита staging и не предлагается);
+   - `GITHUB_TOKEN` не может пушить диапазон с изменениями `.github/workflows/` и не запускает `on: push`: с секретом `PROMOTE_TOKEN` (fine-grained PAT, Contents + Workflows) push идёт им и Deploy стартует от push; без секрета — push `GITHUB_TOKEN`, затем `gh workflow run deploy.yml --ref prod` после проверки `prod == SHA`; диапазон с workflow-файлами без секрета отклоняется до push с инструкцией ручного FF;
+   - итог в `GITHUB_STEP_SUMMARY`, включая неуспешный push или dispatch.
 2. В `deploy.yml` job `deploy` получает `environment: production`. Поведение и секреты не меняются; GitHub ведёт историю выкладок, владелец может включить required reviewers.
-3. `scripts/github/apply-branch-protection.sh`: идемпотентно настраивает защиту `main` (PR обязателен, обязательные проверки CI, запрет force-push/удаления) и `prod` (запрет force-push/удаления). Скрипт только печатает план без `--apply`.
-4. Обновить [deploy runbook](../operations/runbooks/deploy.md) и [GITHUB_SETUP](../GITHUB_SETUP.md): основной путь продвижения — Promote; ручной FF остаётся аварийным.
+3. `scripts/github/apply-branch-protection.sh`: идемпотентно настраивает защиту `main` (PR обязателен, обязательные проверки CI, в том числе для администраторов, `strict: false`, запрет force-push/удаления) и `prod` (запрет force-push/удаления). Скрипт только печатает план без `--apply`.
+4. `ci.yml`: отмена устаревших прогонов только для PR; каждый SHA `main` сохраняет свой CI, иначе его нельзя продвинуть.
+5. Обновить [deploy runbook](../operations/runbooks/deploy.md) и [GITHUB_SETUP](../GITHUB_SETUP.md): основной путь продвижения — Promote; ручной FF остаётся аварийным.
 
 ## Критерии приёмки
 
 - ✅ `pnpm format:check` проходит, YAML валиден.
 - ✅ Promote отказывает: SHA не в `main`; CI на SHA не `success`; `prod` не предок SHA.
 - ✅ Promote на зелёном SHA делает fast-forward `prod` и запускает Deploy с `--ref prod`; source gate Deploy (`require-prod-ref.mjs`) проходит без изменений.
+- ✅ Диапазон с изменениями `.github/workflows/` без `PROMOTE_TOKEN` отклоняется до push с понятной ошибкой.
+- ⏸ Первое продвижение, содержащее сам `promote.yml`, выполняется ручным reviewed FF (или с `PROMOTE_TOKEN`).
 - ⏸ Первое продвижение через Promote выполнено и Deploy успешен (evidence в QA-отчёте после merge).
 - ⏸ Защита веток применена владельцем или с его явного согласия (`apply-branch-protection.sh --apply`).
 

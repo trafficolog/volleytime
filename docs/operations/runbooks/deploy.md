@@ -68,7 +68,14 @@ The runner uses a 12 GiB initial build floor and a separate measured archive/imp
 
 ### Promote workflow (default path, Task 9.8.17)
 
-Run **Actions → Promote to production** (or `gh workflow run promote.yml -f sha=<full main SHA>`). The workflow refuses a SHA outside `main` history, a SHA without a successful `CI` run for the `main` push (the run includes the image-bundle job), and a non-fast-forward `prod`. On success it fast-forwards `prod` with `GITHUB_TOKEN` and dispatches **Deploy** on `prod` with `deployment_mode=image-bundle`, because a token push does not start `on: push` workflows. When `prod` already equals the SHA nothing is pushed; `redeploy=true` dispatches Deploy anyway. Promote checks main CI only: exact-head PR CI and independent review remain the operator's merge gate. The Deploy job runs in the `production` GitHub Environment; required reviewers configured there pause it until approval. A manual reviewed `git push origin <sha>:prod` remains the fallback when Actions is unavailable.
+Run **Actions → Promote to production** (or `gh workflow run promote.yml -f sha=<full main SHA>`). The workflow refuses a SHA outside `main` history, a SHA without a successful `CI` run for the `main` push (the run includes the image-bundle job), and a non-fast-forward `prod`. When `prod` already equals the SHA nothing happens; a same-SHA redeploy is not offered because the earlier attempt's `.deploy/incoming/<sha>` staging requires a manual audit first.
+
+GitHub does not let `GITHUB_TOKEN` push a range that changes `.github/workflows/`, and its pushes do not start `on: push` workflows:
+
+- With repository secret `PROMOTE_TOKEN` (fine-grained PAT for this repository: Contents and Workflows read/write) Promote pushes with it, and Deploy starts from the `prod` push.
+- Without it Promote pushes with `GITHUB_TOKEN` and dispatches **Deploy** on `prod` (`deployment_mode=image-bundle`) after re-checking that `prod` still equals the SHA. A range that changes workflows fails before any push; perform the reviewed manual `git push origin <sha>:prod` instead.
+
+Promote checks main CI only: exact-head PR CI and independent review remain the merge gate. The Deploy job runs in the `production` GitHub Environment; required reviewers configured there pause it until approval.
 
 Every manual run must select `prod` in the GitHub **Branch** dropdown (or pass `--ref prod` through GitHub CLI). The workflow source gate rejects `main`, task branches, and tags before tests, image publication, production-secret handling, or VPS access.
 

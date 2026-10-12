@@ -123,7 +123,8 @@ gh issue create --title "[3.1.1] pnpm workspaces init" \
 bash scripts/github/apply-branch-protection.sh
 ```
 
-- `main`: PR обязателен, обязательные проверки CI, без force-push и удаления.
+- `main`: PR обязателен, обязательные проверки CI (в том числе для администраторов), без force-push и удаления.
+- Секрет `PROMOTE_TOKEN` (необязательный, fine-grained PAT: Contents + Workflows) нужен Promote для диапазонов с изменениями `.github/workflows/`; без него такие продвижения выполняются ручным FF.
 - `prod`: без force-push и удаления; двигается только fast-forward через Promote.
 - Environment `production`: при необходимости владелец включает Required reviewers в Settings → Environments; Deploy будет ждать подтверждения.
 
