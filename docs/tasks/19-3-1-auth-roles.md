@@ -34,7 +34,7 @@ tags: [reference-v3]
 - Спецификация референса: [P-11 · Авторизация и роли](../design/reference-v3/specs/01-platform/P-11-auth-roles.md); макет: 6 Авторизация.
 - **Как есть (main `e68acf2`):** better-auth: email OTP для веба, Telegram initData (валидация, 3.9.10), роли участника owner/organizer/assistant/player, `users.isRootAdmin`, tenant middleware, API security tests (4.9.15).
 - **Дельта до референса:** Матрица прав для новых ресурсов v3 (серии, баланс, сборы, уведомления, root), IDOR-тесты на каждый новый эндпоинт, срок жизни initData, способ входа в веб по D-05.
-- Зависит от решений владельца: [D-05](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-05). До решения карточка не стартует.
+- Решения владельца (2026-10-12): [D-05](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-05) — вход в веб — email-код и Telegram Login Widget; «код из бота» отложен.
 - Модель: реализация `claude-opus-5-5`, ревью `claude-opus-5-5` (ревью Opus + тесты граничных случаев и гонок); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
 
 **Общий функционал с другими интерфейсами:**

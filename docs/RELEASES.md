@@ -334,7 +334,7 @@ Rollback boundary: existing image/data preflight сохраняется. Пер�
 - выкладка через **Promote to production** ([9.8.17](./tasks/9-8-17-gated-prod-promotion.md)): backup до миграций, exact SHA, health, smoke и cleanup, проверенный путь отката;
 - приёмка владельца и неизменяемый тег на production SHA.
 
-Решения владельца [D-01…D-11](./operations/decisions/2026-10-12-reference-v3-decisions.md) должны быть приняты до старта затронутых задач.
+Решения владельца [D-01…D-11](./operations/decisions/2026-10-12-reference-v3-decisions.md) приняты 2026-10-12 по рекомендациям оркестратора.
 
 ### v0.2.0 — Reference MVP: запись и ядро
 

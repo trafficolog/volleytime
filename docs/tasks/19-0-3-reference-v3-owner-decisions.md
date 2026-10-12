@@ -2,11 +2,11 @@
 id: '19.0.3'
 phase: '19'
 epic: '19.0'
-status: todo
+status: done
 release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-12
-status_note: ''
+status_note: 'Все решения D-01…D-11 приняты владельцем 2026-10-12 по рекомендациям; карточки обновлены.'
 ref_id: ''
 complexity: S
 impl_model: claude-opus-5-5
