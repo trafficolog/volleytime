@@ -1,8 +1,8 @@
 ---
 id: '5'
-status: todo
+status: done
 sync_state: drifted
-last_reviewed: 2026-05-28
+last_reviewed: 2026-10-12
 status_note: 'Полностью расписана: backend (5.1-5.8) и UI (5.9-5.12). 38 задач.'
 estimated_hours: '50-70'
 depends_on: ['4']

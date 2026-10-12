@@ -1,0 +1,76 @@
+---
+id: '20.1.1'
+phase: '20'
+epic: '20.1'
+status: todo
+release: 'v0.2.0'
+sync_state: synced
+last_reviewed: 2026-10-12
+status_note: ''
+ref_id: 'P-03'
+complexity: XL
+impl_model: claude-opus-5-5
+review_model: claude-opus-5-5
+review_gate: opus+tests
+roles: [BACK]
+depends_on: ['19.2.2']
+supersedes: []
+decisions: ['D-01']
+estimated_hours: '16-32'
+reference:
+  spec: 'docs/design/reference-v3/specs/01-platform/P-03-pricing.md'
+  screens: ['3-miniapp-player/02-screen.png', '5-public']
+tags: [reference-v3]
+---
+
+# Task 20.1.1: Расчёт цены v3 (`P-03`)
+
+## Цель
+
+Корректная цена места для двух режимов оплаты.
+
+## Контекст
+
+- Спецификация референса: [P-03 · Расчёт цены](../design/reference-v3/specs/01-platform/P-03-pricing.md); макет: 3 Mini App → событие со сбором суммой; 4 Кабинет → Создание события; 5 Public Pages.
+- **Как есть (main `e68acf2`):** Fixed/split реализованы в R0.7 (5.16.1, 6.11.1): split делит сумму на фактических участников после ручного закрытия, остаток копеек распределяется точно, доли неизменны после фиксации.
+- **Дельта до референса:** Цена × число мест игрока (после 20.1.2), прогноз диапазоном «от … до …», `GET /events/{id}/price?seats=N`, единый источник цены для Mini App/кабинета/публичной страницы, правило округления по D-01.
+- Решения владельца (2026-10-12): [D-01](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-01) — сохраняется точное распределение копеек R0.7; округления до 0,1 Br нет.
+- Модель: реализация `claude-opus-5-5`, ревью `claude-opus-5-5` (ревью Opus + тесты граничных случаев и гонок); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
+
+**Общий функционал с другими интерфейсами:**
+
+- **Создание события** — Одна форма и один контракт API в кабинете и в Mini App организатора. С этим связаны: [W-04 → 20.5.5](20-5-5-event-create.md), [M-23 → 21.1.2](21-1-2-org-event-create.md), [W-02 → 21.2.1](21-2-1-overview.md), [P-06 → 20.2.2](20-2-2-event-series.md), [P-07 → 20.1.3](20-1-3-join-mode-invites.md), [P-08 → 20.2.1](20-2-1-event-balance.md), [M-16 → 25.1.1](25-1-1-warmup.md). [Подробнее](../design/reference-v3/specs/links.md#create-event)
+- **Сбор суммой** — Цена считается в одном месте и одинаково показывается везде. С этим связаны: [M-07 → 20.4.6](20-4-6-split-price-event.md), [W-04 → 20.5.5](20-5-5-event-create.md), [W-05 → 20.5.6](20-5-6-event-card.md), [P-17 → 20.6.1](20-6-1-public-event-pages.md), [P-04 → 20.3.1](20-3-1-event-jobs.md). [Подробнее](../design/reference-v3/specs/links.md#split)
+- **Абонементы** — Выключатель в кабинете скрывает вкладку и продажу в Mini App. С этим связаны: [W-09 → 21.2.6](21-2-6-subscriptions.md), [M-02 → 20.4.2](20-4-2-tab-bar.md), [M-13 → 20.4.9](20-4-9-player-screens.md), [P-02 → 19.2.2](19-2-2-group-settings.md). [Подробнее](../design/reference-v3/specs/links.md#subs)
+
+## Что должно быть сделано
+
+1. Фиксированная цена: цена × число мест игрока
+2. Сбор суммой: сумма делится на фактическое число мест в момент закрытия записи
+3. Прогноз до закрытия: диапазон «от … до …» при текущем и максимальном числе мест
+4. Распределение остатка копеек как в R0.7 (D-01): сумма долей равна цели до копейки, округления до 0,1 Br нет
+5. Пересчёт при отменах до закрытия записи; после закрытия цена фиксируется
+6. Абонемент к событию со сбором суммой не применяется
+7. Данные и API: Сервис расчёта цены (чистая функция + тесты); GET /events/{id}/price?seats=N.
+8. Сверить экраны с референсом через харнесс [19.0.2](19-0-2-visual-reference-harness.md) и приложить отчёт к PR.
+
+## Критерии приёмки
+
+- ✅ Тесты на 1, max и 0 записавшихся, на несколько мест у одного игрока, на отмену в последнюю минуту
+- ✅ Сумма долей равна цели сбора до копейки (D-01); доли событий R0.7 не меняются
+- ✅ Цена в Mini App, кабинете и на публичной странице совпадает
+- ✅ Отчёт визуальной сверки по экранам из `reference.screens` без открытых расхождений Critical/Important
+- ✅ Пять gates CODING_STANDARDS на tested revision; ревью `claude-opus-5-5` без Critical/Important
+- ✅ RED→GREEN тесты на граничные случаи, деньги/доступ и конкурентность приложены к PR
+
+## Подсказки
+
+- Скриншоты: [3-miniapp-player/02-screen.png](../design/reference-v3/screenshots/3-miniapp-player/02-screen.png), [5-public](../design/reference-v3/screenshots/5-public) (окно 924×540 — ориентир; размеры и отступы брать из исходников).
+- Исходники макета: `docs/design/reference-v3/handoff/screens-player.jsx`, `docs/design/reference-v3/handoff/app-nav.jsx`, `docs/design/reference-v3/handoff/atoms.jsx`, `docs/design/reference-v3/handoff/screens-public.jsx`; токены — `handoff/styles.css`; доменные функции — `handoff/atoms.jsx`.
+- Handoff: [README](../design/reference-v3/handoff/README.md) — статусная модель, доменная логика, доступность.
+
+## Не делать
+
+- ❌ Не менять уже рассчитанные доли событий R0.7
+- ❌ Не переносить React/Babel прототипа и моковые данные; только Vue-компоненты, токены проекта и реальные API
+- ❌ Не расширять scope за пределы карточки: соседние экраны и гипотезы принадлежат своим задачам

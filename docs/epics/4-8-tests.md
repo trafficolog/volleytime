@@ -1,9 +1,9 @@
 ---
 id: '4.8'
 phase: '4'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-17
+last_reviewed: 2026-10-12
 status_note: 'Smoke + security-critical tests.'
 estimated_hours: '4-6'
 depends_on: ['4.1', '4.2', '4.3', '4.4', '4.5', '4.6']

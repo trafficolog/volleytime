@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<link rel="icon" type="image/svg+xml" href="assets/logo/vt-favicon.svg">
+<title>VolleyTime · Кабинет организатора</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="styles.css?v=surf1">
+
+<style>
+  html, body { margin:0; padding:0; height:100%; overflow:hidden;
+    font-family:'Golos Text', system-ui, sans-serif; background:#ECEBEF;
+  }
+</style>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="tweaks-panel.jsx?v=surf1"></script>
+<script type="text/babel" src="app-nav.jsx?v=surf1"></script>
+<script type="text/babel" src="atoms.jsx?v=surf1"></script>
+<script type="text/babel" src="prototype-shell.jsx?v=surf1"></script>
+<script type="text/babel" src="screens-web.jsx?v=surf1"></script>
+<script type="text/babel" src="screens-schedule.jsx?v=surf1"></script>
+<script type="text/babel" src="screens-web-forms.jsx?v=surf1"></script>
+<script type="text/babel" src="screens-contributions.jsx?v=surf1"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="env,react">
+const { useEffect } = React;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "dark": false,
+  "density": "compact",
+  "accent": "#2437C9",
+  "role": "player"
+}/*EDITMODE-END*/;
+
+const ACCENTS = ["#2437C9", "#1F2E96", "#FF6B1F", "#15161A", "#456F34"];
+
+const SCREENS = {
+  dashboard:      () => <WebDashboard/>,
+  events:         () => <WebEvents/>,
+  'event-detail': () => <WebEventDetail/>,
+  'event-create': () => <WebEventCreate/>,
+  members:        () => <WebMembers/>,
+  plans:          () => <WebPlans/>,
+  'plan-create':  () => <WebPlanCreate/>,
+  ledger:         () => <WebLedger/>,
+  'ledger-entry': () => <WebLedgerEntry/>,
+  contributions:  () => <WebContributions/>,
+  'contrib-create': () => <WebContribCreate/>,
+  reports:        () => <WebReports/>,
+  'reports-export': () => <WebReportsExport/>,
+  notifications:  () => <WebNotifications/>,
+  billing:        () => <WebBilling/>,
+  settings:       () => <WebSettings/>,
+};
+
+function InnerApp() {
+  const { ctx, sheet, popover, toast, alertCfg } = useNavState('dashboard');
+  const Screen = SCREENS[ctx.current] || SCREENS.dashboard;
+  return (
+    <NavContext.Provider value={ctx}>
+      <Screen />
+      <NavOverlays sheet={sheet} popover={popover} toast={toast} alertCfg={alertCfg} ctx={ctx}/>
+    </NavContext.Provider>
+  );
+}
+
+function App() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  useEffect(() => { document.documentElement.style.setProperty('--vt-flame', t.accent); }, [t.accent]);
+  const frameCls = ["vt-frame", t.dark ? "vt-dark" : "vt-light", t.density === "compact" ? "vt-dense" : ""].filter(Boolean).join(" ");
+
+  const sceneLeft = (
+    <span style={{display:'inline-flex', alignItems:'center', gap:7, padding:'5px 12px', borderRadius:99, background:'rgba(255,255,255,0.75)', backdropFilter:'blur(12px)', border:'1px solid rgba(0,0,0,0.06)', fontSize:12, fontWeight:600, fontFamily:'Golos Text'}}>
+      <span style={{width:7,height:7,borderRadius:99,background:'#2437C9'}}></span> Кабинет организатора
+    </span>
+  );
+
+  return (
+    <>
+      <DesktopPrototype width={1440} height={900} frameCls={frameCls} sceneLeft={sceneLeft}>
+        <InnerApp/>
+      </DesktopPrototype>
+
+      <TweaksPanel title="Tweaks · Кабинет">
+        <TweakSection label="Тема" />
+        <TweakToggle label="Тёмная" value={t.dark} onChange={(v) => setTweak('dark', v)} />
+        <TweakRadio label="Плотность" value={t.density} options={['compact','regular']} onChange={(v) => setTweak('density', v)} />
+        <TweakSection label="Акцент" />
+        <TweakColor label="Primary" value={t.accent} options={ACCENTS} onChange={(v) => setTweak('accent', v)} />
+        <TweakSection label="Подсказка" />
+        <div style={{fontSize:11, color:'rgba(41,38,27,0.6)', lineHeight:1.4, padding:'2px 2px'}}>
+          Полноценный кабинет: создание событий, календарь, касса с формами, сборы, отчёты, все разделы настроек.
+        </div>
+      </TweaksPanel>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

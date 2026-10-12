@@ -2,10 +2,10 @@
 id: '7.2.1'
 phase: '7'
 epic: '7.2'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-29
-status_note: ''
+last_reviewed: 2026-10-12
+status_note: 'Поглощена задачей 20.2.1 (референс v3). Карточка — входной материал, не реализуется отдельно.'
 roles:
   - BACK
 depends_on:
@@ -15,6 +15,7 @@ estimated_hours: '1'
 tags:
   - credits
   - onboarding
+superseded_by: '20.2.1'
 ---
 
 # Task 7.2.1: Demo grant в organizationService.create

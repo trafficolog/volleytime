@@ -1,12 +1,13 @@
 ---
 id: '7.7'
 phase: '7'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-29
-status_note: 'Root-admin (расширенный super-admin 10.3): grant, confirm, тарифы, audit.'
+last_reviewed: 2026-10-12
+status_note: 'Поглощён задачей 22.2.2 (референс v3).'
 estimated_hours: '3-4'
 depends_on: ['7.5', '10.3']
+superseded_by: '22.2.2'
 ---
 
 # Epic 7.7: Root-admin — grant, confirm, тарифы, audit

@@ -1,12 +1,13 @@
 ---
 id: '7.2'
 phase: '7'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-29
-status_note: '5 demo credits новой организации при создании.'
+last_reviewed: 2026-10-12
+status_note: 'Поглощён задачей 20.2.1 (референс v3).'
 estimated_hours: '1'
 depends_on: ['7.1', '4.1']
+superseded_by: '20.2.1'
 ---
 
 # Epic 7.2: Demo quota grant при создании org

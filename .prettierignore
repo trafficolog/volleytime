@@ -12,3 +12,4 @@ docs/operations/reviews/*.html
 packages/db/migrations/meta
 .playwright-cli/
 .superpowers/sdd/
+docs/design/reference-v3/

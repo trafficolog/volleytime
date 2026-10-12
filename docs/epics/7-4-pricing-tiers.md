@@ -1,12 +1,13 @@
 ---
 id: '7.4'
 phase: '7'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-29
-status_note: 'Настраиваемая тарифная сетка (порог→цена/кредит) + расчёт по произвольному количеству.'
+last_reviewed: 2026-10-12
+status_note: 'Поглощён задачей 21.2.8 (референс v3).'
 estimated_hours: '3-4'
 depends_on: ['7.1']
+superseded_by: '21.2.8'
 ---
 
 # Epic 7.4: Тарифная сетка (настраиваемая) + расчёт цены

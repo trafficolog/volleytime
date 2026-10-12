@@ -1,9 +1,9 @@
 ---
 id: '5.8'
 phase: '5'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-17
+last_reviewed: 2026-10-12
 status_note: 'Backend tests: flows, concurrency, edge cases. Критичны для корректности ядра.'
 estimated_hours: '5-7'
 depends_on: ['5.3', '5.5', '5.6', '5.7']

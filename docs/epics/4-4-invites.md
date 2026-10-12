@@ -1,9 +1,9 @@
 ---
 id: '4.4'
 phase: '4'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-17
+last_reviewed: 2026-10-12
 status_note: 'Invite-first onboarding. Telegram deeplinks.'
 estimated_hours: '6-8'
 depends_on: ['4.2', '4.3']

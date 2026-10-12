@@ -15,6 +15,18 @@ roles:
   - SECURITY
 depends_on: []
 estimated_hours: 'X-Y'
+# Поля референса v3 (фазы 19+), см. DEVELOPMENT_PROCESS и ORCHESTRATION
+release: 'vX.Y.Z'
+ref_id: ''
+complexity: M
+impl_model: claude-sonnet-5-5
+review_model: claude-sonnet-5-5
+review_gate: standard
+decisions: []
+supersedes: []
+reference:
+  spec: ''
+  screens: []
 tags:
   - тег1
   - тег2

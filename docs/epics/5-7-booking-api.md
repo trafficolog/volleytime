@@ -1,9 +1,9 @@
 ---
 id: '5.7'
 phase: '5'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-17
+last_reviewed: 2026-10-12
 status_note: 'API endpoints для booking/subscription операций игрока.'
 estimated_hours: '4-5'
 depends_on: ['5.3', '5.5', '5.6']

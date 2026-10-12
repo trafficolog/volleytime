@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<link rel="icon" type="image/svg+xml" href="assets/logo/vt-favicon.svg">
+<title>VolleyTime · Design Hub</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --ink: #0E0E10;
+    --paper: #FFFFFF;
+    --bone: #F4F4F6;
+    --bone-2: #ECECF0;
+    --stroke: #EEEEF2;
+    --stroke-2: #E3E3E8;
+    --mute: #6A6B73;
+    --mute-2: #5B5C64;
+    --blue: #2437C9;
+    --blue-deep: #1F2E96;
+    --orange: #FF6B1F;
+    --grass: #4E7F3B;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #ECEBEF; font-family: 'Golos Text', system-ui, sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased; }
+
+  .page { max-width: 1240px; margin: 0 auto; padding: 56px 32px 80px; }
+
+  /* === Hero === */
+  .hero { display: grid; grid-template-columns: 1.4fr 1fr; gap: 48px; align-items: end; margin-bottom: 56px; }
+  .hero h1 {
+    font-family: 'Oswald', sans-serif; font-weight: 700; text-transform: uppercase;
+    font-size: 104px; letter-spacing: 0; line-height: 0.92; margin: 0;
+  }
+  .hero h1 .accent { color: var(--blue-deep); }
+  .hero .cap {
+    margin-bottom: 30px !important;
+    font-family: 'Golos Text', sans-serif; font-weight: 600; font-size: 11px;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--mute-2);
+    margin-bottom: 18px; display: inline-flex; gap: 10px; align-items: center;
+  }
+  .hero .cap::after { content: ''; flex: 1; height: 1px; background: var(--stroke-2); margin-left: 6px; min-width: 80px; }
+  .hero .lead {
+    font-size: 16px; line-height: 1.55; color: var(--mute-2); max-width: 480px;
+    margin-top: 24px;
+  }
+  .hero .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .hero .meta-grid > div .cap-mini {
+    font-family: 'Golos Text', sans-serif; font-weight: 600; font-size: 10px;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--mute-2);
+    margin-bottom: 6px;
+  }
+  .hero .meta-grid > div .v {
+    font-family: 'Golos Text', sans-serif; font-weight: 600; font-size: 16px;
+    line-height: 1.35;
+  }
+  .hero-logo {
+    width: 220px; height: 220px;
+    background: #fff;
+    border-radius: 32px;
+    border: 0;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 4px rgba(15,17,22,.05), 0 18px 40px rgba(15,17,22,.10);
+    margin-bottom: 24px;
+  }
+  .hero-logo img { width: 76%; height: 76%; object-fit: contain; }
+
+  /* === Section labels === */
+  .section-label {
+    font-family: 'Golos Text', sans-serif; font-weight: 700;
+    font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--mute-2);
+    padding: 8px 0 14px;
+    border-bottom: 1px solid var(--stroke-2);
+    margin: 0 0 24px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  /* === Section cards === */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  .card {
+    display: block;
+    background: var(--paper);
+    border: 0;
+    border-radius: 24px;
+    box-shadow: 0 1px 2px rgba(15,17,22,.04), 0 10px 28px rgba(15,17,22,.07);
+    padding: 28px;
+    text-decoration: none;
+    color: var(--ink);
+    transition: transform .15s, box-shadow .15s, border-color .15s;
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(15,17,22,.05), 0 18px 40px rgba(15,17,22,.12);
+  }
+  .card .num {
+    padding-right: 44px;
+    font-family: 'Golos Text', sans-serif; font-weight: 600; font-size: 11px;
+    color: var(--mute); letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .card h2 {
+    font-family: 'Oswald', sans-serif; font-weight: 700; text-transform: uppercase;
+    font-size: 34px; letter-spacing: 0; line-height: 1.0;
+    margin: 10px 0 6px;
+  }
+  .card .desc {
+    font-size: 14px; color: var(--mute-2); line-height: 1.5;
+    max-width: 90%;
+  }
+  .card .meta {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    margin-top: 18px;
+  }
+  .card .meta .chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 9px; border-radius: 99px;
+    font-size: 11px; font-weight: 600;
+    background: var(--bone-2); color: var(--ink);
+    border: 0; border-radius: 10px;
+  }
+  .card .meta .chip.blue { background: #E8EBFF; color: var(--blue-deep); border-color: transparent; }
+  .card .meta .chip.orange { background: rgba(255,107,31,0.10); color: #B0500D; border-color: transparent; }
+  .card .meta .chip.grass { background: rgba(78,127,59,0.10); color: var(--grass); border-color: transparent; }
+  .card .arrow {
+    position: absolute; right: 22px; top: 22px;
+    font-size: 18px; color: var(--mute);
+    transition: transform .15s, color .15s;
+  }
+  .card:hover .arrow { transform: translate(3px, -3px); color: var(--ink); }
+
+  /* Featured (large) cards for prototypes */
+  .card.featured {
+    background: var(--blue-deep); color: #fff; border-color: transparent;
+    grid-column: span 2;
+    padding: 36px 36px 32px;
+  }
+  .card.featured .num { color: rgba(255,255,255,0.55); }
+  .card.featured h2 { font-size: 44px; }
+  .card.featured .desc { color: rgba(255,255,255,0.7); max-width: 600px; font-size: 15.5px; }
+  .card.featured .meta .chip { background: rgba(255,255,255,0.10); color: var(--paper); border-color: rgba(255,255,255,0.18); }
+  .card.featured .meta .chip.blue { background: rgba(255,255,255,.16); color:#fff; border-color: transparent; }
+  .card.featured .meta .chip.orange { background: var(--orange); color:#fff; border-color: transparent; }
+  .card.featured .arrow { color: rgba(255,255,255,0.6); font-size: 24px; }
+  .card.featured:hover { transform: translateY(-3px); box-shadow: 0 20px 50px rgba(0,0,0,0.18); }
+  .card.featured:hover .arrow { color: var(--paper); }
+
+  .card .preview {
+    position: absolute; right: -24px; bottom: -24px; opacity: 0.7;
+    pointer-events: none;
+  }
+  .card.featured .preview { opacity: 1; }
+
+  /* Mini phone preview SVG */
+  .mini-preview {
+    margin-top: 22px;
+    display: flex; gap: 8px; align-items: flex-end;
+  }
+  .mini-preview .phone {
+    width: 50px; height: 90px; background: rgba(255,255,255,0.07);
+    border-radius: 8px; padding: 6px 4px;
+    border: 1px solid rgba(255,255,255,0.12);
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .mini-preview .phone i {
+    display: block; height: 4px; border-radius: 2px;
+    background: rgba(255,255,255,0.22);
+  }
+  .mini-preview .phone i.acc { background: var(--orange); width: 60%; }
+  .mini-preview .phone i.short { width: 70%; }
+  .mini-preview .phone i.x-short { width: 40%; }
+  .mini-preview .phone i.full { width: 100%; }
+
+  /* Desktop preview */
+  .mini-desktop {
+    margin-top: 20px;
+    width: 240px; height: 130px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.12);
+    display: grid; grid-template-columns: 50px 1fr; gap: 6px;
+    padding: 8px;
+  }
+  .mini-desktop .nav { display: flex; flex-direction: column; gap: 3px; }
+  .mini-desktop .nav i { background: rgba(255,255,255,0.18); height: 5px; border-radius: 2px; width: 100%; }
+  .mini-desktop .body { display: flex; flex-direction: column; gap: 4px; }
+  .mini-desktop .body i { background: rgba(255,255,255,0.16); height: 7px; border-radius: 2px; }
+  .mini-desktop .body i.head { background: var(--orange); width: 50%; height: 9px; }
+
+  /* Footer */
+  .footer {
+    margin-top: 64px; padding-top: 28px; border-top: 1px solid var(--stroke-2);
+    display: flex; justify-content: space-between; align-items: center;
+    color: var(--mute-2); font-size: 12px; font-family: 'Golos Text', sans-serif; font-weight: 600;
+  }
+</style>
+
+</head>
+<body>
+
+<div class="page">
+  <!-- HERO -->
+  <div class="hero">
+    <div>
+      <div class="cap">Design Hub · VolleyTime platform</div>
+      <h1>Volley<span class="accent">Time</span></h1>
+      <div class="lead">
+        Telegram-first платформа для организации любительских спортивных событий.
+        Записи, абонементы, касса, события — в Mini App и веб-кабинете.
+      </div>
+
+      <div class="meta-grid" style="margin-top:40px;">
+        <div>
+          <div class="cap-mini">Domain</div>
+          <div class="v">volleytime.by</div>
+        </div>
+        <div>
+          <div class="cap-mini">Stack</div>
+          <div class="v">Nuxt 4 · Drizzle · PostgreSQL<br/>grammY · better-auth</div>
+        </div>
+        <div>
+          <div class="cap-mini">Phase</div>
+          <div class="v">3–10 · MVP + Private Beta</div>
+        </div>
+        <div>
+          <div class="cap-mini">Версия дизайна</div>
+          <div class="v">v1.0 · Bento Bold · 2026-09-24</div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex; flex-direction:column; align-items:flex-end;">
+      <div class="hero-logo"><img src="assets/logo/vt-mark-color.svg" alt="VolleyTime"/></div>
+      <div style="text-align:right; font-family:'Golos Text', sans-serif; font-weight:600; font-size:11px; color:var(--mute-2); letter-spacing:0.08em; text-transform:uppercase;">
+        синий + оранжевый<br/>сила движения и спорт
+      </div>
+    </div>
+  </div>
+
+  <!-- Featured (interactive prototypes) -->
+  <div class="section-label">
+    <span>Кликабельные прототипы</span>
+    <span style="font-family:'Golos Text'; font-weight:600; font-size:10px; color:var(--mute);">2 точки входа · полная навигация</span>
+  </div>
+  <div class="grid">
+    <a class="card featured" href="3 Mini App.html">
+      <span class="arrow">→</span>
+      <div class="num">03 · Telegram Mini App</div>
+      <h2>Mini App</h2>
+      <div class="desc">
+        Запись на тренировки, абонементы, сборы, касса организатора, профиль игрока. Переключатель Игрок / Организатор. Состояния, sheets, alerts, контекстные меню.
+      </div>
+      <div class="meta">
+        <span class="chip blue">Игрок · 13 экранов</span>
+        <span class="chip orange">Организатор · 11 экранов</span>
+        <span class="chip">Сборы · Phase 11</span>
+      </div>
+      <div class="mini-preview">
+        <div class="phone"><i class="short acc"></i><i class="x-short"></i><i class="full"></i><i class="full"></i><i class="short"></i><i class="full"></i></div>
+        <div class="phone"><i class="full acc"></i><i class="short"></i><i class="full"></i><i class="x-short"></i><i class="full"></i><i class="short"></i></div>
+        <div class="phone"><i class="short"></i><i class="full acc"></i><i class="full"></i><i class="full"></i><i class="x-short"></i><i class="short"></i></div>
+      </div>
+    </a>
+
+    <a class="card featured" href="4 Кабинет организатора.html">
+      <span class="arrow">→</span>
+      <div class="num">04 · Web SaaS · кабинет организатора</div>
+      <h2>Кабинет организатора</h2>
+      <div class="desc">
+        Обзор, события (список + календарь), создание тренировки, игроки, касса с формами поступлений/расходов, абонементы, сборы, отчёты и все разделы настроек.
+      </div>
+      <div class="meta">
+        <span class="chip blue">15 экранов</span>
+        <span class="chip">Список + календарь</span>
+        <span class="chip orange">Формы ввода</span>
+      </div>
+      <div class="mini-desktop">
+        <div class="nav"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="body">
+          <i class="head"></i>
+          <i></i><i></i><i></i><i></i><i></i><i></i>
+        </div>
+      </div>
+    </a>
+
+    <a class="card featured" href="4b Root Admin.html">
+      <span class="arrow">→</span>
+      <div class="num">04b · Web SaaS · платформа</div>
+      <h2>Root Admin платформы</h2>
+      <div class="desc">
+        Внутренний кабинет владельца SaaS: обзор платформы, организации с drill-down, пользователи, credits & тарифы, аудит. Все root-действия логируются.
+      </div>
+      <div class="meta">
+        <span class="chip orange">12 экранов</span>
+        <span class="chip">Multi-tenancy</span>
+        <span class="chip">Audit log</span>
+      </div>
+      <div class="mini-desktop" style="background:rgba(255,255,255,0.04);">
+        <div class="nav"><i style="background:var(--orange);"></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="body">
+          <i class="head"></i>
+          <i></i><i></i><i></i><i></i><i></i><i></i>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <!-- Static reference -->
+  <div class="section-label" style="margin-top:48px;">
+    <span>Дизайн-система и референсы</span>
+    <span style="font-family:'Golos Text'; font-weight:600; font-size:10px; color:var(--mute);">статические страницы</span>
+  </div>
+  <div class="grid">
+    <a class="card" href="0 Лендинг.html" style="grid-column:1/-1">
+      <span class="arrow">→</span>
+      <div class="num">00 · volleytime.by</div>
+      <h2>Лендинг</h2>
+      <div class="desc">Главная страница основного домена для организаторов: первый экран, возможности, запуск, тарифы на credits, вопросы.</div>
+    </a>
+    <a class="card" href="9 Гипотезы для игроков.html">
+      <span class="arrow">→</span>
+      <div class="num">08 · Ideas</div>
+      <h2>Гипотезы для игроков</h2>
+      <div class="desc">Восемь идей, зачем заходить между играми: AI-тренер, разминка, самооценка, прогресс, составы, серии, MVP, итоги сезона. С кликабельными прототипами.</div>
+    </a>
+    <a class="card" href="8 Логотип - комплект.html">
+      <span class="arrow">→</span>
+      <div class="num">07 · Logo</div>
+      <h2>Логотип · комплект</h2>
+      <div class="desc">Утверждённый знак «Галочка-подача»: цветовые версии, горизонтальный и вертикальный логотип, иконки, фавиконка, правила. Каждый вариант можно скачать в SVG и PNG.</div>
+    </a>
+    <a class="card" href="1 Brand and System.html">
+      <span class="arrow">→</span>
+      <div class="num">01 · Brand</div>
+      <h2>Brand & System</h2>
+      <div class="desc">
+        Айдентика, типографика, цветовые токены, атомарные компоненты. Используется как референс для всех экранов.
+      </div>
+      <div class="meta">
+        <span class="chip">Oswald + Golos Text</span>
+        <span class="chip blue">tokens</span>
+      </div>
+    </a>
+
+    <a class="card" href="2 Telegram Bot.html">
+      <span class="arrow">→</span>
+      <div class="num">02 · Bot</div>
+      <h2>Telegram Bot</h2>
+      <div class="desc">
+        Deeplink-онбординг, напоминания за 24/2 часа, /menu с inline-клавиатурой. Бот делегирует всю логику в Mini App.
+      </div>
+      <div class="meta">
+        <span class="chip">grammY</span>
+        <span class="chip orange">webhook</span>
+      </div>
+    </a>
+
+    <a class="card" href="6 Авторизация.html">
+      <span class="arrow">→</span>
+      <div class="num">06 · Auth</div>
+      <h2>Авторизация</h2>
+      <div class="desc">
+        Вход в веб-кабинет (Telegram + email-код) и состояния входа в Mini App: splash, ошибки, нет групп, блокировка.
+      </div>
+      <div class="meta">
+        <span class="chip blue">11 состояний</span>
+        <span class="chip">better-auth · OTP</span>
+      </div>
+    </a>
+
+    <a class="card" href="5 Public Pages.html">
+      <span class="arrow">→</span>
+      <div class="num">05 · Public</div>
+      <h2>Публичные страницы</h2>
+      <div class="desc">
+        Открытая страница события для share-link. Доступна без авторизации — приглашает войти через Telegram. Три вида: фиксированная цена, делим сумму, сумма распределена.
+      </div>
+      <div class="meta">
+        <span class="chip grass">без входа</span>
+        <span class="chip blue">3 режима оплаты</span>
+        <span class="chip">QR-код</span>
+      </div>
+    </a>
+  </div>
+
+  <div class="footer">
+    <span>© VolleyTime 2026 · design v1.0</span>
+    <span>Дизайн: HTML + React. Логика: Nuxt 4 + Drizzle + grammY (production stack).</span>
+  </div>
+</div>
+
+</body>
+</html>

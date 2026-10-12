@@ -1,12 +1,13 @@
 ---
 id: '7.3'
 phase: '7'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-29
-status_note: 'Spend 1 credit при создании Event, refund при отмене до открытия записи.'
+last_reviewed: 2026-10-12
+status_note: 'Поглощён задачей 20.2.1 (референс v3).'
 estimated_hours: '3-4'
 depends_on: ['7.1', '5.2']
+superseded_by: '20.2.1'
 ---
 
 # Epic 7.3: Credit spend при создании Event + refund

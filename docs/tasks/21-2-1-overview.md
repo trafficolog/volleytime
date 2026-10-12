@@ -1,0 +1,66 @@
+---
+id: '21.2.1'
+phase: '21'
+epic: '21.2'
+status: todo
+release: 'v0.3.0'
+sync_state: synced
+last_reviewed: 2026-10-12
+status_note: ''
+ref_id: 'W-02'
+complexity: S
+impl_model: claude-haiku-5-5
+review_model: claude-sonnet-5-5
+review_gate: standard
+roles: [FE]
+depends_on: ['20.5.4']
+supersedes: []
+decisions: []
+estimated_hours: '2-4'
+reference:
+  spec: 'docs/design/reference-v3/specs/03-organizer-web/W-02-overview.md'
+  screens: ['4-cabinet/01-screen.png']
+tags: [reference-v3]
+---
+
+# Task 21.2.1: Обзор кабинета v3 (`W-02`)
+
+## Цель
+
+Сводка на сегодня.
+
+## Контекст
+
+- Спецификация референса: [W-02 · Обзор](../design/reference-v3/specs/03-organizer-web/W-02-overview.md); макет: 4 Кабинет организатора → Обзор.
+- **Как есть (main `e68acf2`):** Dashboard (5.15.1, `DashboardCards`).
+- **Дельта до референса:** Визуал v3, деньги, кнопка создания события → 20.5.5.
+- Модель: реализация `claude-haiku-5-5`, ревью `claude-sonnet-5-5` (независимое ревью); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
+
+**Общий функционал с другими интерфейсами:**
+
+- **Создание события** — Одна форма и один контракт API в кабинете и в Mini App организатора. С этим связаны: [W-04 → 20.5.5](20-5-5-event-create.md), [M-23 → 21.1.2](21-1-2-org-event-create.md), [P-03 → 20.1.1](20-1-1-pricing.md), [P-06 → 20.2.2](20-2-2-event-series.md), [P-07 → 20.1.3](20-1-3-join-mode-invites.md), [P-08 → 20.2.1](20-2-1-event-balance.md), [M-16 → 25.1.1](25-1-1-warmup.md). [Подробнее](../design/reference-v3/specs/links.md#create-event)
+
+## Что должно быть сделано
+
+1. Ближайшие события
+2. Деньги
+3. Кнопка создания события (та же форма W-04)
+4. Сверить экраны с референсом через харнесс [19.0.2](19-0-2-visual-reference-harness.md) и приложить отчёт к PR.
+
+## Критерии приёмки
+
+- ✅ Совпадает с макетом
+- ✅ Отчёт визуальной сверки по экранам из `reference.screens` без открытых расхождений Critical/Important
+- ✅ Пять gates CODING_STANDARDS на tested revision; ревью `claude-sonnet-5-5` без Critical/Important
+
+## Подсказки
+
+- Скриншоты: [4-cabinet/01-screen.png](../design/reference-v3/screenshots/4-cabinet/01-screen.png) (окно 924×540 — ориентир; размеры и отступы брать из исходников).
+- Исходники макета: `docs/design/reference-v3/handoff/screens-web.jsx`, `docs/design/reference-v3/handoff/screens-web-forms.jsx`; токены — `handoff/styles.css`; доменные функции — `handoff/atoms.jsx`.
+- Handoff: [README](../design/reference-v3/handoff/README.md) — статусная модель, доменная логика, доступность.
+- Haiku-задача: только вёрстка, тексты и переименования. Если нужна бизнес-логика — остановиться и эскалировать оркестратору.
+
+## Не делать
+
+- ❌ Не переносить React/Babel прототипа и моковые данные; только Vue-компоненты, токены проекта и реальные API
+- ❌ Не расширять scope за пределы карточки: соседние экраны и гипотезы принадлежат своим задачам

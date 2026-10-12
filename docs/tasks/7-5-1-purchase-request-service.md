@@ -2,10 +2,10 @@
 id: '7.5.1'
 phase: '7'
 epic: '7.5'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-29
-status_note: ''
+last_reviewed: 2026-10-12
+status_note: 'Поглощена задачей 21.2.8 (референс v3). Карточка — входной материал, не реализуется отдельно.'
 roles:
   - BACK
 depends_on:
@@ -16,6 +16,7 @@ tags:
   - credits
   - purchase
   - service
+superseded_by: '21.2.8'
 ---
 
 # Task 7.5.1: PurchaseRequest schema + service (create, confirm, reject)

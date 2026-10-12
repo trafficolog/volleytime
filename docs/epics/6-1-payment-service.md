@@ -1,9 +1,9 @@
 ---
 id: '6.1'
 phase: '6'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-17
+last_reviewed: 2026-10-12
 status_note: 'Payment polymorphic. Ядро финансового контура.'
 estimated_hours: '6-8'
 depends_on: ['5.3', '5.5']

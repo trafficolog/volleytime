@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<link rel="icon" type="image/svg+xml" href="assets/logo/vt-favicon.svg">
+<title>VolleyTime — запись на волейбол в Telegram</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Telegram-бот и Mini App для организаторов волейбольных тренировок: запись, лист ожидания, оплаты, абонементы и касса.">
+<link rel="stylesheet" href="styles.css?v=bento6">
+<style>
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:#fff;color:var(--vt-ink);font-family:var(--f-body);-webkit-font-smoothing:antialiased;font-size:16px;line-height:1.5}
+a{color:var(--vt-flame);text-decoration:none}a:hover{color:var(--vt-blue-ink)}
+h1,h2,h3{margin:0}p{margin:0}
+.wrap{max-width:1240px;margin:0 auto;padding:0 28px}
+.D{font-family:var(--f-display);text-transform:uppercase;font-weight:700;letter-spacing:0;line-height:.92}
+.N{font-family:var(--f-num);font-weight:700;letter-spacing:0;line-height:1}
+.cap{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--vt-mute-2)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;border:0;border-radius:16px;padding:16px 24px;font:600 16px var(--f-body);cursor:pointer;transition:transform .12s,background .15s;white-space:nowrap}
+.btn:active{transform:translateY(1px)}
+.btn--orange{background:var(--vt-orange);color:#fff}.btn--orange:hover{background:#EE5A10;color:#fff}
+.btn--ink{background:var(--vt-ink);color:#fff}.btn--ink:hover{background:#2A2B31;color:#fff}
+.btn--ghost{background:var(--vt-bone);color:var(--vt-ink)}.btn--ghost:hover{background:var(--vt-bone-2);color:var(--vt-ink)}
+.btn--glass{background:rgba(255,255,255,.14);color:#fff}.btn--glass:hover{background:rgba(255,255,255,.22);color:#fff}
+.btn svg{width:18px;height:18px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;font-size:13px;font-weight:600;white-space:nowrap}
+:focus-visible{outline:2px solid var(--vt-flame);outline-offset:3px;border-radius:8px}
+section{padding:96px 0}
+.sec-h{display:flex;justify-content:space-between;align-items:flex-end;gap:32px;flex-wrap:wrap;margin-bottom:40px}
+.sec-h h2{font-size:clamp(40px,6vw,80px)}
+.sec-h p{max-width:420px;color:var(--vt-mute-2);font-size:17px}
+
+/* nav */
+.nav{position:sticky;top:0;z-index:30;background:color-mix(in oklab,#fff 88%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.nav .wrap{display:flex;align-items:center;gap:32px;height:72px}
+.logo{display:flex;align-items:center;gap:10px;color:var(--vt-ink);font-family:var(--f-display);text-transform:uppercase;font-weight:700;font-size:22px}
+.logo:hover{color:var(--vt-ink)}
+.logo i{width:32px;height:32px;background:url(assets/logo/vt-mark-color.svg) center/contain no-repeat}
+.logo b{color:var(--vt-flame);font-weight:700}
+.nav-links{display:flex;gap:28px;margin-left:12px}
+.nav-links a{color:var(--vt-ink-3);font-size:15px;font-weight:500;white-space:nowrap}.nav-links a:hover{color:var(--vt-ink)}
+.nav-cta{margin-left:auto;display:flex;gap:10px}
+.nav .btn{padding:11px 18px;font-size:14.5px;border-radius:12px}
+
+/* hero */
+.hero{padding:32px 0 0}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:20px}
+.hero-copy{padding:40px 8px 40px 0;display:flex;flex-direction:column}
+.hero-copy h1{font-size:clamp(64px,8.6vw,132px);margin-top:26px}
+.hero-copy h1 em{font-style:normal;color:var(--vt-orange)}
+.hero-copy .lead{font-size:clamp(17px,1.5vw,19px);color:var(--vt-ink-3);margin-top:26px;max-width:520px;text-wrap:pretty}
+.hero-copy .ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:34px}
+.hero-copy .note{display:flex;gap:18px;flex-wrap:wrap;margin-top:22px;font-size:14px;color:var(--vt-mute-2)}
+.hero-copy .note span{display:flex;align-items:center;gap:7px}
+.hero-copy .note svg{width:16px;height:16px;color:var(--vt-grass)}
+.hero-vis{position:relative;border-radius:32px;background:var(--vt-blue-ink);overflow:hidden;min-height:640px;box-shadow:var(--vt-shadow-accent)}
+.hero-vis .orb{position:absolute;width:420px;height:420px;border-radius:50%;background:var(--vt-orange);right:-140px;top:-150px}
+.hero-vis .orb2{position:absolute;width:220px;height:220px;border-radius:50%;background:rgba(255,255,255,.08);left:-70px;bottom:-60px}
+.hero-vis .ph1{position:absolute;left:10%;top:64px;transform:rotate(-4deg)}
+.hero-vis .ph2{position:absolute;right:7%;top:150px;transform:rotate(5deg)}
+.float{position:absolute;background:#fff;border-radius:18px;padding:12px 14px;box-shadow:0 18px 40px -12px rgba(0,0,0,.4);display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;z-index:3}
+.float small{display:block;font-size:11.5px;color:var(--vt-mute-2);font-weight:500}
+.float .dot{width:34px;height:34px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.float .dot svg{width:18px;height:18px}
+
+/* phone mock */
+.phone{width:258px;height:540px;border-radius:40px;background:#0E0F12;padding:8px;box-shadow:0 30px 60px -18px rgba(0,0,0,.55)}
+.scr{width:100%;height:100%;border-radius:33px;background:#fff;overflow:hidden;display:flex;flex-direction:column;position:relative;font-size:11px}
+.scr .sb{display:flex;justify-content:space-between;padding:12px 20px 4px;font-weight:600;font-size:11px}
+.scr .bd{padding:6px 12px;flex:1;display:flex;flex-direction:column;gap:8px}
+.scr .hi{font-size:10px;color:var(--vt-mute-2)}
+.scr .ttl{font-family:var(--f-display);text-transform:uppercase;font-weight:700;font-size:21px;line-height:.95}
+.scr .hero-t{border-radius:18px;background:var(--vt-blue-ink);color:#fff;padding:12px;position:relative;overflow:hidden}
+.scr .hero-t:after{content:"";position:absolute;right:-26px;top:-26px;width:80px;height:80px;border-radius:50%;background:var(--vt-orange)}
+.scr .hero-t .c{font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;opacity:.75;position:relative}
+.scr .hero-t .n{font-family:var(--f-num);font-weight:700;font-size:36px;line-height:1;margin-top:6px;position:relative}
+.scr .hero-t .m{font-size:10px;opacity:.85;margin-top:4px}
+.scr .hero-t .b{margin-top:9px;background:var(--vt-orange);border-radius:10px;padding:7px;text-align:center;font-weight:700;font-size:10.5px}
+.scr .tiles{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.scr .tl{border-radius:14px;padding:9px;background:var(--vt-bone)}
+.scr .tl.o{background:var(--vt-orange-soft)}
+.scr .tl .v{font-family:var(--f-num);font-weight:700;font-size:20px;line-height:1}
+.scr .tl .l{font-size:9px;color:var(--vt-mute-2);margin-top:3px}
+.scr .sh{font-family:var(--f-display);text-transform:uppercase;font-weight:700;font-size:13px;margin-top:4px;display:flex;justify-content:space-between;align-items:baseline}
+.scr .sh span{font-family:var(--f-body);text-transform:none;font-size:9.5px;color:var(--vt-flame)}
+.scr .ev{display:flex;gap:9px;align-items:center;padding:4px 2px}
+.scr .ev+.ev{box-shadow:0 -1px 0 var(--vt-bone-2);padding-top:7px}
+.scr .ev .d{width:30px;text-align:center}
+.scr .ev .d b{display:block;font-family:var(--f-num);font-size:17px;line-height:1}
+.scr .ev .d s{text-decoration:none;font-size:8px;color:var(--vt-mute-2);text-transform:uppercase;font-weight:600}
+.scr .ev .t{font-weight:700;font-size:11px}.scr .ev .s{font-size:9px;color:var(--vt-mute-2)}
+.scr .pl{margin-left:auto;font-size:9px;font-weight:700;padding:3px 7px;border-radius:7px}
+.scr .dock{margin:0 10px 12px;height:42px;border-radius:15px;background:#15161A;display:flex;justify-content:space-around;align-items:center}
+.scr .dock i{width:15px;height:15px;border-radius:5px;background:#50525B}.scr .dock i.on{background:#fff}
+.scr .row{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:10px;background:var(--vt-bone)}
+.scr .av{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7.5px;font-weight:700;color:#fff;flex-shrink:0}
+.scr .row .nm{flex:1;font-weight:600;font-size:10px}
+.scr .ck{font-size:8.5px;font-weight:700;padding:2px 6px;border-radius:6px}
+.seg{display:flex;gap:2px}.seg i{flex:1;height:5px;border-radius:9px;background:var(--vt-bone-2)}
+
+/* marquee */
+.marq{background:var(--vt-orange);color:#fff;overflow:hidden;padding:20px 0;margin-top:20px}
+.marq-in{display:flex;gap:44px;width:max-content;animation:mq 38s linear infinite}
+.marq span{font-family:var(--f-display);text-transform:uppercase;font-weight:700;font-size:30px;line-height:1;display:flex;align-items:center;gap:44px;white-space:nowrap}
+.marq span:after{content:"";width:12px;height:12px;border-radius:50%;background:#fff}
+@keyframes mq{to{transform:translateX(-50%)}}
+
+/* before / after */
+.ba{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.ba-t{border-radius:28px;padding:36px;min-height:420px;display:flex;flex-direction:column}
+.ba-t .cap{margin-bottom:10px}
+.ba-t h3{font-size:clamp(28px,3vw,40px)}
+.ba-t .body{margin-top:auto;padding-top:28px;display:flex;flex-direction:column;gap:10px}
+.bub{align-self:flex-start;max-width:78%;background:#fff;border-radius:18px 18px 18px 6px;padding:11px 15px;font-size:15px;box-shadow:var(--vt-shadow-card)}
+.bub small{display:block;font-size:12px;font-weight:600;color:var(--vt-flame);margin-bottom:2px}
+.bub.r{align-self:flex-end;border-radius:18px 18px 6px 18px}
+.card-ev{background:#fff;color:var(--vt-ink);border-radius:22px;padding:20px;box-shadow:0 24px 48px -18px rgba(0,0,0,.45)}
+
+/* bento */
+.bento{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}
+.bt{border-radius:28px;padding:30px;background:var(--vt-bone);display:flex;flex-direction:column;min-height:300px;position:relative;overflow:hidden}
+.bt h3{font-size:clamp(26px,2.4vw,34px)}
+.bt p{color:var(--vt-ink-3);margin-top:12px;font-size:15.5px;max-width:420px;text-wrap:pretty}
+.bt .vis{margin-top:auto;padding-top:26px}
+.bt--2{grid-column:span 2}
+.bt--blue{background:var(--vt-blue-ink);color:#fff;box-shadow:var(--vt-shadow-accent)}
+.bt--blue p{color:rgba(255,255,255,.82)}
+.bt--orange{background:var(--vt-orange-soft)}
+.bt--ink{background:var(--vt-ink);color:#fff}.bt--ink p{color:rgba(255,255,255,.72)}
+.bt--raised{background:#fff;box-shadow:var(--vt-shadow-card)}
+.bt .ic{width:48px;height:48px;border-radius:15px;display:flex;align-items:center;justify-content:center;margin-bottom:22px;background:#fff}
+.bt .ic svg{width:24px;height:24px}
+.bt--blue .ic{background:rgba(255,255,255,.14);color:#fff}
+.bt--ink .ic{background:rgba(255,255,255,.1);color:#fff}
+.lrow{display:flex;align-items:center;gap:12px;padding:12px 0}
+.lrow+.lrow{box-shadow:0 -1px 0 var(--vt-bone-2)}
+.lrow .i{width:34px;height:34px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.lrow .i svg{width:17px;height:17px}
+
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.step{border-radius:28px;padding:32px;background:var(--vt-bone);min-height:300px;display:flex;flex-direction:column}
+.step .N{font-size:96px;color:var(--vt-flame)}
+.step h3{font-size:30px;margin-top:auto;padding-top:24px}
+.step p{color:var(--vt-ink-3);margin-top:10px;font-size:15.5px}
+.step code{font-family:var(--f-body);font-weight:600;background:#fff;padding:2px 7px;border-radius:7px}
+
+/* audiences */
+.aud{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.aud-t{border-radius:28px;padding:36px}
+.aud-t h3{font-size:clamp(34px,3.6vw,52px)}
+.aud-t ul{list-style:none;padding:0;margin:26px 0 0;display:flex;flex-direction:column;gap:14px}
+.aud-t li{display:flex;gap:12px;font-size:16.5px;align-items:flex-start}
+.aud-t li svg{width:20px;height:20px;flex-shrink:0;margin-top:2px}
+
+/* pricing */
+.price{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;align-items:stretch}
+.pc{border-radius:28px;padding:32px;background:var(--vt-bone);display:flex;flex-direction:column;position:relative}
+.pc--hot{background:var(--vt-blue-ink);color:#fff;box-shadow:var(--vt-shadow-accent)}
+.pc .badge{position:absolute;top:28px;right:28px;background:var(--vt-orange);color:#fff}
+.pc--hot .cap{padding-right:120px}
+.pc .N.big{font-size:88px;margin-top:18px}
+.pc .per{font-size:15px;color:var(--vt-mute-2);margin-top:6px}
+.pc--hot .per,.pc--hot .cap{color:rgba(255,255,255,.75)}
+.pc hr{border:0;height:1px;background:rgba(21,22,26,.08);margin:24px 0}
+.pc--hot hr{background:rgba(255,255,255,.18)}
+.pc .amt{font-size:40px}
+.pc .btn{margin-top:28px}
+.price-note{display:flex;gap:28px;flex-wrap:wrap;justify-content:center;margin-top:28px;color:var(--vt-mute-2);font-size:15px}
+.price-note span{display:flex;align-items:center;gap:8px}
+.price-note svg{width:17px;height:17px;color:var(--vt-grass)}
+
+/* faq */
+.faq{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:48px;align-items:start}
+.faq details{border-radius:22px;background:var(--vt-bone);padding:0 26px;margin-bottom:12px}
+.faq summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:20px;padding:22px 0;font-weight:600;font-size:17.5px}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary i{width:34px;height:34px;border-radius:11px;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .2s}
+.faq details[open] summary i{transform:rotate(45deg)}
+.faq details p{padding:0 0 24px;color:var(--vt-ink-3);font-size:15.5px;max-width:620px}
+
+/* final cta */
+.final{border-radius:36px;background:var(--vt-blue-ink);color:#fff;padding:72px 56px;position:relative;overflow:hidden;box-shadow:var(--vt-shadow-accent)}
+.final .orb{position:absolute;width:480px;height:480px;border-radius:50%;background:var(--vt-orange);right:-160px;bottom:-240px}
+.final h2{font-size:clamp(48px,7vw,104px);position:relative;max-width:900px}
+.final p{font-size:19px;color:rgba(255,255,255,.85);margin-top:22px;max-width:520px;position:relative}
+.final .ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:34px;position:relative}
+
+footer{padding:56px 0 40px}
+.foot{display:flex;justify-content:space-between;gap:32px;flex-wrap:wrap;align-items:flex-start}
+.foot-cols{display:flex;gap:64px;flex-wrap:wrap}
+.foot-cols div{display:flex;flex-direction:column;gap:10px}
+.foot-cols a{color:var(--vt-ink-3);font-size:15px}.foot-cols a:hover{color:var(--vt-ink)}
+.foot-bot{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:48px;padding-top:24px;box-shadow:0 -1px 0 var(--vt-bone-2);font-size:14px;color:var(--vt-mute-2)}
+
+@media (max-width:1000px){.nav-links{display:none}}
+@media (max-width:1080px){
+  .hero-grid{grid-template-columns:1fr}
+  .hero-copy{padding:24px 0 8px}
+  .hero-vis{min-height:600px}
+  .bento{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:860px){
+  .nav-links{display:none}
+  .ba,.aud,.faq{grid-template-columns:1fr}
+  .steps,.price{grid-template-columns:1fr}
+  section{padding:72px 0}
+  .final{padding:48px 28px}
+}
+@media (max-width:620px){
+  .wrap{padding:0 18px}
+  .bento{grid-template-columns:1fr}.bt--2{grid-column:auto}
+  .hero-vis{min-height:560px}
+  .hero-vis .ph2,.float.f2{display:none}
+  .hero-vis .ph1{left:50%;transform:translateX(-50%) rotate(-3deg)}
+  .nav .btn--ghost{display:none}
+  .ba-t,.aud-t,.bt,.step,.pc{padding:26px}
+}
+@media (prefers-reduced-motion:reduce){.marq-in{animation:none}html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="logo" href="#top"><i></i><span>Volley<b>Time</b></span></a>
+    <nav class="nav-links">
+      <a href="#features">Возможности</a>
+      <a href="#how">Как это работает</a>
+      <a href="#pricing">Тарифы</a>
+      <a href="#faq">Вопросы</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="btn btn--ghost" href="4 Кабинет организатора.html">Войти</a>
+      <a class="btn btn--ink" href="#start">Создать группу</a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+<!-- HERO -->
+<div class="hero">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <span class="chip" style="background:var(--vt-bone);align-self:flex-start">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--vt-tg-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 4-3 17-7-5-3 2v-4l11-9-13 7-4-1Z"/></svg>
+        Бот и Mini App для волейбольных групп
+      </span>
+      <h1 class="D">Игра<br>без чата<br><em>и таблиц</em></h1>
+      <p class="lead">Вы публикуете тренировку, игроки записываются в Telegram за два тапа. Лист ожидания, оплаты, абонементы и касса ведутся без таблиц и переписки в чате.</p>
+      <div class="ctas">
+        <a class="btn btn--orange" href="#start">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 4-3 17-7-5-3 2v-4l11-9-13 7-4-1Z"/></svg>
+          Создать группу бесплатно
+        </a>
+        <a class="btn btn--ghost" href="#how">Как это работает</a>
+      </div>
+      <div class="note">
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-11"/></svg>5 событий в подарок</span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-11"/></svg>Игрокам ничего не нужно устанавливать</span>
+      </div>
+    </div>
+
+    <div class="hero-vis" aria-hidden="true">
+      <div class="orb"></div><div class="orb2"></div>
+
+      <div class="phone ph1"><div class="scr">
+        <div class="sb"><span>19:24</span><span>●●●</span></div>
+        <div class="bd">
+          <div><div class="hi">Привет, Артём</div><div class="ttl">Ближайшая игра</div></div>
+          <div class="hero-t"><div class="c">Ср · 28 мая</div><div class="n">20:00</div><div class="m">Основа · Школа №24</div><div class="b">Вы записаны</div></div>
+          <div class="tiles"><div class="tl o"><div class="v">5/8</div><div class="l">абонемент</div></div><div class="tl"><div class="v">96%</div><div class="l">посещаемость</div></div></div>
+          <div class="sh">Расписание<span>Все</span></div>
+          <div class="ev"><div class="d"><b>30</b><s>пт</s></div><div><div class="t">Открытая игра</div><div class="s">19:30 · 15 Br</div></div><div class="pl" style="background:#E4F0DF;color:#33521F">9/14</div></div>
+          <div class="ev"><div class="d"><b>1</b><s>вс</s></div><div><div class="t">Микст</div><div class="s">10:00 · 15 Br</div></div><div class="pl" style="background:#F9E1E4;color:#96222F">14/14</div></div>
+          <div class="ev"><div class="d"><b>7</b><s>сб</s></div><div><div class="t">Большой зал</div><div class="s">11:00 · ≈ 30 Br</div></div><div class="pl" style="background:#E8EBFF;color:#1F2E96">8/16</div></div>
+        </div>
+        <div class="dock"><i class="on"></i><i></i><i></i><i></i></div>
+      </div></div>
+
+      <div class="phone ph2"><div class="scr">
+        <div class="sb"><span>19:24</span><span>●●●</span></div>
+        <div class="bd">
+          <div><div class="hi">Среда · 20:00</div><div class="ttl">Состав</div></div>
+          <div class="tiles"><div class="tl"><div class="v">12<span style="color:#80828C">/14</span></div><div class="l">мест занято</div></div><div class="tl o"><div class="v">3</div><div class="l">ждут оплаты</div></div></div>
+          <div class="seg"><i style="background:#FFB627"></i><i style="background:#FFB627"></i><i style="background:#FFB627"></i><i style="background:#FFB627"></i><i style="background:#FFB627"></i><i style="background:#FFB627"></i><i style="background:#FFB627"></i><i style="background:#FFB627"></i><i style="background:#FFB627"></i><i style="background:#FFB627"></i><i style="background:#FFB627"></i><i style="background:#FFB627"></i><i></i><i></i></div>
+          <div class="row"><span class="av" style="background:#2437C9">АР</span><span class="nm">Артём</span><span class="ck" style="background:#E4F0DF;color:#33521F">оплачено</span></div>
+          <div class="row"><span class="av" style="background:#FF6B1F">МА</span><span class="nm">Маша <span style="color:#2437C9">+1</span></span><span class="ck" style="background:#FFF1D2;color:#74490A">ждёт оплаты</span></div>
+          <div class="row"><span class="av" style="background:#15161A">ИГ</span><span class="nm">Игорь <span style="color:#2437C9">+2</span></span><span class="ck" style="background:#E4F0DF;color:#33521F">оплачено</span></div>
+          <div class="row"><span class="av" style="background:#456F34">ЛР</span><span class="nm">Лера</span><span class="ck" style="background:#ECECF0;color:#3D3E45">абон.</span></div>
+          <div class="sh" style="margin-top:6px">Лист ожидания<span>2</span></div>
+          <div class="row"><span class="av" style="background:#80828C">ДН</span><span class="nm">Денис</span><span class="ck" style="background:#fff;color:#5B5C64">1-й</span></div>
+        </div>
+        <div class="dock"><i class="on"></i><i></i><i></i><i></i></div>
+      </div></div>
+
+      <div class="float f1" style="left:6%;bottom:80px">
+        <div class="dot" style="background:#E4F0DF;color:#33521F"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-11"/></svg></div>
+        <div>Никита записался<small>осталось 2 места</small></div>
+      </div>
+      <div class="float f2" style="right:5%;bottom:40px">
+        <div class="dot" style="background:var(--vt-orange-soft);color:var(--vt-orange-ink)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V10a6 6 0 0 1 12 0v6"/><path d="M4 17h16"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></div>
+        <div>Освободилось место<small>Денис получил приглашение</small></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="marq" aria-hidden="true">
+    <div class="marq-in">
+      <span>Запись за два тапа</span><span>Лист ожидания</span><span>Делим сумму за зал</span><span>Абонементы</span><span>Касса</span><span>Сборы</span><span>Напоминания в боте</span><span>До 3 мест на игрока</span>
+      <span>Запись за два тапа</span><span>Лист ожидания</span><span>Делим сумму за зал</span><span>Абонементы</span><span>Касса</span><span>Сборы</span><span>Напоминания в боте</span><span>До 3 мест на игрока</span>
+    </div>
+  </div>
+</div>
+
+<!-- BEFORE / AFTER -->
+<section>
+  <div class="wrap">
+    <div class="sec-h">
+      <h2 class="D">Хватит собирать<br>состав в чате</h2>
+      <p>Плюсики, пересчёт, «кто вместо меня» и напоминания про деньги отнимают у организатора часы каждую неделю.</p>
+    </div>
+    <div class="ba">
+      <div class="ba-t" style="background:var(--vt-bone)">
+        <div class="cap">Было</div>
+        <h3 class="D">Чат на 300 сообщений</h3>
+        <div class="body">
+          <div class="bub"><small>Иван</small>Кто в среду? Ставьте плюсы</div>
+          <div class="bub r">+1</div>
+          <div class="bub"><small>Маша</small>А места ещё есть? Я с подругой</div>
+          <div class="bub"><small>Иван</small>Скиньте за зал по 15, кто не скинул</div>
+          <div class="bub"><small>Денис</small>Я не смогу. Кто вместо?</div>
+        </div>
+      </div>
+      <div class="ba-t" style="background:var(--vt-blue-ink);color:#fff;box-shadow:var(--vt-shadow-accent)">
+        <div class="cap" style="color:rgba(255,255,255,.72)">Стало</div>
+        <h3 class="D">Одна карточка события</h3>
+        <div class="body">
+          <div class="card-ev">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px">
+              <div><div class="cap">Ср · 28 мая · 20:00</div><div class="D" style="font-size:30px;margin-top:6px">Основа</div></div>
+              <div class="N" style="font-size:44px">12<span style="color:var(--vt-mute)">/14</span></div>
+            </div>
+            <div class="seg" style="margin-top:14px"><i style="background:var(--vt-amber)"></i><i style="background:var(--vt-amber)"></i><i style="background:var(--vt-amber)"></i><i style="background:var(--vt-amber)"></i><i style="background:var(--vt-amber)"></i><i style="background:var(--vt-amber)"></i><i style="background:var(--vt-amber)"></i><i style="background:var(--vt-amber)"></i><i style="background:var(--vt-amber)"></i><i style="background:var(--vt-amber)"></i><i style="background:var(--vt-amber)"></i><i style="background:var(--vt-amber)"></i><i></i><i></i></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">
+              <span class="chip" style="background:var(--vt-grass-soft);color:var(--vt-grass-ink)">9 оплатили</span>
+              <span class="chip" style="background:var(--vt-amber-soft);color:var(--vt-amber-ink)">3 ждут оплаты</span>
+              <span class="chip" style="background:var(--vt-bone);color:var(--vt-ink-3)">2 в листе ожидания</span>
+            </div>
+          </div>
+          <p style="color:rgba(255,255,255,.85);font-size:15.5px;margin-top:8px">Отмена записи сразу отдаёт место первому из очереди. Бот сам напомнит о тренировке и об оплате.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features" style="padding-top:24px">
+  <div class="wrap">
+    <div class="sec-h">
+      <h2 class="D">Всё для тренировок.<br>Ничего лишнего.</h2>
+      <p>Модули включаются в настройках группы: берёте только то, что нужно вашему формату.</p>
+    </div>
+    <div class="bento">
+      <div class="bt bt--blue bt--2">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="3.5"/><path d="M3 19c.7-3 3.3-5 6-5s5.3 2 6 5"/><path d="M16 11a3 3 0 1 0 0-6"/><path d="M18 19c-.4-2-1.8-3.5-3.5-4.3"/></svg></div>
+        <h3 class="D">Запись и лист ожидания</h3>
+        <p>Места заполняются в реальном времени. Если кто-то отменил запись, первый в очереди получает сообщение и 30 минут на подтверждение.</p>
+        <div class="vis">
+          <div style="display:flex;align-items:baseline;gap:10px"><span class="N" style="font-size:64px">12</span><span class="N" style="font-size:28px;opacity:.6">/ 14 мест</span></div>
+          <div class="seg" style="margin-top:14px;gap:4px"><i style="background:#fff;height:8px"></i><i style="background:#fff;height:8px"></i><i style="background:#fff;height:8px"></i><i style="background:#fff;height:8px"></i><i style="background:#fff;height:8px"></i><i style="background:#fff;height:8px"></i><i style="background:#fff;height:8px"></i><i style="background:#fff;height:8px"></i><i style="background:#fff;height:8px"></i><i style="background:#fff;height:8px"></i><i style="background:#fff;height:8px"></i><i style="background:#fff;height:8px"></i><i style="background:rgba(255,255,255,.22);height:8px"></i><i style="background:rgba(255,255,255,.22);height:8px"></i></div>
+        </div>
+      </div>
+
+      <div class="bt bt--orange">
+        <div class="ic" style="color:var(--vt-orange-ink)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18"/><circle cx="16" cy="15" r="1.5"/></svg></div>
+        <h3 class="D">Делим сумму за зал</h3>
+        <p>Укажите стоимость аренды. Цена с человека посчитается, когда закроется запись.</p>
+        <div class="vis"><div class="N" style="font-size:38px">240 ÷ 8 = <span style="color:var(--vt-orange-ink)">30 Br</span></div></div>
+      </div>
+
+      <div class="bt">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></div>
+        <h3 class="D">Несколько мест</h3>
+        <p>Игрок приводит друзей: до трёх мест одной записью. Лимит задаёте вы.</p>
+        <div class="vis" style="display:flex;align-items:center;gap:10px">
+          <span class="N" style="font-size:40px">Маша</span><span class="chip" style="background:var(--vt-accent-soft);color:var(--vt-flame-ink);font-size:15px">+2</span>
+        </div>
+      </div>
+
+      <div class="bt bt--raised bt--2">
+        <div class="ic" style="background:var(--vt-bone)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5M4 19h16"/><path d="M8 16v-5M12 16V8M16 16v-3"/></svg></div>
+        <h3 class="D">Касса без таблиц</h3>
+        <p>Взносы за тренировки попадают в кассу после подтверждения, расходы на зал и мячи вносятся в два поля. Отчёт за месяц выгружается в CSV.</p>
+        <div class="vis">
+          <div class="lrow"><span class="i" style="background:var(--vt-grass-soft);color:var(--vt-grass)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg></span><span style="flex:1;font-weight:600">Артём, Никита · Основа</span><span class="N" style="font-size:22px;color:var(--vt-grass)">+30 Br</span></div>
+          <div class="lrow"><span class="i" style="background:var(--vt-rose-soft);color:var(--vt-rose)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg></span><span style="flex:1;font-weight:600">Аренда · Школа №24</span><span class="N" style="font-size:22px;color:var(--vt-rose)">−42 Br</span></div>
+        </div>
+      </div>
+
+      <div class="bt">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4Z"/><path d="M12 7v10"/></svg></div>
+        <h3 class="D">Абонементы</h3>
+        <p>Включаются одним переключателем. Сессия списывается при записи и возвращается при отмене.</p>
+        <div class="vis"><span class="N" style="font-size:40px">5<span style="color:var(--vt-mute)">/8</span></span></div>
+      </div>
+
+      <div class="bt bt--ink">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V10a6 6 0 0 1 12 0v6"/><path d="M4 17h16"/><path d="M10 20a2 2 0 0 0 4 0"/></svg></div>
+        <h3 class="D">Напоминания</h3>
+        <p>Бот пишет за сутки и за два часа до тренировки, а организатору сообщает о новых оплатах.</p>
+        <div class="vis"><div style="background:rgba(255,255,255,.1);border-radius:16px 16px 16px 5px;padding:12px 14px;font-size:14.5px">Завтра <b>Основа</b> · 20:00<br><span style="opacity:.7">Школа №24, малый зал</span></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW -->
+<section id="how" style="background:var(--vt-bone);border-radius:40px;margin:0 12px">
+  <div class="wrap">
+    <div class="sec-h">
+      <h2 class="D">Запуск за вечер</h2>
+      <p>Без сайта, без приложения в сторе и без регистрации игроков.</p>
+    </div>
+    <div class="steps">
+      <div class="step" style="background:#fff;box-shadow:var(--vt-shadow-card)">
+        <span class="N">01</span>
+        <h3 class="D">Создайте группу</h3>
+        <p>Напишите боту <code>@volleytime_bot</code>. Группа будет готова за минуту, первые 5 событий бесплатны.</p>
+      </div>
+      <div class="step" style="background:#fff;box-shadow:var(--vt-shadow-card)">
+        <span class="N">02</span>
+        <h3 class="D">Позовите игроков</h3>
+        <p>Отправьте ссылку-приглашение в чат команды. Вход через Telegram, без паролей.</p>
+      </div>
+      <div class="step" style="background:#fff;box-shadow:var(--vt-shadow-card)">
+        <span class="N">03</span>
+        <h3 class="D">Публикуйте игры</h3>
+        <p>Укажите зал, время, цену и число мест. Запись, очередь и напоминания бот возьмёт на себя.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- AUDIENCES -->
+<section>
+  <div class="wrap">
+    <div class="aud">
+      <div class="aud-t" style="background:var(--vt-ink);color:#fff">
+        <div class="cap" style="color:rgba(255,255,255,.6)">Организатору</div>
+        <h3 class="D" style="margin-top:10px">Меньше рутины,<br>полный зал</h3>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="var(--vt-orange)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-11"/></svg>Видно, кто придёт и кто уже оплатил</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="var(--vt-orange)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-11"/></svg>Освободившиеся места заполняются из очереди</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="var(--vt-orange)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-11"/></svg>Касса, отчёты и сборы на инвентарь</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="var(--vt-orange)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-11"/></svg>Кабинет в браузере для расписания и настроек</li>
+        </ul>
+      </div>
+      <div class="aud-t" style="background:var(--vt-orange-soft)">
+        <div class="cap">Игроку</div>
+        <h3 class="D" style="margin-top:10px">Записался<br>и пришёл</h3>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="var(--vt-orange-ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-11"/></svg>Всё внутри Telegram, ничего не нужно скачивать</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="var(--vt-orange-ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-11"/></svg>Состав и свободные места видно заранее</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="var(--vt-orange-ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-11"/></svg>Можно записать с собой друзей</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="var(--vt-orange-ink)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-11"/></svg>Для игроков сервис бесплатный</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing" style="padding-top:24px">
+  <div class="wrap">
+    <div class="sec-h">
+      <h2 class="D">Платите за игры,<br>а не за подписку</h2>
+      <p>1 credit — одно опубликованное событие. Отменили событие до открытия записи — credit вернётся.</p>
+    </div>
+    <div class="price">
+      <div class="pc">
+        <div class="cap">Старт</div>
+        <div class="N big">10</div>
+        <div class="per">событий</div>
+        <hr>
+        <div class="N amt">50 Br</div>
+        <div class="per">5,00 Br за событие</div>
+        <a class="btn btn--ink" href="#start">Выбрать</a>
+      </div>
+      <div class="pc pc--hot">
+        <span class="chip badge">Популярный</span>
+        <div class="cap">Сезон</div>
+        <div class="N big">30</div>
+        <div class="per">событий</div>
+        <hr>
+        <div class="N amt">120 Br</div>
+        <div class="per">4,00 Br за событие</div>
+        <a class="btn btn--orange" href="#start">Выбрать</a>
+      </div>
+      <div class="pc">
+        <div class="cap">Клуб</div>
+        <div class="N big">100</div>
+        <div class="per">событий</div>
+        <hr>
+        <div class="N amt">350 Br</div>
+        <div class="per">3,50 Br за событие</div>
+        <a class="btn btn--ink" href="#start">Выбрать</a>
+      </div>
+    </div>
+    <div class="price-note">
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-11"/></svg>5 событий при регистрации</span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-11"/></svg>Без абонентской платы</span>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-11"/></svg>Деньги игроков идут напрямую вам</span>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq" style="padding-top:24px">
+  <div class="wrap faq">
+    <div>
+      <h2 class="D" style="font-size:clamp(40px,5vw,72px)">Частые<br>вопросы</h2>
+      <p style="color:var(--vt-mute-2);margin-top:18px;font-size:17px">Не нашли ответ? Напишите в <a href="#">@volleytime_help</a>, отвечаем в течение дня.</p>
+    </div>
+    <div>
+      <details open>
+        <summary>Нужно ли игрокам что-то устанавливать?<i><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></i></summary>
+        <p>Нет. Запись работает внутри Telegram: игрок открывает ссылку-приглашение, и Mini App запускается прямо в мессенджере. Регистрации и паролей нет.</p>
+      </details>
+      <details>
+        <summary>Как принимать оплату?<i><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></i></summary>
+        <p>Наличными или переводом на карту. Игрок отмечает оплату, вы подтверждаете её в один тап, и сумма попадает в кассу. Онлайн-оплату картой подключаем следующим этапом.</p>
+      </details>
+      <details>
+        <summary>Что будет, если игрок отменит запись?<i><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></i></summary>
+        <p>Место уходит первому в листе ожидания. Сроки, до которых разрешена отмена, вы задаёте в настройках группы.</p>
+      </details>
+      <details>
+        <summary>Можно делить аренду зала на всех?<i><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></i></summary>
+        <p>Да. Выберите при создании события тип оплаты «Делим сумму» и укажите общую стоимость. Пока запись открыта, игроки видят примерную цену, а точная сумма рассчитается после закрытия записи.</p>
+      </details>
+      <details>
+        <summary>Сколько групп можно вести?<i><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></i></summary>
+        <p>Сколько угодно. Между группами можно переключаться в кабинете и в Mini App, у каждой свой состав, касса и настройки.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL -->
+<section id="start" style="padding-top:24px">
+  <div class="wrap">
+    <div class="final">
+      <div class="orb"></div>
+      <h2 class="D">Соберите состав<br>на эту пятницу</h2>
+      <p>Создайте группу в Telegram и опубликуйте первую тренировку сегодня. Первые 5 событий бесплатно.</p>
+      <div class="ctas">
+        <a class="btn btn--orange" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 4-3 17-7-5-3 2v-4l11-9-13 7-4-1Z"/></svg>
+          Открыть @volleytime_bot
+        </a>
+        <a class="btn btn--glass" href="5 Public Pages.html">Посмотреть пример события</a>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div>
+        <a class="logo" href="#top"><i></i><span>Volley<b>Time</b></span></a>
+        <p style="color:var(--vt-mute-2);margin-top:12px;max-width:300px;font-size:15px">Запись, оплаты и касса для любительских волейбольных групп.</p>
+      </div>
+      <div class="foot-cols">
+        <div><span class="cap">Продукт</span><a href="#features">Возможности</a><a href="#pricing">Тарифы</a><a href="4 Кабинет организатора.html">Кабинет</a></div>
+        <div><span class="cap">Помощь</span><a href="#faq">Вопросы</a><a href="#">@volleytime_help</a><a href="#">Политика конфиденциальности</a></div>
+      </div>
+    </div>
+    <div class="foot-bot"><span>© VolleyTime 2026</span><span>volleytime.by</span></div>
+  </div>
+</footer>
+<script src="landing-fx.js"></script>
+</body>
+</html>

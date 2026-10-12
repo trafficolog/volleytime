@@ -1,9 +1,9 @@
 ---
 id: '8.5'
 phase: '8'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-17
+last_reviewed: 2026-10-12
 status_note: 'Подключение notifier во все точки 5-6. Вызовы ПОСЛЕ коммита.'
 estimated_hours: '6-8'
 depends_on: ['8.4']

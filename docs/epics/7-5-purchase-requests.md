@@ -1,12 +1,13 @@
 ---
 id: '7.5'
 phase: '7'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-29
-status_note: 'Заявка на покупку → подтверждение root-админом → grant credits.'
+last_reviewed: 2026-10-12
+status_note: 'Поглощён задачей 21.2.8 (референс v3).'
 estimated_hours: '3-4'
 depends_on: ['7.1', '7.4']
+superseded_by: '21.2.8'
 ---
 
 # Epic 7.5: Заявки на покупку + подтверждение

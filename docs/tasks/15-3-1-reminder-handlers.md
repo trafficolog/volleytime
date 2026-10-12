@@ -2,10 +2,10 @@
 id: '15.3.1'
 phase: '15'
 epic: '15.3'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-30
-status_note: ''
+last_reviewed: 2026-10-12
+status_note: 'Поглощена задачей 20.3.1 (референс v3). Карточка — входной материал, не реализуется отдельно.'
 roles:
   - BACK
 depends_on:
@@ -17,6 +17,7 @@ tags:
   - scheduler
   - reminders
   - notifier
+superseded_by: '20.3.1'
 ---
 
 # Task 15.3.1: reminder handlers (24h, 2h) + шаблоны

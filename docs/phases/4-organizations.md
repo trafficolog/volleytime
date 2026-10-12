@@ -1,8 +1,8 @@
 ---
 id: '4'
-status: todo
+status: done
 sync_state: drifted
-last_reviewed: 2026-05-27
+last_reviewed: 2026-10-12
 status_note: 'Multi-tenancy с первого дня. 8 эпиков, ~28 задач.'
 estimated_hours: '40-50'
 depends_on: ['3']

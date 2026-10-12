@@ -1,9 +1,9 @@
 ---
 id: '9.2'
 phase: '9'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-17
+last_reviewed: 2026-10-12
 status_note: 'docker-compose.prod (4 контейнера) + Caddy auto-HTTPS + внутренняя сеть.'
 estimated_hours: '3-4'
 depends_on: ['9.1']

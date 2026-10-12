@@ -1,9 +1,9 @@
 ---
 id: '11'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-25
-status_note: 'Сборы. Phase 11+ — после подтверждения гипотезы.'
+last_reviewed: 2026-10-12
+status_note: 'Поглощена задачами 21.2.4, 21.2.5, 21.1.5, 21.1.6 (сборы, референс v3).'
 estimated_hours: '25-35'
 depends_on: ['10']
 ---

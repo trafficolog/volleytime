@@ -1,9 +1,9 @@
 ---
 id: '15'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-25
-status_note: 'Auto-reminders, TTL переходов, waitlist promotion с подтверждением.'
+last_reviewed: 2026-10-12
+status_note: 'Поглощена задачами 20.3.1 и 20.3.2 (референс v3); карточки 15.x — входные материалы.'
 estimated_hours: '20-30'
 depends_on: ['10']
 ---

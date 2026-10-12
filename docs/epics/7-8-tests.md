@@ -1,12 +1,13 @@
 ---
 id: '7.8'
 phase: '7'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-29
-status_note: 'Тесты credits: spend/refund/demo/тарифы/заявки.'
+last_reviewed: 2026-10-12
+status_note: 'Поглощён задачей 20.2.1 (референс v3).'
 estimated_hours: '3-4'
 depends_on: ['7.3', '7.4', '7.5']
+superseded_by: '20.2.1'
 ---
 
 # Epic 7.8: Tests

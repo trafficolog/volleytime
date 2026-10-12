@@ -1,12 +1,13 @@
 ---
 id: '15.5'
 phase: '15'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-30
-status_note: 'Waitlist promotion → confirm-flow (предложение+TTL+следующий). Заменяет авто Phase 5.'
+last_reviewed: 2026-10-12
+status_note: 'Поглощён задачей 20.3.1 (референс v3).'
 estimated_hours: '4-5'
 depends_on: ['15.1', '5.6', '8.5']
+superseded_by: '20.3.1'
 ---
 
 # Epic 15.5: Waitlist promotion confirm-flow (заменяет авто)

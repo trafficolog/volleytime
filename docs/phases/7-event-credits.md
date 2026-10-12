@@ -1,9 +1,9 @@
 ---
 id: '7'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-29
-status_note: 'Платформенная монетизация. Event credits. РАЗБЛОКИРОВАНА (Трек A готов). Расширяет super-admin (Phase 10). Тарифная сетка настраиваемая.'
+last_reviewed: 2026-10-12
+status_note: 'Поглощена задачами 20.2.1, 21.2.8, 22.2.1–22.2.2 (баланс событий, референс v3).'
 estimated_hours: '20-30'
 depends_on: ['6', '10']
 ---

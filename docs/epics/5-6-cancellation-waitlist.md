@@ -1,9 +1,9 @@
 ---
 id: '5.6'
 phase: '5'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-17
+last_reviewed: 2026-10-12
 status_note: 'Отмена брони с restore session + synchronous waitlist promotion.'
 estimated_hours: '4-6'
 depends_on: ['5.3', '5.5']

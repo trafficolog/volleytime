@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<link rel="icon" type="image/svg+xml" href="assets/logo/vt-favicon.svg">
+<title>VolleyTime · Гипотезы для игроков</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=fit1">
+<style>
+html,body{margin:0;background:var(--vt-paper);color:var(--vt-ink);font-family:var(--f-body)}
+a{color:var(--vt-flame-deep)}a:hover{color:var(--vt-blue-ink)}
+.page{max-width:1240px;margin:0 auto;padding:28px 28px 96px}
+.back{display:inline-flex;align-items:center;gap:8px;padding:8px 14px 8px 10px;border-radius:99px;background:var(--vt-bone);font-size:13px;font-weight:600;color:var(--vt-ink);text-decoration:none}
+.D{font-family:var(--f-display);text-transform:uppercase;font-weight:700;letter-spacing:0;line-height:.95}
+.hero{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px;margin-top:22px}
+.hero .main{background:var(--vt-blue-ink);color:#fff;border-radius:28px;padding:36px;position:relative;overflow:hidden;min-height:300px;display:flex;flex-direction:column;gap:18px}
+.hero .main h1{font-size:clamp(48px,6vw,80px);margin:0;position:relative}
+.hero .main p{font-size:15px;line-height:1.55;color:rgba(255,255,255,.86);max-width:540px;margin:0;position:relative;text-wrap:pretty}
+.hero .orb{position:absolute;right:-60px;top:-60px;width:240px;height:240px;border-radius:50%;background:var(--vt-orange)}
+.hero .side{background:var(--vt-bone);border-radius:28px;padding:26px;display:flex;flex-direction:column;gap:14px}
+.hero .side .k{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--vt-mute-2)}
+.hero .side li{list-style:none;font-size:13.5px;line-height:1.5;color:var(--vt-ink-3)}
+.hero .side li b{color:var(--vt-ink)}
+.list{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:16px}
+.item{background:var(--vt-bone);border-radius:22px;padding:18px;text-decoration:none;color:var(--vt-ink);display:flex;flex-direction:column;gap:8px;transition:transform .15s,box-shadow .15s}
+.item:hover{transform:translateY(-2px);box-shadow:var(--vt-shadow-card);color:var(--vt-ink)}
+.item .n{font-family:var(--f-num);font-weight:700;font-size:13px;color:var(--vt-mute-2)}
+.item h3{font-size:20px;margin:0}
+.item p{font-size:12.5px;line-height:1.45;color:var(--vt-ink-3);margin:0;flex:1}
+.item .tags{display:flex;gap:6px;flex-wrap:wrap}
+.item.warm{background:var(--vt-orange-soft)}.item.cool{background:var(--vt-blue-soft-tile)}
+.sec{margin-top:64px;display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start;scroll-margin-top:24px}
+.sec .txt{flex:1 1 360px;min-width:0;max-width:560px}
+.sec .num{font-family:var(--f-num);font-weight:700;font-size:14px;color:var(--vt-mute-2)}
+.sec h2{font-size:clamp(36px,4vw,52px);margin:8px 0 0}
+.sec .lead{font-size:15px;line-height:1.55;color:var(--vt-ink-3);margin-top:14px;text-wrap:pretty}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
+.fact{background:var(--vt-bone);border-radius:18px;padding:14px 16px}
+.fact .k{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--vt-mute-2)}
+.fact .v{font-size:13.5px;line-height:1.45;margin-top:6px;color:var(--vt-ink)}
+.fact.wide{grid-column:1/-1}
+.ai-note{margin-top:12px;font-size:12.5px;line-height:1.5;color:var(--vt-ink-3);background:var(--vt-blue-soft-tile);border-radius:14px;padding:12px 14px}
+.prio{margin-top:72px;background:var(--vt-ink);color:#fff;border-radius:28px;padding:32px}
+.prio h2{font-size:40px;margin:0}
+.prio table{width:100%;border-collapse:collapse;margin-top:20px;font-size:14px}
+.prio th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.72);font-weight:600;padding:0 12px 10px 0}
+.prio td{padding:12px 12px 12px 0;box-shadow:inset 0 1px 0 rgba(255,255,255,.12);vertical-align:top;line-height:1.45}
+.prio td b{font-family:var(--f-num)}
+.fut{margin-top:56px}
+.fut-head{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-end;justify-content:space-between}
+.fut-head h2{font-size:clamp(36px,4vw,52px);margin:8px 0 0}
+.fut-head p{font-size:15px;line-height:1.55;color:var(--vt-ink-3);max-width:560px;margin:0;text-wrap:pretty}
+.kick{font-family:var(--f-num);font-weight:700;font-size:14px;color:var(--vt-mute-2)}
+.vars{display:flex;flex-wrap:wrap;gap:20px;margin-top:24px}
+.var{flex:1 1 380px;min-width:0;display:flex;flex-direction:column;gap:14px;align-items:center}
+.var .vtxt{width:100%;max-width:390px;display:flex;flex-direction:column;gap:10px}
+.var h3{font-size:26px;margin:0}
+.var .vtxt p{font-size:13.5px;line-height:1.5;color:var(--vt-ink-3);margin:0;text-wrap:pretty}
+.tabs-cmp{font-size:12.5px;line-height:1.5;background:var(--vt-bone);border-radius:14px;padding:10px 12px;color:var(--vt-ink)}
+.tabs-cmp s{color:var(--vt-mute-2)}
+.tabs-cmp .k{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--vt-mute-2)}
+.map{margin-top:28px;background:var(--vt-bone);border-radius:24px;padding:24px;overflow-x:auto}
+.map table{width:100%;border-collapse:collapse;font-size:13px;min-width:720px}
+.map th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--vt-mute-2);font-weight:600;padding:0 12px 10px 0}
+.map td{padding:10px 12px 10px 0;box-shadow:inset 0 1px 0 var(--vt-bone-2);vertical-align:top;line-height:1.45}
+.map td:first-child{font-weight:700;white-space:nowrap}
+.map tr.req td{color:var(--vt-flame-deep)}
+@media (max-width:1000px){.hero,.list{grid-template-columns:1fr 1fr}}
+@media (max-width:640px){.hero,.list,.facts{grid-template-columns:1fr}}
+@media (max-width:480px){.page{padding:20px 14px 72px}.hero .main{padding:24px}.hero .side,.prio,.map{padding:20px}.var{flex-basis:100%}.sec{gap:24px}.prio{overflow-x:auto}.prio table{min-width:520px}}
+html,body{overflow-x:clip}
+#cal-phone{flex:0 1 390px;width:390px;max-width:100%;min-width:0}
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="app-nav.jsx?v=ideas2"></script>
+<script type="text/babel" src="atoms.jsx?v=ideas2"></script>
+<script type="text/babel" src="screens-ideas-1.jsx?v=wu5"></script>
+<script type="text/babel" src="screens-ideas-2.jsx?v=br1"></script>
+<script type="text/babel" src="screens-ideas-future.jsx?v=br1"></script>
+</head>
+<body class="vt-frame">
+<div class="page">
+  <a class="back" href="Volley Time.html">← Все разделы</a>
+
+  <section class="hero">
+    <div class="main">
+      <div class="orb"></div>
+      <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.74);position:relative">Гипотезы · вовлечение игроков</div>
+      <h1 class="D">Зачем заходить<br>между играми</h1>
+      <p>Сейчас игрок открывает Mini App, чтобы записаться и проверить состав. Восемь идей, которые дают повод возвращаться: тренировки между играми, прогресс, командные ритуалы после игры и итоги сезона. Каждая — с рабочим прототипом.</p>
+    </div>
+    <div class="side">
+      <div class="k">Как читать</div>
+      <ul style="margin:0;padding:0;display:flex;flex-direction:column;gap:12px">
+        <li><b>Проблема</b> — какую боль игрока закрываем.</li>
+        <li><b>Механика</b> — что делает функция и откуда берёт данные.</li>
+        <li><b>Метрика</b> — по какому числу поймём, что гипотеза сработала.</li>
+        <li><b>Усилие</b> — S / M / L для команды разработки.</li>
+        <li>Все прототипы кликаются. AI-тренер по-настоящему вызывает модель и собирает план с инструментами расписания и профиля.</li>
+        <li><b>Цифры в прототипах — примерные данные</b> для демонстрации механики, а не результаты исследования.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="fut" id="future">
+    <div class="fut-head">
+      <div><div class="kick">00 · если принять всё</div><h2 class="D">Mini App после гипотез</h2></div>
+      <p>Три способа разместить восемь функций и общий календарь. Во всех вариантах главная перестаёт быть экраном одной группы: игрок видит свои игры из всех групп сразу, а переключатель группы нужен только для её внутренних разделов. Экраны кликаются, в варианте C фаза переключается сверху.</p>
+    </div>
+    <div class="vars" id="vars"></div>
+    <div class="map">
+      <div class="kick">Где живёт каждая функция</div>
+      <table>
+        <thead><tr><th>Функция</th><th>A · Лента дня</th><th>B · Вкладка «Форма»</th><th>C · По фазе игры</th></tr></thead>
+        <tbody>
+          <tr class="req"><td>Мой календарь</td><td>Вкладка «Календарь»</td><td>Вкладка «Календарь»</td><td>Вкладка «Календарь»</td></tr>
+          <tr><td>01 AI-тренер</td><td>Карточка недели на главной</td><td>«Форма», блок плана</td><td>Главная между играми</td></tr>
+          <tr><td>02 Разминка</td><td>Карточка под ближайшей игрой: «входит в игру» + «Пропустить», иначе бот за 30 мин</td><td>«Форма», карточка в день игры с таймером в зале</td><td>Главная в день игры</td></tr>
+          <tr><td>03 Самооценка</td><td>Карточка «После игры»</td><td>Карточка на «Играх» после игры</td><td>Главная после игры</td></tr>
+          <tr><td>04 Прогресс навыков</td><td>Профиль → Навыки</td><td>«Форма», блок навыков</td><td>Профиль → Навыки</td></tr>
+          <tr><td>05 Составы</td><td>Карточка игры, с 20:00</td><td>«Игры» → событие</td><td>Главная в день игры</td></tr>
+          <tr><td>06 Серии и челленджи</td><td>Чип в шапке главной</td><td>«Форма», чип и челлендж</td><td>Чип в шапке + профиль</td></tr>
+          <tr><td>07 MVP игры</td><td>Карточка «После игры»</td><td>Карточка на «Играх» после игры</td><td>Главная после игры</td></tr>
+          <tr><td>08 Итоги сезона</td><td>Баннер на главной в конце сезона</td><td>«Форма», счётчик до итогов</td><td>Главная в конце сезона</td></tr>
+          <tr><td>Абонементы и сборы</td><td>Остаются отдельными вкладками</td><td>Объединены в «Кошелёк»</td><td>Объединены в «Кошелёк»</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="sec" id="calendar">
+    <div class="txt">
+      <div class="num">00.1 · нужно в любом варианте</div>
+      <h2 class="D">Мой календарь</h2>
+      <div class="lead">Один календарь на все группы игрока. Сейчас расписание живёт внутри каждой группы, и чтобы понять, куда идти в субботу, игрок переключает группы по очереди.</div>
+      <div class="facts">
+        <div class="fact wide"><div class="k">Сценарий</div><div class="v">Игрок в трёх группах открывает вкладку «Календарь» и видит все свои записи по дням с цветом группы. «Месяц» нужен, чтобы спланировать. Фильтр по группам и переключатель «можно записаться» показывают игры, куда ещё есть места; записаться можно прямо отсюда.</div></div>
+        <div class="fact wide"><div class="k">Пересечения</div><div class="v">Если записи в разных группах накладываются по времени, сверху появляется предупреждение. Игрок выбирает, какую игру оставить; место в другой уходит первому из листа ожидания.</div></div>
+        <div class="fact"><div class="k">Цвет группы</div><div class="v">У каждой группы свой цвет: точки в месяце и метка в строке. Календарь внутри группы остаётся как есть.</div></div>
+        <div class="fact"><div class="k">Синхронизация</div><div class="v">Подписка .ics для календаря телефона, обновляется при отмене. Сводка недели в боте по понедельникам.</div></div>
+        <div class="fact"><div class="k">Краевые случаи</div><div class="v">Одна группа — без фильтра групп. Покинутая группа пропадает из календаря. Без сети — кэш, запись недоступна.</div></div>
+        <div class="fact"><div class="k">Метрика</div><div class="v">Доля игроков в 2+ группах, открывающих календарь раз в неделю; число переключений групп за сессию.</div></div>
+      </div>
+    </div>
+    <div id="cal-phone"></div>
+  </section>
+
+  <div class="list" id="list"></div>
+  <div id="sections"></div>
+
+  <section class="prio">
+    <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.72)">Рекомендация</div>
+    <h2 class="D" style="margin-top:8px">Порядок проверки</h2>
+    <table>
+      <thead><tr><th>Волна</th><th>Что</th><th>Почему сначала</th></tr></thead>
+      <tbody>
+        <tr><td><b>1</b></td><td>Самооценка после игры · Составы · MVP</td><td>Дешёвые (S), живут в моменте после игры, когда игрок и так в боте. Самооценка — источник данных для всего остального.</td></tr>
+        <tr><td><b>2</b></td><td>Прогресс навыков · Серии и челленджи</td><td>Строятся на накопленных самооценках и посещаемости. Через 4–6 недель первой волны данных уже достаточно.</td></tr>
+        <tr><td><b>3</b></td><td>AI-тренер · Разминка</td><td>Самая сильная ценность, но нужна стоимость вызовов модели в юнит-экономике и проверка, что игроки реально тренируются между играми.</td></tr>
+        <tr><td><b>4</b></td><td>Итоги сезона</td><td>Раз в сезон, виральный канал. Делать к концу первого полного сезона, когда есть что показать.</td></tr>
+      </tbody>
+    </table>
+  </section>
+</div>
+
+<script type="text/babel" data-presets="env,react">
+const IDEAS = [
+  { id:'coach', n:1, title:'AI-тренер', tone:'cool', effort:'L', tag:'агент',
+    one:'План тренировок на неделю под цель и расписание игр.',
+    problem:'Игрок хочет подтянуть подачу или прыжок, но не знает, что делать между играми, а тренера у любительской группы нет.',
+    how:'Агент вызывает инструменты get_schedule и get_player_profile, видит игры в ср/пт/вс, уровень и самооценки, и расставляет 2–3 короткие тренировки между играми. Накануне игры только мобильность. Игрок отмечает выполнение и просит поправить план обычной фразой: «короче», «нет мячей», «болит плечо».',
+    metric:'Доля игроков с планом, у которых ≥ 50% тренировок отмечено за 2 недели; удержание 4-й недели против контрольной группы.',
+    risk:'Стоимость вызовов модели. Травмы: план не заменяет врача, нужен дисклеймер и мягкие нагрузки по умолчанию.',
+    C: () => <AICoach/> },
+  { id:'warmup', n:2, title:'Разминка', tone:'warm', effort:'S', tag:'до игры или в игре',
+    one:'8 минут с таймером до игры — или как часть самого события, если разминку проводит организатор.',
+    problem:'Любители приходят и сразу играют, отсюда растяжения плеч и голеностопов.',
+    how:'Организатор при создании игры отмечает «Разминка в составе события» и её длительность — она встаёт первым пунктом программы. Тогда игрок пропускает разминку до игры одной кнопкой, напоминание за 30 минут отключается, а таймер выводится на общий экран в зале. Если разминки в событии нет — бот напоминает за 30 минут, пошаговый таймер подстраивается под жалобы из самооценки (например, плечо).',
+    metric:'Доля игр с разминкой (своей или в составе события); самооценка «травма/дискомфорт» за месяц.',
+    risk:'Разминка в составе события занимает 10–15 минут аренды — организатору нужно видеть это при выборе длительности слота.',
+    C: () => <Warmup/> },
+  { id:'self', n:3, title:'Самооценка', tone:null, effort:'S', tag:'после игры',
+    one:'30 секунд после игры: ощущение, нагрузка, что получилось.',
+    problem:'Прогресс у любителей невидим, а без данных ни тренер, ни организатор не могут ничего подсказать.',
+    how:'Бот присылает кнопку через час после игры. Пять оценок, шкала нагрузки RPE 1–10, чипы навыков. После отправки — инсайт: «подачу отмечаете третью игру подряд» и переход в план тренера.',
+    metric:'Доля заполнений после игры (цель ≥ 40%); доля переходов из инсайта в план.',
+    risk:'Усталость от опросов — не чаще одного раза за игру и без обязательных полей, кроме общего ощущения.',
+    C: () => <SelfCheck/> },
+  { id:'progress', n:4, title:'Прогресс навыков', tone:'cool', effort:'M', tag:'данные',
+    one:'Радар шести навыков и путь до следующего уровня.',
+    problem:'Уровни A/B/C ставит организатор «на глаз», игрок не понимает, что нужно, чтобы вырасти.',
+    how:'Радар из самооценок и оценки организатора, сравнение с месяцем назад или началом сезона, прогресс до следующего уровня и самое слабое место.',
+    metric:'Повторные заходы в раздел в неделю; корреляция с использованием AI-тренера.',
+    risk:'Субъективность самооценок — вес оценки организатора выше, показываем источник.',
+    C: () => <Progress/> },
+  { id:'teams', n:5, title:'Составы на игру', tone:'warm', effort:'M', tag:'в день игры',
+    one:'Ровные команды по уровню и амплуа до начала игры.',
+    problem:'В зале 10 минут уходит на деление, а в итоге одна команда сильно сильнее.',
+    how:'За час до игры система делит основной состав на две команды по уровню и амплуа, в каждой связующий и либеро. Игрок видит свою команду, может попросить обмен; организатор перемешивает одной кнопкой.',
+    metric:'Доля игр, где организатор принял автосостав без правок; самооценка «интересно играть».',
+    risk:'Уровни должны быть актуальны, иначе баланс ложный — связка с прогрессом навыков.',
+    C: () => <Teams/> },
+  { id:'streaks', n:6, title:'Серии и челленджи', tone:null, effort:'S', tag:'игровые механики',
+    one:'Недели подряд, челленджи месяца, значки.',
+    problem:'Посещаемость проседает летом и после пропуска одной недели.',
+    how:'Серия считается по неделям с ≥ 1 игрой (не по дням — чтобы не давить). Челленджи месяца от организатора или системы, значки за вехи и MVP.',
+    metric:'Доля игроков, вернувшихся после пропуска недели; средняя длина серии.',
+    risk:'Геймификация раздражает часть взрослых игроков — раздел можно скрыть в профиле.',
+    C: () => <Streaks/> },
+  { id:'mvp', n:7, title:'MVP игры', tone:'cool', effort:'S', tag:'ритуал',
+    one:'Анонимное голосование в трёх номинациях после игры.',
+    problem:'После игры группа расходится, и Mini App нечем «продолжить» вечер.',
+    how:'Голосование открывается после игры до 23:00, три номинации, за себя нельзя. Итоги приходят в чат группы ботом — это и повод зайти, и немного славы.',
+    metric:'Доля участников, проголосовавших хотя бы в одной номинации; открытия итогов.',
+    risk:'Обиды в маленьких группах — номинации только позитивные, проигравшие не показываются.',
+    C: () => <MVP/> },
+  { id:'wrapped', n:8, title:'Итоги сезона', tone:'warm', effort:'M', tag:'виральность',
+    one:'Сторис с цифрами сезона, которыми хочется поделиться.',
+    problem:'Нет повода рассказать друзьям о группе и приложении.',
+    how:'Раз в сезон — истории: сколько игр и часов, любимый день, с кем чаще в команде, рост навыка, MVP. Кнопка «в сторис» с картинкой и ссылкой на публичную страницу группы.',
+    metric:'Доля поделившихся; новые игроки, пришедшие по ссылке из сторис.',
+    risk:'Нужен минимум один полный сезон данных — для новых игроков показываем короткую версию.',
+    C: () => <Wrapped/> },
+];
+
+const PAGES = { coach:'9.1 AI-тренер.html', warm:'9.2 Разминка.html', self:'9.3 Самооценка.html', progress:'9.4 Прогресс навыков.html', teams:'9.5 Составы на игру.html', streaks:'9.6 Серии и челленджи.html', mvp:'9.7 MVP игры.html', wrapped:'9.8 Итоги сезона.html' };
+const List = () => IDEAS.map(it => (
+  <a key={it.id} className={`item ${it.tone || ''}`} href={`#${it.id}`}>
+    <span className="n">{String(it.n).padStart(2, '0')}</span>
+    <h3 className="D">{it.title}</h3>
+    <p>{it.one}</p>
+    <span className="tags"><span className="vt-chip">{it.tag}</span><span className="vt-chip vt-chip--state">усилие {it.effort}</span></span>
+  </a>
+));
+
+const Sections = () => IDEAS.map(it => (
+  <section key={it.id} id={it.id} className="sec">
+    <div className="txt">
+      <div className="num">{String(it.n).padStart(2, '0')} · {it.tag}</div>
+      <h2 className="D">{it.title}</h2>
+      <div className="lead">{it.one}</div>
+      {PAGES[it.id] && <a href={PAGES[it.id]} className="vt-btn vt-btn--ink" style={{marginTop:16, display:'inline-flex', gap:8, textDecoration:'none', color:'#fff'}}>Все экраны · подробно <Icon name="arrow-r" size={16}/></a>}
+      <div className="facts">
+        <div className="fact wide"><div className="k">Проблема</div><div className="v">{it.problem}</div></div>
+        <div className="fact wide"><div className="k">Механика</div><div className="v">{it.how}</div></div>
+        <div className="fact"><div className="k">Метрика</div><div className="v">{it.metric}</div></div>
+        <div className="fact"><div className="k">Риск</div><div className="v">{it.risk}</div></div>
+      </div>
+      {it.id === 'coach' && <div className="ai-note">Прототип реально вызывает модель. Нажмите «Собрать план», затем попросите в поле внизу, например, «сделай короче» или «нет мячей» — план перестроится. Если модель недоступна, показывается шаблонный план.</div>}
+    </div>
+    <IdeaPhone>{it.C()}</IdeaPhone>
+  </section>
+));
+
+const VARS = [
+  { k:'A', t:'Лента дня', C: () => <FutureVarA/>, was:'Главная · Абонементы · Сборы · Профиль', now:'Главная · Календарь · Абонементы · Сборы · Профиль',
+    d:'Главная становится личной: ближайшая игра из любой группы, карточка «После игры», неделя тренера и список игр недели. Новых разделов, кроме календаря, нет.',
+    fit:'Минимум переделок навигации; главная растёт вниз, и при всех функциях сразу её придётся прокручивать.' },
+  { k:'B', t:'Вкладка «Форма»', C: () => <FutureVarB/>, was:'Главная · Абонементы · Сборы · Профиль', now:'Игры · Календарь · Форма · Кошелёк · Профиль',
+    d:'Запись и оплата остаются на «Играх». Всё про тренировки и рост собрано в «Форме»: разминка (своя или в составе игры), план тренера, навыки, челлендж, итоги сезона. Абонементы и сборы объединены в «Кошелёк».',
+    fit:'Чистое разделение «организация» и «развитие»; риск — вкладку «Форма» откроют только те, кто тренируется.' },
+  { k:'C', t:'По фазе игры', C: () => <FutureVarC/>, was:'Главная · Абонементы · Сборы · Профиль', now:'Главная · Календарь · Кошелёк · Профиль',
+    d:'Главная показывает одну главную карточку для текущего момента: между играми — тренировку, в день игры — состав и разминку (если она входит в игру, свою можно пропустить одной кнопкой), после игры — самооценку и MVP, в конце сезона — итоги.',
+    fit:'Самая короткая главная и меньше всего вкладок; нужна логика фаз и запасной доступ к функциям из профиля.' },
+];
+const Vars = () => VARS.map(v => (
+  <div key={v.k} className="var">
+    <IdeaPhone>{v.C()}</IdeaPhone>
+    <div className="vtxt">
+      <div className="kick">Вариант {v.k}</div>
+      <h3 className="D">{v.t}</h3>
+      <div className="tabs-cmp"><div className="k">Таб-бар</div><s>{v.was}</s><br/>{v.now}</div>
+      <p>{v.d}</p>
+      <p><b style={{color:'var(--vt-ink)'}}>Компромисс.</b> {v.fit}</p>
+    </div>
+  </div>
+));
+ReactDOM.createRoot(document.getElementById('vars')).render(<Vars/>);
+ReactDOM.createRoot(document.getElementById('cal-phone')).render(<IdeaPhone><MyCalendar/></IdeaPhone>);
+ReactDOM.createRoot(document.getElementById('list')).render(<List/>);
+ReactDOM.createRoot(document.getElementById('sections')).render(<Sections/>);
+</script>
+</body>
+</html>

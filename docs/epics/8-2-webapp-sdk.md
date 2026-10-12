@@ -1,9 +1,9 @@
 ---
 id: '8.2'
 phase: '8'
-status: in_progress
+status: done
 sync_state: synced
-last_reviewed: 2026-09-17
+last_reviewed: 2026-10-12
 status_note: 'WebApp SDK обёртка: MainButton/BackButton/theme/haptics поверх страниц 4-6.'
 estimated_hours: '5-7'
 depends_on: ['8.1']

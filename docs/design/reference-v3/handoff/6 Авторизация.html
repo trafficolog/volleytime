@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<link rel="icon" type="image/svg+xml" href="assets/logo/vt-favicon.svg">
+<title>VolleyTime · Авторизация</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Golos+Text:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=tokens1">
+<style>
+  html, body { margin:0; padding:0; min-height:100%; font-family:'Golos Text', system-ui, sans-serif; background:#ECEBEF; color:var(--vt-ink); }
+  .page { max-width:1320px; margin:0 auto; padding:64px 32px 90px; }
+  .scene-back { position:fixed; top:16px; left:16px; z-index:50; display:inline-flex; align-items:center; gap:8px; padding:6px 12px 6px 8px; border-radius:99px; background:rgba(255,255,255,0.78); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border:1px solid rgba(0,0,0,0.06); font-size:12.5px; font-weight:600; color:#0E0E10; text-decoration:none; box-shadow:0 1px 2px rgba(0,0,0,0.04); }
+  .scene-back .b { width:18px; height:18px; border-radius:50%; background:#fff url('assets/logo/vt-mark-color.svg') center/70% no-repeat; border:1px solid rgba(0,0,0,0.05); }
+  .head { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:40px; gap:24px; }
+  .head h1 { font-family:'Oswald', sans-serif; text-transform:uppercase; font-weight:700; font-size:54px; letter-spacing:0; line-height:0.95; margin:0; }
+  .cap { font-family:'Golos Text', sans-serif; font-size:11px; color:#5B5C64; letter-spacing:0.08em; text-transform:uppercase; }
+  .lead { color:#5B5C64; max-width:520px; font-size:14px; line-height:1.55; margin-top:10px; }
+  .section-title { font-family:'Golos Text', sans-serif; font-weight:600; font-size:13px; letter-spacing:0.08em; text-transform:uppercase; color:#5B5C64; margin:52px 0 20px; padding-bottom:10px; border-bottom:0; display:flex; justify-content:space-between; align-items:baseline; }
+  .grid-web { display:grid; grid-template-columns:repeat(3, 1fr); gap:24px; }
+  .grid-mini { display:grid; grid-template-columns:repeat(4, 1fr); gap:24px; }
+  .frame-label { display:flex; align-items:baseline; gap:8px; margin-bottom:10px; }
+  .frame-label .n { font-family:'Golos Text', sans-serif; font-size:10px; color:#6A6B73; }
+  .frame-label .t { font-family:'Golos Text', sans-serif; font-weight:600; font-size:13.5px; }
+  .frame-label .d { font-size:11.5px; color:#6A6B73; }
+  .win { background:var(--vt-paper); border:0; border-radius:20px; overflow:hidden; box-shadow:0 2px 4px rgba(15,17,22,.05), 0 18px 40px rgba(15,17,22,.10); }
+  .win .chrome { height:28px; background:#ECEBEF; border-bottom:0; display:flex; align-items:center; gap:6px; padding:0 11px; }
+  .win .chrome i { width:8px; height:8px; border-radius:99px; display:block; }
+  .win .body { height:570px; }
+  .phone { background:#0E0E10; border-radius:34px; padding:8px; box-shadow:0 8px 28px rgba(0,0,0,0.16); }
+  .phone .screen { background:var(--vt-paper); border-radius:27px; overflow:hidden; height:520px; display:flex; flex-direction:column; }
+  .note { margin-top:44px; padding:26px 28px; background:var(--vt-blue-ink); color:#fff; border-radius:20px; box-shadow:var(--vt-shadow-accent); }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="atoms.jsx?v=tokens1"></script>
+<script type="text/babel" src="screens-auth.jsx?v=tokens1"></script>
+</head>
+<body class="vt-frame">
+<a href="Volley Time.html" class="scene-back"><span class="b"></span><span>← Все разделы</span></a>
+
+<div class="page">
+  <div class="head">
+    <div>
+      <div class="cap">06 · Авторизация</div>
+      <h1>Вход</h1>
+      <div class="lead">Один аккаунт на всю платформу: Telegram — основной способ, email с одноразовым кодом — резервный для веба. Ниже все состояния, включая ошибки и отказы в доступе.</div>
+    </div>
+    <div style="text-align:right; color:#5B5C64; font-size:12px; font-family:'Golos Text', sans-serif;">
+      better-auth · Telegram initData<br/>
+      email OTP · 6 цифр · 10 мин
+    </div>
+  </div>
+
+  <div class="section-title"><span>Web-кабинет · desktop</span><span class="cap" style="text-transform:none;">7 состояний</span></div>
+  <div class="grid-web" id="web-grid"></div>
+
+  <div class="section-title"><span>Mini App · Telegram</span><span class="cap" style="text-transform:none;">4 состояния</span></div>
+  <div class="grid-mini" id="mini-grid"></div>
+
+  <div class="note">
+    <div class="cap" style="opacity:0.55; color:inherit;">Правила</div>
+    <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:22px; margin-top:14px; font-size:14px; line-height:1.5;">
+      <div>
+        <div style="font-family:'Golos Text'; font-weight:600;">Telegram — источник истины</div>
+        <div style="opacity:0.68; margin-top:5px;">В Mini App логина нет вообще: личность приходит из подписанного initData. Экран входа появляется только в вебе.</div>
+      </div>
+      <div>
+        <div style="font-family:'Golos Text'; font-weight:600;">Email только как резерв</div>
+        <div style="opacity:0.68; margin-top:5px;">Одноразовый код, без пароля — нечего забывать и утекать. Привязывается к тому же аккаунту, что и Telegram.</div>
+      </div>
+      <div>
+        <div style="font-family:'Golos Text'; font-weight:600;">Отказ объясняем</div>
+        <div style="opacity:0.68; margin-top:5px;">«Нет доступа» и «заблокировано» всегда говорят причину и дают следующий шаг — ссылку в Mini App или тикет поддержки.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="text/babel" data-presets="env,react">
+const WEB = [
+  ['01', 'Выбор способа', 'первый экран', <AuthWebStart/>],
+  ['02', 'Ввод кода', 'код отправлен', <AuthWebOtp/>],
+  ['03', 'Неверный код', 'ошибка · 2 попытки', <AuthWebOtpError/>],
+  ['04', 'Проверка входа', 'loading', <AuthWebLoading/>],
+  ['05', 'Выбор организации', 'несколько org', <AuthWebOrgPick/>],
+  ['06', 'Нет доступа', 'игрок, не организатор', <AuthWebNoAccess/>],
+  ['07', 'Заблокировано', 'org приостановлена', <AuthWebBlocked/>],
+];
+
+const MINI = [
+  ['01', 'Splash', 'проверка initData', <AuthMiniSplash/>],
+  ['02', 'Ошибка входа', 'initData invalid', <AuthMiniError/>],
+  ['03', 'Нет групп', 'нужен invite', <AuthMiniNoOrg/>],
+  ['04', 'Доступ закрыт', 'забанен в группе', <AuthMiniBlocked/>],
+];
+
+const WebCard = ({ n, t, d, children }) => (
+  <div>
+    <div className="frame-label"><span className="n">{n}</span><span className="t">{t}</span><span className="d">{d}</span></div>
+    <div className="win">
+      <div className="chrome">
+        <i style={{background:'#F45D49'}}/><i style={{background:'#F7B731'}}/><i style={{background:'#22C155'}}/>
+        <div style={{flex:1, textAlign:'center', fontSize:10.5, color:'#5B5C64', fontFamily:'Golos Text, sans-serif'}}>app.volleytime.by/login</div>
+      </div>
+      <div className="body">{children}</div>
+    </div>
+  </div>
+);
+
+const MiniCard = ({ n, t, d, children }) => (
+  <div>
+    <div className="frame-label"><span className="n">{n}</span><span className="t">{t}</span></div>
+    <div style={{fontSize:11.5, color:'#6A6B73', marginTop:-6, marginBottom:10}}>{d}</div>
+    <div className="phone"><div className="screen">{children}</div></div>
+  </div>
+);
+
+ReactDOM.createRoot(document.getElementById('web-grid')).render(
+  <>{WEB.map(([n,t,d,el]) => <WebCard key={n} n={n} t={t} d={d}>{el}</WebCard>)}</>
+);
+ReactDOM.createRoot(document.getElementById('mini-grid')).render(
+  <>{MINI.map(([n,t,d,el]) => <MiniCard key={n} n={n} t={t} d={d}>{el}</MiniCard>)}</>
+);
+</script>
+</body>
+</html>

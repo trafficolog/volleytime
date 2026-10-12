@@ -1,12 +1,13 @@
 ---
 id: '10.3'
 phase: '10'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-29
-status_note: 'Лёгкий super-admin обзор бета-организаций + активность.'
+last_reviewed: 2026-10-12
+status_note: 'Поглощён задачей 22.1.1 (референс v3).'
 estimated_hours: '2-3'
 depends_on: ['5.2', '6.2']
+superseded_by: '22.1.1'
 ---
 
 # Epic 10.3: Super-admin обзор беты

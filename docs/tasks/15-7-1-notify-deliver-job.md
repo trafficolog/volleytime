@@ -2,10 +2,10 @@
 id: '15.7.1'
 phase: '15'
 epic: '15.7'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-30
-status_note: 'notify.deliver job с retry. Закрывает fire-and-forget долг Phase 8.'
+last_reviewed: 2026-10-12
+status_note: 'Поглощена задачей 20.3.2 (референс v3). Карточка — входной материал, не реализуется отдельно.'
 roles:
   - BACK
 depends_on:
@@ -16,6 +16,7 @@ tags:
   - notifier
   - queue
   - retry
+superseded_by: '20.3.2'
 ---
 
 # Task 15.7.1: notify.deliver job + retry + sendReliable
