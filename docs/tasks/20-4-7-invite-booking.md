@@ -51,7 +51,7 @@ tags: [reference-v3]
 
 ## Критерии приёмки
 
-- ✅ Состояния нарисованы в макете до разработки
+- ✅ Четыре состояния собраны из атомов v3, скриншоты утверждены владельцем до merge (D-06)
 - ✅ Отчёт визуальной сверки по экранам из `reference.screens` без открытых расхождений Critical/Important
 - ✅ Пять gates CODING_STANDARDS на tested revision; ревью `claude-opus-5-5` без Critical/Important
 
