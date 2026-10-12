@@ -2,10 +2,10 @@
 id: '9.8.17'
 phase: '9'
 epic: '9.8'
-status: in_progress
+status: done
 release: 'v0.2.0'
-last_reviewed: 2026-10-12
-status_note: 'Workflow, environment и скрипт защиты веток подготовлены; применение защиты веток и required reviewers в GitHub ждёт подтверждения владельца.'
+last_reviewed: 2026-10-13
+status_note: 'Ручной FF b056806 + Deploy 38317488959 success, Promote no-op 38318437096, защита веток применена 2026-10-13; evidence docs/operations/qa/2026-10-13-cicd-promotion.md.'
 roles: [DEVOPS]
 depends_on: ['9.8.16']
 complexity: M
@@ -48,9 +48,9 @@ Push от `GITHUB_TOKEN` не запускает workflow по событию `p
 - ✅ Promote отказывает: SHA не в `main`; CI на SHA не `success`; `prod` не предок SHA.
 - ✅ Promote на зелёном SHA делает fast-forward `prod` и запускает Deploy с `--ref prod`; source gate Deploy (`require-prod-ref.mjs`) проходит без изменений.
 - ✅ Диапазон с изменениями `.github/workflows/` без `PROMOTE_TOKEN` отклоняется до push с понятной ошибкой.
-- ⏸ Первое продвижение, содержащее сам `promote.yml`, выполняется ручным reviewed FF (или с `PROMOTE_TOKEN`).
-- ⏸ Первое продвижение через Promote выполнено и Deploy успешен (evidence в QA-отчёте после merge).
-- ⏸ Защита веток применена владельцем или с его явного согласия (`apply-branch-protection.sh --apply`).
+- ✅ Первое продвижение, содержащее сам `promote.yml`, выполнено ручным reviewed FF.
+- ✅ Первое продвижение (ручной FF, т.к. диапазон меняет workflow) и Deploy успешны; Promote проверен no-op прогоном ([evidence](../operations/qa/2026-10-13-cicd-promotion.md)).
+- ✅ Защита веток применена с согласия владельца 2026-10-13.
 
 ## Подсказки
 
