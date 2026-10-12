@@ -2,9 +2,9 @@
 id: '9.8.15'
 phase: '9'
 epic: '9.8'
-status: in_progress
+status: done
 release: 'v0.1.7'
-last_reviewed: 2026-10-07
+last_reviewed: 2026-10-12
 roles: [DEV, QA]
 depends_on: []
 tags: [documentation, agent-instructions]
@@ -65,6 +65,8 @@ AGENTS.md, docs/DEVELOPMENT_PROCESS.md, docs/RELEASES.md, docs/operations/status
 Нормы Git/verification читаются также для docs PR. Текущая R0.7 manual acceptance, production SHA и release tags не меняются этой задачей.
 
 ## Local acceptance — 2026-10-07
+
+Final synchronization2026-10-12: PR94 merged e293e06 after exact-head CI37670224272 and exact-main CI37670725937 all4SUCCESS; controlled Deploy37673966652 succeeded. Instruction task accepted; old local pending paragraph below is historical. No source changes in this metadata reconciliation9.8.16.
 
 - Independent re-review `agents_radical`: approved, без блокирующих замечаний после уточнения trigger task review и сохранения исходного порога абстракции.
 - Scoped Prettier check: четыре документа PASS; git diff whitespace check PASS; все 10 локальных Markdown links разрешаются.

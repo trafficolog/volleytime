@@ -7,24 +7,15 @@
 
 ## 2. SSH + hardening
 
-```bash
-ssh-copy-id root@<IP>           # с локальной машины
-# на сервере:
-adduser deploy && usermod -aG docker deploy
-mkdir -p /home/deploy/.ssh && cp ~/.ssh/authorized_keys /home/deploy/.ssh/
-chown -R deploy:deploy /home/deploy/.ssh && chmod 700 /home/deploy/.ssh
-```
+На новом/replacement VPS следовать [Task9.3.3](../../tasks/9-3-3-recovery-safe-ssh-access.md). На действующем VPS сначала read-only audit: provisioning не выполняется повторно вслепую.
 
-Проверить вход `ssh deploy@<IP>` → только потом:
+1. Daily `deploy`, независимый `ops-recovery` с аварийным sudo, отдельный restricted CI ключ по [deploy runbook](deploy.md). Использовать разные ключи; recovery private key хранить вне daily системы, иметь консоль/rescue провайдера.
+2. Создать пользователей, если они отсутствуют. Установить каталоги `.ssh`0700/`authorized_keys`0600 с правильными владельцами. Добавлять только соответствующие public keys, сохраняя существующие проверенные строки; не копировать root authorized_keys и не перезаписывать действующие daily/recovery/CI keys.
+3. В новых отдельных сессиях проверить daily key login и Docker; recovery key login и `sudo -n true`. CI BatchMode проверить отдельно. При любом отказе не ужесточать SSH.
+4. После успешных входов настроить drop-in: `PasswordAuthentication no`, `KbdInteractiveAuthentication no`, `PermitRootLogin no`, `PubkeyAuthentication yes`. Проверить `sshd -t` до reload; текущую рабочую root/console сессию сохранить.
+5. Выполнить reload SSH, повторить оба положительных входа, проверить effective `sshd -T` и отрицательный root key login. Только затем закрыть исходную сессию и включать firewall.
 
-```bash
-# /etc/ssh/sshd_config
-PasswordAuthentication no
-PermitRootLogin no
-systemctl restart sshd
-```
-
-> ⚠️ Не отключать root до проверки входа deploy — иначе локаут.
+Историческое подтверждение2026-09-19 в карточке не заменяет свежую проверку replacement host. Подтверждение отдельного offline storage владельцем остаётся самостоятельным checkpoint.
 
 ## 3. Firewall + fail2ban
 
@@ -54,6 +45,8 @@ mkdir -p /opt/volleytime && chown deploy:deploy /opt/volleytime
 > Без Mini App domain в BotFather web_app кнопки не откроются.
 
 ## 7. Первый запуск
+
+Ниже — исторический compose bootstrap, не текущий production release path. Для публикации готового проекта использовать [deploy runbook](deploy.md): verified runner-built images/Git bundle через Actions, без server-side git pull/build. Не выполнять следующие app `up` команды на действующем production.
 
 ```bash
 cd /opt/volleytime
