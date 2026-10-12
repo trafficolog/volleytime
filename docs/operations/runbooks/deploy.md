@@ -66,6 +66,10 @@ Before the fast-forward, require the **Runner image build-export-import** CI job
 
 The runner uses a 12 GiB initial build floor and a separate measured archive/import reserve after packaging. If either capacity gate or the real build/export/import fails, retain the measured evidence and stop for redesign. Do not prune runner/VPS images to make a failing capacity gate pass. Local tests and local application builds do not substitute for this runner evidence; avoid local Docker export on the capacity-constrained Windows C: drive.
 
+### Promote workflow (default path, Task 9.8.17)
+
+Run **Actions → Promote to production** (or `gh workflow run promote.yml -f sha=<full main SHA>`). The workflow refuses a SHA outside `main` history, a SHA without a successful `CI` run for the `main` push (the run includes the image-bundle job), and a non-fast-forward `prod`. On success it fast-forwards `prod` with `GITHUB_TOKEN` and dispatches **Deploy** on `prod` with `deployment_mode=image-bundle`, because a token push does not start `on: push` workflows. When `prod` already equals the SHA nothing is pushed; `redeploy=true` dispatches Deploy anyway. Promote checks main CI only: exact-head PR CI and independent review remain the operator's merge gate. The Deploy job runs in the `production` GitHub Environment; required reviewers configured there pause it until approval. A manual reviewed `git push origin <sha>:prod` remains the fallback when Actions is unavailable.
+
 Every manual run must select `prod` in the GitHub **Branch** dropdown (or pass `--ref prod` through GitHub CLI). The workflow source gate rejects `main`, task branches, and tags before tests, image publication, production-secret handling, or VPS access.
 
 ## Telegram update transport

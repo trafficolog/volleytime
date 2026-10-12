@@ -1,0 +1,93 @@
+name: Promote to production
+
+# Fast-forwards prod to a main revision whose push CI succeeded, then dispatches
+# Deploy on prod. A GITHUB_TOKEN push does not trigger `on: push`, so Deploy is
+# started explicitly through workflow_dispatch (Task 9.8.17).
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Full main SHA to promote (empty = current main)
+        required: false
+        default: ''
+        type: string
+      redeploy:
+        description: Dispatch Deploy even when prod already equals the SHA
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: promote-production
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  promote:
+    name: Verify and fast-forward prod
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Resolve and verify revision
+        id: verify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          INPUT_SHA: ${{ inputs.sha }}
+        run: |
+          set -euo pipefail
+          git fetch origin main prod
+          sha="${INPUT_SHA:-$(git rev-parse origin/main)}"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "SHA must be a full lowercase 40-character hash" >&2; exit 1; }
+          git merge-base --is-ancestor "$sha" origin/main || { echo "$sha is not in main history" >&2; exit 1; }
+          prev="$(git rev-parse origin/prod)"
+          git merge-base --is-ancestor "$prev" "$sha" || { echo "prod $prev is not an ancestor of $sha; fast-forward impossible" >&2; exit 1; }
+          ok="$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$sha&event=push&branch=main&status=success" -q '.total_count')"
+          [ "$ok" -ge 1 ] || { echo "No successful main push CI run for $sha" >&2; exit 1; }
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "prev=$prev" >> "$GITHUB_OUTPUT"
+
+      - name: Fast-forward prod
+        if: ${{ steps.verify.outputs.sha != steps.verify.outputs.prev }}
+        env:
+          SHA: ${{ steps.verify.outputs.sha }}
+        run: |
+          set -euo pipefail
+          git push origin "$SHA:refs/heads/prod"
+
+      - name: Dispatch Deploy on prod
+        if: ${{ steps.verify.outputs.sha != steps.verify.outputs.prev || inputs.redeploy }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh workflow run deploy.yml --repo "$REPO" --ref prod -f deployment_mode=image-bundle
+
+      - name: Summary
+        if: ${{ always() && steps.verify.outcome == 'success' }}
+        env:
+          SHA: ${{ steps.verify.outputs.sha }}
+          PREV: ${{ steps.verify.outputs.prev }}
+          REPO: ${{ github.repository }}
+          REDEPLOY: ${{ inputs.redeploy }}
+        run: |
+          {
+            echo "### Promotion"
+            echo "- previous prod: \`$PREV\`"
+            echo "- promoted SHA: \`$SHA\`"
+            if [ "$SHA" = "$PREV" ] && [ "$REDEPLOY" != "true" ]; then
+              echo "- prod already at this SHA; Deploy not dispatched"
+            else
+              echo "- Deploy: https://github.com/$REPO/actions/workflows/deploy.yml?query=branch%3Aprod"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
