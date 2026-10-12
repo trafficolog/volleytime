@@ -129,6 +129,8 @@ jobs:
     name: Deploy to VPS
     needs: [test, build-and-push]
     if: ${{ !cancelled() && needs.test.result == 'success' && (needs.build-and-push.result == 'success' || needs.build-and-push.result == 'skipped') }}
+    # Deployment history in GitHub; required reviewers are configured on the environment (Task 9.8.17).
+    environment: production
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

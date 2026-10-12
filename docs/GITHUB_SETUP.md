@@ -109,6 +109,27 @@ gh issue create --title "[3.1.1] pnpm workspaces init" \
 - Заголовок `[N.M.K]` в issue = прямая ссылка на карточку
 - depends_on в карточке = порядок, в котором агент берёт задачи
 
+## 8. CI/CD и защита веток
+
+| Workflow      | Триггер                                   | Что делает                                                                                     |
+| ------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `ci.yml`      | PR в `main`, push в `main`                | lint/format/typecheck, unit+integration на PostgreSQL, build, сборка/экспорт/импорт образов    |
+| `promote.yml` | вручную (Actions → Promote to production) | проверяет SHA в `main` и зелёный main CI, fast-forward `prod`, запускает Deploy на `prod`      |
+| `deploy.yml`  | push в `prod`, `workflow_dispatch`        | тесты, image-bundle по SSH, backup → migrate → up → smoke → rollback; environment `production` |
+
+Защита веток (Task 9.8.17) — скрипт печатает план, `--apply` применяет:
+
+```bash
+bash scripts/github/apply-branch-protection.sh
+```
+
+- `main`: PR обязателен, обязательные проверки CI (в том числе для администраторов), без force-push и удаления.
+- Секрет `PROMOTE_TOKEN` (необязательный, fine-grained PAT: Contents + Workflows) нужен Promote для диапазонов с изменениями `.github/workflows/`; без него такие продвижения выполняются ручным FF.
+- `prod`: без force-push и удаления; двигается только fast-forward через Promote.
+- Environment `production`: при необходимости владелец включает Required reviewers в Settings → Environments; Deploy будет ждать подтверждения.
+
+Подробности выкладки и отката — в [deploy runbook](./operations/runbooks/deploy.md).
+
 ## Связанные документы
 
 - [RELEASES.md](./RELEASES.md) — что в каком релизе

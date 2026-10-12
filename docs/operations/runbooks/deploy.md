@@ -66,6 +66,19 @@ Before the fast-forward, require the **Runner image build-export-import** CI job
 
 The runner uses a 12 GiB initial build floor and a separate measured archive/import reserve after packaging. If either capacity gate or the real build/export/import fails, retain the measured evidence and stop for redesign. Do not prune runner/VPS images to make a failing capacity gate pass. Local tests and local application builds do not substitute for this runner evidence; avoid local Docker export on the capacity-constrained Windows C: drive.
 
+### Promote workflow (default path, Task 9.8.17)
+
+Run **Actions → Promote to production** (or `gh workflow run promote.yml -f sha=<full main SHA>`). The workflow refuses a SHA outside `main` history, a SHA without a successful `CI` run for the `main` push (the run includes the image-bundle job), and a non-fast-forward `prod`. When `prod` already equals the SHA nothing happens; a same-SHA redeploy is not offered because the earlier attempt's `.deploy/incoming/<sha>` staging requires a manual audit first.
+
+GitHub does not let `GITHUB_TOKEN` push a range that changes `.github/workflows/`, and its pushes do not start `on: push` workflows:
+
+- With repository secret `PROMOTE_TOKEN` (fine-grained PAT for this repository: Contents and Workflows read/write) Promote pushes with it, and Deploy starts from the `prod` push.
+- Without it Promote pushes with `GITHUB_TOKEN` and dispatches **Deploy** on `prod` (`deployment_mode=image-bundle`) after re-checking that `prod` still equals the SHA. A range that changes workflows fails before any push; perform the reviewed manual `git push origin <sha>:prod` instead.
+
+GitHub keeps one pending run per concurrency group: after three or more quick merges into `main` the middle SHA's CI may be cancelled and that SHA cannot be promoted; promote a newer SHA instead. Store `PROMOTE_TOKEN` as an environment secret of a dedicated `promote` environment (and add `environment: promote` to the Promote job) if you want to keep the Workflows-scoped token away from other workflows. Branch protection includes administrators: an emergency direct push to `main` requires temporarily relaxing protection with `gh api` and restoring it with `scripts/github/apply-branch-protection.sh --apply`.
+
+Promote checks main CI only: exact-head PR CI and independent review remain the merge gate. The Deploy job runs in the `production` GitHub Environment; required reviewers configured there pause it until approval.
+
 Every manual run must select `prod` in the GitHub **Branch** dropdown (or pass `--ref prod` through GitHub CLI). The workflow source gate rejects `main`, task branches, and tags before tests, image publication, production-secret handling, or VPS access.
 
 ## Telegram update transport
