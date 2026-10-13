@@ -5,7 +5,7 @@ release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-12
 status_note: 'Референс v3 Ф1. 28 задач.'
-estimated_hours: '188-376'
+estimated_hours: '192-384'
 depends_on: []
 ---
 

@@ -6,7 +6,7 @@ release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-12
 status_note: ''
-estimated_hours: '44-88'
+estimated_hours: '48-96'
 depends_on:
   [
     '19.0.3',
