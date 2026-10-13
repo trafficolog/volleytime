@@ -48,7 +48,8 @@ tags: [reference-v3]
 3. Частичная отмена мест
 4. Отображение «+N» в составе
 5. Данные и API: POST /events/{id}/bookings {seats}; PATCH /bookings/{id} {seats}.
-6. Сверить экраны с референсом через харнесс [19.0.2](19-0-2-visual-reference-harness.md) и приложить отчёт к PR.
+6. Денежная модель по [ADR v3 · Денежная модель нескольких мест](../architecture/ADR-v3-domain.md#денежная-модель-нескольких-мест): один платёж на место; воплощение записи (`bookings.incarnation`, `payments.booking_incarnation`) и живые платежи; статус `confirmed` только когда все живые платежи мест `succeeded`; подтверждение и отклонение оплаты — одной операцией над записью (отклонение снимает только неоплаченные места, без оплаченных — отменяет запись); снятие одного места — через PATCH seats. Перевести на живые платежи записи: `paymentService.confirm`/`cancel` (guard 6.8.5), `listPending`/`notifyOrganizersAboutPending` (группировка по записи), уведомления `payment_confirmed`/`payment_rejected` (одно на операцию), `bookingService.cancel` (возврат всех оплаченных мест), `events.cancel`, историю платежей и дашборд.
+7. Сверить экраны с референсом через харнесс [19.0.2](19-0-2-visual-reference-harness.md) и приложить отчёт к PR.
 
 ## Критерии приёмки
 
