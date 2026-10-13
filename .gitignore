@@ -6,6 +6,7 @@ dist/
 .output/
 coverage/
 output/playwright/
+output/visual/
 *.log
 .DS_Store
 .env
