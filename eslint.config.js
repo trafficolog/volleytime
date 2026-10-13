@@ -32,8 +32,6 @@ export default tseslint.config(
         AbortSignal: 'readonly',
         URL: 'readonly',
         Buffer: 'readonly',
-        Image: 'readonly',
-        document: 'readonly',
       },
     },
   },
