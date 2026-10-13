@@ -2,11 +2,11 @@
 id: '19.1.2'
 phase: '19'
 epic: '19.1'
-status: in_progress
+status: done
 release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-13
-status_note: 'Общая статусная модель: PR #104, ревью merge, CI green. Открыт только критерий визуального отчёта (харнесс 19.0.2).'
+status_note: 'Общая статусная модель: PR #104; визуальный отчёт docs/operations/qa/2026-10-13-wave1-visual.md — расхождений Critical/Important в зоне карточки нет.'
 ref_id: 'M-05'
 complexity: M
 impl_model: claude-sonnet-5-5
