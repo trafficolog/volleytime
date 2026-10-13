@@ -43,3 +43,37 @@ describe('desktop cashbox hero', () => {
     expect(contrastRatio(color(caption), color(background))).toBeGreaterThanOrEqual(4.5)
   })
 })
+
+describe('desktop dashboard balance hero (dark theme)', () => {
+  const heroRule = '.vt-desktop-dashboard .vt-card.vt-desktop-dashboard__balance'
+
+  it('takes primary text from the on-hero token, not the theme-dependent paper', () => {
+    expect(property(desktopCss, heroRule, 'color')).toBe('var(--vt-on-hero)')
+    expect(property(desktopCss, '.vt-desktop-dashboard__balance .vt-cap', 'color')).toBe(
+      'var(--vt-on-hero)',
+    )
+    expect(desktopCss).not.toMatch(/vt-desktop-dashboard__balance[^}]*var\(--vt-paper\)/)
+  })
+
+  it('takes the explanatory line from the on-hero-2 token', () => {
+    expect(
+      property(
+        desktopCss,
+        '.vt-desktop-dashboard__balance > p:not(.vt-desktop-dashboard__balance-value)',
+        'color',
+      ),
+    ).toBe('var(--vt-on-hero-2)')
+  })
+
+  it('keeps on-hero text readable on blue ink, and the dark theme does not override it', () => {
+    // Token declarations may follow a comment line, which the shared property() helper does not match.
+    const tokenValue = (name: string) =>
+      tokensCss.match(new RegExp(`[\\s;]${name}:\\s*([^;]+);`))?.[1]?.trim()
+    expect(
+      contrastRatio(tokenValue('--vt-on-hero') ?? '', tokenValue('--vt-blue-ink') ?? ''),
+    ).toBeGreaterThanOrEqual(4.5)
+    const darkBlock = tokensCss.match(/\.dark,\s*\.vt-dark\s*\{([^}]*)\}/)?.[1] ?? ''
+    expect(darkBlock).not.toContain('--vt-on-hero')
+    expect(darkBlock).not.toContain('--vt-blue-ink')
+  })
+})

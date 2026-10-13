@@ -554,3 +554,8 @@
     padding-bottom: calc(110px + env(safe-area-inset-bottom));
   }
 }
+
+/* Colour logo mark on dark surfaces: the on-blue variant, as in handoff styles.css (.vt-dark .vt-ball). */
+:is(.dark, .vt-dark) img[src$='/logo/vt-mark-color.svg'] {
+  content: url('/logo/vt-mark-on-blue.svg');
+}
