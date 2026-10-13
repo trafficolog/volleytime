@@ -2,11 +2,11 @@
 id: '19.2.2'
 phase: '19'
 epic: '19.2'
-status: todo
+status: done
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-10-13
+status_note: 'Миграции 0021 + 0022, GET/PATCH settings, снимок политики отмены, запрет отмены на сервере: PR #107 + #108, ревью Opus merge, CI green.'
 ref_id: 'P-02'
 complexity: M
 impl_model: claude-sonnet-5-5

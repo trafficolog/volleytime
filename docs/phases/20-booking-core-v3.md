@@ -4,7 +4,7 @@ status: todo
 release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-12
-status_note: 'Референс v3 Ф1. 27 задач.'
+status_note: 'Референс v3 Ф1. 28 задач.'
 estimated_hours: '188-376'
 depends_on: []
 ---
@@ -39,7 +39,7 @@ depends_on: []
 | [20.6](../epics/20-6-public-event-page.md)        | Публичная страница события  |     1 |   4-8 |
 | [20.7](../epics/20-7-release-v0-2-0.md)           | Релиз v0.2.0                |     1 |  8-16 |
 
-**Итого:** 7 эпиков, 27 задач, 188-376 ч. Модели реализации: `claude-haiku-5-5` — 4, `claude-opus-5-5` — 6, `claude-sonnet-5-5` — 17.
+**Итого:** 7 эпиков, 28 задач, 192-384 ч. Модели реализации: `claude-haiku-5-5` — 4, `claude-opus-5-5` — 6, `claude-sonnet-5-5` — 18.
 
 ## Технические заметки
 
