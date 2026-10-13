@@ -153,6 +153,33 @@ describe('organizationSettingsService (integration)', () => {
       ).toBe(10)
     })
 
+    it('rejects default split while split pricing is disabled', async () => {
+      await expect(
+        organizationSettingsService.update(ctx(), orgId, { defaultPriceMode: 'split' }),
+      ).rejects.toMatchObject({ code: 'organization.invalid_settings' })
+      expect((await organizationSettingsService.get(ctx(), orgId)).defaultPriceMode).toBe('fixed')
+      process.env.EVENT_SPLIT_PRICING_ENABLED = 'true'
+      await expect(
+        organizationSettingsService.update(ctx(), orgId, { defaultPriceMode: 'split' }),
+      ).resolves.toMatchObject({ defaultPriceMode: 'split' })
+    })
+
+    it('event create racing with a settings change gets one consistent snapshot', async () => {
+      await organizationSettingsService.update(ctx(), orgId, { cancellationDeadlineHours: 6 })
+      const results = await Promise.all([
+        ...Array.from({ length: 6 }, () => makeEvent()),
+        organizationSettingsService.update(ctx(), orgId, {
+          cancellationAllowed: false,
+          cancellationDeadlineHours: 24,
+        }),
+      ])
+      for (const ev of results.slice(0, 6) as Awaited<ReturnType<typeof makeEvent>>[]) {
+        const old = ev.cancellationAllowed === true && ev.cancellationDeadlineHours === 6
+        const next = ev.cancellationAllowed === false && ev.cancellationDeadlineHours === 24
+        expect(old || next).toBe(true) // никогда не смесь старого и нового
+      }
+    })
+
     it('rejects an empty patch with organization.invalid_settings', async () => {
       await expect(organizationSettingsService.update(ctx(), orgId, {})).rejects.toBeInstanceOf(
         OrganizationInvalidSettingsError,

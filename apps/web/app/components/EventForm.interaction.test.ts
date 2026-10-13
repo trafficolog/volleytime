@@ -50,6 +50,9 @@ async function fill(
 beforeEach(() => {
   apiFetch.mockReset()
   apiFetch.mockImplementation(async (url: string) => {
+    if (url.endsWith('/settings')) {
+      return { settings: { cancellationAllowed: true, cancellationDeadlineHours: 12 } }
+    }
     if (url.endsWith('/venues')) return { venues: [{ id: 8, name: 'Зал', address: null }] }
     return { event: { id: 71 } }
   })
@@ -156,7 +159,11 @@ describe('EventForm payload and state', () => {
     await fill(wrapper, '#ev-venue', '8')
     await fill(wrapper, '#ev-cap', '14')
     await fill(wrapper, '#ev-price', '15,50')
-    await fill(wrapper, '#ev-deadline', '4')
+    // срок отмены не редактируется в форме: показывается политика группы (D-02)
+    expect(wrapper.find('#ev-deadline').exists()).toBe(false)
+    expect(wrapper.get('#ev-cancellation-policy').text()).toBe(
+      'Отмена: до 12 ч до начала · меняется в настройках группы',
+    )
     await fill(wrapper, '#ev-desc', 'Приходите заранее')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
@@ -172,7 +179,6 @@ describe('EventForm payload and state', () => {
         price: 1550,
         priceMode: 'fixed',
         targetAmount: null,
-        cancellationDeadlineHours: 4,
         description: 'Приходите заранее',
         status: 'published',
       },
@@ -204,6 +210,8 @@ describe('EventForm payload and state', () => {
       createdAt: new Date('2026-09-01T00:00:00.000Z'),
       updatedAt: new Date('2026-09-01T00:00:00.000Z'),
     })
+    // у существующего события — его снимок, а не текущие настройки группы
+    expect(wrapper.get('#ev-cancellation-policy').text()).toContain('до 6 ч до начала')
     expect((wrapper.get('#ev-start').element as HTMLInputElement).value).toBe('2026-09-27T19:00')
     expect((wrapper.get('#ev-price').element as HTMLInputElement).value).toBe('0')
     apiFetch.mockRejectedValueOnce(new Error('server'))
@@ -218,6 +226,18 @@ describe('EventForm payload and state', () => {
     )
     expect((wrapper.get('#ev-title').element as HTMLInputElement).value).toBe('Черновик')
     expect(wrapper.get('[role="alert"]').text()).toContain('Сервер не сохранил событие')
+  })
+
+  it('shows a forbidden-cancellation policy of the group read-only', async () => {
+    apiFetch.mockImplementation(async (url: string) => {
+      if (url.endsWith('/settings')) {
+        return { settings: { cancellationAllowed: false, cancellationDeadlineHours: null } }
+      }
+      return url.endsWith('/venues') ? { venues: [] } : { event: { id: 71 } }
+    })
+    const wrapper = await renderForm()
+    expect(wrapper.get('#ev-cancellation-policy').text()).toContain('Отмена записи запрещена')
+    wrapper.unmount()
   })
 
   it('keeps a closed event closed when editing its title without publishing it', async () => {
@@ -280,7 +300,8 @@ describe('EventForm payload and state', () => {
     await flushPromises()
     expect(wrapper.get('[role="alert"]').text()).toContain('цену')
     expect((wrapper.get('#ev-price').element as HTMLInputElement).value).toBe('abc')
-    expect(apiFetch).toHaveBeenCalledTimes(1)
+    // только чтения при загрузке формы (залы, политика группы)
+    expect(apiFetch).toHaveBeenCalledTimes(2)
     await fill(wrapper, '#ev-price', '5,00')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
@@ -299,7 +320,7 @@ describe('EventForm payload and state', () => {
     current = false
     await wrapper.get('form').trigger('submit')
     await flushPromises()
-    expect(apiFetch).toHaveBeenCalledTimes(1)
+    expect(apiFetch).toHaveBeenCalledTimes(2)
   })
 
   it('creates a new venue first and sends its id with the event', async () => {

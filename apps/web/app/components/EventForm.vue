@@ -40,6 +40,32 @@ const defaultStart = () => {
   return dateToZonedInput(d, props.tz).replace(/T\d{2}:/, 'T19:')
 }
 const i = props.initial
+// Политика отмены принадлежит группе (D-02): форма её только показывает.
+// Для существующего события — снимок события, для нового — настройки группы.
+const groupPolicy = ref<{
+  cancellationAllowed: boolean
+  cancellationDeadlineHours: number | null
+} | null>(null)
+if (!i) {
+  try {
+    groupPolicy.value = (
+      await $fetch<{
+        settings: { cancellationAllowed: boolean; cancellationDeadlineHours: number | null }
+      }>(`/api/organizations/${props.orgId}/settings`)
+    ).settings
+  } catch {
+    groupPolicy.value = null
+  }
+}
+const cancellationPolicyText = computed(() => {
+  const policy = i ?? groupPolicy.value
+  if (!policy) return 'Политика отмены задаётся в настройках группы'
+  if (!policy.cancellationAllowed) return 'Отмена записи запрещена · меняется в настройках группы'
+  return policy.cancellationDeadlineHours == null
+    ? 'Отмена: до начала · меняется в настройках группы'
+    : `Отмена: до ${policy.cancellationDeadlineHours} ч до начала · меняется в настройках группы`
+})
+
 const form = reactive({
   title: i?.title ?? 'Тренировка',
   startsAt: i ? dateToZonedInput(i.startsAt, props.tz) : defaultStart(),
@@ -54,7 +80,6 @@ const form = reactive({
   priceMajor: i ? String(toMajor(i.price)) : '0',
   priceMode: i?.priceMode ?? 'fixed',
   targetMajor: i?.targetAmount ? String(toMajor(i.targetAmount)) : '',
-  cancellationDeadlineHours: (i?.cancellationDeadlineHours ?? 6) as number | '',
   description: i?.description ?? '',
   publish: i ? i.status === 'published' : true,
 })
@@ -121,8 +146,6 @@ async function submit() {
       priceMode: form.priceMode,
       price: split ? 0 : amount,
       targetAmount: split ? amount : null,
-      cancellationDeadlineHours:
-        form.cancellationDeadlineHours === '' ? null : Number(form.cancellationDeadlineHours),
       description: form.description.trim() || (props.initial ? null : undefined),
       status: form.publish ? 'published' : i?.status === 'closed' ? 'closed' : 'draft',
     }
@@ -326,16 +349,9 @@ async function submit() {
     <fieldset class="space-y-3">
       <legend class="mb-3 text-base font-bold text-vt-ink">Дополнительно</legend>
       <div>
-        <label class="vt-label" for="ev-deadline">Отмена записи — не позднее, чем за (часов)</label>
-        <input
-          id="ev-deadline"
-          v-model="form.cancellationDeadlineHours"
-          type="number"
-          min="0"
-          max="720"
-          class="vt-field"
-          placeholder="без ограничения"
-        />
+        <p id="ev-cancellation-policy" class="text-sm text-vt-mute-2">
+          {{ cancellationPolicyText }}
+        </p>
       </div>
       <div>
         <label class="vt-label" for="ev-desc">Описание</label>

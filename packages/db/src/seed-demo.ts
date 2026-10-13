@@ -514,6 +514,16 @@ async function ensureOrganization(
       `Organization slug "${spec.slug}" belongs to a non-demo owner; refusing to seed into it`,
     )
   }
+  // организации, созданные прежней версией сида, получают настройки v3 (идемпотентно)
+  const settings = DEMO_GROUP_SETTINGS[spec.slug]
+  if (settings) {
+    const [updated] = await tx
+      .update(organizations)
+      .set(settings)
+      .where(eq(organizations.id, org!.id))
+      .returning()
+    return updated!
+  }
   return org!
 }
 

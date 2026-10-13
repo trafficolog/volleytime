@@ -78,7 +78,7 @@ describe('migration 0021 group settings (integration)', () => {
     }
   })
 
-  it('gives existing rows the defaults (forward-compatible, no backfill)', async () => {
+  it('gives existing rows the defaults and backfills the deadline from the events (R0.7)', async () => {
     const { url, sql } = await scratchDb()
     try {
       await runMigrations(url)
@@ -90,10 +90,21 @@ describe('migration 0021 group settings (integration)', () => {
       const [org] = await sql<{ id: number }[]>`
         INSERT INTO organizations (slug, name, owner_user_id)
         VALUES ('old-org', 'Old', ${user!.id}) RETURNING id`
-      await sql`
-        INSERT INTO events (organization_id, created_by_user_id, title, starts_at, ends_at, capacity,
-                            cancellation_deadline_hours)
-        VALUES (${org!.id}, ${user!.id}, 'Старое', now() + interval '1 day', now() + interval '2 day', 10, 5)`
+      // самый частый срок: 5 (два события), 8 (одно), событие без срока не считается
+      for (const [title, hours] of [
+        ['a', 5],
+        ['b', 5],
+        ['c', 8],
+        ['d', null],
+      ] as const) {
+        await sql`
+          INSERT INTO events (organization_id, created_by_user_id, title, starts_at, ends_at, capacity,
+                              cancellation_deadline_hours)
+          VALUES (${org!.id}, ${user!.id}, ${title}, now() + interval '1 day', now() + interval '2 day', 10, ${hours})`
+      }
+      const [empty] = await sql<{ id: number }[]>`
+        INSERT INTO organizations (slug, name, owner_user_id)
+        VALUES ('empty-org', 'Empty', ${user!.id}) RETURNING id`
 
       await runMigrations(url)
 
@@ -103,12 +114,16 @@ describe('migration 0021 group settings (integration)', () => {
         default_price_mode: 'fixed',
         default_join_mode: 'open',
         cancellation_allowed: true,
-        cancellation_deadline_hours: null,
+        cancellation_deadline_hours: 5,
         seo_index: false,
         district: null,
       })
-      const [e] = await sql`SELECT cancellation_allowed, cancellation_deadline_hours FROM events`
-      expect(e).toMatchObject({ cancellation_allowed: true, cancellation_deadline_hours: 5 })
+      const [o2] =
+        await sql`SELECT cancellation_deadline_hours FROM organizations WHERE id = ${empty!.id}`
+      expect(o2!.cancellation_deadline_hours).toBe(6)
+      const evs =
+        await sql`SELECT cancellation_allowed, cancellation_deadline_hours FROM events WHERE title = 'c'`
+      expect(evs[0]).toMatchObject({ cancellation_allowed: true, cancellation_deadline_hours: 8 })
     } finally {
       await sql.end()
     }

@@ -60,6 +60,7 @@ const CODE_STATUS: Record<string, number> = {
   'event.capacity_below_taken': 422,
   'money.currency_mismatch': 422,
   'booking.deadline_passed': 422,
+  'booking.cancellation_not_allowed': 422,
   'booking.cannot_cancel_others': 403,
   'subscription.not_found': 404,
   'subscription.no_active': 409,
