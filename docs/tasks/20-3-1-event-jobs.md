@@ -13,7 +13,7 @@ impl_model: claude-opus-5-5
 review_model: claude-opus-5-5
 review_gate: opus+tests
 roles: [BACK, DEVOPS]
-depends_on: ['20.1.1']
+depends_on: ['20.1.1', '20.1.2']
 supersedes:
   [
     '15.1.1',

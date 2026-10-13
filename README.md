@@ -37,6 +37,7 @@ pnpm test:unit            # без БД
 pnpm test:integration     # db / core / auth на Postgres
 pnpm typecheck && pnpm lint
 pnpm db:rollback          # откат последней миграции (нужен rollback/<tag>.sql)
+pnpm db:seed:demo         # демо-группы макетов v3 (идемпотентно; запрещено при NODE_ENV=production)
 ```
 
 ---
