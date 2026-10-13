@@ -127,11 +127,33 @@ export function selectScreens(map, { routes, viewport } = {}) {
   return list
 }
 
-/** Адрес только локальный: харнесс логинится тестовым initData и пишет в БД. */
+const LOCAL_HOSTS = ['localhost', '127.0.0.1', '[::1]', '::1']
+
+/**
+ * Адрес только локальный: харнесс логинится тестовым initData и пишет в БД.
+ * Authority с несколькими "@" или "," отклоняется: клиенты БД (postgres.js) разбирают такие
+ * адреса иначе, чем WHATWG URL. Сообщения не содержат исходный адрес (там может быть пароль).
+ */
 export function assertLocalUrl(raw, what) {
-  const host = new URL(raw).hostname
-  if (!['localhost', '127.0.0.1', '[::1]', '::1'].includes(host))
-    throw new Error(`${what}: разрешён только локальный адрес (получен ${host})`)
+  const authority = /^[a-z][a-z0-9+.-]*:\/\/([^/?#]*)/i.exec(String(raw))?.[1]
+  if (authority === undefined) throw new Error(`${what}: некорректный адрес`)
+  if (authority.includes(',') || authority.split('@').length > 2)
+    throw new Error(`${what}: недопустимый authority (несколько хостов или "@")`)
+  let host
+  try {
+    host = new URL(raw).hostname
+  } catch {
+    throw new Error(`${what}: некорректный адрес`)
+  }
+  if (!LOCAL_HOSTS.includes(host))
+    throw new Error(`${what}: разрешён только локальный адрес (получен хост ${host})`)
+}
+
+/** Проверка фактических хостов клиента БД (sql.options.host): все локальные. */
+export function assertLocalHosts(hosts, what) {
+  const list = Array.isArray(hosts) ? hosts : [hosts]
+  if (list.length === 0 || list.some((h) => !LOCAL_HOSTS.includes(String(h))))
+    throw new Error(`${what}: клиент БД указывает на нелокальный хост`)
 }
 
 const esc = (s) =>
@@ -160,6 +182,7 @@ export function renderMarkdown(run) {
     lines.push(`- Route: \`${r.url}\`; role: ${r.role}; viewport: ${r.viewportSize}`)
     if (r.error) lines.push(`- **Capture failed:** ${r.error}`)
     else lines.push(`- Capture: ![capture](${r.capture})`)
+    if (r.warning) lines.push(`- **Warning:** ${r.warning}`)
     r.references.forEach((ref) => lines.push(`- Reference: ![reference](${ref})`))
     if (typeof r.diffPercent === 'number')
       lines.push(`- Pixel diff: ${fmtDiff(r)}${r.diffImage ? ` ([image](${r.diffImage}))` : ''}`)
@@ -176,6 +199,7 @@ export function renderHtml(run) {
       const cap = r.error
         ? `<p class="err">Capture failed: ${esc(r.error)}</p>`
         : `<img src="${esc(r.capture)}" alt="capture">`
+      const warn = r.warning ? `<p class="err">Warning: ${esc(r.warning)}</p>` : ''
       const diff =
         typeof r.diffPercent === 'number'
           ? `<p>Pixel diff: <b>${fmtDiff(r)}</b>${r.diffImage ? ` · <a href="${esc(r.diffImage)}">diff image</a>` : ''}</p>`
@@ -183,7 +207,7 @@ export function renderHtml(run) {
       return `<section id="${esc(r.id)}-${esc(r.theme)}">
 <h2>${esc(r.id)} — ${esc(r.title)} <small>${esc(r.theme)}</small></h2>
 <p class="meta"><code>${esc(r.url)}</code> · role ${esc(r.role)} · ${esc(r.viewportSize)}</p>
-${diff}
+${warn}${diff}
 <div class="pair"><figure><figcaption>App</figcaption>${cap}</figure><figure><figcaption>Reference</figcaption>${refs}</figure></div>
 <h3>Differences</h3>
 <ul class="diffs"><li contenteditable="true"></li></ul>

@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import {
+  assertLocalHosts,
   assertLocalUrl,
   pickEvent,
   renderHtml,
@@ -95,10 +96,48 @@ describe('route helpers', () => {
     expect(() => selectScreens(map, { routes: ['nope'] })).toThrow('nope')
   })
 
-  it('accepts only local urls', () => {
-    expect(() => assertLocalUrl('http://localhost:3000', 'x')).not.toThrow()
-    expect(() => assertLocalUrl('postgresql://u:p@127.0.0.1:5432/db', 'x')).not.toThrow()
-    expect(() => assertLocalUrl('https://volleytime.by', 'x')).toThrow()
+  it.each([
+    'http://localhost:3000',
+    'http://127.0.0.1:3000/',
+    'http://[::1]:3000',
+    'postgresql://postgres:postgres@localhost:5432/db',
+    'postgresql://postgres:postgres@127.0.0.1:55471/db',
+  ])('accepts local url %s', (url) => {
+    expect(() => assertLocalUrl(url, 'x')).not.toThrow()
+  })
+
+  it.each([
+    'https://volleytime.by',
+    'http://localhost.evil.com:3000',
+    'http://localhost:3000@evil.com',
+    'postgresql://u@prod.example.com,@localhost:5432/db',
+    'postgresql://u:p@localhost,prod.example.com/db',
+    'postgresql://a@b@localhost/db',
+    'not a url',
+    'localhost:5432',
+  ])('rejects non-local url %s', (url) => {
+    expect(() => assertLocalUrl(url, 'x')).toThrow()
+  })
+
+  it('does not leak the raw url or password in errors', () => {
+    const url = 'postgresql://u:s3cretpw@prod.example.com,@localhost/db'
+    try {
+      assertLocalUrl(url, 'DATABASE_URL')
+    } catch (e) {
+      expect((e as Error).message).not.toContain('s3cretpw')
+    }
+    try {
+      assertLocalUrl('http://:s3cretpw@[bad', 'DATABASE_URL')
+    } catch (e) {
+      expect((e as Error).message).not.toContain('s3cretpw')
+    }
+  })
+
+  it('checks every host of the db client', () => {
+    expect(() => assertLocalHosts(['localhost'], 'x')).not.toThrow()
+    expect(() => assertLocalHosts(['127.0.0.1', '::1'], 'x')).not.toThrow()
+    expect(() => assertLocalHosts(['localhost', 'prod.example.com'], 'x')).toThrow()
+    expect(() => assertLocalHosts([], 'x')).toThrow()
   })
 })
 
@@ -130,6 +169,12 @@ describe('reports', () => {
     expect(md).toContain('![reference](refs/a.png)')
     expect(md).toContain('Pixel diff: 12.3%')
     expect(md).toContain('### Differences')
+  })
+
+  it('shows warning alongside capture', () => {
+    const w = { ...run, results: [{ ...run.results[0], warning: 'редирект' }] }
+    expect(renderMarkdown(w)).toContain('**Warning:** редирект')
+    expect(renderHtml(w)).toContain('Warning: редирект')
   })
 
   it('html escapes titles and has an editable differences list', () => {

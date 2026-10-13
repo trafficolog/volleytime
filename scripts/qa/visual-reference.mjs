@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* global document, Image */
 /**
  * Харнесс визуальной сверки с референсом v3 (Task 19.0.2). Локальный инструмент, не CI-gate.
  *
@@ -23,6 +24,7 @@ import { parseArgs } from 'node:util'
 
 import {
   THEMES,
+  assertLocalHosts,
   assertLocalUrl,
   pickEvent,
   renderHtml,
@@ -91,12 +93,21 @@ const base = args.base.replace(/\/+$/, '')
 const botToken = (process.env.TELEGRAM_BOT_TOKEN ?? '').trim()
 const databaseUrl = process.env.DATABASE_URL ?? ''
 const needsAuth = screens.some((s) => s.role !== 'anonymous')
-assertLocalUrl(base, '--base')
-if (needsAuth) {
-  if (!botToken)
-    throw new Error('Задайте TELEGRAM_BOT_TOKEN (тестовый токен, тот же, что у сервера)')
-  if (!databaseUrl) throw new Error('Задайте DATABASE_URL локальной БД с демо-сидом')
-  assertLocalUrl(databaseUrl, 'DATABASE_URL')
+if (process.env.NODE_ENV === 'production') {
+  console.error('Харнесс не запускается при NODE_ENV=production')
+  process.exit(1)
+}
+try {
+  assertLocalUrl(base, '--base')
+  if (needsAuth) {
+    if (!botToken)
+      throw new Error('Задайте TELEGRAM_BOT_TOKEN (тестовый токен, тот же, что у сервера)')
+    if (!databaseUrl) throw new Error('Задайте DATABASE_URL локальной БД с демо-сидом')
+    assertLocalUrl(databaseUrl, 'DATABASE_URL')
+  }
+} catch (e) {
+  console.error(e instanceof Error ? e.message : 'Некорректные параметры')
+  process.exit(1)
 }
 
 function signInitData(tgId, name) {
@@ -116,8 +127,17 @@ function signInitData(tgId, name) {
 /** Привязывает тестовый Telegram id к демо-пользователю локальной БД, возвращает id. */
 async function ensureTelegramId(sql, key, index) {
   const email = `demo-${key}@${DEMO_EMAIL_DOMAIN}`
-  const wanted = 7_000_000_000 + index
-  await sql`update users set telegram_user_id = ${wanted} where email = ${email} and telegram_user_id is null`
+  const [current] = await sql`select telegram_user_id from users where email = ${email}`
+  if (current && current.telegram_user_id === null) {
+    // свободный тестовый id: fixed id мог быть занят другим пользователем
+    let wanted = 7_000_000_000 + index
+    for (let i = 0; i < 100; i++, wanted += 10) {
+      const taken = await sql`select 1 from users where telegram_user_id = ${wanted}`
+      if (taken.length === 0) break
+      if (i === 99) throw new Error('Не найден свободный тестовый telegram id (7_000_000_000+)')
+    }
+    await sql`update users set telegram_user_id = ${wanted} where email = ${email} and telegram_user_id is null`
+  }
   const [row] = await sql`select telegram_user_id, name from users where email = ${email}`
   if (!row) throw new Error(`Демо-пользователь ${email} не найден: выполните pnpm db:seed:demo`)
   return { tgId: Number(row.telegram_user_id), name: row.name ?? key }
@@ -210,6 +230,8 @@ const runDir = join(args.out, stamp)
 for (const d of ['captures', 'refs', 'diffs']) mkdirSync(join(runDir, d), { recursive: true })
 
 const sql = needsAuth ? postgres(databaseUrl, { max: 1 }) : null
+// страховка: фактические хосты клиента БД (postgres.js разбирает URL иначе, чем WHATWG URL)
+if (sql) assertLocalHosts(sql.options.host, 'DATABASE_URL')
 const browser = await chromium.launch({
   headless: true,
   ...(args['browser-path'] ? { executablePath: args['browser-path'] } : { channel: args.channel }),
@@ -310,9 +332,14 @@ try {
             result.diffPercent = d.percent
             result.diffImage = diffFile
           }
-          if (result.finalUrl !== result.url)
-            result.error = `редирект: открылось ${result.finalUrl} вместо ${result.url}`
-          console.log(`ok   ${screen.id} [${theme}]${result.error ? ` (${result.error})` : ''}`)
+          if (result.finalUrl !== result.url) {
+            // снимок сохраняется, но прогон считается неуспешным (exit code 1)
+            result.warning = `редирект: открылось ${result.finalUrl} вместо ${result.url}`
+            exitCode = 1
+          }
+          console.log(
+            `${result.warning ? 'WARN' : 'ok  '} ${screen.id} [${theme}]${result.warning ? ` (${result.warning})` : ''}`,
+          )
         } catch (e) {
           result.error = e instanceof Error ? e.message : String(e)
           exitCode = 1
