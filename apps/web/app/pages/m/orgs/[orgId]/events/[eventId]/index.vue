@@ -5,6 +5,7 @@ import { formatDay, formatTime, type EventPricingView } from '@volley-time/share
 import { eventPricingLabel, splitBookingPaymentLabel } from '~/utils/event-pricing-label'
 import { displayName } from '~/utils/labels'
 import {
+  bookingPaymentChip,
   playerEventLoadErrorNotice,
   playerEventPageState,
   playerEventReady,
@@ -95,6 +96,9 @@ const priceLabel = computed(() =>
 )
 const paymentLabel = computed(() =>
   ev.value && my.value ? splitBookingPaymentLabel(ev.value.pricing, my.value.status) : null,
+)
+const paymentChip = computed(() =>
+  my.value ? bookingPaymentChip(my.value.status, ev.value?.pricing) : null,
 )
 const full = computed(() => !!ev.value && ev.value.taken >= ev.value.capacity)
 const started = computed(() => !!ev.value && new Date(ev.value.startsAt) <= new Date())
@@ -397,20 +401,11 @@ async function cancelMine() {
               }}</span>
             </div>
           </div>
-          <VtChip v-if="ev.status === 'cancelled'" tone="rose">Событие отменено</VtChip>
-          <VtChip v-else-if="ev.status === 'draft'" tone="amber">Черновик события</VtChip>
-          <VtChip
-            v-else-if="eventView?.hasBooking && eventView.bookingCard"
-            :tone="eventView.bookingCard.tone"
-            dot
-            >{{
-              paymentLabel?.text ??
-              (my?.status === 'pending_payment' ? 'Ждёт оплаты' : eventView.bookingCard.title)
-            }}</VtChip
-          >
-          <VtChip v-else-if="started">Запись закрыта</VtChip>
-          <VtChip v-else-if="full" tone="rose">Лист ожидания</VtChip>
-          <VtChip v-else>Места есть</VtChip>
+          <div class="flex shrink-0 flex-col items-end gap-1">
+            <VtMyChip :booking="my" />
+            <VtStateChip :event="ev" />
+            <VtChip v-if="paymentChip" :tone="paymentChip.tone">{{ paymentChip.text }}</VtChip>
+          </div>
         </div>
         <div class="vt-divider my-3" />
         <div class="grid grid-cols-2 gap-2.5">
@@ -443,17 +438,9 @@ async function cancelMine() {
       <section aria-labelledby="event-roster-title">
         <div class="flex items-center justify-between mb-2">
           <h2 id="event-roster-title" class="vt-cap">Состав</h2>
-          <span class="vt-mono text-xs text-vt-mute-2"
-            >{{ ev.taken }}/{{ ev.capacity
-            }}<template v-if="ev.waitlist"> · ожидают {{ ev.waitlist }}</template></span
-          >
+          <span v-if="ev.waitlist" class="text-xs text-vt-mute-2">ожидают {{ ev.waitlist }}</span>
         </div>
-        <VtMeter
-          :value="ev.taken"
-          :max="ev.capacity"
-          :tone="full ? 'amber' : 'flame'"
-          label="Заполненность"
-        />
+        <VtSeatsMini :taken="ev.taken" :capacity="ev.capacity" :event="ev" :width="120" />
         <ul v-if="roster.length" class="mt-3 grid grid-cols-2 gap-1.5">
           <li
             v-for="r in roster"
@@ -481,11 +468,16 @@ async function cancelMine() {
         role="status"
         aria-label="Ваша запись"
       >
-        <VtChip :tone="eventView.bookingCard.tone" dot>{{ eventView.bookingCard.title }}</VtChip>
+        <div class="flex flex-wrap items-center gap-2">
+          <VtMyChip :booking="my" />
+          <span class="text-sm font-semibold">{{ eventView.bookingCard.title }}</span>
+        </div>
         <p class="text-sm text-vt-mute-2 mt-2">{{ eventView.bookingCard.text }}</p>
         <div v-if="paymentLabel" class="mt-2 space-y-1">
           <p v-if="my.status !== 'waitlisted'" class="vt-mono text-sm">{{ priceLabel?.text }}</p>
-          <VtChip :tone="paymentLabel.tone">{{ paymentLabel.text }}</VtChip>
+          <VtChip v-if="my.status !== 'waitlisted'" :tone="paymentLabel.tone">{{
+            paymentLabel.text
+          }}</VtChip>
         </div>
         <button
           v-if="canCancel"

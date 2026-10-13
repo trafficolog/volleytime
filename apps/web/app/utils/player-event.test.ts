@@ -2,7 +2,7 @@ import type { EventPricingView } from '@volley-time/shared'
 import { describe, expect, it } from 'vitest'
 
 import {
-  eventCardBookingState,
+  bookingPaymentChip,
   playerEventLoadErrorNotice,
   playerEventPageState,
   playerEventReady,
@@ -98,9 +98,10 @@ describe('player event view state', () => {
     expect(playerEventPageState('denied', sources, 'network.unavailable')).toBe('error')
   })
 
-  it('labels a cancelled event-card booking neutrally while leaving no active booking chip for null', () => {
-    expect(eventCardBookingState('cancelled')).toEqual({ tone: 'default', text: 'Запись отменена' })
-    expect(eventCardBookingState(null)).toBeNull()
+  it('keeps the payment axis separate from participation on booking chips', () => {
+    expect(bookingPaymentChip('pending_payment')).toEqual({ tone: 'amber', text: 'Ждёт оплаты' })
+    for (const status of ['confirmed', 'attended', 'waitlisted', 'cancelled', null])
+      expect(bookingPaymentChip(status)).toBeNull()
   })
   it('blocks actions while current sources refresh or fail, despite retained matching data', () => {
     const current = {

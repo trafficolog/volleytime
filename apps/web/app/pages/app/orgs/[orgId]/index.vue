@@ -68,9 +68,12 @@ const view = computed(() => desktopDashboardView(data.value ?? null))
                   {{ event.venue?.name ?? event.locationText ?? 'Площадка не указана' }}
                 </small>
               </span>
-              <span class="vt-desktop-dashboard__seats vt-mono"
-                >{{ event.taken }}/{{ event.capacity }}</span
-              >
+              <VtSeatsMini
+                class="vt-desktop-dashboard__seats"
+                :taken="event.taken"
+                :capacity="event.capacity"
+                :event="event"
+              />
             </NuxtLink>
           </li>
         </ul>

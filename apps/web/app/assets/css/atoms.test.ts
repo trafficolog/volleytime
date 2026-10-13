@@ -91,3 +91,16 @@ describe('Bento Bold MVP atoms', () => {
     expect(skeleton).toContain('aria-label="Загрузка"')
   })
 })
+
+describe('status chips (19.1.2)', () => {
+  it('keeps the hero chip white in dark theme: later and at least as specific as the dark rule', () => {
+    const dark = css.indexOf(':is(.dark, .vt-dark) .vt-chip--mine {')
+    const hero = css.indexOf('.vt-chip.vt-chip--on-hero,')
+    expect(dark).toBeGreaterThan(0)
+    expect(hero).toBeGreaterThan(dark)
+    const block = css.slice(hero, css.indexOf('}', hero))
+    expect(block).toContain(':is(.dark, .vt-dark) .vt-chip.vt-chip--on-hero')
+    expect(block).toContain('background: var(--vt-on-hero)')
+    expect(css).not.toContain('--vt-flame-bright')
+  })
+})

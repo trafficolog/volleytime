@@ -1,6 +1,11 @@
 <script setup lang="ts">
 const props = withDefaults(
-  defineProps<{ value: number; max: number; tone?: 'flame' | 'grass' | 'amber'; label?: string }>(),
+  defineProps<{
+    value: number
+    max: number
+    tone?: 'flame' | 'grass' | 'amber' | 'rose'
+    label?: string
+  }>(),
   { tone: 'flame', label: undefined },
 )
 const pct = computed(() =>

@@ -13,11 +13,11 @@ import { canSubmitDesktopEventAction } from '~/utils/desktop-event-actions'
 import {
   BOOKING_METHOD_LABELS,
   BOOKING_STATUS_LABELS,
-  EVENT_STATUS_LABELS,
   displayName,
   formatPrice,
   formatMoneyRu,
 } from '~/utils/labels'
+import { pendingOf, pendingVerb } from '~/utils/status-model'
 
 definePageMeta({ layout: 'desktop-org', middleware: ['auth'] })
 
@@ -109,6 +109,11 @@ const inRoster = computed(() =>
   rows.value.filter((booking) =>
     ['confirmed', 'pending_payment', 'attended', 'no_show'].includes(booking.status),
   ),
+)
+const pendingCount = computed(() =>
+  rosterLoading.value || rosterError.value
+    ? null
+    : pendingOf(inRoster.value.filter((b) => b.paymentId !== null)),
 )
 const waitlist = computed(() => rows.value.filter((booking) => booking.status === 'waitlisted'))
 const started = computed(() => !!event.value && new Date(event.value.startsAt) <= new Date())
@@ -258,7 +263,7 @@ async function removeBooking(booking: EventBookingRow) {
     <template v-else>
       <header class="vt-desktop-dashboard__heading">
         <div>
-          <p class="vt-cap">{{ EVENT_STATUS_LABELS[event.status] ?? event.status }}</p>
+          <VtStateChip :event="event" />
           <h1 tabindex="-1">{{ event.title }}</h1>
           <p class="text-vt-mute-2">
             {{ formatDay(event.startsAt, tz) }}, {{ formatTime(event.startsAt, tz) }} ·
@@ -275,17 +280,16 @@ async function removeBooking(booking: EventBookingRow) {
 
       <div class="vt-desktop-event-detail__stats">
         <div class="vt-card">
-          <strong class="vt-mono">{{ event.taken }}/{{ event.capacity }}</strong
-          ><span>В составе</span>
+          <VtSeatsMini
+            :taken="event.taken"
+            :capacity="event.capacity"
+            :event="event"
+            :width="80"
+          /><span>В составе</span>
         </div>
         <div class="vt-card">
-          <strong class="vt-mono">{{
-            rosterLoading || rosterError
-              ? '—'
-              : inRoster.filter((b) => b.status === 'pending_payment' && b.paymentId !== null)
-                  .length
-          }}</strong
-          ><span>Ждут оплаты</span>
+          <strong class="vt-mono">{{ pendingCount ?? '—' }}</strong
+          ><span>{{ pendingVerb(pendingCount ?? 0) }} оплаты</span>
         </div>
         <div class="vt-card">
           <strong class="vt-mono">{{ event.waitlist }}</strong

@@ -11,6 +11,7 @@ import {
 
 import { displayName, formatPrice, formatMoneyRu } from '~/utils/labels'
 import { pendingPaymentsForEvent } from '~/utils/organizer-miniapp'
+import { pendingVerb } from '~/utils/status-model'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
 interface PendingPayment {
@@ -371,14 +372,18 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
     <main v-else class="px-4 py-4 space-y-5">
       <div class="manage-stats grid grid-cols-3 gap-2 text-center">
         <div class="vt-card p-2.5">
-          <div class="vt-mono font-bold text-lg">{{ ev.taken }}/{{ ev.capacity }}</div>
+          <div class="flex justify-center">
+            <VtSeatsMini :taken="ev.taken" :capacity="ev.capacity" :event="ev" :width="48" />
+          </div>
           <div class="vt-cap !text-[10px]">в составе</div>
         </div>
         <div class="vt-card p-2.5">
           <div class="vt-mono font-bold text-lg">
             {{ paymentsLoading || paymentsError ? '—' : eventPayments.length }}
           </div>
-          <div class="vt-cap !text-[10px]">ждут оплаты</div>
+          <div class="vt-cap !text-[10px]">
+            {{ pendingVerb(paymentsLoading || paymentsError ? 0 : eventPayments.length) }} оплаты
+          </div>
         </div>
         <div class="vt-card p-2.5">
           <div class="vt-mono font-bold text-lg">{{ ev.waitlist }}</div>
@@ -387,7 +392,7 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
       </div>
 
       <div v-if="ev.status === 'draft'" class="manage-draft vt-card p-3.5 flex items-center gap-3">
-        <VtChip tone="amber">Черновик</VtChip>
+        <VtStateChip :event="ev" />
         <span class="text-sm text-vt-mute-2 flex-1">Игроки не видят событие</span>
         <button
           type="button"
@@ -398,7 +403,7 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
           Опубликовать
         </button>
       </div>
-      <VtChip v-if="ev.status === 'cancelled'" tone="rose">Событие отменено</VtChip>
+      <VtStateChip v-if="ev.status === 'cancelled'" :event="ev" />
 
       <p v-if="actionError" class="text-sm text-vt-rose-ink" role="alert">{{ actionError }}</p>
       <button

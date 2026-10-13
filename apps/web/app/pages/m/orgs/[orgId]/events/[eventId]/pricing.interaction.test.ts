@@ -20,6 +20,9 @@ import Bookings from '../../bookings.vue'
 import Page from './index.vue'
 
 import EventCard from '~/components/EventCard.vue'
+import MyChip from '~/components/vt/MyChip.vue'
+import SeatsMini from '~/components/vt/SeatsMini.vue'
+import StateChip from '~/components/vt/StateChip.vue'
 
 const route = reactive({ params: { orgId: '30', eventId: '71' }, fullPath: '/m/orgs/30/events/71' })
 const pricing: EventPricingView = {
@@ -104,6 +107,9 @@ async function renderPage() {
           NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
           VtMiniHeader: { template: '<header><slot name="right" /></header>' },
           VtChip: { template: '<span><slot /></span>' },
+          VtMyChip: MyChip,
+          VtStateChip: StateChip,
+          VtSeatsMini: SeatsMini,
           VtIcon: true,
           VtMeter: true,
           VtAvatar: true,
@@ -135,6 +141,9 @@ async function renderBookings() {
           NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
           VtMiniHeader: true,
           VtChip: { template: '<span><slot /></span>' },
+          VtMyChip: MyChip,
+          VtStateChip: StateChip,
+          VtSeatsMini: SeatsMini,
           PlayerAccessNotice: true,
           SkeletonList: true,
           EmptyState: true,
@@ -209,6 +218,9 @@ describe('player split pricing interactions', () => {
           stubs: {
             NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
             VtChip: { template: '<span><slot /></span>' },
+            VtMyChip: MyChip,
+            VtStateChip: StateChip,
+            VtSeatsMini: SeatsMini,
             VtMeter: true,
           },
         },
@@ -245,6 +257,9 @@ describe('player split pricing interactions', () => {
           stubs: {
             NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
             VtChip: { template: '<span><slot /></span>' },
+            VtMyChip: MyChip,
+            VtStateChip: StateChip,
+            VtSeatsMini: SeatsMini,
             VtMeter: true,
           },
         },
@@ -268,6 +283,9 @@ describe('player split pricing interactions', () => {
           stubs: {
             NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
             VtChip: { template: '<span><slot /></span>' },
+            VtMyChip: MyChip,
+            VtStateChip: StateChip,
+            VtSeatsMini: SeatsMini,
             VtMeter: true,
           },
         },
@@ -296,6 +314,9 @@ describe('player split pricing interactions', () => {
           stubs: {
             NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
             VtChip: { template: '<span><slot /></span>' },
+            VtMyChip: MyChip,
+            VtStateChip: StateChip,
+            VtSeatsMini: SeatsMini,
             VtMeter: true,
           },
         },
@@ -331,6 +352,9 @@ describe('player split pricing interactions', () => {
             NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
             VtMiniHeader: true,
             VtChip: { template: '<span><slot /></span>' },
+            VtMyChip: MyChip,
+            VtStateChip: StateChip,
+            VtSeatsMini: SeatsMini,
             PlayerAccessNotice: true,
             SkeletonList: true,
             EmptyState: true,
@@ -393,6 +417,9 @@ describe('player split pricing interactions', () => {
             NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
             VtMiniHeader: true,
             VtChip: { template: '<span><slot /></span>' },
+            VtMyChip: MyChip,
+            VtStateChip: StateChip,
+            VtSeatsMini: SeatsMini,
             PlayerAccessNotice: true,
             SkeletonList: true,
             EmptyState: true,
@@ -445,6 +472,9 @@ describe('player split pricing interactions', () => {
             NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
             VtMiniHeader: true,
             VtChip: { template: '<span><slot /></span>' },
+            VtMyChip: MyChip,
+            VtStateChip: StateChip,
+            VtSeatsMini: SeatsMini,
             PlayerAccessNotice: true,
             SkeletonList: true,
             EmptyState: true,
