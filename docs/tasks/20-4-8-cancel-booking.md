@@ -15,7 +15,7 @@ review_gate: standard
 roles: [FE]
 depends_on: ['19.2.2', '20.1.2']
 supersedes: []
-decisions: []
+decisions: ['D-02']
 estimated_hours: '2-4'
 reference:
   spec: 'docs/design/reference-v3/specs/02-mini-app/M-09-cancel-booking.md'
