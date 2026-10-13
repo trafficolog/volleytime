@@ -104,16 +104,16 @@ onUnmounted(restoreFocus)
       <button
         type="button"
         tabindex="-1"
-        class="absolute inset-0 bg-black/40"
+        class="vt-sheet-scrim absolute inset-0"
         aria-label="Закрыть"
         @click="open = false"
       />
       <div
         ref="panelRef"
         tabindex="-1"
-        class="relative z-10 w-full max-h-[100dvh] overflow-y-auto overscroll-contain rounded-t-2xl bg-vt-paper border-t border-vt-stroke p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+        class="vt-sheet-panel relative z-10 w-full max-h-[100dvh] overflow-y-auto overscroll-contain rounded-t-2xl bg-vt-paper border-t border-vt-stroke p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
       >
-        <div class="mx-auto mb-3 h-1 w-10 rounded-full bg-vt-stroke-2" aria-hidden="true" />
+        <div class="mx-auto mb-3 h-1 w-9 rounded-full bg-vt-stroke-2" aria-hidden="true" />
         <h2 v-if="title" :id="headingId" class="text-base font-semibold mb-3">{{ title }}</h2>
         <slot />
       </div>

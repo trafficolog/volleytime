@@ -4,7 +4,7 @@ export default defineNuxtConfig({
   compatibilityDate: '2026-05-01',
   devtools: { enabled: true },
   modules: ['@nuxtjs/tailwindcss'],
-  css: ['~/assets/css/landing-fonts.css', '~/assets/css/main.css'],
+  css: ['~/assets/css/landing-fonts.css', '~/assets/css/main.css', '~/assets/css/atoms-v3.css'],
   tailwindcss: { cssPath: false },
   app: {
     head: {
