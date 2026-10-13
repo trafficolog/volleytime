@@ -372,7 +372,9 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
     <main v-else class="px-4 py-4 space-y-5">
       <div class="manage-stats grid grid-cols-3 gap-2 text-center">
         <div class="vt-card p-2.5">
-          <div class="vt-mono font-bold text-lg">{{ ev.taken }}/{{ ev.capacity }}</div>
+          <div class="flex justify-center">
+            <VtSeatsMini :taken="ev.taken" :capacity="ev.capacity" :event="ev" :width="48" />
+          </div>
           <div class="vt-cap !text-[10px]">в составе</div>
         </div>
         <div class="vt-card p-2.5">
@@ -390,7 +392,7 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
       </div>
 
       <div v-if="ev.status === 'draft'" class="manage-draft vt-card p-3.5 flex items-center gap-3">
-        <span class="vt-chip vt-chip--state">Черновик</span>
+        <VtStateChip :event="ev" />
         <span class="text-sm text-vt-mute-2 flex-1">Игроки не видят событие</span>
         <button
           type="button"

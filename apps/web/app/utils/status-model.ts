@@ -45,18 +45,18 @@ export interface EventState {
 
 /**
  * Состояние события одним серым словом. `null` — запись открыта, чипа нет.
- * Приоритет: отменено → прошло → закрыто → черновик.
+ * Приоритет: отменено → черновик (даже с прошедшей датой) → прошло → закрыто.
  */
 export function eventStateOf(
   event: { status: string; startsAt: string | Date; endsAt?: string | Date | null },
   now: Date = new Date(),
 ): EventState | null {
   if (event.status === 'cancelled') return { key: 'cancelled', label: 'Отменена' }
+  if (event.status === 'draft') return { key: 'draft', label: 'Черновик' }
   const ended = event.endsAt ? new Date(event.endsAt) <= now : false
   if (event.status === 'finished' || ended) return { key: 'past', label: 'Прошла' }
   if (event.status === 'closed' || new Date(event.startsAt) <= now)
     return { key: 'closed', label: 'Запись закрыта' }
-  if (event.status === 'draft') return { key: 'draft', label: 'Черновик' }
   return null
 }
 

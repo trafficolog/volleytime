@@ -264,13 +264,15 @@
     color: var(--vt-ink-3);
     border-color: transparent;
   }
-  .vt-chip--on-hero {
+  :is(.dark, .vt-dark) .vt-chip--mine {
+    background: var(--vt-flame);
+  }
+  /* After the dark rule and more specific: the hero chip stays white in both themes. */
+  .vt-chip.vt-chip--on-hero,
+  :is(.dark, .vt-dark) .vt-chip.vt-chip--on-hero {
     background: var(--vt-on-hero);
     color: var(--vt-blue-ink);
     border-color: transparent;
-  }
-  :is(.dark, .vt-dark) .vt-chip--mine {
-    background: var(--vt-flame-bright, #3b4cd6);
   }
   .vt-avi {
     width: 32px;

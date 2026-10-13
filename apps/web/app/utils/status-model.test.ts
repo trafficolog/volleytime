@@ -68,6 +68,11 @@ describe('eventStateOf', () => {
     })
   })
 
+  it('a draft with a past start is still a draft', () => {
+    expect(eventStateOf({ status: 'draft', ...ended }, NOW)?.key).toBe('draft')
+    expect(eventStateOf({ status: 'draft', ...started }, NOW)?.label).toBe('Черновик')
+  })
+
   it('works without endsAt', () => {
     expect(eventStateOf({ status: 'published', startsAt: future.startsAt }, NOW)).toBeNull()
   })
