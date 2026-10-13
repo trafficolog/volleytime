@@ -5,11 +5,15 @@
  * залы, участников, события fixed/split во всех статусах, записи, абонементы, платежи и кассу.
  * Идемпотентно: каждая строка ищется по естественному ключу, повторный запуск ничего не дублирует.
  * Даты считаются от `organizations.created_at` (хранится в БД), поэтому стабильны между запусками.
- * Запуск: `pnpm db:seed:demo`. В production (NODE_ENV=production) отказывается работать.
+ * Следствие: даты «стареют» — через неделю «ближайшие» события окажутся в прошлом со статусом
+ * published. Для свежих данных (например, перед прогоном харнесса 19.0.2) базу пересоздают:
+ * `pnpm dev:db:reset`, миграции, затем `pnpm db:seed:demo`.
+ * Запуск: `pnpm db:seed:demo`. В production (NODE_ENV=production) отказывается работать;
+ * параллельные запуски сериализуются advisory-lock-ом; чужая организация с demo-slug — ошибка.
  */
 import { pathToFileURL } from 'node:url'
 
-import { and, eq } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 
 import type { DB, Transaction } from './client'
 import {
@@ -421,6 +425,8 @@ export const DEMO_ORGANIZATIONS: DemoOrganization[] = [
   },
 ]
 
+const SEED_LOCK_CLASS = 19_021
+const SEED_LOCK_ID = 1
 const HOUR = 3_600_000
 const MINSK_OFFSET_HOURS = 3
 
@@ -440,8 +446,13 @@ function minskTime(anchor: number, day: number, hhmm: string): Date {
   return new Date(anchor + day * 24 * HOUR + (h - MINSK_OFFSET_HOURS) * HOUR + m * 60_000)
 }
 
-/** Точное распределение суммы по копейкам, как R0.7 (`allocateSplitAmount`, D-01). */
-function allocate(total: number, count: number): number[] {
+/**
+ * Точное распределение суммы по копейкам, как R0.7 (`allocateSplitAmount`, D-01).
+ * Копия, а не импорт: `@volley-time/db` не зависит от `@volley-time/shared`, и образ миграций
+ * (docker/migrator.Dockerfile) собирает только packages/db. Совпадение с оригиналом
+ * проверяет seed-demo.integration.test.ts.
+ */
+export function allocate(total: number, count: number): number[] {
   const base = Math.floor(total / count)
   const remainder = total % count
   return Array.from({ length: count }, (_, i) => base + (i < remainder ? 1 : 0))
@@ -475,6 +486,11 @@ async function ensureOrganization(
     })
     .onConflictDoNothing()
   const [org] = await tx.select().from(organizations).where(eq(organizations.slug, spec.slug))
+  if (org!.ownerUserId !== ownerId) {
+    throw new Error(
+      `Organization slug "${spec.slug}" belongs to a non-demo owner; refusing to seed into it`,
+    )
+  }
   return org!
 }
 
@@ -786,6 +802,8 @@ export interface DemoSeedSummary {
 export async function seedDemo(database: DB): Promise<DemoSeedSummary> {
   assertDemoSeedAllowed()
   await database.transaction(async (tx) => {
+    // параллельные запуски ждут друг друга; ключ из двух int — отдельное от event_id пространство
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(${SEED_LOCK_CLASS}, ${SEED_LOCK_ID})`)
     for (const spec of DEMO_ORGANIZATIONS) await seedOrganization(tx, spec)
   })
   return { organizations: DEMO_ORGANIZATIONS.map((o) => o.name) }

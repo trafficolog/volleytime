@@ -12,3 +12,4 @@
 legacy
 docs
 pgdata
+packages/db/src/seed-demo*

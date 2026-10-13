@@ -19,7 +19,7 @@
 4. **Tenant** — каждая операционная строка несёт `organization_id`; доступ — через `tenant` middleware и `permissions` из `packages/core`.
 5. **Append-only** для денег и баланса: `ledger_entries`, `event_balance_entries`, `audit_log`. Исправление — новой записью.
 6. **Снимок вместо ссылки на настройку.** Событие при создании копирует значения группы (D-02); изменение настройки не трогает созданные события.
-7. **Инварианты — в БД.** CHECK, частичные UNIQUE и FK — вторая линия защиты после сервисов (как 5.13.13); гонки — блокировкой строки события / счёта в транзакции.
+7. **Инварианты — в БД.** CHECK, частичные UNIQUE и FK — вторая линия защиты после сервисов (как 5.13.13). Гонки сериализуются в транзакции: каждый путь, меняющий состав или места события, берёт `pg_advisory_xact_lock(event_id)` (как сейчас `bookings.book`/`cancel` и `events.cancel`, 5.13.7, 6.8.2); операции баланса блокируют строку `organization_event_balances`. **Порядок блокировок:** сначала advisory-lock события (если операция касается события), затем строка `organization_event_balances`, затем строки `payments`/`subscriptions`. Обратный порядок запрещён — иначе возможен deadlock между отменой события и публикацией серии.
 
 ## Целевая модель
 
@@ -100,12 +100,14 @@ erDiagram
 | `seo_index`                   | boolean                        | `false`   | не связан с `default_join_mode` | `seoIndex`               |
 | `district`                    | text NULL                      |           | `city` уже есть                 | город, район             |
 
-Снимок в `events` при создании (сервис `events.create` копирует значения группы, если клиент не передал своё):
+Снимок в `events` при создании (D-02). Два вида полей:
 
-- `events.cancellation_deadline_hours` — **есть**; семантика не меняется, существующие события сохраняют свои значения.
-- `events.cancellation_allowed boolean NOT NULL DEFAULT true` — **новая** (19.2.2); существующие события получают `true`, то есть прежнее поведение.
-- `events.price_mode` — есть; значение группы подставляет сервис, не DEFAULT БД.
-- `events.join_mode event_join_mode NOT NULL DEFAULT 'open'` — добавляет 20.1.3 (enum создаёт 19.2.2).
+- **Только снимок, без переопределения в событии** — политика отмены. Сервис `events.create` всегда копирует значения группы и игнорирует их во входе; этих полей нет во входных схемах создания и PATCH события. Редактируются только в настройках группы и действуют на события, созданные после изменения.
+  - `events.cancellation_deadline_hours` — **есть**; семантика не меняется, существующие события сохраняют свои значения.
+  - `events.cancellation_allowed boolean NOT NULL DEFAULT true` — **новая** (19.2.2); существующие события получают `true`, то есть прежнее поведение.
+- **Значение по умолчанию, которое событие может переопределить** — только режим оплаты и режим записи (P-03, P-07):
+  - `events.price_mode` — есть; если клиент не передал, сервис подставляет `organizations.default_price_mode` (не DEFAULT БД).
+  - `events.join_mode event_join_mode NOT NULL DEFAULT 'open'` — добавляет 20.1.3 (enum создаёт 19.2.2); если клиент не передал, сервис подставляет `organizations.default_join_mode`.
 
 Лимит мест на игрока **не** снимается в событие: это ограничение ввода в момент записи, а не условие уже созданной записи; уменьшение лимита не трогает существующие записи.
 
@@ -133,9 +135,25 @@ erDiagram
 - `confirmed`/`pending_payment` + `seats = K` + `waitlist_seats = M` — K мест в основе и ещё M в очереди («часть в основу, часть в очередь» с явным выбором игрока). Отдельной таблицы мест нет.
 - Занято мест = `SUM(seats)` по `pending_payment`, `confirmed`, `attended`, `no_show`; «игроков» = `COUNT(*)` тех же строк. Это разные величины (handoff `buildRoster`).
 - Позиция в очереди — порядок `(booked_at, id)` среди записей с `status = 'waitlisted' OR waitlist_seats > 0` (индекс `bookings_waitlist_order_idx` уже есть). Хранимой позиции нет.
-- Конкурентность — прежняя блокировка строки события `SELECT … FOR UPDATE` (5.3.5, 5.13.7); проверки `SUM(seats) + новые <= capacity` и `seats + waitlist_seats <= organizations.max_seats_per_booking` выполняются внутри неё.
-- Split делит сумму на фактическое число **мест**, а не записей. `events.pricing_participant_count` сохраняет имя, но после 20.1.2 хранит число мест на момент фиксации. Для событий R0.7 все `seats = 1`, значения совпадают, рассчитанные доли не меняются (D-01, «Не делать» 20.1.1).
-- Абонемент списывает одно занятие за место — правило вводит 20.1.2; к `split` абонемент не применяется (P-03).
+- Конкурентность — как в R0.7 (`packages/core/src/bookings/service.ts`): каждый путь, меняющий места события (запись, добавление и частичная отмена мест, отмена записи, продвижение из очереди, принятие и истечение оффера, отмена события, фиксация split), первым действием в транзакции берёт `pg_advisory_xact_lock(event_id)` и перечитывает запись и событие после лока. Проверки `SUM(seats) + новые <= capacity` и `seats + waitlist_seats <= organizations.max_seats_per_booking` выполняются под этим локом. Порядок блокировок — см. [принципы](#принципы-наследуются-из-domain-и-r07), п. 7.
+
+#### Денежная модель нескольких мест
+
+Цель — точность до копейки (D-01) и совместимость с существующими инвариантами платежей: `ledger_income_payment_uniq` (один доход на платёж), `ledger_refund_payment_uniq` (один возврат на платёж, возврат — всего платежа), условные переходы `pending → succeeded | cancelled`, `succeeded → refunded`.
+
+**Fixed, `cash`/`transfer` — один платёж на место.** Запись на K мест создаёт K платежей `payments(booking_id = запись, amount = events.price)`; добавление d мест — ещё d платежей; частичная отмена d мест отменяет `pending`-платежи или возвращает `succeeded`-платежи этой записи (сначала `pending`, затем самые поздние по `created_at, id`), ровно d штук. Инвариант: число платежей записи в статусах `pending`/`succeeded` = `seats` (для записей с платным методом вне очереди). Обоснование выбора:
+
+- возврат части денег без частичных возвратов: каждый возврат — целый платёж, поэтому `ledger_refund_payment_uniq` и защита от двойного возврата 6.8.1 работают без изменений;
+- сумма точна по построению (K × цена, без деления);
+- альтернатива «один платёж на изменение количества» (seat-delta) требует частичного возврата платежа, то есть ломает «один возврат на платёж» или вводит отдельную таблицу долей; альтернатива «один платёж на запись с перерасчётом» меняет сумму уже подтверждённого платежа — нарушает append-only денег.
+
+Связь «запись ↔ платежи» — существующая `payments.booking_id` (не уникальна, индекс `payments_booking_idx` есть); новая таблица связи не нужна. `bookings.payment_id` сохраняется как ссылка на **первый** платёж записи — для читателей R0.7; новый код читает платежи записи по `payments.booking_id`. Подтверждение оплаты организатором подтверждает все `pending`-платежи записи одной операцией (каждый — условным UPDATE, доход кассы — по платежу). 20.1.2 обязана перевести на `payments.booking_id` все места, которые сейчас идут через `bookings.payment_id`: массовую отмену события (`events.cancel`), отмену записи, историю платежей, дашборд.
+
+**Абонемент — одно занятие на место.** Запись на K мест атомарно списывает K занятий с **одного** абонемента: `UPDATE subscriptions SET used_sessions = used_sessions + :k WHERE id = :id AND used_sessions + :k <= total_sessions` (FIFO по `expires_at` выбирает первый абонемент, где хватает K); если ни в одном нет K занятий — `subscription.not_enough_sessions` (409), без дробления по нескольким абонементам (у записи один `subscription_id`). Добавление d мест списывает ещё d с того же абонемента; частичная отмена в срок политики возвращает d занятий, после срока — не возвращает (как отмена записи сейчас).
+
+**Split — доли считаются по единицам-местам.** При фиксации каждая активная запись разворачивается в `seats` единиц; `allocateSplitAmount` (`packages/shared`) распределяет сумму по единицам в порядке `(booked_at, booking_id, номер единицы)`; `bookings.allocated_amount` = сумма долей её единиц. Сумма по записям равна цели до копейки, потому что равна сумме по единицам (D-01). `event.split_target_too_small` сравнивает цель с **суммой мест**, а не с числом записей. Один платёж на запись на `allocated_amount` (как R0.7): после фиксации доли окончательны, изменение мест после фиксации запрещено (`booking.not_cancellable`, как сейчас «split allocation is final»), поэтому частичных возвратов split не бывает. До фиксации изменение мест денег не касается. `events.pricing_participant_count` сохраняет имя, но после 20.1.2 хранит число **мест** на момент фиксации. Для событий R0.7 все `seats = 1` — значения и рассчитанные доли не меняются («Не делать» 20.1.1).
+
+К `split` абонемент не применяется (P-03).
 
 `waitlist_offers` (20.3.1) — предложение освободившихся мест с TTL:
 
@@ -152,7 +170,7 @@ erDiagram
 ### Режим записи и приглашения на событие (20.1.3)
 
 - `events.join_mode event_join_mode NOT NULL DEFAULT 'open'`; при создании подставляется `organizations.default_join_mode`, событие может переопределить.
-- Приглашение на событие — существующая `invite_links` с `type = 'event_join'`. 20.1.3 добавляет FK `invite_links.event_id → events.id ON DELETE CASCADE` (колонка есть с фазы 4, FK отложен) и `CHECK ((type = 'event_join') = (event_id IS NOT NULL))` как `NOT VALID` с последующим `VALIDATE`. Однократность — `max_uses = 1`, срок — `expires_at`, startapp-параметр — `event_<token>`.
+- Приглашение на событие — существующая `invite_links` с `type = 'event_join'`. 20.1.3 добавляет FK `invite_links.event_id → events.id ON DELETE CASCADE` (колонка есть с фазы 4, FK отложен) и `CHECK ((type = 'event_join') = (event_id IS NOT NULL))` (обычный `ADD CONSTRAINT`, см. правило совместимости 3). Однократность — `max_uses = 1`, срок — `expires_at`, startapp-параметр — `event_<token>`.
 - `bookings.invite_id integer NULL REFERENCES invite_links(id) ON DELETE SET NULL` — по какому приглашению создана запись. Запись на событие `invite` без валидного приглашения отклоняет сервис (`booking.invite_required`, 403) — проверка в API, а не только в UI.
 - `event_invite_requests`: `id`, `organization_id`, `event_id`, `user_id`, `status` enum `invite_request_status` (`pending`, `approved`, `declined`, `cancelled`), `message text NULL`, `decided_by_user_id`, `decided_at`, `invite_id` (выданное приглашение при `approved`), `created_at`. `UNIQUE (event_id, user_id) WHERE status = 'pending'`.
 
@@ -170,13 +188,23 @@ erDiagram
 | `balance_after`         | integer `CHECK balance_after >= 0` — остаток после операции                                     |
 | `event_id`              | FK NULL `ON DELETE SET NULL` — для `spend`/`refund`                                             |
 | `purchase_request_id`   | FK NULL — для `purchase`                                                                        |
-| `created_by_user_id`    | FK NULL — автор; NULL только для системных `refund` (планировщик) и `demo_grant`                |
-| `comment`               | text NULL; обязателен для `grant` и `correction` (CHECK)                                        |
+| `actor_kind`            | enum `event_balance_actor`: `user`, `system` — автор есть у каждой строки                       |
+| `created_by_user_id`    | FK `users` NULL; `CHECK (actor_kind = 'user') = (created_by_user_id IS NOT NULL)`               |
+| `source`                | text NULL; для `system` обязателен (CHECK): `scheduler:<job>`, `migration:<tag>`, `org-create`  |
+| `comment`               | text NULL; обязателен для `grant`, `correction` и любых `system`-строк (CHECK)                  |
 | `created_at`            | timestamptz                                                                                     |
 
-`organization_event_balances(organization_id PK, balance integer NOT NULL CHECK balance >= 0, updated_at)` — проекция журнала для блокировки и быстрого чтения. Каждое изменение — одна транзакция: `UPDATE organization_event_balances SET balance = balance + :delta WHERE organization_id = :org AND balance + :delta >= 0 RETURNING balance`, затем INSERT в журнал с этим `balance_after`. Ноль строк — `event_balance.insufficient`. Инвариант `balance = SUM(delta)` проверяется тестом и сверочным запросом; «баланс как сумма» (P-08) — журнал остаётся источником истины.
+`organization_event_balances(organization_id PK, balance integer NOT NULL CHECK balance >= 0, updated_at)` — проекция журнала для блокировки и быстрого чтения; «баланс как сумма» (P-08) — журнал остаётся источником истины, инвариант `balance = SUM(delta)` проверяется тестом и сверочным запросом.
 
-Идемпотентность (повторная задача или повторное нажатие не списывают дважды):
+Каждое изменение баланса — одна транзакция в строгом порядке:
+
+1. Если операция касается события — `pg_advisory_xact_lock(event_id)` (тот же ключ, что у записи и отмены).
+2. Заблокировать строку проекции: `SELECT … FROM organization_event_balances WHERE organization_id = :org FOR UPDATE`. Строки нет (организация создана runtime без баланса) — лениво создать её `INSERT … ON CONFLICT (organization_id) DO NOTHING` с `balance = 0` и повторить SELECT FOR UPDATE; это единственное место, где допустим `ON CONFLICT DO NOTHING`, и оно не трогает журнал.
+3. Под этой блокировкой проверить предусловия по журналу (например, есть ли уже `spend`/`refund` этого события) и решить: выполнить, вернуть прежний результат (идемпотентный повтор) или отказать.
+4. `UPDATE organization_event_balances SET balance = balance + :delta WHERE organization_id = :org AND balance + :delta >= 0 RETURNING balance`; ноль строк — `event_balance.insufficient`.
+5. `INSERT` в журнал с этим `balance_after`.
+
+Частичные UNIQUE — последняя линия защиты, а не механизм идемпотентности: нарушение на денежной строке — ошибка и откат транзакции, **никогда** не `ON CONFLICT DO NOTHING` и не перехват с продолжением (иначе проекция изменится без записи журнала):
 
 - `UNIQUE (event_id) WHERE reason = 'spend'` — одно списание на событие;
 - `UNIQUE (event_id) WHERE reason = 'refund'` — один возврат на событие;
@@ -185,9 +213,19 @@ erDiagram
 
 Правила:
 
-- Списание — при **публикации** события (создание сразу опубликованным или перевод `draft → published`); черновик баланс не тратит (нужно для D-04).
-- Возврат (D-09) — при отмене события, если `booking_opens_at IS NOT NULL AND now() < booking_opens_at` **или** в событии нет ни одной активной записи (`pending_payment`, `confirmed`, `waitlisted`). До 20.3.1 колонки `booking_opens_at` нет, и действует только вторая ветка — это совпадает с D-09, потому что без времени открытия запись открыта сразу при публикации.
-- Demo-квота — 5 событий (handoff) при создании организации.
+- Списание — при **публикации** события (создание сразу опубликованным или перевод `draft → published`); черновик баланс не тратит (D-04). Это уточняет пункт 1 карточки 20.2.1 («при создании события») — карточка приведена к D-04.
+- Возврат (D-09) — только при отмене события и только если выполнены **все** условия:
+  1. по этому `event_id` в журнале есть `spend` и ещё нет `refund` — возврат никогда не «чеканит» баланс для событий, за которые не списывали (события пилота R0.7, события, созданные при выключенном списании или runtime без баланса);
+  2. `booking_opens_at IS NOT NULL AND now() < booking_opens_at` **или** в событии нет ни одной активной записи, где активная — **любая** запись со статусом, отличным от `cancelled` (`pending_payment`, `confirmed`, `waitlisted`, `attended`, `no_show`). Включение `waitlisted` — предлагаемое значение по умолчанию, **ожидает подтверждения владельца** (вопрос б) ниже).
+- Проверка «нет активных записей» выполняется на заблокированном состоянии **до** цикла отмены записей в `events.cancel` (`packages/core/src/events/service.ts`, сразу после `pg_advisory_xact_lock` и `SELECT … FOR UPDATE` события): после цикла все записи уже `cancelled`, и проверка всегда давала бы «нет записей». Решение о возврате вычисляется до цикла, проводка возврата — в той же транзакции.
+- До 20.3.1 колонки `booking_opens_at` нет, и действует только ветка «нет активных записей» — это совпадает с D-09: без времени открытия запись открыта сразу при публикации.
+- Demo-квота — 5 событий (handoff) при создании организации (`actor_kind = 'system'`, `source = 'org-create'`).
+- Существующие организации: миграция 20.2.1 создаёт им строку проекции и `demo_grant` на 5 событий (`source = 'migration:<tag>'`) одним идемпотентным запросом `INSERT … SELECT … WHERE NOT EXISTS`; уже созданные события не списываются задним числом. Это предлагаемое значение по умолчанию, **ожидает подтверждения владельца** (вопрос а) ниже). Организации, созданные runtime без баланса после миграции (окно отката), получают строку проекции лениво (шаг 2) и квоту — сверочным скриптом 20.2.1 (`demo_grant` с автором-оператором).
+
+Вопросы владельцу (не решены; в ADR — предлагаемые значения по умолчанию):
+
+- **а)** Начислять ли существующим пилотным организациям demo-квоту 5 событий при включении баланса? Предложение: да, без списания за уже созданные события.
+- **б)** Считается ли запись в листе ожидания «активной» для правила возврата D-09? Предложение: да (любая неотменённая запись блокирует возврат).
 
 `event_balance_purchase_requests` — заявка организатора на покупку пакета (D-07: без онлайн-оплаты):
 
@@ -222,29 +260,31 @@ erDiagram
 
 `events.series_id integer NULL REFERENCES event_series(id) ON DELETE SET NULL` и `events.series_date date NULL`; `UNIQUE (series_id, series_date)` — повторное создание той же даты невозможно. Каждая дата — обычная строка `events`: календари, запись и цена читают события, не серию.
 
-Создание (D-04) — одна транзакция: вставить серию и **все** даты; блокировать `organization_event_balances`; первые `min(N, balance)` дат по возрастанию получают `published` и `spend`-запись, остальные — `draft`; даты с конфликтом зала — `draft` независимо от баланса. Сбой на любом шаге откатывает всё. Предпросмотр (`POST …/series/preview`) ничего не пишет и возвращает даты, число публикуемых и число черновиков. Лимит — 53 даты в серии (год еженедельно); больше — `series.too_many_dates` (422). Правка «это и последующие» меняет строки `events` с `series_id = :id AND series_date >= :date` и не трогает прошедшие и отменённые.
+Создание (D-04) — одна транзакция: вставить серию и **все** даты; заблокировать строку `organization_event_balances` (порядок блокировок — принцип 7; новые события ещё никому не видны, advisory-lock по ним не нужен); первые `min(N, balance)` дат по возрастанию получают `published` и `spend`-запись, остальные — `draft`; даты с конфликтом зала — `draft` независимо от баланса. Сбой на любом шаге откатывает всё. Предпросмотр (`POST …/series/preview`) ничего не пишет и возвращает даты, число публикуемых и число черновиков. Лимит — 366 дат в серии: покрывает самый длинный срок референса (год) при любом наборе дней недели, в том числе «пн + ср весь год» (104 даты) и ежедневно (366); больше — `series.too_many_dates` (422). Пакетная вставка 366 строк в одной транзакции укладывается в критерий «52 события одной операцией» с запасом. Правка «это и последующие» меняет строки `events` с `series_id = :id AND series_date >= :date` и не трогает прошедшие и отменённые.
 
 ### Сборы (21.2.4)
 
 `collections`: `id`, `organization_id`, `title`, `description NULL`, `icon` (`ball`, `trophy`, `shirt`, `arena`, `party`, `bus`), `target_amount integer NULL CHECK > 0` (NULL — сбор без цели), `currency`, `status` enum `collection_status` (`draft`, `active`, `completed`, `cancelled`), `deadline_at NULL`, `created_by_user_id`, `created_at`, `updated_at`, `closed_at NULL`.
 
-Взнос — **платёж**: `payments.collection_id integer NULL REFERENCES collections(id) ON DELETE RESTRICT`. Так взнос получает готовый жизненный цикл `pending → succeeded | cancelled | refunded`, защиту от гонки подтверждения (5.13/6.8) и ровно одну запись кассы через существующий `ledger_income_payment_uniq`. Подтверждённый взнос пишет `ledger_entries` с `category = 'contribution'` и `payment_id`. Добавляется `CHECK num_nonnulls(booking_id, subscription_id, collection_id) <= 1` (`NOT VALID` + `VALIDATE`). Сумма подтверждённых взносов по сбору = сумма income-записей кассы по его платежам — критерий 21.2.4. Офлайн-взнос от человека без аккаунта в v0.3.0 не моделируется (`payments.user_id NOT NULL` сохраняется).
+Взнос — **платёж**: `payments.collection_id integer NULL REFERENCES collections(id) ON DELETE RESTRICT`. Так взнос получает готовый жизненный цикл `pending → succeeded | cancelled | refunded`, защиту от гонки подтверждения (5.13/6.8) и ровно одну запись кассы через существующий `ledger_income_payment_uniq`. Подтверждённый взнос пишет `ledger_entries` с `category = 'contribution'` и `payment_id`. Добавляется `CHECK num_nonnulls(booking_id, subscription_id, collection_id) <= 1` (обычный `ADD CONSTRAINT`, правило совместимости 3). Сумма подтверждённых взносов по сбору = сумма income-записей кассы по его платежам — критерий 21.2.4. Офлайн-взнос от человека без аккаунта в v0.3.0 не моделируется (`payments.user_id NOT NULL` сохраняется).
 
 ### Лента уведомлений (20.3.2)
 
 `notifications` — один источник для бота, ленты Mini App и ленты кабинета:
 
-| Колонка                                  | Тип / ограничение                                                                                                                                                                                                                 |
-| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`, `recipient_user_id`                | FK `users` `ON DELETE CASCADE`                                                                                                                                                                                                    |
-| `organization_id`, `event_id`            | FK NULL                                                                                                                                                                                                                           |
-| `type`                                   | enum `notification_type`: `booking_opened`, `waitlist_offer`, `reminder_24h`, `reminder_2h`, `split_settled`, `payment_confirmed`, `payment_rejected`, `lineup_ready`, `mvp_vote`, `event_cancelled`, `organizer_action_required` |
-| `dedup_key`                              | text NOT NULL; `UNIQUE (recipient_user_id, dedup_key)` — «не больше одного уведомления одного типа на событие» (`<type>:event:<id>`)                                                                                              |
-| `payload`                                | jsonb — данные шаблона (без секретов и initData)                                                                                                                                                                                  |
-| `read_at`                                | timestamptz NULL                                                                                                                                                                                                                  |
-| `delivery_status`                        | enum `notification_delivery_status`: `pending`, `sent`, `failed`, `skipped`                                                                                                                                                       |
-| `delivered_at`, `attempts`, `last_error` | доставка в Telegram очередью pg-boss с учётом лимитов Bot API                                                                                                                                                                     |
-| `created_at`                             | timestamptz; индекс `(recipient_user_id, created_at DESC, id DESC)` для ленты                                                                                                                                                     |
+| Колонка                                  | Тип / ограничение                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`, `recipient_user_id`                | FK `users` `ON DELETE CASCADE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `organization_id`, `event_id`            | FK NULL                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `type`                                   | enum `notification_type`: `booking_opened`, `waitlist_offer`, `reminder_24h`, `reminder_2h`, `split_settled`, `payment_confirmed`, `payment_rejected`, `lineup_ready`, `mvp_vote`, `event_cancelled`, `organizer_action_required`                                                                                                                                                                                                                                                                                                                                      |
+| `dedup_key`                              | text NOT NULL; `UNIQUE (recipient_user_id, dedup_key)` — «не больше одного уведомления одного типа на событие». Ключ: `<type>:event:<event_id>` для типов события (`booking_opened`, `reminder_24h`, `reminder_2h`, `split_settled`, `lineup_ready`, `mvp_vote`, `event_cancelled`); `waitlist_offer:offer:<offer_id>` (новый оффер после истечения предыдущего — новое уведомление); `payment_confirmed:payment:<payment_id>` и `payment_rejected:payment:<payment_id>` (при оплате по местам у записи несколько платежей); `organizer_action_required:<entity>:<id>` |
+| `payload`                                | jsonb — данные шаблона (без секретов и initData)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `read_at`                                | timestamptz NULL                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `delivery_status`                        | enum `notification_delivery_status`: `pending`, `sent`, `failed`, `skipped`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `delivered_at`, `attempts`, `last_error` | доставка в Telegram очередью pg-boss с учётом лимитов Bot API                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `created_at`                             | timestamptz; индекс `(recipient_user_id, created_at DESC, id DESC)` для ленты                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+
+Подтверждение всех платежей записи одной операцией (оплата по местам) создаёт одно уведомление с ключом по наименьшему `payment_id` пакета; повтор операции получает тот же ключ и не дублирует уведомление.
 
 Тихие часы — `users.quiet_hours_start smallint NULL`, `users.quiet_hours_end smallint NULL` (минуты от полуночи в часовом поясе группы-источника, `CHECK 0..1439`). Отключение типов игроком — P-12 (23.1.1), не в v0.2.0. Текущий немедленный notifier 8.4 остаётся рабочим путём, пока 20.3.2 не переключит отправку на ленту.
 
@@ -293,33 +333,37 @@ stateDiagram-v2
 
 ## Порядок миграций
 
-Миграции сериализуются (ORCHESTRATION: одна задача со схемой в работе). Каждая карточка добавляет **одну** миграцию через `pnpm db:generate` (или ручной SQL, если Drizzle не выражает `NOT VALID`/данные), файл отката `packages/db/rollback/<tag>.sql` и интеграционный тест «применяется и откатывается на пустой и на заполненной базе» (заполненная — `pnpm db:seed:demo`, см. ниже). Номер берётся после rebase на `main`.
+Миграции сериализуются (ORCHESTRATION: одна задача со схемой в работе). Каждая карточка добавляет **одну** миграцию через `pnpm db:generate` (или ручной SQL для backfill данных), файл отката `packages/db/rollback/<tag>.sql` и интеграционный тест «применяется и откатывается на пустой и на заполненной базе» (заполненная — `pnpm db:seed:demo`, см. ниже). Номер берётся после rebase на `main`.
+
+Диаграмма — **порядок сериализации миграций** (какая миграция получает номер раньше), а не граф зависимостей карточек. Зависимости — в колонке `depends_on` таблицы ниже; они совпадают с frontmatter карточек.
 
 ```mermaid
 flowchart LR
-  M1["19.2.2 настройки группы"] --> M2["19.2.3 уровни"]
-  M1 --> M3["20.1.2 места в записи"]
-  M1 --> M4["20.1.3 join mode и запросы"]
-  M3 --> M5["20.2.1 баланс событий"]
-  M5 --> M6["20.2.2 серии"]
-  M6 --> M7["20.3.1 время открытия, офферы"]
-  M7 --> M8["20.3.2 лента уведомлений"]
-  M8 --> M9["21.2.4 сборы (v0.3.0)"]
+  M1["1 · 19.2.2 настройки группы"] -->|затем| M2["2 · 19.2.3 уровни"]
+  M2 -->|затем| M3["3 · 20.1.2 места в записи"]
+  M3 -->|затем| M4["4 · 20.1.3 join mode и запросы"]
+  M4 -->|затем| M5["5 · 20.2.1 баланс событий"]
+  M5 -->|затем| M6["6 · 20.2.2 серии"]
+  M6 -->|затем| M7["7 · 20.3.1 время открытия, офферы"]
+  M7 -->|затем| M8["8 · 20.3.2 лента уведомлений"]
+  M8 -->|затем| M9["9 · 21.2.4 сборы, v0.3.0"]
 ```
 
-| #   | Карточка | Релиз  | Что добавляет миграция                                                                                                                                                                                                  | Совместимость с предыдущим runtime                                                       |
-| --- | -------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| 1   | 19.2.2   | v0.2.0 | enum `event_join_mode`; `organizations.max_seats_per_booking`, `default_price_mode`, `default_join_mode`, `cancellation_allowed`, `cancellation_deadline_hours`, `seo_index`, `district`; `events.cancellation_allowed` | только колонки с DEFAULT/NULL — старый runtime их не видит                               |
-| 2   | 19.2.3   | v0.2.0 | enum `player_level`; таблица `player_levels` с данными; `organization_members.level`, `organizations.levels`, `events.level`                                                                                            | аддитивно; `rating_in_org` остаётся                                                      |
-| 3   | 20.1.2   | v0.2.0 | `bookings.seats` (DEFAULT 1), `bookings.waitlist_seats` (DEFAULT 0), CHECK                                                                                                                                              | схема совместима; **данные** `seats > 1` несовместимы со старым подсчётом — флаг и guard |
-| 4   | 20.1.3   | v0.2.0 | `events.join_mode`; FK `invite_links.event_id`; CHECK `event_join` (NOT VALID → VALIDATE); `bookings.invite_id`; enum и таблица `event_invite_requests`                                                                 | старый runtime не проверяет `join_mode` — флаг и guard на `join_mode = 'invite'`         |
-| 5   | 20.2.1   | v0.2.0 | enums `event_balance_reason`, `purchase_request_status`; `organization_event_balances`, `event_balance_entries`, `event_balance_purchase_requests`; backfill счетов и demo-квоты существующим организациям              | старый runtime создаёт события без списания — см. правило 5                              |
-| 6   | 20.2.2   | v0.2.0 | enum `event_series_status`; `event_series`; `events.series_id`, `events.series_date`, UNIQUE                                                                                                                            | аддитивно; старый runtime видит даты серии как обычные события                           |
-| 7   | 20.3.1   | v0.2.0 | `events.booking_opens_at` + CHECK; enum `waitlist_offer_status`; `waitlist_offers`. Схема `pgboss` создаётся pg-boss при старте воркера, не Drizzle                                                                     | старый runtime игнорирует `booking_opens_at` — guard на будущие `booking_opens_at`       |
-| 8   | 20.3.2   | v0.2.0 | enums `notification_type`, `notification_delivery_status`; `notifications`; `users.quiet_hours_start/end`                                                                                                               | аддитивно                                                                                |
-| 9   | 21.2.4   | v0.3.0 | enum `collection_status`; `collections`; `payments.collection_id`; CHECK `num_nonnulls(...) <= 1` (NOT VALID → VALIDATE)                                                                                                | старый runtime не пишет `collection_id`; платежи-взносы ему видны как платежи без цели   |
+Схемные зависимости (миграция ссылается на объект другой миграции): 19.2.2 → 20.1.3 (enum `event_join_mode`), 20.1.2 → 20.3.1 (`waitlist_offers.seats` и учёт мест), 20.2.1 → 20.2.2 (списание за даты серии). Ради второй 20.3.1 получает `depends_on: '20.1.2'` (карточка обновлена в этой задаче).
 
-Порядок 3 → 5: баланс зависит только от 19.2.1, но серия (6) опирается и на места, и на баланс, поэтому 20.1.2 идёт раньше, чтобы ветки не перегенерировали миграции дважды. Если оркестратор запускает 20.2.1 раньше 20.1.2, порядок 3 и 5 можно поменять: миграции не зависят друг от друга по схеме.
+| #   | Карточка ← `depends_on`       | Релиз  | Что добавляет миграция                                                                                                                                                                                                  | Совместимость с предыдущим runtime                                                       |
+| --- | ----------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| 1   | 19.2.2 ← 19.2.1               | v0.2.0 | enum `event_join_mode`; `organizations.max_seats_per_booking`, `default_price_mode`, `default_join_mode`, `cancellation_allowed`, `cancellation_deadline_hours`, `seo_index`, `district`; `events.cancellation_allowed` | только колонки с DEFAULT/NULL — старый runtime их не видит                               |
+| 2   | 19.2.3 ← 19.2.1               | v0.2.0 | enum `player_level`; таблица `player_levels` с данными; `organization_members.level`, `organizations.levels`, `events.level`                                                                                            | аддитивно; `rating_in_org` остаётся                                                      |
+| 3   | 20.1.2 ← 19.2.1, 19.2.2       | v0.2.0 | `bookings.seats` (DEFAULT 1), `bookings.waitlist_seats` (DEFAULT 0), CHECK                                                                                                                                              | схема совместима; **данные** `seats > 1` несовместимы со старым подсчётом — флаг и guard |
+| 4   | 20.1.3 ← 19.2.2               | v0.2.0 | `events.join_mode`; FK `invite_links.event_id`; CHECK `event_join`; `bookings.invite_id`; enum и таблица `event_invite_requests`                                                                                        | старый runtime не проверяет `join_mode` — флаг и guard на `join_mode = 'invite'`         |
+| 5   | 20.2.1 ← 19.2.1               | v0.2.0 | enums `event_balance_reason`, `purchase_request_status`; `organization_event_balances`, `event_balance_entries`, `event_balance_purchase_requests`; backfill счетов и demo-квоты существующим организациям              | старый runtime создаёт события без списания — см. правило 5                              |
+| 6   | 20.2.2 ← 19.2.1, 20.2.1       | v0.2.0 | enum `event_series_status`; `event_series`; `events.series_id`, `events.series_date`, UNIQUE                                                                                                                            | аддитивно; старый runtime видит даты серии как обычные события                           |
+| 7   | 20.3.1 ← 20.1.1, 20.1.2, 15.x | v0.2.0 | `events.booking_opens_at` + CHECK; enum `waitlist_offer_status`; `waitlist_offers`. Схема `pgboss` создаётся pg-boss при старте воркера, не Drizzle                                                                     | старый runtime игнорирует `booking_opens_at` — guard на будущие `booking_opens_at`       |
+| 8   | 20.3.2 ← 20.3.1               | v0.2.0 | enums `notification_type`, `notification_delivery_status`; `notifications`; `users.quiet_hours_start/end`                                                                                                               | аддитивно                                                                                |
+| 9   | 21.2.4 ← 19.2.1, 19.3.1       | v0.3.0 | enum `collection_status`; `collections`; `payments.collection_id`; CHECK `num_nonnulls(...) <= 1`                                                                                                                       | старый runtime не пишет `collection_id`; платежи-взносы ему видны как платежи без цели   |
+
+Порядок 2–5 — выбор сериализации, а не зависимость: миграции 19.2.3, 20.1.2, 20.1.3 и 20.2.1 не ссылаются друг на друга, поэтому оркестратор может менять их местами по готовности карточек. Жёсткие ограничения только схемные (см. выше): 19.2.2 раньше 20.1.3, 20.1.2 раньше 20.3.1, 20.2.1 раньше 20.2.2. Ветка, которая не первая в очереди, перегенерирует номер миграции после rebase на `main`.
 
 После v0.2.0 (contract-шаги, отдельными карточками, не раньше чем через релиз): удалить `organization_members.rating_in_org`; удалить ветку автопродвижения после стабилизации планировщика (только по решению владельца, D-03 её сохраняет).
 
@@ -329,9 +373,9 @@ flowchart LR
 
 1. **Expand → enable → contract.** Миграция только добавляет: таблицы, колонки `NULL` или с `DEFAULT`, enum-типы, индексы, FK/CHECK на новые колонки. Переименование, удаление, смена типа, `NOT NULL` без DEFAULT на существующей колонке, удаление значения enum — запрещены в том же релизе; contract — отдельной карточкой минимум через релиз.
 2. **Новые значения существующих enum** (`booking_status`, `event_status`, `payment_status`, `ledger_category`) в v0.2.0 не добавляются: модель выше обходится без них. Если понадобится — новое значение не пишется, пока в production есть runtime, который его не знает.
-3. **CHECK и FK на существующих данных** — `ADD CONSTRAINT … NOT VALID`, затем `VALIDATE CONSTRAINT` в той же миграции после проверки данных запросом в тесте на заполненной базе; длинные блокировки на `events`/`bookings` недопустимы.
+3. **CHECK и FK на существующих данных.** Drizzle применяет миграцию одной транзакцией, поэтому `NOT VALID` и `VALIDATE CONSTRAINT` в одном файле не уменьшают блокировку: `ACCESS EXCLUSIVE` от `ADD CONSTRAINT` держится до конца транзакции, включая проверку. Для таблиц пилотного размера (сотни–тысячи строк в `events`, `bookings`, `payments`, `invite_links`) это допустимо: проверка занимает миллисекунды в окне выкладки, где writers и так перезапускаются. Поэтому в v0.2.0–v0.3.0 ограничение добавляется обычным `ADD CONSTRAINT` (с проверкой данных тестом на заполненной базе), а `NOT VALID` в той же миграции не используется. Если таблица вырастет до размера, где проверка заметна (ориентир — > 1 млн строк), `ADD CONSTRAINT … NOT VALID` идёт в одной миграции, а `VALIDATE CONSTRAINT` — в следующей, отдельной миграции.
 4. **Новая семантика данных за флагом.** Где старый runtime неверно понимает новые данные (места `> 1`, `join_mode = 'invite'`, будущее `booking_opens_at`, офферы), запись таких данных включается nonsecret-переменной (`EVENT_MULTI_SEAT_ENABLED`, `EVENT_INVITE_MODE_ENABLED`, `SCHEDULER_ENABLED`) только после выкладки полного релиза — по образцу `EVENT_SPLIT_PRICING_ENABLED` (R0.7). Откат на runtime без поддержки проходит через quiescent-guard runbook, расширенный запросом «нет таких данных» (`EXISTS bookings WHERE seats > 1 OR waitlist_seats > 0`, `EXISTS events WHERE join_mode = 'invite' AND status IN ('published','closed')`, …); image несёт capability-label. Расширение guard — часть карточки-владельца.
-5. **Баланс при откате.** Runtime без баланса создаёт события без `spend`. Это не портит данные, но оставляет события без списания; после roll-forward сверочный запрос `events без spend-записи, созданные после включения баланса` показывает расхождение, исправление — `correction` с автором. Поэтому выключатель списания (`EVENT_BALANCE_ENFORCED`) включается после выкладки, а backfill demo-квоты идемпотентен (`ON CONFLICT DO NOTHING` по частичному UNIQUE).
+5. **Баланс при откате.** Runtime без баланса создаёт события без `spend`. Это не портит данные, но оставляет события без списания; после roll-forward сверочный запрос `events без spend-записи, созданные после включения баланса` показывает расхождение, исправление — `correction` с автором; такие события не получают возврата при отмене, потому что возврат требует существующего `spend`. Поэтому выключатель списания (`EVENT_BALANCE_ENFORCED`) включается после выкладки. Организации, созданные таким runtime, не имеют строки проекции и demo-квоты: строка создаётся лениво при первой операции баланса (см. [баланс](#баланс-событий-2021-d-09-d-10), шаг 2), квоту выдаёт сверочный скрипт 20.2.1 (`INSERT … SELECT … WHERE NOT EXISTS` по организациям без `demo_grant`, автор — оператор). Backfill в миграции использует тот же `WHERE NOT EXISTS`, а не `ON CONFLICT DO NOTHING` на денежной строке.
 6. **Откат миграции** — `packages/db/rollback/<tag>.sql` к каждой новой миграции (с 0012 так уже принято); откат удаляет только то, что добавила миграция, и не трогает данные R0.7. Значения enum PostgreSQL не удаляются — откат оставляет их неиспользуемыми (как 0018).
 7. **Проверка** — интеграционный тест карточки: применить миграцию на пустой базе и на базе после `db:seed:demo`, прогнать откат и повторное применение; плюс существующие тесты R0.7 без изменений (доказательство, что старый путь работает на новой схеме).
 
@@ -379,7 +423,7 @@ flowchart LR
 - Валидация zod → 422, `data: { code: 'validation_failed', issues: [{ path, message }] }` без значений и схемы.
 - Неизвестная ошибка → 500, `data: { code: 'internal_error' }`, детали только в серверном логе.
 - Статусы: 403 — нет права (`forbidden.*`), 404 — нет ресурса **или** он в чужой группе (IDOR не раскрывает существование), 409 — конфликт состояния, 410 — истекло (`invite.expired`, `waitlist_offer.expired`), 422 — нарушено правило ввода.
-- Новые классы ошибок добавляются в `handleServiceError`, коды — в `CODE_STATUS` той же карточкой. Коды, которые вводят карточки v0.2.0: `organization.invalid_settings` (422), `booking.seats_over_limit` (422), `booking.not_enough_seats` (409), `booking.invite_required` (403), `booking.not_open_yet` (422), `waitlist_offer.expired` (410), `waitlist_offer.not_found` (404), `invite_request.already_pending` (409), `event_balance.insufficient` (409), `purchase_request.not_pending` (409), `series.too_many_dates` (422), `series.invalid_rule` (422), `notification.not_found` (404); v0.3.0: `collection.not_found` (404), `collection.not_active` (409).
+- Новые классы ошибок добавляются в `handleServiceError`, коды — в `CODE_STATUS` той же карточкой. Коды, которые вводят карточки v0.2.0: `organization.invalid_settings` (422), `booking.seats_over_limit` (422), `subscription.not_enough_sessions` (409), `booking.not_enough_seats` (409), `booking.invite_required` (403), `booking.not_open_yet` (422), `waitlist_offer.expired` (410), `waitlist_offer.not_found` (404), `invite_request.already_pending` (409), `event_balance.insufficient` (409), `purchase_request.not_pending` (409), `series.too_many_dates` (422), `series.invalid_rule` (422), `notification.not_found` (404); v0.3.0: `collection.not_found` (404), `collection.not_active` (409).
 
 ### Пагинация
 
@@ -402,13 +446,16 @@ flowchart LR
 `pnpm db:seed:demo` (`packages/db/src/seed-demo.ts`, задача 19.2.1) создаёт на **текущей** схеме данные макетов: организации «VolleyTime Минск», «МинскВолей · Воскресные», «СпайкКлуб», их залы, участников с ролями, события `fixed` и `split` (открытые, закрытое с фиксированными долями, полное с листом ожидания, прошедшие, отменённое), записи, планы абонементов и абонементы, платежи и записи кассы.
 
 - Идемпотентность: данные помечены доменом `@demo.volleytime.local` и slug-ами `demo-*`; повторный запуск находит существующие строки по естественным ключам и не создаёт дублей (тест запускает сид дважды и сравнивает количества).
-- Отказ при `NODE_ENV=production` — до подключения к БД.
+- Отказ при `NODE_ENV=production` — до подключения к БД; файлы `seed-demo*` исключены из Docker-контекста (`.dockerignore`), поэтому в образы, включая образ миграций, не попадают.
+- Безопасность повторов: сид работает в одной транзакции под `pg_advisory_xact_lock(19021, 1)` (параллельные запуски ждут друг друга) и отказывается писать в организацию с demo-slug, владелец которой не demo-пользователь.
+- Даты считаются от `organizations.created_at` и со временем «стареют» (ближайшие события уходят в прошлое со статусом `published`). Перед прогоном харнесса 19.0.2 базу пересоздают: `pnpm dev:db:reset`, миграции, `pnpm db:seed:demo`.
 - Каждая карточка-владелец миграции расширяет сид своими данными (места, баланс, серии, сборы, уведомления) в той же PR, чтобы харнесс 19.0.2 и тест «миграция на заполненной базе» видели актуальную модель.
 
 ## Последствия
 
 - Новые таблицы: 9 (`player_levels`, `waitlist_offers`, `event_invite_requests`, `organization_event_balances`, `event_balance_entries`, `event_balance_purchase_requests`, `event_series`, `notifications`, `collections`); остальное — колонки существующих таблиц. Таблиц-костылей для мест, сбора суммой и серий нет (критерий P-01).
 - Подсчёт занятости меняется с `COUNT(*)` на `SUM(seats)` во всех местах, где он есть (bookings, events, dashboard, notifier, публичная страница) — ответственность 20.1.2; поиск по `capacity` обязателен в её ревью.
+- Оплата fixed по местам создаёт до 10 платежей на запись; подтверждение и возврат работают пакетом по записи, а читатели `bookings.payment_id` (одна ссылка) переводятся на `payments.booking_id` в 20.1.2.
 - Откат приложения через флаги и guard усложняет выкладку v0.2.0, но повторяет уже проверенный путь split R0.7.
 - Баланс хранится дважды (журнал и проекция) ради блокировки без `SUM` под нагрузкой; рассинхрон ловит сверочный тест.
 
