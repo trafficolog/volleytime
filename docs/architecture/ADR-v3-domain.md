@@ -1,7 +1,7 @@
 # ADR v3 · Доменная модель и контракт API референса v3
 
 - **Статус:** принято (задача [19.2.1](../tasks/19-2-1-domain-model.md), `P-01`), 2026-10-13.
-- **Решения владельца:** [D-01…D-11](../operations/decisions/2026-10-12-reference-v3-decisions.md) — все приняты; ADR их не пересматривает.
+- **Решения владельца:** [D-01…D-13](../operations/decisions/2026-10-12-reference-v3-decisions.md) — все приняты (D-12, D-13 — 2026-10-13); ADR их не пересматривает.
 - **Область:** целевая схема данных для фаз 19–22 (релизы v0.2.0–v0.4.0), владельцы сущностей, порядок миграций по карточкам, правила совместимости, соответствие статусов референса enum-ам, соглашения API для новых ресурсов.
 - **Не область:** сами миграции (их создают карточки-владельцы, см. [порядок](#порядок-миграций)), UI, гипотезы фаз 23–26.
 
@@ -205,19 +205,19 @@ erDiagram
 
 `event_balance_entries` — журнал, append-only (UPDATE/DELETE сервис не делает; исправление — запись `correction`):
 
-| Колонка                 | Тип / ограничение                                                                               |
-| ----------------------- | ----------------------------------------------------------------------------------------------- |
-| `id`, `organization_id` | FK `ON DELETE CASCADE`                                                                          |
-| `delta`                 | integer `CHECK delta <> 0` — `+` начисление, `−` списание                                       |
-| `reason`                | enum `event_balance_reason`: `demo_grant`, `purchase`, `grant`, `spend`, `refund`, `correction` |
-| `balance_after`         | integer `CHECK balance_after >= 0` — остаток после операции                                     |
-| `event_id`              | FK NULL `ON DELETE SET NULL` — для `spend`/`refund`                                             |
-| `purchase_request_id`   | FK NULL — для `purchase`                                                                        |
-| `actor_kind`            | enum `event_balance_actor`: `user`, `system` — автор есть у каждой строки                       |
-| `created_by_user_id`    | FK `users` NULL; `CHECK (actor_kind = 'user') = (created_by_user_id IS NOT NULL)`               |
-| `source`                | text NULL; для `system` обязателен (CHECK): `scheduler:<job>`, `migration:<tag>`, `org-create`  |
-| `comment`               | text NULL; обязателен для `grant`, `correction` и любых `system`-строк (CHECK)                  |
-| `created_at`            | timestamptz                                                                                     |
+| Колонка                 | Тип / ограничение                                                                                              |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `id`, `organization_id` | FK `ON DELETE CASCADE`                                                                                         |
+| `delta`                 | integer `CHECK delta <> 0` — `+` начисление, `−` списание                                                      |
+| `reason`                | enum `event_balance_reason`: `demo_grant`, `pilot_grant`, `purchase`, `grant`, `spend`, `refund`, `correction` |
+| `balance_after`         | integer `CHECK balance_after >= 0` — остаток после операции                                                    |
+| `event_id`              | FK NULL `ON DELETE SET NULL` — для `spend`/`refund`                                                            |
+| `purchase_request_id`   | FK NULL — для `purchase`                                                                                       |
+| `actor_kind`            | enum `event_balance_actor`: `user`, `system` — автор есть у каждой строки                                      |
+| `created_by_user_id`    | FK `users` NULL; `CHECK (actor_kind = 'user') = (created_by_user_id IS NOT NULL)`                              |
+| `source`                | text NULL; для `system` обязателен (CHECK): `scheduler:<job>`, `migration:<tag>`, `org-create`, `pilot_grant`  |
+| `comment`               | text NULL; обязателен для `grant`, `correction` и любых `system`-строк (CHECK)                                 |
+| `created_at`            | timestamptz                                                                                                    |
 
 `organization_event_balances(organization_id PK, balance integer NOT NULL CHECK balance >= 0, updated_at)` — проекция журнала для блокировки и быстрого чтения; «баланс как сумма» (P-08) — журнал остаётся источником истины, инвариант `balance = SUM(delta)` проверяется тестом и сверочным запросом.
 
@@ -234,6 +234,7 @@ erDiagram
 - `UNIQUE (event_id) WHERE reason = 'spend'` — одно списание на событие;
 - `UNIQUE (event_id) WHERE reason = 'refund'` — один возврат на событие;
 - `UNIQUE (organization_id) WHERE reason = 'demo_grant'` — одна demo-квота;
+- `UNIQUE (organization_id) WHERE reason = 'pilot_grant'` — один стартовый баланс пилота (D-12);
 - `UNIQUE (purchase_request_id) WHERE reason = 'purchase'` — одна выдача по заявке.
 
 Правила:
@@ -241,16 +242,11 @@ erDiagram
 - Списание — при **публикации** события (создание сразу опубликованным или перевод `draft → published`); черновик баланс не тратит (D-04). Это уточняет пункт 1 карточки 20.2.1 («при создании события») — карточка приведена к D-04.
 - Возврат (D-09) — только при отмене события и только если выполнены **все** условия:
   1. по этому `event_id` в журнале есть `spend` и ещё нет `refund` — возврат никогда не «чеканит» баланс для событий, за которые не списывали (события пилота R0.7, события, созданные при выключенном списании или runtime без баланса);
-  2. `booking_opens_at IS NOT NULL AND now() < booking_opens_at` **или** в событии нет ни одной активной записи, где активная — **любая** запись со статусом, отличным от `cancelled` (`pending_payment`, `confirmed`, `waitlisted`, `attended`, `no_show`). Включение `waitlisted` — предлагаемое значение по умолчанию, **ожидает подтверждения владельца** (вопрос б) ниже).
+  2. `booking_opens_at IS NOT NULL AND now() < booking_opens_at` **или** в событии нет ни одной активной записи, где активная — **любая** запись со статусом, отличным от `cancelled` (`pending_payment`, `confirmed`, `waitlisted`, `attended`, `no_show`) — [D-13](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-13).
 - Проверка «нет активных записей» выполняется на заблокированном состоянии **до** цикла отмены записей в `events.cancel` (`packages/core/src/events/service.ts`, сразу после `pg_advisory_xact_lock` и `SELECT … FOR UPDATE` события): после цикла все записи уже `cancelled`, и проверка всегда давала бы «нет записей». Решение о возврате вычисляется и **проводится** (блокировка строки проекции, UPDATE, INSERT `refund`) до цикла по записям и платежам, в той же транзакции; так порядок блокировок остаётся событие → баланс → платежи/абонементы (принцип 7).
 - До 20.3.1 колонки `booking_opens_at` нет, и действует только ветка «нет активных записей» — это совпадает с D-09: без времени открытия запись открыта сразу при публикации.
 - Demo-квота — 5 событий (handoff) при создании организации (`actor_kind = 'system'`, `source = 'org-create'`).
-- Существующие организации: миграция 20.2.1 создаёт им строку проекции и `demo_grant` на 5 событий (`source = 'migration:<tag>'`) одним идемпотентным запросом `INSERT … SELECT … WHERE NOT EXISTS`; уже созданные события не списываются задним числом. Это предлагаемое значение по умолчанию, **ожидает подтверждения владельца** (вопрос а) ниже). Организации, созданные runtime без баланса после миграции (окно отката), получают строку проекции лениво (шаг 2) и квоту — сверочным скриптом 20.2.1 (`demo_grant` с автором-оператором).
-
-Вопросы владельцу (не решены; в ADR — предлагаемые значения по умолчанию):
-
-- **а)** Начислять ли существующим пилотным организациям demo-квоту 5 событий при включении баланса? Предложение: да, без списания за уже созданные события.
-- **б)** Считается ли запись в листе ожидания «активной» для правила возврата D-09? Предложение: да (любая неотменённая запись блокирует возврат).
+- Существующие (пилотные) организации — стартовый баланс **48 событий** ([D-12](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-12)) отдельной причиной `pilot_grant` (`actor_kind = 'system'`, `source = 'pilot_grant'`, комментарий со ссылкой на D-12), а не `demo_grant`: так стартовый баланс пилота отличим от demo-квоты в журнале и отчётах. Миграция 20.2.1 создаёт строку проекции и `pilot_grant` каждой организации, существующей на момент миграции, одним идемпотентным запросом `INSERT … SELECT … WHERE NOT EXISTS`; идемпотентность по организации гарантирует `UNIQUE (organization_id) WHERE reason = 'pilot_grant'`. Пилотная организация `demo_grant` не получает; уже созданные события не списываются задним числом (и не дают возврата — у них нет `spend`). Организации, созданные runtime без баланса после миграции (окно отката), — новые: строка проекции создаётся лениво (шаг 2), demo-квота 5 — сверочным скриптом 20.2.1 (`demo_grant` с автором-оператором).
 
 `event_balance_purchase_requests` — заявка организатора на покупку пакета (D-07: без онлайн-оплаты):
 
@@ -376,17 +372,17 @@ flowchart LR
 
 Схемные зависимости (миграция ссылается на объект другой миграции): 19.2.2 → 20.1.3 (enum `event_join_mode`), 20.1.2 → 20.3.1 (`waitlist_offers.seats` и учёт мест), 20.2.1 → 20.2.2 (списание за даты серии). Ради второй 20.3.1 получает `depends_on: '20.1.2'` (карточка обновлена в этой задаче).
 
-| #   | Карточка ← `depends_on`       | Релиз  | Что добавляет миграция                                                                                                                                                                                                  | Совместимость с предыдущим runtime                                                       |
-| --- | ----------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| 1   | 19.2.2 ← 19.2.1               | v0.2.0 | enum `event_join_mode`; `organizations.max_seats_per_booking`, `default_price_mode`, `default_join_mode`, `cancellation_allowed`, `cancellation_deadline_hours`, `seo_index`, `district`; `events.cancellation_allowed` | только колонки с DEFAULT/NULL — старый runtime их не видит                               |
-| 2   | 19.2.3 ← 19.2.1               | v0.2.0 | enum `player_level`; таблица `player_levels` с данными; `organization_members.level`, `organizations.levels`, `events.level`                                                                                            | аддитивно; `rating_in_org` остаётся                                                      |
-| 3   | 20.1.2 ← 19.2.1, 19.2.2       | v0.2.0 | `bookings.seats` (DEFAULT 1), `bookings.waitlist_seats` (DEFAULT 0), `bookings.incarnation` (DEFAULT 1), `payments.booking_incarnation` + backfill по `bookings.payment_id`, CHECK                                      | схема совместима; **данные** `seats > 1` несовместимы со старым подсчётом — флаг и guard |
-| 4   | 20.1.3 ← 19.2.2               | v0.2.0 | `events.join_mode`; FK `invite_links.event_id`; CHECK `event_join`; `bookings.invite_id`; enum и таблица `event_invite_requests`                                                                                        | старый runtime не проверяет `join_mode` — флаг и guard на `join_mode = 'invite'`         |
-| 5   | 20.2.1 ← 19.2.1               | v0.2.0 | enums `event_balance_reason`, `purchase_request_status`; `organization_event_balances`, `event_balance_entries`, `event_balance_purchase_requests`; backfill счетов и demo-квоты существующим организациям              | старый runtime создаёт события без списания — см. правило 5                              |
-| 6   | 20.2.2 ← 19.2.1, 20.2.1       | v0.2.0 | enum `event_series_status`; `event_series`; `events.series_id`, `events.series_date`, UNIQUE                                                                                                                            | аддитивно; старый runtime видит даты серии как обычные события                           |
-| 7   | 20.3.1 ← 20.1.1, 20.1.2, 15.x | v0.2.0 | `events.booking_opens_at` + CHECK; enum `waitlist_offer_status`; `waitlist_offers`. Схема `pgboss` создаётся pg-boss при старте воркера, не Drizzle                                                                     | старый runtime игнорирует `booking_opens_at` — guard на будущие `booking_opens_at`       |
-| 8   | 20.3.2 ← 20.3.1               | v0.2.0 | enums `notification_type`, `notification_delivery_status`; `notifications`; `users.quiet_hours_start/end`                                                                                                               | аддитивно                                                                                |
-| 9   | 21.2.4 ← 19.2.1, 19.3.1       | v0.3.0 | enum `collection_status`; `collections`; `payments.collection_id`; CHECK `num_nonnulls(...) <= 1`                                                                                                                       | старый runtime не пишет `collection_id`; платежи-взносы ему видны как платежи без цели   |
+| #   | Карточка ← `depends_on`       | Релиз  | Что добавляет миграция                                                                                                                                                                                                                   | Совместимость с предыдущим runtime                                                       |
+| --- | ----------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| 1   | 19.2.2 ← 19.2.1               | v0.2.0 | enum `event_join_mode`; `organizations.max_seats_per_booking`, `default_price_mode`, `default_join_mode`, `cancellation_allowed`, `cancellation_deadline_hours`, `seo_index`, `district`; `events.cancellation_allowed`                  | только колонки с DEFAULT/NULL — старый runtime их не видит                               |
+| 2   | 19.2.3 ← 19.2.1               | v0.2.0 | enum `player_level`; таблица `player_levels` с данными; `organization_members.level`, `organizations.levels`, `events.level`                                                                                                             | аддитивно; `rating_in_org` остаётся                                                      |
+| 3   | 20.1.2 ← 19.2.1, 19.2.2       | v0.2.0 | `bookings.seats` (DEFAULT 1), `bookings.waitlist_seats` (DEFAULT 0), `bookings.incarnation` (DEFAULT 1), `payments.booking_incarnation` + backfill по `bookings.payment_id`, CHECK                                                       | схема совместима; **данные** `seats > 1` несовместимы со старым подсчётом — флаг и guard |
+| 4   | 20.1.3 ← 19.2.2               | v0.2.0 | `events.join_mode`; FK `invite_links.event_id`; CHECK `event_join`; `bookings.invite_id`; enum и таблица `event_invite_requests`                                                                                                         | старый runtime не проверяет `join_mode` — флаг и guard на `join_mode = 'invite'`         |
+| 5   | 20.2.1 ← 19.2.1               | v0.2.0 | enums `event_balance_reason`, `purchase_request_status`; `organization_event_balances`, `event_balance_entries`, `event_balance_purchase_requests`; backfill строки проекции и `pilot_grant` 48 событий существующим организациям (D-12) | старый runtime создаёт события без списания — см. правило 5                              |
+| 6   | 20.2.2 ← 19.2.1, 20.2.1       | v0.2.0 | enum `event_series_status`; `event_series`; `events.series_id`, `events.series_date`, UNIQUE                                                                                                                                             | аддитивно; старый runtime видит даты серии как обычные события                           |
+| 7   | 20.3.1 ← 20.1.1, 20.1.2, 15.x | v0.2.0 | `events.booking_opens_at` + CHECK; enum `waitlist_offer_status`; `waitlist_offers`. Схема `pgboss` создаётся pg-boss при старте воркера, не Drizzle                                                                                      | старый runtime игнорирует `booking_opens_at` — guard на будущие `booking_opens_at`       |
+| 8   | 20.3.2 ← 20.3.1               | v0.2.0 | enums `notification_type`, `notification_delivery_status`; `notifications`; `users.quiet_hours_start/end`                                                                                                                                | аддитивно                                                                                |
+| 9   | 21.2.4 ← 19.2.1, 19.3.1       | v0.3.0 | enum `collection_status`; `collections`; `payments.collection_id`; CHECK `num_nonnulls(...) <= 1`                                                                                                                                        | старый runtime не пишет `collection_id`; платежи-взносы ему видны как платежи без цели   |
 
 Порядок 2–5 — выбор сериализации, а не зависимость: миграции 19.2.3, 20.1.2, 20.1.3 и 20.2.1 не ссылаются друг на друга, поэтому оркестратор может менять их местами по готовности карточек. Жёсткие ограничения только схемные (см. выше): 19.2.2 раньше 20.1.3, 20.1.2 раньше 20.3.1, 20.2.1 раньше 20.2.2. Ветка, которая не первая в очереди, перегенерирует номер миграции после rebase на `main`.
 
