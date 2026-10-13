@@ -1,9 +1,6 @@
 import { sql } from 'drizzle-orm'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
-// копия allocate в seed-demo сверяется с оригиналом R0.7 (пакет shared не зависит от db)
-import { allocateSplitAmount } from '../../shared/src/events/pricing'
-
 import { closeDb, db } from './client'
 import { organizations, users } from './schema'
 import { DEMO_ORGANIZATIONS, allocate, assertDemoSeedAllowed, seedDemo } from './seed-demo'
@@ -171,7 +168,16 @@ describe('seed-demo (integration)', () => {
     expect(sessions.n).toBe(0)
   })
 
-  it('allocates split shares exactly like R0.7 allocateSplitAmount', () => {
+  it('allocates split shares exactly like R0.7 allocateSplitAmount', async () => {
+    // копия allocate сверяется с оригиналом из packages/shared. Путь не литерал: db не зависит
+    // от shared, и tsc пакета db (rootDir) не должен включать чужие исходники; vitest грузит файл.
+    const sharedPricing = ['..', '..', 'shared', 'src', 'events', 'pricing'].join('/')
+    const { allocateSplitAmount } = (await import(/* @vite-ignore */ sharedPricing)) as {
+      allocateSplitAmount: (
+        total: number,
+        participants: { bookingId: number; bookedAt: Date }[],
+      ) => { bookingId: number; amount: number }[]
+    }
     for (const [total, count] of [
       [18000, 12],
       [24000, 7],
