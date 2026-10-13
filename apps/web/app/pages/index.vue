@@ -42,7 +42,7 @@ useHead({
     <header class="landing__header">
       <div class="landing__container landing__header-inner">
         <a class="landing__brand" href="#main-content" aria-label="Volley Time — к началу страницы">
-          <img src="/logo.png" alt="" width="34" height="34" />
+          <img src="/logo/vt-mark-color.svg" alt="" width="34" height="34" />
           <span>VOLLEY<span>TIME</span></span>
         </a>
         <nav class="landing__nav" aria-label="Основная навигация">
@@ -314,7 +314,7 @@ useHead({
       <div class="landing__container landing__footer-inner">
         <div>
           <a class="landing__footer-brand" href="#main-content"
-            ><img src="/logo.png" alt="" width="32" height="32" /><span
+            ><img src="/logo/vt-mark-color.svg" alt="" width="32" height="32" /><span
               >VOLLEY<span>TIME</span></span
             ></a
           >

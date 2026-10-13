@@ -24,7 +24,7 @@
   background: #fff;
   color: var(--vt-ink);
   font-family: var(--f-body);
-  font-size: 16px;
+  font-size: var(--fs-md);
   line-height: 1.5;
 }
 .landing__visually-hidden {
@@ -163,7 +163,7 @@
   border-radius: 16px;
   padding: 16px 24px;
   font-family: var(--f-body);
-  font-size: 16px;
+  font-size: var(--fs-md);
   font-weight: 600;
   line-height: 1.5;
   color: #fff;
@@ -222,7 +222,7 @@
   padding: 6px 12px;
   border-radius: 99px;
   background: var(--vt-bone);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 .landing__eyebrow svg {
@@ -254,7 +254,7 @@
   gap: 18px;
   flex-wrap: wrap;
   margin-top: 22px !important;
-  font-size: 14px;
+  font-size: var(--fs-base);
   color: var(--vt-mute-2);
 }
 .landing__hero-note span {
@@ -338,7 +338,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  font-size: 11px;
+  font-size: var(--fs-2xs);
 }
 .landing-preview__status {
   display: flex;
@@ -430,7 +430,7 @@
 .landing-preview__tile strong {
   font-family: var(--f-num);
   font-weight: 700;
-  font-size: 20px;
+  font-size: var(--fs-xl);
   line-height: 1;
 }
 .landing-preview__tile small {
@@ -444,7 +444,7 @@
   font-family: var(--f-display);
   text-transform: uppercase;
   font-weight: 700;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   display: flex;
   justify-content: space-between;
   align-items: baseline;
@@ -474,7 +474,7 @@
   line-height: 1;
 }
 .landing-preview__schedule strong {
-  font-size: 11px;
+  font-size: var(--fs-2xs);
 }
 .landing-preview__schedule small {
   display: block;
@@ -548,7 +548,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   z-index: 3;
 }
@@ -664,7 +664,7 @@
   flex-direction: column;
 }
 .landing__card-label {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -703,7 +703,7 @@
 }
 .landing__bubble small {
   display: block;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--vt-flame);
   margin-bottom: 2px;
@@ -735,7 +735,7 @@
 }
 .landing__event-heading strong {
   font-family: var(--f-num);
-  font-size: 44px;
+  font-size: var(--fs-5xl);
   line-height: 1;
 }
 .landing__event-example .landing__segments {
@@ -753,7 +753,7 @@
   gap: 6px;
   padding: 6px 12px;
   border-radius: 99px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   white-space: nowrap;
   background: var(--vt-grass-soft);
@@ -853,7 +853,7 @@
   font-size: 64px;
 }
 .landing__feature-visual > strong small {
-  font-size: 28px;
+  font-size: var(--fs-3xl);
   opacity: 0.6;
 }
 .landing__feature--1 .landing__segments {
@@ -1112,7 +1112,7 @@
   margin-top: 48px;
   padding-top: 24px;
   box-shadow: 0 -1px 0 var(--vt-bone-2);
-  font-size: 14px;
+  font-size: var(--fs-base);
   color: var(--vt-mute-2);
 }
 .landing__canvas {
@@ -1222,7 +1222,7 @@
     gap: 12px;
   }
   .landing__brand {
-    font-size: 20px;
+    font-size: var(--fs-xl);
     gap: 6px;
   }
   .landing__brand img {
@@ -1237,7 +1237,7 @@
   }
   .landing__header .landing__button {
     padding: 11px 12px;
-    font-size: 12px;
+    font-size: var(--fs-xs);
   }
   .landing__feature-grid {
     grid-template-columns: 1fr;

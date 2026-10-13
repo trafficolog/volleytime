@@ -1,4 +1,6 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
@@ -6,6 +8,10 @@ const tokens = readFileSync(new URL('./tokens.css', import.meta.url), 'utf8')
 const tailwind = readFileSync(new URL('../../../tailwind.config.ts', import.meta.url), 'utf8')
 const nuxt = readFileSync(new URL('../../../nuxt.config.ts', import.meta.url), 'utf8')
 const main = readFileSync(new URL('./main.css', import.meta.url), 'utf8')
+const desktop = readFileSync(new URL('./desktop.css', import.meta.url), 'utf8')
+const landing = readFileSync(new URL('./landing.css', import.meta.url), 'utf8')
+const publicDir = fileURLToPath(new URL('../../../public/', import.meta.url))
+const FS_SCALE_PX = [11, 12, 13, 14, 16, 18, 20, 24, 28, 34, 44, 56, 72]
 
 function contrastRatio(foreground: string | undefined, background: string | undefined): number {
   if (!foreground || !background) return 0
@@ -105,5 +111,126 @@ describe('Bento Bold design token contract', () => {
     const numericOverride = main.indexOf('.vt-field.vt-mono {')
     expect(numericOverride).toBeGreaterThan(field)
     expect(main.slice(numericOverride)).toContain('font-family: var(--f-num)')
+  })
+})
+
+describe('Bento Bold v3 token scale and overlays', () => {
+  it('defines the v3 type scale as --fs-* steps', () => {
+    expect(declarations(':root')).toMatchObject({
+      '--fs-2xs': '11px',
+      '--fs-xs': '12px',
+      '--fs-sm': '13px',
+      '--fs-base': '14px',
+      '--fs-md': '16px',
+      '--fs-lg': '18px',
+      '--fs-xl': '20px',
+      '--fs-2xl': '24px',
+      '--fs-3xl': '28px',
+      '--fs-4xl': '34px',
+      '--fs-5xl': '44px',
+      '--fs-6xl': '56px',
+      '--fs-7xl': '72px',
+      '--text-cap': 'var(--fs-2xs)',
+      '--text-nano': '10px',
+    })
+  })
+
+  it('defines the v3 radii and spacing steps', () => {
+    expect(declarations(':root')).toMatchObject({
+      '--r-xs': '4px',
+      '--r-sm': '8px',
+      '--r-chip': '10px',
+      '--r-field': '12px',
+      '--r-btn': '14px',
+      '--r-tile': '18px',
+      '--r-card': '20px',
+      '--r-pill': '999px',
+      '--s-10': '40px',
+      '--s-12': '48px',
+    })
+  })
+
+  it('defines on-hero text, status and overlay tokens with v3 values', () => {
+    // Compare in canonical form: case, whitespace after commas and leading zeros are formatting only.
+    const canonical = (value: string) =>
+      value
+        .toLowerCase()
+        .replace(/,\s+/g, ',')
+        .replace(/(^|[^\d])\.(\d)/g, '$10.$2')
+    const actual = Object.fromEntries(
+      Object.entries(declarations(':root')).map(([name, value]) => [name, canonical(value)]),
+    )
+    expect(actual).toMatchObject({
+      '--vt-on-hero': '#ffffff',
+      '--vt-on-hero-2': 'rgba(255,255,255,0.86)',
+      '--vt-on-hero-3': 'rgba(255,255,255,0.74)',
+      '--vt-on-hero-line': 'rgba(255,255,255,0.22)',
+      '--vt-on-hero-fill': 'rgba(255,255,255,0.14)',
+      '--vt-grass-on-hero': '#c4f2ae',
+      '--vt-meter-ok-on-hero': '#9edb86',
+      '--vt-amber-on-hero': '#ffc94d',
+      '--vt-rose-on-hero': '#ff9aa6',
+      '--vt-rose-on-ink': '#ffb4bc',
+      '--vt-scrim': 'rgba(14,14,16,0.45)',
+      '--vt-toast-bg': 'rgba(14,14,16,0.88)',
+      '--vt-seg-shadow': '0 1px 2px rgba(0,0,0,0.06)',
+      '--vt-sheet-shadow': '0 -12px 32px rgba(0,0,0,0.18)',
+      '--vt-pop-shadow': '0 12px 32px rgba(0,0,0,0.15),0 0 0 0.5px rgba(0,0,0,0.04)',
+      '--vt-modal-shadow': '0 24px 48px rgba(0,0,0,0.25)',
+      '--vt-toast-shadow': '0 8px 24px rgba(0,0,0,0.25)',
+      '--vt-shadow-accent': '0 16px 32px -16px rgba(21,22,26,0.28)',
+    })
+  })
+
+  it('keeps text on hero and rose-on-ink tokens readable', () => {
+    const light = declarations(':root')
+    for (const token of [
+      '--vt-on-hero',
+      '--vt-grass-on-hero',
+      '--vt-meter-ok-on-hero',
+      '--vt-amber-on-hero',
+      '--vt-rose-on-hero',
+    ]) {
+      expect(contrastRatio(light[token], light['--vt-blue-ink']), token).toBeGreaterThanOrEqual(4.5)
+    }
+    expect(contrastRatio(light['--vt-rose-on-ink'], light['--vt-ink'])).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('uses only scale-step px font sizes in shared stylesheets', () => {
+    const pattern = new RegExp(`font-size:\\s*(?:${FS_SCALE_PX.join('|')})px\\b`)
+    for (const [name, css] of Object.entries({
+      'main.css': main,
+      'desktop.css': desktop,
+      'landing.css': landing,
+    })) {
+      expect(css.match(pattern)?.[0], name).toBeUndefined()
+    }
+  })
+
+  it('ships the v3 SVG logo set and points the favicon at it', () => {
+    for (const file of [
+      'vt-mark-color.svg',
+      'vt-favicon.svg',
+      'vt-apple-touch-icon.svg',
+      'vt-app-blue.svg',
+    ]) {
+      expect(existsSync(join(publicDir, 'logo', file)), file).toBe(true)
+    }
+    expect(nuxt).toContain("href: '/logo/vt-favicon.svg'")
+    expect(nuxt).toContain("type: 'image/svg+xml'")
+    expect(nuxt).not.toContain('/favicon.png')
+  })
+
+  it('does not reference the retired PNG logo from app code', () => {
+    function scan(directory: string): string[] {
+      return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+        const path = join(directory, entry.name)
+        if (entry.isDirectory()) return scan(path)
+        if (!/\.(vue|ts|css)$/.test(path) || /\.test\.ts$/.test(path)) return []
+        return readFileSync(path, 'utf8').includes('/logo.png') ? [path] : []
+      })
+    }
+    expect(scan(fileURLToPath(new URL('../..', import.meta.url)))).toEqual([])
+    expect(existsSync(join(publicDir, 'logo.png'))).toBe(false)
   })
 })

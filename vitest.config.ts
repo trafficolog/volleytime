@@ -29,7 +29,9 @@ export default defineConfig({
         resolve: {
           alias: {
             '~': fileURLToPath(new URL('./apps/web/app', import.meta.url)),
-            '/logo.png': fileURLToPath(new URL('./apps/web/public/logo.png', import.meta.url)),
+            '/logo/vt-mark-color.svg': fileURLToPath(
+              new URL('./apps/web/public/logo/vt-mark-color.svg', import.meta.url),
+            ),
           },
         },
         test: {

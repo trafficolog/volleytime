@@ -147,7 +147,7 @@ const membersLabel = computed(() => {
     <template v-else-if="org">
       <div class="vt-card p-6 text-center">
         <img
-          src="/logo.png"
+          src="/logo/vt-mark-color.svg"
           alt=""
           width="56"
           height="56"

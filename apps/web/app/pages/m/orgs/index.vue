@@ -80,7 +80,7 @@ function openGroup(group: { id: number; status: string; membershipStatus: string
               @click="openGroup(org)"
             >
               <img
-                src="/logo.png"
+                src="/logo/vt-mark-color.svg"
                 alt=""
                 width="36"
                 height="36"

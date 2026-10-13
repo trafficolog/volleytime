@@ -40,7 +40,7 @@
 
   --vt-shadow-card: 0 1px 2px rgba(21, 22, 26, 0.04), 0 10px 28px -10px rgba(21, 22, 26, 0.14);
   --vt-shadow-float: 0 14px 32px -8px rgba(21, 22, 26, 0.3);
-  --vt-shadow-accent: none;
+  --vt-shadow-accent: 0 16px 32px -16px rgba(21, 22, 26, 0.28);
   --vt-on-accent: #ffffff;
   --vt-on-grass: #ffffff;
   --vt-tabbar-bg: #15161a;
@@ -48,11 +48,14 @@
   --vt-tabbar-active: #ffffff;
   --vt-tg-blue: #2aabee;
 
-  --r-card: 20px;
-  --r-tile: 18px;
-  --r-btn: 14px;
+  --r-xs: 4px;
+  --r-sm: 8px;
   --r-chip: 10px;
   --r-field: 12px;
+  --r-btn: 14px;
+  --r-tile: 18px;
+  --r-card: 20px;
+  --r-pill: 999px;
   --s-1: 4px;
   --s-2: 8px;
   --s-3: 12px;
@@ -60,9 +63,47 @@
   --s-5: 20px;
   --s-6: 24px;
   --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
 
-  --text-cap: 11px;
+  /* Type scale (v3): 13 steps, no half pixels */
+  --fs-2xs: 11px;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-base: 14px;
+  --fs-md: 16px;
+  --fs-lg: 18px;
+  --fs-xl: 20px;
+  --fs-2xl: 24px;
+  --fs-3xl: 28px;
+  --fs-4xl: 34px;
+  --fs-5xl: 44px;
+  --fs-6xl: 56px;
+  --fs-7xl: 72px;
+
+  --text-cap: var(--fs-2xs);
   --text-nano: 10px;
+
+  /* Text on hero (blue / ink) surfaces */
+  --vt-on-hero: #ffffff;
+  --vt-on-hero-2: rgba(255, 255, 255, 0.86);
+  --vt-on-hero-3: rgba(255, 255, 255, 0.74);
+  --vt-on-hero-line: rgba(255, 255, 255, 0.22);
+  --vt-on-hero-fill: rgba(255, 255, 255, 0.14);
+  --vt-grass-on-hero: #c4f2ae;
+  --vt-meter-ok-on-hero: #9edb86;
+  --vt-amber-on-hero: #ffc94d;
+  --vt-rose-on-hero: #ff9aa6;
+  --vt-rose-on-ink: #ffb4bc;
+
+  /* Overlays and elevation (v3) */
+  --vt-scrim: rgba(14, 14, 16, 0.45);
+  --vt-toast-bg: rgba(14, 14, 16, 0.88);
+  --vt-seg-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --vt-sheet-shadow: 0 -12px 32px rgba(0, 0, 0, 0.18);
+  --vt-pop-shadow: 0 12px 32px rgba(0, 0, 0, 0.15), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  --vt-modal-shadow: 0 24px 48px rgba(0, 0, 0, 0.25);
+  --vt-toast-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 
   --f-display: 'Oswald', 'Golos Text', system-ui, sans-serif;
   --f-body: 'Golos Text', system-ui, sans-serif;

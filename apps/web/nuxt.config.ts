@@ -16,7 +16,10 @@ export default defineNuxtConfig({
       ],
       // SDK Telegram Mini App: без него window.Telegram отсутствует (Task 8.8.1)
       script: [{ src: 'https://telegram.org/js/telegram-web-app.js' }],
-      link: [{ rel: 'icon', type: 'image/png', href: '/favicon.png' }],
+      link: [
+        { rel: 'icon', type: 'image/svg+xml', href: '/logo/vt-favicon.svg' },
+        { rel: 'apple-touch-icon', type: 'image/svg+xml', href: '/logo/vt-apple-touch-icon.svg' },
+      ],
     },
   },
   routeRules: {

@@ -9,8 +9,10 @@ const tokens = readFileSync(new URL('./tokens.css', import.meta.url), 'utf8')
 const main = readFileSync(new URL('./main.css', import.meta.url), 'utf8')
 
 describe('decorative elevation contract', () => {
-  it('removes accent elevation from shared buttons and every accent-token consumer', () => {
-    expect(tokens.match(/--vt-shadow-accent:\s*([^;]+);/)?.[1]).toBe('none')
+  it('keeps shared primary buttons flat while the accent elevation is the neutral v3 shadow', () => {
+    expect(tokens.match(/--vt-shadow-accent:\s*([^;]+);/)?.[1]).toBe(
+      '0 16px 32px -16px rgba(21, 22, 26, 0.28)',
+    )
     expect(main.match(/\.vt-btn--primary\s*\{([^}]+)\}/)?.[1]).not.toContain('box-shadow')
   })
 
