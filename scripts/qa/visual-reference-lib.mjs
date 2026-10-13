@@ -7,7 +7,7 @@ export const THEMES = ['light', 'dark']
 export const ROLES = ['anonymous', 'player', 'organizer', 'owner']
 
 const ID_RE = /^[a-z0-9][a-z0-9-]*$/
-const REFERENCE_RE = /^[\w.-]+\/[\w.-]+\.png$/
+const REFERENCE_RE = /^[\w-][\w.-]*\/[\w-][\w.-]*\.png$/
 
 const isObj = (v) => typeof v === 'object' && v !== null && !Array.isArray(v)
 const isPosInt = (v) => Number.isInteger(v) && v > 0
