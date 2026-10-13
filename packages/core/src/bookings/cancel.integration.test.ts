@@ -4,6 +4,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { eventService } from '../events/service'
 import { memberService } from '../members/service'
 import { organizationService } from '../organizations/service'
+import { organizationSettingsService } from '../organizations/settings'
 import { planService } from '../subscription-plans/service'
 import { subscriptionService } from '../subscriptions/service'
 
@@ -31,13 +32,18 @@ async function newPlayer() {
 async function makeEvent(
   opts: { capacity?: number; price?: number; deadlineHours?: number | null } = {},
 ) {
+  // срок отмены задаёт группа, событие хранит снимок (D-02, 19.2.2)
+  if (opts.deadlineHours !== undefined) {
+    await organizationSettingsService.update({ userId: ownerId }, orgId, {
+      cancellationDeadlineHours: opts.deadlineHours,
+    })
+  }
   return eventService.create({ userId: ownerId }, orgId, {
     title: 'Тренировка',
     startsAt: future(),
     endsAt: future(26),
     capacity: opts.capacity ?? 2,
     price: opts.price ?? 0,
-    cancellationDeadlineHours: opts.deadlineHours,
   })
 }
 
@@ -90,14 +96,16 @@ describe('bookingService.cancel + promotion (integration)', () => {
   })
 
   it('deadline passed → self cancel blocked (admin bypasses)', async () => {
-    // событие через 1ч, дедлайн 2ч до начала → уже прошёл
+    // событие через 1ч, дедлайн 2ч до начала (политика группы) → уже прошёл
+    await organizationSettingsService.update({ userId: ownerId }, orgId, {
+      cancellationDeadlineHours: 2,
+    })
     const ev = await eventService.create({ userId: ownerId }, orgId, {
       title: 'Soon',
       startsAt: future(1),
       endsAt: future(3),
       capacity: 5,
       price: 0,
-      cancellationDeadlineHours: 2,
     })
     const pid = await newPlayer()
     const b = await bookingService.book({ userId: pid }, orgId, ev.id, { method: 'free' })

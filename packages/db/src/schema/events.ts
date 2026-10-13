@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm'
 import {
+  boolean,
   check,
   index,
   integer,
@@ -11,6 +12,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core'
 
+import { eventPriceModeEnum } from './event-enums'
 import { organizations } from './organizations'
 import { users } from './users'
 import { venues } from './venues'
@@ -28,7 +30,6 @@ export const eventStatusEnum = pgEnum('event_status', [
   'finished',
   'cancelled',
 ])
-export const eventPriceModeEnum = pgEnum('event_price_mode', ['fixed', 'split'])
 
 export const events = pgTable(
   'events',
@@ -55,6 +56,8 @@ export const events = pgTable(
     pricingParticipantCount: integer('pricing_participant_count'),
     currency: varchar('currency', { length: 8 }).notNull().default('BYN'),
     cancellationDeadlineHours: integer('cancellation_deadline_hours'),
+    // снимок политики группы при создании (D-02, 19.2.2); у существующих событий true
+    cancellationAllowed: boolean('cancellation_allowed').notNull().default(true),
     status: eventStatusEnum('status').notNull().default('published'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

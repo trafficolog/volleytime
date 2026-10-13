@@ -3,6 +3,7 @@ export const AUDIT_ACTIONS = {
   ORG_CREATED: 'organization.created',
   ORG_UPDATED: 'organization.updated',
   ORG_ARCHIVED: 'organization.archived',
+  ORG_SETTINGS_UPDATED: 'organization.settings_updated',
   MEMBER_ADDED: 'member.added',
   MEMBER_ROLE_CHANGED: 'member.role_changed',
   MEMBER_BLOCKED: 'member.blocked',

@@ -60,6 +60,8 @@ export async function createTestApi() {
     getCookie: h3.getCookie,
     setResponseStatus: h3.setResponseStatus,
     useRuntimeConfig: () => ({ public: {} }),
+    // макрос Nitro (OpenAPI): в сборке вырезается, в харнессе — no-op
+    defineRouteMeta: () => undefined,
   })
   for (const mod of [
     'handle-errors',

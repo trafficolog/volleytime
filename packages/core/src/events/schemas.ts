@@ -32,13 +32,19 @@ export const CreateEventInput = z
     endsAt: z.coerce.date(),
     capacity: z.number().int().positive().max(500),
     ...pricingFields,
+    // без priceMode сервис подставляет defaultPriceMode группы (19.2.2); согласованность
+    // режима, цены и цели проверяется в сервисе уже по итоговому режиму
+    priceMode: pricingFields.priceMode.removeDefault().optional(),
     // валюта события = валюта организации (6.8.8); передавать не обязательно
     currency: z.string().length(3).optional(),
+    // Политика отмены принадлежит группе, событие хранит снимок (D-02, 19.2.2). Поле принимается
+    // только для совместимости со старой формой события и игнорируется; уйдёт вместе с 20.5.5.
     cancellationDeadlineHours: z.number().int().min(0).max(720).nullable().optional(),
     status: z.enum(['draft', 'published']).default('published'),
   })
   .strict()
-  .refine(validPricing, {
+  // без priceMode согласованность проверяется в сервисе по режиму группы
+  .refine((d) => d.priceMode === undefined || validPricing({ ...d, priceMode: d.priceMode }), {
     message: 'Invalid event pricing mode, price or target',
     path: ['targetAmount'],
   })
@@ -60,6 +66,7 @@ export const UpdateEventInput = z
     priceMode: pricingFields.priceMode.removeDefault().optional(),
     price: pricingFields.price.removeDefault().optional(),
     targetAmount: pricingFields.targetAmount.removeDefault().optional(),
+    // игнорируется: политика отмены редактируется только в настройках группы (D-02)
     cancellationDeadlineHours: z.number().int().min(0).max(720).nullable().optional(),
     status: z.enum(['draft', 'published', 'closed', 'finished']).optional(),
   })
