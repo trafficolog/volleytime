@@ -202,6 +202,23 @@
       "role": "anonymous",
       "path": "/auth/login",
       "references": ["6-auth/01-section.png"]
+    },
+    {
+      "id": "atoms-controls",
+      "title": "Атомы v3: формы и контролы (dev-витрина)",
+      "viewport": "cabinet",
+      "role": "anonymous",
+      "path": "/dev/atoms",
+      "references": ["1-brand/07-section.png"]
+    },
+    {
+      "id": "atoms-select-open",
+      "title": "Атомы v3: открытый select (dev-витрина)",
+      "viewport": "cabinet",
+      "role": "anonymous",
+      "path": "/dev/atoms",
+      "steps": [{ "click": ".vt-select__button" }],
+      "references": ["1-brand/08-section.png"]
     }
   ]
 }

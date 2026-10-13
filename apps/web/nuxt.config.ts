@@ -3,7 +3,18 @@
 export default defineNuxtConfig({
   compatibilityDate: '2026-05-01',
   devtools: { enabled: true },
-  modules: ['@nuxtjs/tailwindcss'],
+  modules: [
+    '@nuxtjs/tailwindcss',
+    // Dev-витрины (/dev/**, например атомы v3) не попадают в production-сборку: маршрут не создаётся.
+    (_options, nuxt) => {
+      if (nuxt.options.dev) return
+      nuxt.hook('pages:extend', (pages) => {
+        for (let i = pages.length - 1; i >= 0; i--) {
+          if (pages[i]!.path === '/dev' || pages[i]!.path.startsWith('/dev/')) pages.splice(i, 1)
+        }
+      })
+    },
+  ],
   css: ['~/assets/css/landing-fonts.css', '~/assets/css/main.css', '~/assets/css/atoms-v3.css'],
   tailwindcss: { cssPath: false },
   app: {

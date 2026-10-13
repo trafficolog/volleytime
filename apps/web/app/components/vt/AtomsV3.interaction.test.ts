@@ -405,37 +405,219 @@ describe('useToast + VtToast', () => {
   })
 
   it('renders an always-present polite live region and hides the toast after 2.4 s', async () => {
-    const wrapper = mount(Toast, { attachTo: document.body })
-    const host = wrapper.get('[role="status"]')
-    expect(host.attributes('aria-live')).toBe('polite')
-    expect(wrapper.find('.vt-toast').exists()).toBe(false)
+    mount(Toast, { attachTo: document.body })
+    await nextTick()
+    const host = document.querySelector('[role="status"]')!
+    expect(host.getAttribute('aria-live')).toBe('polite')
+    expect(document.querySelector('.vt-toast')).toBeNull()
 
     useToast().show('Ссылка скопирована')
     await nextTick()
-    expect(wrapper.get('.vt-toast').text()).toBe('Ссылка скопирована')
+    expect(document.querySelector('.vt-toast')!.textContent!.trim()).toBe('Ссылка скопирована')
 
     vi.advanceTimersByTime(TOAST_DURATION_MS - 1)
     await nextTick()
-    expect(wrapper.find('.vt-toast').exists()).toBe(true)
+    expect(document.querySelector('.vt-toast')).not.toBeNull()
     vi.advanceTimersByTime(1)
     await nextTick()
-    expect(wrapper.find('.vt-toast').exists()).toBe(false)
+    expect(document.querySelector('.vt-toast')).toBeNull()
   })
 
   it('a new toast replaces the previous one and restarts the timer; danger tone styles it', async () => {
-    const wrapper = mount(Toast, { attachTo: document.body })
+    mount(Toast, { attachTo: document.body })
     const { show } = useToast()
     show('Первый')
     vi.advanceTimersByTime(2000)
     show('Ошибка', 'danger')
     await nextTick()
-    expect(wrapper.get('.vt-toast').text()).toBe('Ошибка')
-    expect(wrapper.get('.vt-toast').classes()).toContain('vt-toast--danger')
+    expect(document.querySelector('.vt-toast')!.textContent!.trim()).toBe('Ошибка')
+    expect([...document.querySelector('.vt-toast')!.classList]).toContain('vt-toast--danger')
     vi.advanceTimersByTime(2000)
     await nextTick()
-    expect(wrapper.find('.vt-toast').exists()).toBe(true)
+    expect(document.querySelector('.vt-toast')).not.toBeNull()
     vi.advanceTimersByTime(400)
     await nextTick()
-    expect(wrapper.find('.vt-toast').exists()).toBe(false)
+    expect(document.querySelector('.vt-toast')).toBeNull()
+  })
+})
+
+describe('review fixes (round 1)', () => {
+  it('Alert: Escape and the Tab trap still work after focus leaves to the body', async () => {
+    const open = ref(false)
+    const host = defineComponent({
+      setup: () => () =>
+        h('div', [
+          h('button', { id: 'trg', onClick: () => (open.value = true) }, 'Открыть'),
+          h(Alert, {
+            modelValue: open.value,
+            'onUpdate:modelValue': (v: boolean) => (open.value = v),
+            title: 'Удалить?',
+            body: 'Текст пояснения',
+            confirmLabel: 'Удалить',
+          }),
+        ]),
+    })
+    mount(host, { attachTo: document.body })
+    const trigger = document.querySelector<HTMLButtonElement>('#trg')!
+    trigger.focus()
+    trigger.click()
+    await flush()
+    const panel = document.querySelector<HTMLElement>('.vt-alert')!
+    expect(panel.getAttribute('tabindex')).toBe('-1')
+
+    // клик по тексту: фокус уходит с кнопки, панель забирает его обратно
+    ;(document.activeElement as HTMLElement).blur()
+    await flush()
+    expect(document.activeElement).toBe(panel)
+
+    const [cancel, ok] = [...document.querySelectorAll<HTMLButtonElement>('.vt-alert button')]
+    key(panel, 'Tab')
+    expect(document.activeElement).toBe(cancel)
+    panel.focus()
+    key(panel, 'Tab', { shiftKey: true })
+    expect(document.activeElement).toBe(ok)
+
+    ;(document.activeElement as HTMLElement).blur()
+    await flush()
+    key(document.activeElement!, 'Escape')
+    await flush()
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull()
+    expect(document.activeElement).toBe(trigger)
+  })
+
+  it('Alert keeps the toast live region out of the inert set', async () => {
+    const wrapper = mount(Toast, { attachTo: document.body })
+    await flush()
+    const hostEl = document.querySelector<HTMLElement>('[data-vt-toast-host]')!
+    expect(hostEl.parentElement).toBe(document.body)
+    const open = ref(true)
+    mount(
+      defineComponent({
+        setup: () => () =>
+          h(Alert, {
+            modelValue: open.value,
+            'onUpdate:modelValue': (v: boolean) => (open.value = v),
+            title: 'Тест',
+            confirmLabel: 'ОК',
+          }),
+      }),
+      { attachTo: document.body },
+    )
+    await flush()
+    expect(hostEl.inert).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('Select and Toggle take an accessible name from aria-labelledby', () => {
+    const select = mount(Select, {
+      props: { modelValue: 'v1', options: venues, labelledby: 'lbl' },
+      attachTo: document.body,
+    })
+    const button = select.get('button')
+    expect(button.attributes('aria-labelledby')).toBe('lbl')
+    expect(button.attributes('aria-label')).toBeUndefined()
+    expect(select.get('[role="listbox"]').attributes('aria-labelledby')).toBe('lbl')
+    const toggle = mount(Toggle, { props: { modelValue: false, labelledby: 'lbl2' } })
+    expect(toggle.get('button').attributes('aria-labelledby')).toBe('lbl2')
+    expect(toggle.get('button').attributes('aria-label')).toBeUndefined()
+  })
+
+  it('Select scrolls the active option into view for keyboard navigation only', async () => {
+    const scroll = vi.fn()
+    const original = Element.prototype.scrollIntoView
+    Element.prototype.scrollIntoView = scroll
+    try {
+      const wrapper = mount(Select, {
+        props: { modelValue: 'v1', options: venues, label: 'Зал' },
+        attachTo: document.body,
+      })
+      const button = wrapper.get('button').element
+      button.click()
+      await flush()
+      const options = [...document.querySelectorAll('[role="option"]')]
+      options[3]!.dispatchEvent(new MouseEvent('mouseenter'))
+      await flush()
+      expect(scroll).not.toHaveBeenCalled()
+      key(button, 'ArrowUp')
+      await flush()
+      expect(scroll).toHaveBeenCalled()
+    } finally {
+      Element.prototype.scrollIntoView = original
+    }
+  })
+
+  it('Select and Popover remove their document listeners on unmount', () => {
+    const added = vi.spyOn(document, 'addEventListener')
+    const removed = vi.spyOn(document, 'removeEventListener')
+    const select = mount(Select, {
+      props: { modelValue: 'v1', options: venues, label: 'Зал' },
+      attachTo: document.body,
+    })
+    const popover = mount(Popover, {
+      props: { items: [{ key: 'a', label: 'A' }], modelValue: false },
+      attachTo: document.body,
+    })
+    const handlers = added.mock.calls.filter(([type]) => type === 'mousedown').map(([, fn]) => fn)
+    expect(handlers).toHaveLength(2)
+    select.unmount()
+    popover.unmount()
+    const removedHandlers = removed.mock.calls
+      .filter(([type]) => type === 'mousedown')
+      .map(([, fn]) => fn)
+    for (const fn of handlers) expect(removedHandlers).toContain(fn)
+    added.mockRestore()
+    removed.mockRestore()
+  })
+
+  it('Popover: aria-controls only while open; Tab closes without stealing focus', async () => {
+    const open = ref(false)
+    mount(
+      defineComponent({
+        setup: () => () =>
+          h(
+            Popover,
+            {
+              modelValue: open.value,
+              'onUpdate:modelValue': (v: boolean) => (open.value = v),
+              items: [
+                { key: 'a', label: 'A' },
+                { key: 'b', label: 'B' },
+              ],
+            },
+            {
+              trigger: ({
+                toggle,
+                attrs,
+              }: {
+                toggle: () => void
+                attrs: Record<string, unknown>
+              }) => h('button', { id: 'trg', ...attrs, onClick: toggle }, 'Ещё'),
+            },
+          ),
+      }),
+      { attachTo: document.body },
+    )
+    const trigger = document.querySelector<HTMLButtonElement>('#trg')!
+    expect(trigger.hasAttribute('aria-controls')).toBe(false)
+    trigger.click()
+    await flush()
+    expect(trigger.getAttribute('aria-controls')).toBe(document.querySelector('[role="menu"]')!.id)
+    const first = document.querySelector<HTMLElement>('[role="menuitem"]')!
+    expect(document.activeElement).toBe(first)
+    key(first, 'Tab')
+    await flush()
+    expect(open.value).toBe(false)
+    expect(document.activeElement).not.toBe(trigger)
+    expect(trigger.hasAttribute('aria-controls')).toBe(false)
+  })
+
+  it('useToast is a no-op without a window (SSR) so state cannot leak between requests', () => {
+    vi.stubGlobal('window', undefined)
+    try {
+      useToast().show('server')
+      expect(useToast().current.value).toBeNull()
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 })

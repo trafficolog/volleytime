@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 
 /** Меню-поповер (веб, 210 px): role=menu, стрелки, Esc / клик вне закрывают, фокус возвращается. */
 export interface VtPopoverItem {
@@ -20,6 +20,12 @@ const uid = useId()
 const root = ref<HTMLElement | null>(null)
 const menu = ref<HTMLElement | null>(null)
 const menuId = `${uid}-menu`
+const triggerAttrs = computed(() => ({
+  'data-vt-popover-trigger': '',
+  'aria-haspopup': 'menu' as const,
+  'aria-expanded': open.value,
+  'aria-controls': open.value ? menuId : undefined,
+}))
 
 function entries(): HTMLElement[] {
   return [...(menu.value?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])') ?? [])]
@@ -74,17 +80,7 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocPointer))
 
 <template>
   <div ref="root" class="vt-popover-root">
-    <slot
-      name="trigger"
-      :open="open"
-      :toggle="() => (open = !open)"
-      :attrs="{
-        'data-vt-popover-trigger': '',
-        'aria-haspopup': 'menu',
-        'aria-expanded': open,
-        'aria-controls': menuId,
-      }"
-    />
+    <slot name="trigger" :open="open" :toggle="() => (open = !open)" :attrs="triggerAttrs" />
     <div
       v-if="open"
       :id="menuId"

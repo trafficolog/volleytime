@@ -3,7 +3,7 @@
 
 .vt-btn--rose {
   background: var(--vt-rose);
-  color: var(--vt-on-hero);
+  color: var(--vt-on-rose);
 }
 
 /* Select */
@@ -21,7 +21,7 @@
 }
 .vt-select__button--open {
   border-color: var(--vt-ink);
-  box-shadow: 0 0 0 3px var(--vt-ring);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--vt-ink) 8%, transparent);
 }
 .vt-select__value {
   flex: 1;
@@ -317,6 +317,7 @@
 }
 .vt-toast--danger {
   background: var(--vt-rose);
+  color: var(--vt-on-rose);
 }
 
 /* Sheet (v3): scrim token, 180 ms rise */
@@ -366,12 +367,20 @@
   }
 }
 
-/* Reduced motion: no spatial movement; main.css disables animation/transition globally.
-   Listed here so the intent is explicit and testable. */
+/* Reduced motion (reference styles.css): пространственное движение заменяется короткой
+   сменой прозрачности 150 мс. Класс сильнее глобального `*` из main.css, поэтому побеждает. */
 @media (prefers-reduced-motion: reduce) {
   .vt-sheet-panel,
   .vt-popover,
   .vt-toast {
-    animation: none !important;
+    animation-name: vt-fade !important;
+    animation-duration: 150ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  .vt-sheet-scrim,
+  .vt-alert-scrim {
+    animation-name: vt-fade !important;
+    animation-duration: 150ms !important;
+    animation-iteration-count: 1 !important;
   }
 }

@@ -12,16 +12,24 @@ export interface VtSelectOption {
 const model = defineModel<string>({ required: true })
 const props = defineProps<{
   options: VtSelectOption[]
+  /** Доступное имя: `label` или `labelledby` (id видимой подписи) — одно из двух обязательно. */
   label?: string
+  labelledby?: string
   placeholder?: string
   disabled?: boolean
 }>()
+
+if (import.meta.dev && !props.label && !props.labelledby) {
+  console.warn('[VtSelect] нужен label или labelledby: у списка нет доступного имени')
+}
 
 const uid = useId()
 const root = ref<HTMLElement | null>(null)
 const button = ref<HTMLButtonElement | null>(null)
 const open = ref(false)
 const active = ref(-1)
+// scrollIntoView только при навигации с клавиатуры: при наведении мыши список не «ездит».
+let viaKeyboard = false
 let typed = ''
 let typedTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -82,6 +90,7 @@ function isPrintable(event: KeyboardEvent): boolean {
 
 function onKeydown(event: KeyboardEvent) {
   if (props.disabled) return
+  viaKeyboard = true
   const { key } = event
   if (!open.value) {
     if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(key)) {
@@ -134,6 +143,17 @@ function onKeydown(event: KeyboardEvent) {
   }
 }
 
+function onButtonClick() {
+  viaKeyboard = false
+  if (open.value) closeList()
+  else openList()
+}
+
+function onOptionEnter(i: number) {
+  viaKeyboard = false
+  if (!props.options[i]?.disabled) active.value = i
+}
+
 function onDocPointer(event: MouseEvent) {
   if (open.value && root.value && !root.value.contains(event.target as Node)) closeList(false)
 }
@@ -146,7 +166,7 @@ onBeforeUnmount(() => {
 
 watch(active, async () => {
   await nextTick()
-  if (activeId.value)
+  if (viaKeyboard && activeId.value)
     document.getElementById(activeId.value)?.scrollIntoView?.({ block: 'nearest' })
 })
 </script>
@@ -163,9 +183,10 @@ watch(active, async () => {
       :aria-expanded="open"
       :aria-controls="listId"
       :aria-activedescendant="activeId"
-      :aria-label="label"
+      :aria-label="labelledby ? undefined : label"
+      :aria-labelledby="labelledby"
       :disabled="disabled"
-      @click="open ? closeList() : openList()"
+      @click="onButtonClick"
       @keydown="onKeydown"
     >
       <span class="vt-select__value" :class="{ 'vt-select__value--empty': !selected }">
@@ -186,7 +207,14 @@ watch(active, async () => {
         <path d="m6 9 6 6 6-6" />
       </svg>
     </button>
-    <ul v-show="open" :id="listId" class="vt-select__list" role="listbox" :aria-label="label">
+    <ul
+      v-show="open"
+      :id="listId"
+      class="vt-select__list"
+      role="listbox"
+      :aria-label="labelledby ? undefined : label"
+      :aria-labelledby="labelledby"
+    >
       <li
         v-for="(o, i) in options"
         :id="optionId(i)"
@@ -200,7 +228,7 @@ watch(active, async () => {
         :aria-selected="o.value === model"
         :aria-disabled="o.disabled || undefined"
         @mousedown.prevent
-        @mouseenter="!o.disabled && (active = i)"
+        @mouseenter="onOptionEnter(i)"
         @click="choose(i)"
       >
         <span class="vt-select__text">

@@ -54,14 +54,28 @@ function onKeydown(event: KeyboardEvent) {
     event.preventDefault()
     return
   }
-  const inside = panel.value?.contains(document.activeElement)
-  if (event.shiftKey && (document.activeElement === first || !inside)) {
+  const active = document.activeElement
+  const inside = panel.value?.contains(active)
+  // Фокус на самой панели (клик по тексту) или вне неё: возвращаем в цикл кнопок.
+  const atEdge = !inside || active === panel.value
+  if (event.shiftKey && (active === first || atEdge)) {
     event.preventDefault()
     last.focus()
-  } else if (!event.shiftKey && (document.activeElement === last || !inside)) {
+  } else if (!event.shiftKey && (active === last || atEdge)) {
     event.preventDefault()
     first.focus()
   }
+}
+
+// Клик по тексту внутри панели или по пустому месту уводит фокус на body: Esc и Tab перестали бы
+// доходить до диалога. Возвращаем фокус на панель.
+function onFocusout(event: FocusEvent) {
+  if (event.relatedTarget) return
+  queueMicrotask(() => {
+    if (!open.value || !dialog.value?.isConnected) return
+    const active = document.activeElement
+    if (!active || active === document.body) panel.value?.focus()
+  })
 }
 
 watch(
@@ -78,6 +92,8 @@ watch(
     if (!open.value || !dialog.value) return
     for (const child of document.body.children) {
       if (!(child instanceof HTMLElement) || child === dialog.value) continue
+      // Live-регион тостов должен оставаться доступным скринридеру поверх диалога.
+      if (child.hasAttribute('data-vt-toast-host')) continue
       previousInert.set(child, child.inert)
       child.inert = true
     }
@@ -101,9 +117,10 @@ onUnmounted(restore)
       :aria-labelledby="titleId"
       :aria-describedby="props.body ? bodyId : undefined"
       @keydown="onKeydown"
+      @focusout="onFocusout"
     >
       <div class="vt-alert-scrim" aria-hidden="true" @click="open = false" />
-      <div ref="panel" class="vt-alert">
+      <div ref="panel" class="vt-alert" tabindex="-1">
         <h2 :id="titleId" class="vt-alert__title">{{ title }}</h2>
         <p v-if="body" :id="bodyId" class="vt-alert__body">{{ body }}</p>
         <div class="vt-alert__actions">

@@ -49,3 +49,56 @@ describe('atoms v3 styles', () => {
     expect(withoutVarFallbacks).not.toMatch(/rgba?\(/)
   })
 })
+
+const tokens = readFileSync(new URL('./tokens.css', import.meta.url), 'utf8').replaceAll(
+  '\r\n',
+  '\n',
+)
+
+function hexOf(block: string, name: string): string {
+  const match = new RegExp(`${name}:\\s*(#[0-9a-fA-F]{6})`).exec(block)
+  if (!match) throw new Error(`${name} not found`)
+  return match[1]!
+}
+
+function luminance(hex: string): number {
+  const channel = (i: number) => {
+    const c = parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16) / 255
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  }
+  return 0.2126 * channel(0) + 0.7152 * channel(1) + 0.0722 * channel(2)
+}
+
+function contrast(a: string, b: string): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+  return (hi! + 0.05) / (lo! + 0.05)
+}
+
+describe('atoms v3 review fixes', () => {
+  it('text on rose (danger button, danger toast) is >= 4.5:1 in light and dark themes', () => {
+    const darkStart = tokens.indexOf('.dark,\n.vt-dark {')
+    const light = tokens.slice(0, darkStart)
+    const dark = tokens.slice(darkStart, tokens.indexOf('\n}', darkStart))
+    const lightRatio = contrast(hexOf(light, '--vt-on-rose'), hexOf(light, '--vt-rose'))
+    const darkRatio = contrast(hexOf(dark, '--vt-on-rose'), hexOf(dark, '--vt-rose'))
+    expect(lightRatio).toBeGreaterThanOrEqual(4.5)
+    expect(darkRatio).toBeGreaterThanOrEqual(4.5)
+    expect(rule('.vt-btn--rose')).toContain('var(--vt-on-rose)')
+    expect(rule('.vt-toast--danger')).toContain('var(--vt-on-rose)')
+  })
+
+  it('reduced motion collapses spatial animation to a 150 ms fade instead of removing it', () => {
+    const media = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'))
+    expect(media).toContain('animation-name: vt-fade !important')
+    expect(media).toContain('animation-duration: 150ms !important')
+    for (const selector of ['.vt-sheet-panel', '.vt-popover', '.vt-toast', '.vt-alert-scrim'])
+      expect(media).toContain(selector)
+    expect(media).not.toContain('animation: none')
+    expect(css).toContain('@keyframes vt-fade')
+  })
+
+  it('open select uses the ink border and an ink 8% ring', () => {
+    expect(rule('.vt-select__button--open')).toContain('border-color: var(--vt-ink)')
+    expect(rule('.vt-select__button--open')).toContain('var(--vt-ink) 8%')
+  })
+})

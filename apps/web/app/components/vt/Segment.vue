@@ -18,7 +18,12 @@ const props = withDefaults(
   { variant: 'segment' },
 )
 
-const buttons = ref<HTMLButtonElement[]>([])
+const root = ref<HTMLElement | null>(null)
+
+// Порядок ref-ов из v-for не гарантирован: ищем кнопки по DOM.
+function buttonAt(i: number): HTMLButtonElement | undefined {
+  return root.value?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[i]
+}
 
 function tabbable(i: number): boolean {
   const current = props.options.findIndex((o) => o.value === model.value && !o.disabled)
@@ -49,16 +54,21 @@ function onKeydown(event: KeyboardEvent, from: number) {
   const option = props.options[i]
   if (!option || option.disabled) return
   model.value = option.value
-  buttons.value[i]?.focus()
+  buttonAt(i)?.focus()
 }
 </script>
 
 <template>
-  <div class="vt-seg" :class="`vt-seg--${variant}`" role="radiogroup" :aria-label="label">
+  <div
+    ref="root"
+    class="vt-seg"
+    :class="`vt-seg--${variant}`"
+    role="radiogroup"
+    :aria-label="label"
+  >
     <button
       v-for="(o, i) in options"
       :key="o.value"
-      ref="buttons"
       type="button"
       class="vt-seg__item"
       role="radio"
