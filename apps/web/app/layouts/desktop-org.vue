@@ -65,7 +65,7 @@ useHead(() => ({
     <template v-if="!isLoading && access === 'ready' && organization">
       <aside class="vt-desktop__sidebar">
         <NuxtLink to="/app" class="vt-desktop__brand">
-          <img src="/logo.png" alt="" width="32" height="32" />
+          <img src="/logo/vt-mark-color.svg" alt="" width="32" height="32" />
           <span>Volley Time</span>
         </NuxtLink>
         <NuxtLink to="/app?choose=1" class="vt-desktop__org-switch">

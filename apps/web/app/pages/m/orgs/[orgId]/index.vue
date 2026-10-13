@@ -169,7 +169,7 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
         @click="openGroups"
       >
         <span class="vt-avi vt-avi--lg !rounded-xl bg-vt-bone" aria-hidden="true">
-          <img :src="'/logo.png'" alt="" class="!object-contain p-1" />
+          <img :src="'/logo/vt-mark-color.svg'" alt="" class="!object-contain p-1" />
         </span>
         <span class="min-w-0">
           <span class="font-semibold text-[15px] truncate flex items-center gap-1">

@@ -160,7 +160,7 @@ async function chooseOrganization(org: AuthOrg) {
   <main class="min-h-screen flex items-center justify-center px-5 py-10" :aria-busy="submitting">
     <div class="w-full max-w-md vt-card vt-card--raised p-6 sm:p-8">
       <div class="flex items-center gap-2 mb-7">
-        <img src="/logo.png" alt="" width="32" height="32" />
+        <img src="/logo/vt-mark-color.svg" alt="" width="32" height="32" />
         <span class="font-display font-bold tracking-tight">Volley Time</span>
       </div>
       <form v-if="step === 'email'" class="space-y-3" @submit.prevent="sendCode">

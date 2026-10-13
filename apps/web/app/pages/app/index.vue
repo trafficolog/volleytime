@@ -65,7 +65,7 @@ function groupLabel(org: OrganizationListItem) {
   <main class="vt-desktop__entry space-y-6">
     <header class="space-y-3">
       <NuxtLink to="/" class="vt-desktop__brand !p-0">
-        <img src="/logo.png" alt="" width="32" height="32" /> Volley Time
+        <img src="/logo/vt-mark-color.svg" alt="" width="32" height="32" /> Volley Time
       </NuxtLink>
       <h1 class="text-3xl">Мои группы</h1>
       <p class="text-vt-mute-2">Выберите группу для работы в кабинете организатора.</p>
