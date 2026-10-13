@@ -2,11 +2,11 @@
 id: '19.0.2'
 phase: '19'
 epic: '19.0'
-status: in_progress
+status: done
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: 'реализовано в PR, ждёт ревью opus'
+last_reviewed: 2026-10-13
+status_note: 'PR #105 + follow-up #106 (local-only guards), ревью Opus merge, CI green. Запуск: docs/operations/runbooks/visual-reference-harness.md.'
 ref_id: ''
 complexity: M
 impl_model: claude-sonnet-5-5

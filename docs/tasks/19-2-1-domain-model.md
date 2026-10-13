@@ -2,11 +2,11 @@
 id: '19.2.1'
 phase: '19'
 epic: '19.2'
-status: todo
+status: done
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: 'Миграции фич, их тесты «применяется и откатывается» и OpenAPI ресурсов перенесены в карточки-владельцы по ADR (п. 7, 10); здесь — ADR, соглашения API и демо-сид'
+last_reviewed: 2026-10-13
+status_note: 'ADR docs/architecture/ADR-v3-domain.md и демо-сид: PR #100 + #102, ревью Opus merge (4 раунда). Миграции фич и OpenAPI — в карточках-владельцах.'
 ref_id: 'P-01'
 complexity: XL
 impl_model: claude-opus-5-5
