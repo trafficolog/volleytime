@@ -32,6 +32,16 @@ describe('validateInitData', () => {
     expect(() => validateInitData(raw, BOT_TOKEN)).toThrow(/expired/)
   })
 
+  it('honours a configured max age in both directions (19.3.1)', () => {
+    const fiveMin = String(Math.floor(Date.now() / 1000) - 300)
+    const raw = signInitData({ user: validUser, auth_date: fiveMin }, BOT_TOKEN)
+    expect(() => validateInitData(raw, BOT_TOKEN, { maxAgeSeconds: 120 })).toThrow(/expired/)
+    expect(validateInitData(raw, BOT_TOKEN, { maxAgeSeconds: 600 }).user.id).toBe(42n)
+    const twoHours = String(Math.floor(Date.now() / 1000) - 7200)
+    const longer = signInitData({ user: validUser, auth_date: twoHours }, BOT_TOKEN)
+    expect(validateInitData(longer, BOT_TOKEN, { maxAgeSeconds: 86400 }).user.id).toBe(42n)
+  })
+
   it('rejects auth_date from the future (3.9.10)', () => {
     const future = String(Math.floor(Date.now() / 1000) + 600)
     const raw = signInitData({ user: validUser, auth_date: future }, BOT_TOKEN)

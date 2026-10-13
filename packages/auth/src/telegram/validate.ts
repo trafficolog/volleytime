@@ -2,15 +2,18 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 
 import { z } from 'zod'
 
+/** Подтверждённая подписью Telegram-личность (Mini App initData или Login Widget). */
+export interface ValidatedTelegramUser {
+  id: bigint
+  first_name: string
+  last_name?: string
+  username?: string
+  language_code?: string
+  photo_url?: string
+}
+
 export interface ValidatedInitData {
-  user: {
-    id: bigint
-    first_name: string
-    last_name?: string
-    username?: string
-    language_code?: string
-    photo_url?: string
-  }
+  user: ValidatedTelegramUser
   auth_date: number
   chat_instance?: string
   start_param?: string

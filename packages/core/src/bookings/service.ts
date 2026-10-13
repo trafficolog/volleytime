@@ -70,7 +70,8 @@ export const bookingService = {
       await tx.execute(sql`SELECT pg_advisory_xact_lock(${eventId})`)
       // 1. событие
       const event = await tx.query.events.findFirst({ where: eq(events.id, eventId) })
-      if (!event || event.organizationId !== orgId) throw new EventNotBookableError('not found')
+      // чужое событие неотличимо от несуществующего: 404, а не 422 (IDOR, 19.3.1)
+      if (!event || event.organizationId !== orgId) throw new EventNotFoundError(eventId)
       if (event.status === 'cancelled') throw new EventNotBookableError('cancelled')
       if (event.status !== 'published') throw new EventNotBookableError('not open')
       if (event.startsAt < new Date()) throw new EventNotBookableError('already started')

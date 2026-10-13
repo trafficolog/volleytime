@@ -29,6 +29,7 @@ const CODE_MESSAGES: Record<string, string> = {
   'booking.cannot_cancel_others': 'Нельзя отменить чужую запись',
   'subscription.no_active': 'Нет активного абонемента с остатком',
   'subscription.pending_exists': 'У вас уже есть неоплаченный абонемент по этому плану',
+  'event.not_found': 'Событие не найдено',
   'event.starts_in_past': 'Время начала должно быть в будущем',
   'event.capacity_below_taken': 'Мест не может быть меньше, чем уже записано',
 }

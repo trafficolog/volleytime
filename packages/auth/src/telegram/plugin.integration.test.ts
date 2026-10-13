@@ -1,4 +1,4 @@
-import { createHmac } from 'node:crypto'
+import { createHash, createHmac } from 'node:crypto'
 
 import { closeDb, db, users } from '@volley-time/db'
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -8,10 +8,10 @@ import { sentEmails } from '../email'
 
 const BOT_TOKEN = '123456:PLUGIN_TEST'
 
-function signInitData(tgId: number, token = BOT_TOKEN): string {
+function signInitData(tgId: number, token = BOT_TOKEN, ageSeconds = 0): string {
   const params: Record<string, string> = {
     user: JSON.stringify({ id: tgId, first_name: 'Игрок', username: `p${tgId}` }),
-    auth_date: String(Math.floor(Date.now() / 1000)),
+    auth_date: String(Math.floor(Date.now() / 1000) - ageSeconds),
   }
   const dcs = Object.entries(params)
     .map(([k, v]) => `${k}=${v}`)
@@ -21,6 +21,21 @@ function signInitData(tgId: number, token = BOT_TOKEN): string {
   const sp = new URLSearchParams(params)
   sp.set('hash', createHmac('sha256', secret).update(dcs).digest('hex'))
   return sp.toString()
+}
+
+function signWidget(tgId: number, token = BOT_TOKEN, ageSeconds = 0) {
+  const fields: Record<string, string | number> = {
+    id: tgId,
+    first_name: 'Игрок',
+    username: `p${tgId}`,
+    auth_date: Math.floor(Date.now() / 1000) - ageSeconds,
+  }
+  const dcs = Object.keys(fields)
+    .sort()
+    .map((k) => `${k}=${fields[k]}`)
+    .join('\n')
+  const secret = createHash('sha256').update(token).digest()
+  return { ...fields, hash: createHmac('sha256', secret).update(dcs).digest('hex') }
 }
 
 function post(path: string, body: unknown, cookie?: string) {
@@ -108,6 +123,115 @@ describe('telegramPlugin — single better-auth session (integration, 3.9.4)', (
     expect(conflict.status).toBe(409)
     const body = (await conflict.json()) as { code?: string }
     expect(String(body.code).toLowerCase()).toContain('linked_to_other_user')
+  })
+
+  describe('initData max age (19.3.1)', () => {
+    const origMaxAge = process.env.TELEGRAM_INIT_DATA_MAX_AGE_SECONDS
+    afterEach(() => {
+      if (origMaxAge === undefined) delete process.env.TELEGRAM_INIT_DATA_MAX_AGE_SECONDS
+      else process.env.TELEGRAM_INIT_DATA_MAX_AGE_SECONDS = origMaxAge
+    })
+
+    it('stale initData (older than default 1 hour) → 401, no session', async () => {
+      const res = await post('/sign-in/telegram', { initData: signInitData(7201, BOT_TOKEN, 3700) })
+      expect(res.status).toBe(401)
+      expect(cookieOf(res)).not.toContain('session_token')
+    })
+
+    it('configured max age is enforced for sign-in and link', async () => {
+      process.env.TELEGRAM_INIT_DATA_MAX_AGE_SECONDS = '120'
+      const stale = await post('/sign-in/telegram', {
+        initData: signInitData(7202, BOT_TOKEN, 300),
+      })
+      expect(stale.status).toBe(401)
+      expect(cookieOf(stale)).not.toContain('session_token')
+
+      const cookie = await signInByEmail('link-age@test.by')
+      const link = await post(
+        '/link/telegram',
+        { initData: signInitData(7203, BOT_TOKEN, 300) },
+        cookie,
+      )
+      expect(link.status).toBe(401)
+
+      process.env.TELEGRAM_INIT_DATA_MAX_AGE_SECONDS = '600'
+      const fresh = await post('/sign-in/telegram', {
+        initData: signInitData(7202, BOT_TOKEN, 300),
+      })
+      expect(fresh.status).toBe(200)
+    })
+
+    it('invalid max age config fails closed → 500, never a session', async () => {
+      process.env.TELEGRAM_INIT_DATA_MAX_AGE_SECONDS = 'forever'
+      const res = await post('/sign-in/telegram', { initData: signInitData(7204) })
+      expect(res.status).toBe(500)
+      expect(cookieOf(res)).not.toContain('session_token')
+    })
+  })
+
+  describe('Telegram Login Widget sign-in (19.3.1, D-05)', () => {
+    const origFlag = process.env.TELEGRAM_LOGIN_WIDGET_ENABLED
+    beforeEach(() => {
+      process.env.TELEGRAM_LOGIN_WIDGET_ENABLED = 'true'
+    })
+    afterEach(() => {
+      if (origFlag === undefined) delete process.env.TELEGRAM_LOGIN_WIDGET_ENABLED
+      else process.env.TELEGRAM_LOGIN_WIDGET_ENABLED = origFlag
+    })
+
+    it('disabled by default: 404 even for a valid payload, no session, no user', async () => {
+      delete process.env.TELEGRAM_LOGIN_WIDGET_ENABLED
+      const res = await post('/sign-in/telegram-widget', signWidget(7301))
+      expect(res.status).toBe(404)
+      expect(cookieOf(res)).not.toContain('session_token')
+      expect(await db.query.users.findFirst()).toBeUndefined()
+    })
+
+    it('valid widget data → better-auth session', async () => {
+      const res = await post('/sign-in/telegram-widget', signWidget(7302))
+      expect(res.status).toBe(200)
+      const body = (await res.json()) as { userId: number; isNewUser: boolean }
+      expect(body.isNewUser).toBe(true)
+      const session = await auth.api.getSession({ headers: new Headers({ cookie: cookieOf(res) }) })
+      expect(Number(session?.user.id)).toBe(body.userId)
+    })
+
+    it('same Telegram identity as the Mini App → same user, no duplicate (3.3.4)', async () => {
+      const mini = await post('/sign-in/telegram', { initData: signInitData(7303) })
+      const miniUser = ((await mini.json()) as { userId: number }).userId
+      const web = await post('/sign-in/telegram-widget', signWidget(7303))
+      expect(web.status).toBe(200)
+      const body = (await web.json()) as { userId: number; isNewUser: boolean }
+      expect(body).toEqual({ userId: miniUser, isNewUser: false })
+    })
+
+    it('Telegram linked to an email account signs into that account', async () => {
+      const cookie = await signInByEmail('widget-linked@test.by')
+      expect((await post('/link/telegram', { initData: signInitData(7304) }, cookie)).status).toBe(
+        200,
+      )
+      const web = await post('/sign-in/telegram-widget', signWidget(7304))
+      const session = await auth.api.getSession({ headers: new Headers({ cookie: cookieOf(web) }) })
+      expect(session?.user.email).toBe('widget-linked@test.by')
+    })
+
+    it.each([
+      ['forged hash', () => ({ ...signWidget(7305), id: 1 })],
+      ['another bot token', () => signWidget(7306, '999:OTHER')],
+      ['stale auth_date', () => signWidget(7307, BOT_TOKEN, 3700)],
+      ['Mini App initData instead of widget data', () => ({ initData: signInitData(7308) })],
+    ])('SECURITY: %s → rejected, no session, no user', async (_label, payload) => {
+      const res = await post('/sign-in/telegram-widget', payload())
+      expect([400, 401]).toContain(res.status)
+      expect(cookieOf(res)).not.toContain('session_token')
+      expect(await db.query.users.findFirst()).toBeUndefined()
+    })
+
+    it('SECURITY: bot token not configured → 500, never 200', async () => {
+      process.env.TELEGRAM_BOT_TOKEN = ''
+      const res = await post('/sign-in/telegram-widget', signWidget(7309, ''))
+      expect(res.status).toBe(500)
+    })
   })
 
   afterAll(async () => {

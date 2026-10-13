@@ -2,11 +2,11 @@
 id: '19.3.1'
 phase: '19'
 epic: '19.3'
-status: todo
+status: in_progress
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-10-13
+status_note: 'Реализация в PR, ожидает ревью Opus. Сделано: матрица прав docs/architecture/permissions-v3.md; IDOR-тест на все роуты /api/organizations/{orgId}/** (новый роут без строки падает); найден и исправлен IDOR записи на чужое событие (422 → 404 event.not_found, UI обновляет экран); настраиваемый срок жизни initData; Telegram Login Widget за флагом TELEGRAM_LOGIN_WIDGET_ENABLED (по умолчанию выключен); гард root requireRootAdmin для /api/platform. Визуальная сверка экрана 6-auth не делалась: UI входа принадлежит 20.5.1.'
 ref_id: 'P-11'
 complexity: XL
 impl_model: claude-opus-5-5
@@ -49,6 +49,15 @@ tags: [reference-v3]
 4. Проверка доступа на каждом эндпоинте
 5. Данные и API: Middleware авторизации; Матрица прав по ролям.
 6. Сверить экраны с референсом через харнесс [19.0.2](19-0-2-visual-reference-harness.md) и приложить отчёт к PR.
+
+## Включение в production
+
+- `TELEGRAM_LOGIN_WIDGET_ENABLED` остаётся выключенным: эндпоинт `POST /api/auth/sign-in/telegram-widget` отвечает 404, поведение production не меняется.
+- Включение требует действий владельца и отслеживается отдельной follow-up задачей, в этой карточке не делается:
+  1. BotFather `/setdomain` — привязать production-домен к боту, иначе виджет Telegram не отрисуется;
+  2. прокинуть `TELEGRAM_LOGIN_WIDGET_ENABLED`, `TELEGRAM_LOGIN_WIDGET_MAX_AGE_SECONDS` и при необходимости `TELEGRAM_INIT_DATA_MAX_AGE_SECONDS` в `docker-compose.prod.yml` и deploy workflow (секреты/vars), затем выкатка через **Promote to production**;
+  3. кнопка виджета на экране входа — UI-карточка [20.5.1](20-5-1-auth.md).
+- Неверное значение этих переменных в production останавливает старт web (fail closed), в лог попадает только имя переменной.
 
 ## Критерии приёмки
 

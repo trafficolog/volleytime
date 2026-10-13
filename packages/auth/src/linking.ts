@@ -18,8 +18,9 @@ export async function linkTelegramToUser(
   userId: number,
   initDataRaw: string,
   botToken: string,
+  options: { maxAgeSeconds?: number } = {},
 ): Promise<{ linkedTelegramId: bigint }> {
-  const data = validateInitData(initDataRaw, botToken)
+  const data = validateInitData(initDataRaw, botToken, options)
   const tgUserId = data.user.id
 
   const existingByTg = await db.query.users.findFirst({
