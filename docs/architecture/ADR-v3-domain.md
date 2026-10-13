@@ -87,7 +87,7 @@ erDiagram
 
 ### Настройки группы и снимок в событие (19.2.2, D-02)
 
-Колонки `organizations` (все с DEFAULT, существующие строки получают значения без отдельного backfill):
+Колонки `organizations` (все с DEFAULT, существующие строки получают значения без backfill, кроме срока отмены: решение оркестратора, сохраняющее поведение R0.7 — миграция `0022_group_cancellation_default` ставит `cancellation_deadline_hours` DEFAULT 6 (прежний дефолт формы события) и заполняет группы с NULL самым частым ненулевым сроком их событий, а без таких событий — 6; иначе форма, которая больше не передаёт срок, создавала бы события «отмена до начала». Миграция 0021 при этом остаётся в том виде, в каком смёржена):
 
 | Колонка                       | Тип                            | Default   | Ограничение                     | Референс                 |
 | ----------------------------- | ------------------------------ | --------- | ------------------------------- | ------------------------ |
@@ -96,7 +96,7 @@ erDiagram
 | `default_price_mode`          | `event_price_mode`             | `'fixed'` | enum есть                       | `priceMode` по умолчанию |
 | `default_join_mode`           | `event_join_mode` (новый enum) | `'open'`  | `('open','invite')`             | `joinMode` по умолчанию  |
 | `cancellation_allowed`        | boolean                        | `true`    |                                 | политика: разрешена ли   |
-| `cancellation_deadline_hours` | integer NULL                   | `NULL`    | `CHECK >= 0`; NULL = до начала  | политика: крайний срок   |
+| `cancellation_deadline_hours` | integer NULL                   | `6`       | `CHECK >= 0`; NULL = до начала  | политика: крайний срок   |
 | `seo_index`                   | boolean                        | `false`   | не связан с `default_join_mode` | `seoIndex`               |
 | `district`                    | text NULL                      |           | `city` уже есть                 | город, район             |
 

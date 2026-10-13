@@ -61,7 +61,7 @@ describe('organizationSettingsService (integration)', () => {
         defaultPriceMode: 'fixed',
         defaultJoinMode: 'open',
         cancellationAllowed: true,
-        cancellationDeadlineHours: null,
+        cancellationDeadlineHours: 6,
         seoIndex: false,
         city: 'Минск',
         district: null,
@@ -137,7 +137,7 @@ describe('organizationSettingsService (integration)', () => {
       ).rejects.toMatchObject({ name: 'ZodError' })
       expect(await organizationSettingsService.get(ctx(), orgId)).toMatchObject({
         maxSeatsPerBooking: 3,
-        cancellationDeadlineHours: null,
+        cancellationDeadlineHours: 6,
       })
       expect(await settingsAudit()).toHaveLength(0)
     })
@@ -151,6 +151,33 @@ describe('organizationSettingsService (integration)', () => {
         (await organizationSettingsService.update(ctx(), orgId, { maxSeatsPerBooking: 10 }))
           .maxSeatsPerBooking,
       ).toBe(10)
+    })
+
+    it('rejects default split while split pricing is disabled', async () => {
+      await expect(
+        organizationSettingsService.update(ctx(), orgId, { defaultPriceMode: 'split' }),
+      ).rejects.toMatchObject({ code: 'organization.invalid_settings' })
+      expect((await organizationSettingsService.get(ctx(), orgId)).defaultPriceMode).toBe('fixed')
+      process.env.EVENT_SPLIT_PRICING_ENABLED = 'true'
+      await expect(
+        organizationSettingsService.update(ctx(), orgId, { defaultPriceMode: 'split' }),
+      ).resolves.toMatchObject({ defaultPriceMode: 'split' })
+    })
+
+    it('event create racing with a settings change gets one consistent snapshot', async () => {
+      await organizationSettingsService.update(ctx(), orgId, { cancellationDeadlineHours: 6 })
+      const results = await Promise.all([
+        ...Array.from({ length: 6 }, () => makeEvent()),
+        organizationSettingsService.update(ctx(), orgId, {
+          cancellationAllowed: false,
+          cancellationDeadlineHours: 24,
+        }),
+      ])
+      for (const ev of results.slice(0, 6) as Awaited<ReturnType<typeof makeEvent>>[]) {
+        const old = ev.cancellationAllowed === true && ev.cancellationDeadlineHours === 6
+        const next = ev.cancellationAllowed === false && ev.cancellationDeadlineHours === 24
+        expect(old || next).toBe(true) // никогда не смесь старого и нового
+      }
     })
 
     it('rejects an empty patch with organization.invalid_settings', async () => {
@@ -197,7 +224,7 @@ describe('organizationSettingsService (integration)', () => {
         userId: ownerId,
         entityType: 'organization',
         entityId: orgId,
-        oldValue: { maxSeatsPerBooking: 3, cancellationDeadlineHours: null },
+        oldValue: { maxSeatsPerBooking: 3, cancellationDeadlineHours: 6 },
         newValue: { maxSeatsPerBooking: 6, cancellationDeadlineHours: 8 },
       })
       expect(rows[0]!.createdAt).toBeInstanceOf(Date)
@@ -223,9 +250,9 @@ describe('organizationSettingsService (integration)', () => {
       expect(ev).toMatchObject({ cancellationAllowed: false, cancellationDeadlineHours: 12 })
     })
 
-    it('a default group gives events the R0.7 behaviour (allowed, no deadline)', async () => {
+    it('a default group gives events the R0.7 behaviour (allowed, 6 h as the old form)', async () => {
       const ev = await makeEvent()
-      expect(ev).toMatchObject({ cancellationAllowed: true, cancellationDeadlineHours: null })
+      expect(ev).toMatchObject({ cancellationAllowed: true, cancellationDeadlineHours: 6 })
     })
 
     it('settings changes do not alter already created events', async () => {

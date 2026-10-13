@@ -11,6 +11,7 @@ import * as schema from './schema'
 import { seedDemo } from './seed-demo'
 
 const TAG = '0021_group_settings_v3'
+const TAG22 = '0022_group_cancellation_default'
 const BASE_URL = process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL ?? ''
 
 const ORG_COLUMNS = [
@@ -28,7 +29,7 @@ const ORG_COLUMNS = [
  * (ADR v3, «Правила совместимости», п. 6–7). Каждый тест работает в собственной временной БД,
  * чтобы не мешать общей тестовой.
  */
-describe('migration 0021 group settings (integration)', () => {
+describe('migrations 0021 group settings and 0022 cancellation default (integration)', () => {
   const admin = postgres(BASE_URL, { max: 1 })
   const created: string[] = []
 
@@ -64,6 +65,7 @@ describe('migration 0021 group settings (integration)', () => {
       expect(await columns(sql, 'organizations')).toEqual(expect.arrayContaining(ORG_COLUMNS))
       expect(await columns(sql, 'events')).toContain('cancellation_allowed')
 
+      expect(await rollbackLastMigration(url)).toBe(TAG22)
       expect(await rollbackLastMigration(url)).toBe(TAG)
       const orgCols = await columns(sql, 'organizations')
       for (const c of ORG_COLUMNS) expect(orgCols).not.toContain(c)
@@ -78,22 +80,46 @@ describe('migration 0021 group settings (integration)', () => {
     }
   })
 
-  it('gives existing rows the defaults (forward-compatible, no backfill)', async () => {
+  it('0021 gives existing rows the defaults; 0022 backfills only NULL deadlines (R0.7)', async () => {
     const { url, sql } = await scratchDb()
     try {
+      // БД, где уже применена прежняя 0021 (до 0022)
       await runMigrations(url)
       await rollbackLastMigration(url)
 
-      // данные R0.7 на схеме до миграции
+      // данные R0.7
       const [user] = await sql<{ id: number }[]>`
         INSERT INTO users (email) VALUES ('old@example.com') RETURNING id`
       const [org] = await sql<{ id: number }[]>`
         INSERT INTO organizations (slug, name, owner_user_id)
         VALUES ('old-org', 'Old', ${user!.id}) RETURNING id`
-      await sql`
-        INSERT INTO events (organization_id, created_by_user_id, title, starts_at, ends_at, capacity,
-                            cancellation_deadline_hours)
-        VALUES (${org!.id}, ${user!.id}, 'Старое', now() + interval '1 day', now() + interval '2 day', 10, 5)`
+      // самый частый срок: 5 (два события), 8 (одно), событие без срока не считается
+      for (const [title, hours] of [
+        ['a', 5],
+        ['b', 5],
+        ['c', 8],
+        ['d', null],
+      ] as const) {
+        await sql`
+          INSERT INTO events (organization_id, created_by_user_id, title, starts_at, ends_at, capacity,
+                              cancellation_deadline_hours)
+          VALUES (${org!.id}, ${user!.id}, ${title}, now() + interval '1 day', now() + interval '2 day', 10, ${hours})`
+      }
+      const [empty] = await sql<{ id: number }[]>`
+        INSERT INTO organizations (slug, name, owner_user_id)
+        VALUES ('empty-org', 'Empty', ${user!.id}) RETURNING id`
+
+      const [manual] = await sql<{ id: number }[]>`
+        INSERT INTO organizations (slug, name, owner_user_id, cancellation_deadline_hours)
+        VALUES ('manual-org', 'Manual', ${user!.id}, 12) RETURNING id`
+      const [fresh] = await sql<{ id: number }[]>`
+        INSERT INTO organizations (slug, name, owner_user_id)
+        VALUES ('fresh-org', 'Fresh', ${user!.id}) RETURNING id`
+      expect(
+        (
+          await sql`SELECT cancellation_deadline_hours FROM organizations WHERE id = ${fresh!.id}`
+        )[0]!.cancellation_deadline_hours,
+      ).toBeNull() // до 0022 default NULL
 
       await runMigrations(url)
 
@@ -103,12 +129,25 @@ describe('migration 0021 group settings (integration)', () => {
         default_price_mode: 'fixed',
         default_join_mode: 'open',
         cancellation_allowed: true,
-        cancellation_deadline_hours: null,
+        cancellation_deadline_hours: 5,
         seo_index: false,
         district: null,
       })
-      const [e] = await sql`SELECT cancellation_allowed, cancellation_deadline_hours FROM events`
-      expect(e).toMatchObject({ cancellation_allowed: true, cancellation_deadline_hours: 5 })
+      const [o2] =
+        await sql`SELECT cancellation_deadline_hours FROM organizations WHERE id = ${empty!.id}`
+      expect(o2!.cancellation_deadline_hours).toBe(6)
+      // явно заданное значение не перезаписывается
+      const [o3] =
+        await sql`SELECT cancellation_deadline_hours FROM organizations WHERE id = ${manual!.id}`
+      expect(o3!.cancellation_deadline_hours).toBe(12)
+      // новая группа получает DEFAULT 6
+      const [o4] = await sql<{ id: number }[]>`
+        INSERT INTO organizations (slug, name, owner_user_id)
+        VALUES ('new-org', 'New', ${user!.id}) RETURNING cancellation_deadline_hours`
+      expect(o4).toMatchObject({ cancellation_deadline_hours: 6 })
+      const evs =
+        await sql`SELECT cancellation_allowed, cancellation_deadline_hours FROM events WHERE title = 'c'`
+      expect(evs[0]).toMatchObject({ cancellation_allowed: true, cancellation_deadline_hours: 8 })
     } finally {
       await sql.end()
     }
@@ -162,6 +201,12 @@ describe('migration 0021 group settings (integration)', () => {
         WHERE e.cancellation_deadline_hours IS DISTINCT FROM o.cancellation_deadline_hours`
       expect(mismatched).toHaveLength(0)
 
+      expect(await rollbackLastMigration(url)).toBe(TAG22)
+      expect(await columns(sql, 'organizations')).toContain('max_seats_per_booking')
+      const [d] = await sql`
+        SELECT column_default FROM information_schema.columns
+        WHERE table_name = 'organizations' AND column_name = 'cancellation_deadline_hours'`
+      expect(d!.column_default).toBeNull()
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect({
         organizations: await count('organizations'),

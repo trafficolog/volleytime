@@ -31,6 +31,7 @@ import {
   AttendanceTooEarlyError,
   BookingMethodNotAllowedError,
   BookingNotCancellableError,
+  BookingCancellationNotAllowedError,
   BookingDeadlinePassedError,
   BookingNotFoundError,
   CannotCancelOthersError,
@@ -462,6 +463,11 @@ export const bookingService = {
       if (!isSelf && !opts.byAdmin) throw new CannotCancelOthersError()
       if (isSelf && !opts.byAdmin && booking.allocatedAmount != null) {
         throw new BookingNotCancellableError('split allocation is final')
+      }
+
+      // политика группы (снимок D-02): запрет отмены игроком; организатор отменяет всегда
+      if (isSelf && !opts.byAdmin && !event.cancellationAllowed) {
+        throw new BookingCancellationNotAllowedError()
       }
 
       // посещение отмечено или событие началось — отмена невозможна (Task 5.13.10)

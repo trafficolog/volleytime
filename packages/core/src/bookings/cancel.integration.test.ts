@@ -117,6 +117,29 @@ describe('bookingService.cancel + promotion (integration)', () => {
     expect(booking.status).toBe('cancelled')
   })
 
+  it('group forbids cancellation → player self cancel blocked, organizer allowed, old events unaffected', async () => {
+    const before = await makeEvent()
+    await organizationSettingsService.update({ userId: ownerId }, orgId, {
+      cancellationAllowed: false,
+    })
+    const after = await makeEvent()
+    const pid = await newPlayer()
+    const old = await bookingService.book({ userId: pid }, orgId, before.id, { method: 'free' })
+    const bn = await bookingService.book({ userId: pid }, orgId, after.id, { method: 'free' })
+
+    await expect(bookingService.cancel({ userId: pid }, bn.id)).rejects.toMatchObject({
+      code: 'booking.cancellation_not_allowed',
+    })
+    const row = await db.query.bookings.findFirst({ where: (b, { eq }) => eq(b.id, bn.id) })
+    expect(row!.status).toBe('confirmed')
+
+    // событие, созданное до запрета, хранит прежнюю политику
+    expect((await bookingService.cancel({ userId: pid }, old.id)).booking.status).toBe('cancelled')
+    // организатор отменяет всегда
+    const res = await bookingService.cancel({ userId: ownerId }, bn.id, { byAdmin: true })
+    expect(res.booking.status).toBe('cancelled')
+  })
+
   it('subscription booking cancel restores session', async () => {
     const ev = await makeEvent({ price: 1500 })
     const pid = await newPlayer()

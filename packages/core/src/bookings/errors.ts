@@ -41,6 +41,14 @@ export class BookingMethodNotAllowedError extends BookingError {
     super('booking.method_not_allowed', `Method "${method}" is not allowed for this event`)
   }
 }
+export class BookingCancellationNotAllowedError extends BookingError {
+  constructor() {
+    super(
+      'booking.cancellation_not_allowed',
+      'The group does not allow players to cancel their own bookings',
+    )
+  }
+}
 export class BookingNotCancellableError extends BookingError {
   constructor(reason: string) {
     super('booking.not_cancellable', `Booking cannot be cancelled: ${reason}`)

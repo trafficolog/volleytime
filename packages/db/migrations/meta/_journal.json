@@ -155,6 +155,13 @@
       "when": 1791885022850,
       "tag": "0021_group_settings_v3",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1791909787180,
+      "tag": "0022_group_cancellation_default",
+      "breakpoints": true
     }
   ]
 }

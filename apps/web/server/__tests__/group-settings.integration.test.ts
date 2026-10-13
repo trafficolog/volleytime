@@ -10,7 +10,7 @@ const DEFAULTS = {
   defaultPriceMode: 'fixed',
   defaultJoinMode: 'open',
   cancellationAllowed: true,
-  cancellationDeadlineHours: null,
+  cancellationDeadlineHours: 6,
   seoIndex: false,
   district: null,
 }
@@ -227,7 +227,7 @@ describe('group settings API (HTTP integration)', () => {
       const byTitle = Object.fromEntries(rows.map((e) => [e.title, e]))
       expect(byTitle['До изменения']).toMatchObject({
         cancellationAllowed: true,
-        cancellationDeadlineHours: null,
+        cancellationDeadlineHours: 6,
       })
       expect(byTitle['После изменения']).toMatchObject({
         cancellationAllowed: false,

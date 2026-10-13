@@ -3,6 +3,7 @@ import { z } from 'zod'
 
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
+import { isSplitPricingEnabled } from '../events/pricing-capability'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
 
 import {
@@ -107,6 +108,13 @@ export const organizationSettingsService = {
     const data = UpdateOrganizationSettingsInput.parse(input)
     if (Object.keys(data).length === 0) {
       throw new OrganizationInvalidSettingsError('At least one setting is required')
+    }
+    // умолчание split бессмысленно, пока события split создавать нельзя (та же возможность, что в events.create)
+    if (
+      data.defaultPriceMode === 'split' &&
+      !isSplitPricingEnabled(process.env.EVENT_SPLIT_PRICING_ENABLED)
+    ) {
+      throw new OrganizationInvalidSettingsError('Split pricing is not enabled')
     }
     return inTransaction(ctx, async (tx) => {
       // FOR UPDATE: события, создаваемые параллельно, читают группу FOR SHARE — снимок согласован
