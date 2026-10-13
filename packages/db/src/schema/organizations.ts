@@ -45,7 +45,8 @@ export const organizations = pgTable(
     defaultJoinMode: eventJoinModeEnum('default_join_mode').notNull().default('open'),
     // политика отмены (D-02): событие копирует значения при создании
     cancellationAllowed: boolean('cancellation_allowed').notNull().default(true),
-    cancellationDeadlineHours: integer('cancellation_deadline_hours'), // NULL = до начала
+    // NULL = до начала; 6 — прежний дефолт формы события (R0.7, решение оркестратора)
+    cancellationDeadlineHours: integer('cancellation_deadline_hours').default(6),
     seoIndex: boolean('seo_index').notNull().default(false),
     district: text('district'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

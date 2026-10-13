@@ -61,7 +61,7 @@ describe('organizationSettingsService (integration)', () => {
         defaultPriceMode: 'fixed',
         defaultJoinMode: 'open',
         cancellationAllowed: true,
-        cancellationDeadlineHours: null,
+        cancellationDeadlineHours: 6,
         seoIndex: false,
         city: 'Минск',
         district: null,
@@ -137,7 +137,7 @@ describe('organizationSettingsService (integration)', () => {
       ).rejects.toMatchObject({ name: 'ZodError' })
       expect(await organizationSettingsService.get(ctx(), orgId)).toMatchObject({
         maxSeatsPerBooking: 3,
-        cancellationDeadlineHours: null,
+        cancellationDeadlineHours: 6,
       })
       expect(await settingsAudit()).toHaveLength(0)
     })
@@ -224,7 +224,7 @@ describe('organizationSettingsService (integration)', () => {
         userId: ownerId,
         entityType: 'organization',
         entityId: orgId,
-        oldValue: { maxSeatsPerBooking: 3, cancellationDeadlineHours: null },
+        oldValue: { maxSeatsPerBooking: 3, cancellationDeadlineHours: 6 },
         newValue: { maxSeatsPerBooking: 6, cancellationDeadlineHours: 8 },
       })
       expect(rows[0]!.createdAt).toBeInstanceOf(Date)
@@ -250,9 +250,9 @@ describe('organizationSettingsService (integration)', () => {
       expect(ev).toMatchObject({ cancellationAllowed: false, cancellationDeadlineHours: 12 })
     })
 
-    it('a default group gives events the R0.7 behaviour (allowed, no deadline)', async () => {
+    it('a default group gives events the R0.7 behaviour (allowed, 6 h as the old form)', async () => {
       const ev = await makeEvent()
-      expect(ev).toMatchObject({ cancellationAllowed: true, cancellationDeadlineHours: null })
+      expect(ev).toMatchObject({ cancellationAllowed: true, cancellationDeadlineHours: 6 })
     })
 
     it('settings changes do not alter already created events', async () => {
