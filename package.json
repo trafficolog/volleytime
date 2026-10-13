@@ -28,6 +28,7 @@
     "db:migrate": "pnpm -F @volley-time/db db:migrate",
     "db:migrate:test": "cross-env-shell DATABASE_URL=$DATABASE_URL_TEST pnpm -F @volley-time/db db:migrate",
     "db:rollback": "pnpm -F @volley-time/db db:rollback",
+    "db:seed:demo": "pnpm -F @volley-time/db db:seed:demo",
     "setup": "bash scripts/setup.sh",
     "db:studio": "pnpm -F @volley-time/db db:studio",
     "clean": "turbo run clean && rm -rf .turbo node_modules/.cache",
