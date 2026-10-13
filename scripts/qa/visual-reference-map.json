@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "viewports": {
+    "miniapp": { "width": 390, "height": 820 },
+    "cabinet": { "width": 1440, "height": 900 }
+  },
+  "users": { "player": "sonya", "organizer": "nikita", "owner": "artem" },
+  "orgs": {
+    "vt": "VolleyTime Минск",
+    "mv": "МинскВолей · Воскресные",
+    "sk": "СпайкКлуб"
+  },
+  "screens": [
+    {
+      "id": "player-home",
+      "title": "Игрок: главная",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "path": "/m/orgs/{org}",
+      "references": ["3-miniapp-player/01-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
+      "id": "player-event",
+      "title": "Игрок: событие и запись",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "event": { "title": "Основа", "status": "published" },
+      "path": "/m/orgs/{org}/events/{event}",
+      "references": ["3-miniapp-player/02-screen.png", "3-miniapp-player/03-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
+      "id": "player-subscriptions",
+      "title": "Игрок: абонементы",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "path": "/m/orgs/{org}/subscriptions",
+      "references": ["3-miniapp-player/04-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
+      "id": "player-profile",
+      "title": "Игрок: профиль",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "path": "/m/orgs/{org}/profile",
+      "references": ["3-miniapp-player/06-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
+      "id": "player-bookings",
+      "title": "Игрок: мои записи",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "path": "/m/orgs/{org}/bookings",
+      "references": ["3-miniapp-player/12-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
+      "id": "organizer-home",
+      "title": "Организатор: главная",
+      "viewport": "miniapp",
+      "role": "organizer",
+      "org": "vt",
+      "path": "/m/orgs/{org}",
+      "references": ["3-miniapp-organizer/01-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
+      "id": "organizer-event-manage",
+      "title": "Организатор: состав события",
+      "viewport": "miniapp",
+      "role": "organizer",
+      "org": "vt",
+      "event": { "title": "Основа", "status": "published" },
+      "path": "/m/orgs/{org}/events/{event}/manage",
+      "references": ["3-miniapp-organizer/02-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
+      "id": "organizer-payments",
+      "title": "Организатор: платежи",
+      "viewport": "miniapp",
+      "role": "organizer",
+      "org": "vt",
+      "path": "/m/orgs/{org}/payments",
+      "references": ["3-miniapp-organizer/03-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
+      "id": "organizer-cashbox",
+      "title": "Организатор: касса",
+      "viewport": "miniapp",
+      "role": "organizer",
+      "org": "vt",
+      "path": "/m/orgs/{org}/cashbox",
+      "references": ["3-miniapp-organizer/04-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
+      "id": "cabinet-overview",
+      "title": "Кабинет: обзор",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}",
+      "references": ["4-cabinet/01-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
+      "id": "cabinet-events-list",
+      "title": "Кабинет: события, список",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/events",
+      "references": ["4-cabinet/02-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
+      "id": "cabinet-events-calendar",
+      "title": "Кабинет: события, календарь",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/events",
+      "steps": [{ "click": "button:has-text('Календарь')" }],
+      "references": ["4-cabinet/03-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
+      "id": "cabinet-event",
+      "title": "Кабинет: событие",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "event": { "title": "Основа", "status": "published" },
+      "path": "/app/orgs/{org}/events/{event}",
+      "references": ["4-cabinet/04-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
+      "id": "cabinet-event-new",
+      "title": "Кабинет: новое событие",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/events/new",
+      "references": ["4-cabinet/05-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
+      "id": "cabinet-members",
+      "title": "Кабинет: игроки",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/members",
+      "references": ["4-cabinet/06-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
+      "id": "cabinet-plans",
+      "title": "Кабинет: абонементы",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/plans",
+      "references": ["4-cabinet/07-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
+      "id": "cabinet-cashbox",
+      "title": "Кабинет: касса",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/cashbox",
+      "references": ["4-cabinet/09-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
+      "id": "cabinet-settings",
+      "title": "Кабинет: настройки",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/settings",
+      "references": ["4-cabinet/17-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
+      "id": "auth-login",
+      "title": "Вход (без сессии)",
+      "viewport": "cabinet",
+      "role": "anonymous",
+      "path": "/auth/login",
+      "references": ["6-auth/01-section.png"]
+    }
+  ]
+}

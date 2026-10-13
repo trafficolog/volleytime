@@ -6,6 +6,7 @@ dist
 .pnpm-store
 coverage
 output/playwright
+output/visual
 pnpm-lock.yaml
 legacy
 docs/operations/reviews/*.html
