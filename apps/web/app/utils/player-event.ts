@@ -92,12 +92,16 @@ const BOOKING_CARDS: Record<
   },
 }
 
-export function eventCardBookingState(status: string | null) {
-  if (status === 'confirmed' || status === 'attended')
-    return { tone: 'grass' as const, text: 'Вы записаны' }
+/**
+ * Ось «Оплата» для чипа записи: amber — нужно действие, grass — в порядке.
+ * Участие («Иду», «В очереди») и состояние события рисуют `VtMyChip` / `VtStateChip`,
+ * поэтому здесь только деньги; `null` — отдельного платёжного чипа нет.
+ */
+export function bookingPaymentChip(status: string | null, pricing?: EventPricingView) {
+  if (!status || status === 'waitlisted') return null
+  const split = pricing ? splitBookingPaymentLabel(pricing, status) : null
+  if (split) return { tone: split.tone, text: split.text }
   if (status === 'pending_payment') return { tone: 'amber' as const, text: 'Ждёт оплаты' }
-  if (status === 'waitlisted') return { tone: 'default' as const, text: 'В листе ожидания' }
-  if (status === 'cancelled') return { tone: 'default' as const, text: 'Запись отменена' }
   return null
 }
 

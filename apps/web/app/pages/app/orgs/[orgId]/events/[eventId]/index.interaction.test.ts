@@ -6,6 +6,8 @@ import { computed, defineComponent, h, onBeforeUnmount, reactive, ref, Suspense,
 import DesktopManage from './index.vue'
 
 import EventPricingPanel from '~/components/EventPricingPanel.vue'
+import SeatsMini from '~/components/vt/SeatsMini.vue'
+import StateChip from '~/components/vt/StateChip.vue'
 
 const path = '/app/orgs/30/events/71'
 const route = reactive({ params: { orgId: '30', eventId: '71' }, path, fullPath: path })
@@ -67,7 +69,7 @@ async function render() {
     defineComponent({ render: () => h(Suspense, null, { default: () => h(DesktopManage) }) }),
     {
       global: {
-        components: { EventPricingPanel },
+        components: { EventPricingPanel, VtSeatsMini: SeatsMini, VtStateChip: StateChip },
         stubs: {
           NuxtLink: { template: '<a><slot /></a>' },
           VtAvatar: true,

@@ -16,6 +16,9 @@ import {
 import Manage from './manage.vue'
 
 import EventPricingPanel from '~/components/EventPricingPanel.vue'
+import MyChip from '~/components/vt/MyChip.vue'
+import SeatsMini from '~/components/vt/SeatsMini.vue'
+import StateChip from '~/components/vt/StateChip.vue'
 
 const managePath = '/m/orgs/30/events/71/manage'
 const route = reactive({ params: { orgId: '30', eventId: '71' }, fullPath: managePath })
@@ -113,6 +116,9 @@ async function renderManage() {
         NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
         VtMiniHeader: { template: '<header><slot name="right" /></header>' },
         VtChip: { template: '<span><slot /></span>' },
+        VtMyChip: MyChip,
+        VtStateChip: StateChip,
+        VtSeatsMini: SeatsMini,
         VtIcon: { template: '<span />' },
         VtAvatar: { template: '<span />' },
         ErrorState: { props: ['message'], template: '<div role="alert">{{ message }}</div>' },

@@ -3,7 +3,7 @@ import { formatDay, formatTime, type EventPricingView } from '@volley-time/share
 
 import { eventPricingLabel, splitBookingPaymentLabel } from '~/utils/event-pricing-label'
 import { formatPrice } from '~/utils/labels'
-import { eventCardBookingState } from '~/utils/player-event'
+import { bookingPaymentChip } from '~/utils/player-event'
 
 export interface EventListItem {
   id: number
@@ -41,9 +41,6 @@ const weekday = computed(() =>
     new Date(props.event.startsAt),
   ),
 )
-const full = computed(() => props.event.taken >= props.event.capacity)
-const left = computed(() => Math.max(0, props.event.capacity - props.event.taken))
-const myChip = computed(() => eventCardBookingState(props.event.myBooking?.status ?? null))
 const priceLabel = computed(() =>
   props.event.pricing
     ? eventPricingLabel(props.event.pricing, props.event.currency)
@@ -54,8 +51,13 @@ const priceLabel = computed(() =>
       },
 )
 const paymentLabel = computed(() =>
-  props.event.pricing && props.event.myBooking
-    ? splitBookingPaymentLabel(props.event.pricing, props.event.myBooking.status)
+  props.event.myBooking
+    ? bookingPaymentChip(props.event.myBooking.status, props.event.pricing)
+    : null,
+)
+const splitWaitlistNote = computed(() =>
+  props.event.pricing && props.event.myBooking?.status === 'waitlisted'
+    ? splitBookingPaymentLabel(props.event.pricing, 'waitlisted')
     : null,
 )
 </script>
@@ -68,11 +70,11 @@ const paymentLabel = computed(() =>
     </div>
     <div class="flex-1 min-w-0">
       <div class="font-semibold text-[15px] truncate">{{ event.title }}</div>
-      <div class="text-[12.5px] text-vt-mute-2 mt-0.5 truncate">
-        {{ formatTime(event.startsAt, tz) }}
-        <template v-if="event.venue || event.locationText">
-          · {{ event.venue?.name ?? event.locationText }}
-        </template>
+      <div class="text-[12.5px] text-vt-mute-2 mt-0.5 flex items-center gap-1.5">
+        <span class="truncate min-w-0">{{
+          `${formatTime(event.startsAt, tz)}${event.venue || event.locationText ? ` · ${event.venue?.name ?? event.locationText}` : ''}`
+        }}</span>
+        <VtStateChip :event="event" />
       </div>
       <div
         v-if="event.price > 0 || event.pricing?.mode === 'split'"
@@ -86,16 +88,15 @@ const paymentLabel = computed(() =>
       >
         {{ priceLabel.description }}
       </p>
-      <p
-        v-if="event.myBooking?.status === 'waitlisted' && paymentLabel"
-        class="text-[11px] text-vt-mute-2 mt-1"
-      >
-        {{ paymentLabel.description }}
+      <p v-if="splitWaitlistNote" class="text-[11px] text-vt-mute-2 mt-1">
+        {{ splitWaitlistNote.description }}
       </p>
     </div>
-    <VtChip v-if="paymentLabel" :tone="paymentLabel.tone">{{ paymentLabel.text }}</VtChip>
-    <VtChip v-else-if="myChip" :tone="myChip.tone">{{ myChip.text }}</VtChip>
-    <VtChip v-else :tone="full ? 'amber' : 'grass'">{{ event.taken }}/{{ event.capacity }}</VtChip>
+    <div class="flex shrink-0 flex-col items-end gap-1">
+      <VtMyChip :booking="event.myBooking" />
+      <VtSeatsMini :taken="event.taken" :capacity="event.capacity" :event="event" />
+      <VtChip v-if="paymentLabel" :tone="paymentLabel.tone">{{ paymentLabel.text }}</VtChip>
+    </div>
   </NuxtLink>
   <NuxtLink v-else :to="to" class="vt-card p-3.5 flex gap-3">
     <div class="w-14 shrink-0 text-center">
@@ -107,8 +108,7 @@ const paymentLabel = computed(() =>
     <div class="flex-1 min-w-0">
       <div class="flex items-center gap-2">
         <span class="font-semibold truncate">{{ event.title }}</span>
-        <VtChip v-if="event.status === 'draft'" tone="amber">Черновик</VtChip>
-        <VtChip v-else-if="event.status === 'cancelled'" tone="rose">Отменено</VtChip>
+        <VtStateChip :event="event" />
       </div>
       <div class="text-[12px] text-vt-mute-2 truncate">
         {{ formatDay(event.startsAt, tz) }}
@@ -117,24 +117,14 @@ const paymentLabel = computed(() =>
         >
       </div>
       <div class="mt-2 flex items-center gap-2">
-        <VtMeter
-          class="flex-1"
-          :value="event.taken"
-          :max="event.capacity"
-          :tone="full ? 'amber' : 'flame'"
-          :label="`Занято ${event.taken} из ${event.capacity}`"
-        />
-        <span class="vt-mono text-[11.5px] text-vt-mute-2"
-          >{{ event.taken }}/{{ event.capacity }}</span
+        <VtSeatsMini :taken="event.taken" :capacity="event.capacity" :event="event" :width="96" />
+        <span v-if="event.waitlist" class="text-[11.5px] text-vt-mute-2"
+          >ожидают {{ event.waitlist }}</span
         >
       </div>
       <div class="mt-2 flex flex-wrap items-center gap-1.5">
-        <VtChip v-if="paymentLabel" :tone="paymentLabel.tone" dot>{{ paymentLabel.text }}</VtChip>
-        <VtChip v-else-if="myChip" :tone="myChip.tone" dot>{{ myChip.text }}</VtChip>
-        <VtChip v-else-if="full" tone="rose"
-          >Мест нет{{ event.waitlist ? ` · ожидают ${event.waitlist}` : '' }}</VtChip
-        >
-        <span v-else class="text-[11.5px] text-vt-mute-2">осталось {{ left }}</span>
+        <VtMyChip :booking="event.myBooking" />
+        <VtChip v-if="paymentLabel" :tone="paymentLabel.tone">{{ paymentLabel.text }}</VtChip>
         <span class="ml-auto text-[12px] font-semibold">{{ priceLabel.text }}</span>
       </div>
       <p
@@ -143,11 +133,8 @@ const paymentLabel = computed(() =>
       >
         {{ priceLabel.description }}
       </p>
-      <p
-        v-if="event.myBooking?.status === 'waitlisted' && paymentLabel"
-        class="text-[11px] text-vt-mute-2 mt-1"
-      >
-        {{ paymentLabel.description }}
+      <p v-if="splitWaitlistNote" class="text-[11px] text-vt-mute-2 mt-1">
+        {{ splitWaitlistNote.description }}
       </p>
     </div>
   </NuxtLink>

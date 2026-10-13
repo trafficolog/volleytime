@@ -15,6 +15,9 @@ import {
 } from 'vue'
 
 import Page from './index.vue'
+import MyChip from '~/components/vt/MyChip.vue'
+import SeatsMini from '~/components/vt/SeatsMini.vue'
+import StateChip from '~/components/vt/StateChip.vue'
 
 const path = '/m/orgs/30/events/71'
 const route = reactive({ params: { orgId: '30', eventId: '71' }, fullPath: path })
@@ -78,6 +81,9 @@ async function render() {
           NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
           VtMiniHeader: true,
           VtChip: { template: '<span><slot /></span>' },
+          VtMyChip: MyChip,
+          VtStateChip: StateChip,
+          VtSeatsMini: SeatsMini,
           VtIcon: true,
           VtMeter: true,
           VtAvatar: true,

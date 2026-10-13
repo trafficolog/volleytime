@@ -11,6 +11,7 @@ import {
   projectOrganizerHome,
   type OrganizerBalance,
 } from '~/utils/organizer-miniapp'
+import { bookingPaymentChip } from '~/utils/player-event'
 import { playerHomeAccess, projectPlayerHome } from '~/utils/player-home'
 import { playerGroupOptions } from '~/utils/player-navigation'
 import { createPlayerRequestGuard } from '~/utils/player-request-guard'
@@ -365,21 +366,15 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
                 >
                   {{ playerHome.hero.venue?.name ?? playerHome.hero.locationText }}
                 </div>
-                <div class="mt-auto pt-4">
-                  <div class="h-1.5 rounded-full bg-white/20 overflow-hidden" aria-hidden="true">
-                    <span
-                      class="block h-full rounded-full bg-vt-orange"
-                      :style="{
-                        width: `${Math.min(100, Math.max(0, (playerHome.hero.taken / Math.max(1, playerHome.hero.capacity)) * 100))}%`,
-                      }"
-                    />
-                  </div>
-                  <div class="flex justify-between items-center gap-2 mt-2 text-xs">
-                    <span class="text-white/75">Занято мест</span>
-                    <span class="vt-mono text-[15px] font-bold"
-                      >{{ playerHome.hero.taken }}/{{ playerHome.hero.capacity }}</span
-                    >
-                  </div>
+                <div class="mt-auto flex flex-col items-start gap-2 pt-4">
+                  <VtMyChip :booking="playerHome.hero.myBooking" on-dark />
+                  <VtSeatsMini
+                    :taken="playerHome.hero.taken"
+                    :capacity="playerHome.hero.capacity"
+                    :event="playerHome.hero"
+                    :width="96"
+                    on-dark
+                  />
                 </div>
               </NuxtLink>
               <NuxtLink
@@ -452,16 +447,14 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
                       {{ splitBookingPaymentLabel(b.pricing, b.status)?.description }}
                     </p>
                   </div>
-                  <VtChip
-                    v-if="b.pricing && splitBookingPaymentLabel(b.pricing, b.status)"
-                    :tone="splitBookingPaymentLabel(b.pricing, b.status)!.tone"
-                    >{{ splitBookingPaymentLabel(b.pricing, b.status)!.text }}</VtChip
-                  >
-                  <VtChip v-else-if="b.status === 'pending_payment'" tone="amber"
-                    >Ждёт оплаты</VtChip
-                  >
-                  <VtChip v-else-if="b.status === 'waitlisted'">В ожидании</VtChip>
-                  <VtChip v-else tone="grass" dot>Записан</VtChip>
+                  <div class="flex shrink-0 flex-col items-end gap-1">
+                    <VtMyChip :booking="b" />
+                    <VtChip
+                      v-if="bookingPaymentChip(b.status, b.pricing)"
+                      :tone="bookingPaymentChip(b.status, b.pricing)!.tone"
+                      >{{ bookingPaymentChip(b.status, b.pricing)!.text }}</VtChip
+                    >
+                  </div>
                 </NuxtLink>
               </li>
             </ul>

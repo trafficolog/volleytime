@@ -3,14 +3,15 @@ import type { Booking, Event, Venue } from '@volley-time/db'
 import { formatDay, formatTime, type EventPricingView } from '@volley-time/shared'
 
 import { eventPricingLabel, splitBookingPaymentLabel } from '~/utils/event-pricing-label'
-import { BOOKING_STATUS_LABELS, label } from '~/utils/labels'
 import {
   canCancelPlayerBooking,
   createPlayerBookingsLoader,
   runPlayerBookingCancellation,
 } from '~/utils/player-bookings-loader'
+import { bookingPaymentChip } from '~/utils/player-event'
 import { playerAccessFromApiError } from '~/utils/player-home'
 import { createPlayerRequestGuard } from '~/utils/player-request-guard'
+import { participationOf } from '~/utils/status-model'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
 type MyBooking = Booking & { pricing: EventPricingView; event: Event & { venue: Venue | null } }
@@ -99,14 +100,6 @@ onUnmounted(() => {
   cancellationGuard.invalidate()
 })
 await load()
-
-const TONE: Record<string, 'grass' | 'amber' | 'default' | 'rose'> = {
-  confirmed: 'grass',
-  attended: 'grass',
-  pending_payment: 'amber',
-  waitlisted: 'default',
-  no_show: 'rose',
-}
 
 async function onCancel(b: MyBooking) {
   if (cancelling.value !== null || !canCancel(b)) return
@@ -228,14 +221,17 @@ function canCancel(booking: MyBooking) {
                 {{ splitBookingPaymentLabel(b.pricing, b.status)?.description }}
               </p>
             </div>
-            <VtChip
-              v-if="splitBookingPaymentLabel(b.pricing, b.status)"
-              :tone="splitBookingPaymentLabel(b.pricing, b.status)!.tone"
-              >{{ splitBookingPaymentLabel(b.pricing, b.status)!.text }}</VtChip
-            >
-            <VtChip v-else :tone="TONE[b.status] ?? 'default'">{{
-              label(BOOKING_STATUS_LABELS, b.status)
-            }}</VtChip>
+            <div class="flex shrink-0 flex-col items-end gap-1">
+              <VtMyChip v-if="participationOf(b)" :booking="b" />
+              <VtChip v-else-if="b.status === 'attended'">Был</VtChip>
+              <VtChip v-else-if="b.status === 'no_show'">Не пришёл</VtChip>
+              <VtChip
+                v-if="bookingPaymentChip(b.status, b.pricing)"
+                :tone="bookingPaymentChip(b.status, b.pricing)!.tone"
+                >{{ bookingPaymentChip(b.status, b.pricing)!.text }}</VtChip
+              >
+              <VtChip v-else-if="b.status === 'cancelled'">Запись отменена</VtChip>
+            </div>
           </NuxtLink>
           <button
             v-if="canCancel(b)"

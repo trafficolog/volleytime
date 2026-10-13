@@ -17,6 +17,9 @@ import Home from './index.vue'
 
 import EventCard from '~/components/EventCard.vue'
 import { apiErrorMessage } from '~/utils/api-error'
+import MyChip from '~/components/vt/MyChip.vue'
+import SeatsMini from '~/components/vt/SeatsMini.vue'
+import StateChip from '~/components/vt/StateChip.vue'
 
 const HomeHost = defineComponent({ render: () => h(Suspense, null, { default: () => h(Home) }) })
 
@@ -175,6 +178,9 @@ describe('organizer Home', () => {
           VtSheet: { template: '<div />' },
           VtIcon: true,
           VtChip: { template: '<span><slot /></span>' },
+          VtMyChip: MyChip,
+          VtStateChip: StateChip,
+          VtSeatsMini: SeatsMini,
           VtMeter: true,
           VtMiniHeader: true,
           ErrorState: true,
@@ -220,6 +226,9 @@ describe('organizer Home', () => {
           VtSheet: { template: '<div><slot /></div>' },
           VtIcon: { template: '<span />' },
           VtChip: { template: '<span><slot /></span>' },
+          VtMyChip: MyChip,
+          VtStateChip: StateChip,
+          VtSeatsMini: SeatsMini,
           EmptyState: { template: '<span />' },
         },
       },
@@ -298,6 +307,9 @@ describe('organizer Home', () => {
           VtSheet: { template: '<div />' },
           VtIcon: { template: '<span />' },
           VtChip: { template: '<span><slot /></span>' },
+          VtMyChip: MyChip,
+          VtStateChip: StateChip,
+          VtSeatsMini: SeatsMini,
           VtMeter: { template: '<span />' },
           EventCard: { template: '<span />' },
           EmptyState: { template: '<span />' },
@@ -366,6 +378,9 @@ describe('organizer Home', () => {
           VtSheet: { template: '<div />' },
           VtIcon: { template: '<span />' },
           VtChip: { template: '<span><slot /></span>' },
+          VtMyChip: MyChip,
+          VtStateChip: StateChip,
+          VtSeatsMini: SeatsMini,
           EventCard: { props: ['event', 'to'], template: '<a :href="to">{{ event.title }}</a>' },
           EmptyState: { template: '<span />' },
         },
@@ -407,6 +422,9 @@ describe('organizer Home', () => {
           VtSheet: { template: '<div />' },
           VtIcon: { template: '<span />' },
           VtChip: { template: '<span><slot /></span>' },
+          VtMyChip: MyChip,
+          VtStateChip: StateChip,
+          VtSeatsMini: SeatsMini,
           VtMeter: { template: '<span />' },
           OrganizerEventRow: { template: '<span />' },
           EventCard: { template: '<span />' },

@@ -246,6 +246,32 @@
     color: var(--vt-rose-ink);
     border-color: color-mix(in oklab, var(--vt-rose) 30%, transparent);
   }
+  /* Статусная модель (19.1.2): участие = синий, событие = нейтральный серый. */
+  .vt-chip--mine {
+    background: var(--vt-blue-ink);
+    color: #fff;
+    border-color: transparent;
+    gap: 4px;
+  }
+  .vt-chip--queue {
+    background: var(--vt-accent-soft);
+    color: var(--vt-flame-ink);
+    border-color: transparent;
+    gap: 4px;
+  }
+  .vt-chip--state {
+    background: var(--vt-bone-2);
+    color: var(--vt-ink-3);
+    border-color: transparent;
+  }
+  .vt-chip--on-hero {
+    background: var(--vt-on-hero);
+    color: var(--vt-blue-ink);
+    border-color: transparent;
+  }
+  :is(.dark, .vt-dark) .vt-chip--mine {
+    background: var(--vt-flame-bright, #3b4cd6);
+  }
   .vt-avi {
     width: 32px;
     height: 32px;
@@ -384,6 +410,9 @@
   }
   .vt-meter--amber > i {
     background: var(--vt-amber);
+  }
+  .vt-meter--rose > i {
+    background: var(--vt-rose);
   }
   .vt-miniheader {
     display: flex;
