@@ -16,9 +16,16 @@ export default defineNuxtConfig({
       ],
       // SDK Telegram Mini App: без него window.Telegram отсутствует (Task 8.8.1)
       script: [{ src: 'https://telegram.org/js/telegram-web-app.js' }],
+      // iOS ignores SVG touch icons: the apple-touch-icon is a 180px PNG rendered from the SVG mark.
       link: [
         { rel: 'icon', type: 'image/svg+xml', href: '/logo/vt-favicon.svg' },
-        { rel: 'apple-touch-icon', type: 'image/svg+xml', href: '/logo/vt-apple-touch-icon.svg' },
+        { rel: 'icon', type: 'image/png', sizes: '180x180', href: '/logo/vt-apple-touch-icon.png' },
+        {
+          rel: 'apple-touch-icon',
+          type: 'image/png',
+          sizes: '180x180',
+          href: '/logo/vt-apple-touch-icon.png',
+        },
       ],
     },
   },

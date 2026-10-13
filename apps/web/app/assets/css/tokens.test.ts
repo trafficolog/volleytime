@@ -233,4 +233,129 @@ describe('Bento Bold v3 token scale and overlays', () => {
     expect(scan(fileURLToPath(new URL('../..', import.meta.url)))).toEqual([])
     expect(existsSync(join(publicDir, 'logo.png'))).toBe(false)
   })
+
+  it('documents the deliberate --text-nano deviation from v3', () => {
+    expect(tokens).toMatch(/eliberate deviation[\s\S]*?--text-nano: 10px;/)
+    expect(tokens).toContain('19.0.2')
+  })
+
+  it('ports plain v3 color tokens with light and dark values', () => {
+    expect(declarations(':root')).toMatchObject({
+      '--vt-raised': '#ffffff',
+      '--vt-dock': '#15161a',
+      '--vt-dock-idle': '#8a8c96',
+      '--vt-night': '#15161a',
+      '--vt-orange-ink': '#a33c08',
+      '--vt-inverse-bg': '#15161a',
+      '--vt-inverse-fg': '#ffffff',
+    })
+    expect(declarations('.dark')).toMatchObject({
+      '--vt-raised': '#23242b',
+      '--vt-dock': '#24252c',
+      '--vt-dock-idle': '#8c8d96',
+      '--vt-orange-ink': '#ffb38a',
+      '--vt-inverse-bg': '#f2f2f5',
+      '--vt-inverse-fg': '#15161a',
+    })
+  })
+
+  it('defines the v3 surface-aware control tokens with their defaults', () => {
+    expect(declarations(':root')).toMatchObject({
+      '--vt-ctl': 'var(--vt-bone)',
+      '--vt-ctl-hover': 'var(--vt-bone-2)',
+      '--vt-ctl-lift': 'none',
+      '--vt-ctl-ink': 'var(--vt-ink)',
+      '--vt-ctl-chip': 'var(--vt-bone-2)',
+      '--vt-ctl-track': 'var(--vt-bone-2)',
+    })
+  })
+
+  it('overrides control tokens per surface as in v3', () => {
+    expect(overrides('.vt-card--hero')).toMatchObject({
+      '--vt-ctl': 'var(--vt-on-hero-fill)',
+      '--vt-ctl-hover': 'var(--vt-on-hero-line)',
+      '--vt-ctl-lift': 'none',
+      '--vt-ctl-ink': 'var(--vt-on-hero)',
+      '--vt-ctl-chip': 'var(--vt-on-hero-fill)',
+      '--vt-ctl-track': 'var(--vt-on-hero-fill)',
+    })
+    expect(overrides('.vt-on-hero')).toMatchObject({ '--vt-ctl-ink': 'var(--vt-on-hero)' })
+    expect(overrides('.vt-card--raised')).toMatchObject({
+      '--vt-ctl': 'var(--vt-bone)',
+      '--vt-ctl-hover': 'var(--vt-bone-2)',
+      '--vt-ctl-lift': 'none',
+    })
+    expect(overrides('.vt-on-paper')).toMatchObject({ '--vt-ctl': 'var(--vt-bone)' })
+    expect(overrides('.vt-on-tone')).toMatchObject({
+      '--vt-ctl': 'var(--vt-paper)',
+      '--vt-ctl-hover': 'var(--vt-paper)',
+      '--vt-ctl-lift': 'var(--vt-shadow-card)',
+    })
+    expect(overrides('.vt-card--warm')).toMatchObject({ '--vt-ctl': 'var(--vt-paper)' })
+    expect(overrides('.vt-card--cool')).toMatchObject({ '--vt-ctl': 'var(--vt-paper)' })
+    expect(overrides('.vt-card:not([class*="vt-card--"])')).toMatchObject({
+      '--vt-ctl': 'var(--vt-paper)',
+      '--vt-ctl-lift': 'var(--vt-shadow-card)',
+    })
+  })
+
+  it('overrides control tokens for dark surfaces as in v3', () => {
+    expect(overrides('.vt-dark .vt-card--raised')).toMatchObject({
+      '--vt-ctl': 'var(--vt-bone-2)',
+      '--vt-ctl-hover': '#2b2c33',
+      '--vt-ctl-chip': '#2b2c33',
+      '--vt-ctl-track': '#2b2c33',
+    })
+    expect(overrides('.vt-dark .vt-on-tone')).toMatchObject({
+      '--vt-ctl': '#2b2c33',
+      '--vt-ctl-hover': '#34353d',
+      '--vt-ctl-lift': 'none',
+    })
+  })
+
+  it('ships a 180px PNG apple-touch icon and uses it as the PNG fallback', () => {
+    const png = readFileSync(join(publicDir, 'logo', 'vt-apple-touch-icon.png'))
+    expect(png.subarray(1, 4).toString('latin1')).toBe('PNG')
+    expect(png.readUInt32BE(16)).toBe(180)
+    expect(png.readUInt32BE(20)).toBe(180)
+    const links = [
+      ...nuxt
+        .replace(/\s+/g, ' ')
+        .matchAll(/\{ rel: '([^']+)', type: '([^']+)'[^}]*?href: '([^']+)'/g),
+    ].map((match) => ({ rel: match[1], type: match[2], href: match[3] }))
+    const svgIcon = links.findIndex(
+      (link) => link.type === 'image/svg+xml' && link.href === '/logo/vt-favicon.svg',
+    )
+    const pngIcon = links.findIndex(
+      (link) =>
+        link.type === 'image/png' &&
+        link.href === '/logo/vt-apple-touch-icon.png' &&
+        link.rel === 'icon',
+    )
+    const touchIcon = links.find((link) => link.rel === 'apple-touch-icon')
+    expect(svgIcon).toBeGreaterThanOrEqual(0)
+    expect(pngIcon).toBeGreaterThan(svgIcon)
+    expect(touchIcon).toEqual({
+      rel: 'apple-touch-icon',
+      type: 'image/png',
+      href: '/logo/vt-apple-touch-icon.png',
+    })
+  })
 })
+
+/** Declarations of every rule whose selector list contains the exact selector part. */
+function overrides(selectorPart: string): Record<string, string> {
+  const result: Record<string, string> = {}
+  const source = tokens.replace(/\/\*[\s\S]*?\*\//g, '')
+  const wanted = selectorPart.replace(/"/g, "'")
+  for (const [, selectors, body] of source.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+    const parts = selectors!
+      .split(',')
+      .map((part) => part.replace(/\s+/g, ' ').replace(/"/g, "'").trim())
+    if (!parts.includes(wanted)) continue
+    for (const [, name, value] of body!.matchAll(/(--[\w-]+):\s*([^;]+);/g)) {
+      result[name!] = value!.trim()
+    }
+  }
+  return result
+}

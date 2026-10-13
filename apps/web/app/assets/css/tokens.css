@@ -48,6 +48,23 @@
   --vt-tabbar-active: #ffffff;
   --vt-tg-blue: #2aabee;
 
+  /* Plain v3 colors (no consumers yet; dark values in .dark below) */
+  --vt-raised: #ffffff;
+  --vt-dock: #15161a;
+  --vt-dock-idle: #8a8c96;
+  --vt-night: #15161a;
+  --vt-orange-ink: #a33c08;
+  --vt-inverse-bg: #15161a;
+  --vt-inverse-fg: #ffffff;
+
+  /* Surface-aware controls (v3): controls read --vt-ctl* and each surface overrides them below */
+  --vt-ctl: var(--vt-bone);
+  --vt-ctl-hover: var(--vt-bone-2);
+  --vt-ctl-lift: none;
+  --vt-ctl-ink: var(--vt-ink);
+  --vt-ctl-chip: var(--vt-bone-2);
+  --vt-ctl-track: var(--vt-bone-2);
+
   --r-xs: 4px;
   --r-sm: 8px;
   --r-chip: 10px;
@@ -82,6 +99,8 @@
   --fs-7xl: 72px;
 
   --text-cap: var(--fs-2xs);
+  /* Deliberate deviation from v3: v3 maps --text-nano to --fs-2xs (11px), which changes visible
+     size of tab-bar labels. Keep 10px until the visual reconciliation report (task 19.0.2) confirms it. */
   --text-nano: 10px;
 
   /* Text on hero (blue / ink) surfaces */
@@ -140,5 +159,76 @@
   --vt-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px -10px rgba(0, 0, 0, 0.6);
   --vt-orange-soft: #3a2418;
   --vt-blue-soft-tile: #1e2447;
+  --vt-raised: #23242b;
+  --vt-dock: #24252c;
+  --vt-dock-idle: #8c8d96;
+  --vt-orange-ink: #ffb38a;
+  --vt-inverse-bg: #f2f2f5;
+  --vt-inverse-fg: #15161a;
+  --vt-ctl: var(--vt-bone);
+  --vt-ctl-hover: var(--vt-bone-2);
+  --vt-ctl-chip: var(--vt-bone-2);
+  --vt-ctl-track: var(--vt-bone-2);
   color-scheme: dark;
+}
+
+/* Control surfaces (v3). Grey and tonal surfaces take white controls; a white raised card takes
+   grey controls again; the blue hero takes translucent white. Dark rules follow the same logic. */
+.vt-card:not([class*='vt-card--']),
+.vt-card--warm,
+.vt-card--cool,
+.vt-on-tone {
+  --vt-ctl: var(--vt-paper);
+  --vt-ctl-hover: var(--vt-paper);
+  --vt-ctl-lift: var(--vt-shadow-card);
+  --vt-ctl-chip: var(--vt-paper);
+  --vt-ctl-track: var(--vt-paper);
+}
+.vt-card--raised,
+.vt-on-paper {
+  --vt-ctl: var(--vt-bone);
+  --vt-ctl-hover: var(--vt-bone-2);
+  --vt-ctl-lift: none;
+  --vt-ctl-chip: var(--vt-bone-2);
+  --vt-ctl-track: var(--vt-bone-2);
+}
+.vt-card--hero,
+.vt-on-hero {
+  --vt-ctl: var(--vt-on-hero-fill);
+  --vt-ctl-hover: var(--vt-on-hero-line);
+  --vt-ctl-lift: none;
+  --vt-ctl-ink: var(--vt-on-hero);
+  --vt-ctl-chip: var(--vt-on-hero-fill);
+  --vt-ctl-track: var(--vt-on-hero-fill);
+}
+.dark .vt-card:not([class*='vt-card--']),
+.vt-dark .vt-card:not([class*='vt-card--']),
+.dark .vt-card--warm,
+.vt-dark .vt-card--warm,
+.dark .vt-card--cool,
+.vt-dark .vt-card--cool,
+.dark .vt-on-tone,
+.vt-dark .vt-on-tone {
+  --vt-ctl: #2b2c33;
+  --vt-ctl-hover: #34353d;
+  --vt-ctl-lift: none;
+  --vt-ctl-chip: #2b2c33;
+  --vt-ctl-track: #2b2c33;
+}
+.dark .vt-card--raised,
+.vt-dark .vt-card--raised {
+  --vt-ctl: var(--vt-bone-2);
+  --vt-ctl-hover: #2b2c33;
+  --vt-ctl-chip: #2b2c33;
+  --vt-ctl-track: #2b2c33;
+}
+/* Demo only (brand system "before" column): every control shares the grey surface. */
+.vt-legacy-ctl,
+.vt-legacy-ctl * {
+  --vt-ctl: var(--vt-bone) !important;
+  --vt-ctl-hover: var(--vt-bone-2) !important;
+  --vt-ctl-lift: none !important;
+  --vt-ctl-chip: var(--vt-bone-2) !important;
+  --vt-ctl-track: var(--vt-bone-2) !important;
+  --vt-ctl-ink: var(--vt-ink) !important;
 }
