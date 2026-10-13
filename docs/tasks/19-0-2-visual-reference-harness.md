@@ -2,11 +2,11 @@
 id: '19.0.2'
 phase: '19'
 epic: '19.0'
-status: todo
+status: in_progress
 release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-12
-status_note: ''
+status_note: 'реализовано в PR, ждёт ревью opus'
 ref_id: ''
 complexity: M
 impl_model: claude-sonnet-5-5
@@ -49,6 +49,10 @@ tags: [reference-v3]
 - ✅ Отчёт прикладывается к PR UI-задачи как evidence
 - ✅ Харнесс не входит в обязательные CI-gates (только локальная/ручная проверка)
 - ✅ Пять gates CODING_STANDARDS на tested revision; ревью `claude-opus-5-5` без Critical/Important
+
+## Как запускать
+
+Подробности — [runbook](../operations/runbooks/visual-reference-harness.md). Кратко: локальная БД с `pnpm db:seed:demo`, приложение с тестовым `TELEGRAM_BOT_TOKEN`, затем `pnpm qa:visual --routes player-home,cabinet-overview --diff`. Карта экранов — `scripts/qa/visual-reference-map.json`, отчёт — `output/visual/<время>/report.html` (не коммитится). Playwright: добавлена devDependency `playwright-core` (без загрузки браузеров, используется системный Chrome).
 
 ## Подсказки
 

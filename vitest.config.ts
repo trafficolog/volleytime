@@ -42,6 +42,7 @@ export default defineConfig({
             'apps/bot/src/**/*.{test,spec}.ts',
             'apps/web/server/**/*.{test,spec}.ts',
             'apps/web/app/**/*.{test,spec}.ts',
+            'scripts/qa/**/*.{test,spec}.ts',
           ],
           exclude: [...shared.exclude, '**/*.integration.test.ts'],
         },
