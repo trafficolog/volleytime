@@ -15,7 +15,7 @@ review_gate: opus+tests
 roles: [BACK, DB]
 depends_on: ['19.0.3']
 supersedes: []
-decisions: ['D-01', 'D-02', 'D-03', 'D-04', 'D-09']
+decisions: ['D-01', 'D-02', 'D-03', 'D-04', 'D-09', 'D-12', 'D-13', 'D-14']
 estimated_hours: '16-32'
 reference:
   spec: 'docs/design/reference-v3/specs/01-platform/P-01-domain-model.md'
@@ -35,6 +35,7 @@ tags: [reference-v3]
 - **Как есть (main `e68acf2`):** Схема Drizzle (21 миграция): organizations, members, invites, venues, events (fixed/split), bookings (1 место, waitlist статусом), subscription plans/subscriptions, payments, ledger, audit. API — Nuxt server routes `/api/organizations/{orgId}/…`, ошибки через общий формат 4.9.11. Сидов нет.
 - **Дельта до референса:** Нет: мест в записи, серий, баланса событий, сборов (кроме категории ledger), ленты уведомлений, запросов приглашений, уровней, настроек группы (maxSeats, joinMode, priceMode по умолчанию, политика отмены, seoIndex, район), OpenAPI и сидов.
 - Решения владельца (2026-10-12): [D-01](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-01) — сохраняется точное распределение копеек R0.7; округления до 0,1 Br нет; [D-02](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-02) — политику отмены задаёт группа; событие при создании хранит снимок, существующие события сохраняют свои значения; [D-03](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-03) — место из очереди предлагается первому с TTL 30 мин через планировщик, затем следующему; без планировщика — прежнее автопродвижение; [D-04](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-04) — серия создаётся атомарно целиком; баланс списывается за опубликованные, даты сверх баланса — черновики; предпросмотр показывает число публикуемых; [D-09](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-09) — у события необязательное время открытия записи; баланс возвращается, если событие отменено до открытия или без активных записей.
+- Решения владельца (2026-10-13): [D-12](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-12) — стартовый баланс существующих групп 48 событий (`pilot_grant`); [D-13](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-13) — любая неотменённая запись блокирует возврат баланса. [D-14](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-14) — без автоматического возврата при отмене игроком после оплаты.
 - Модель: реализация `claude-opus-5-5`, ревью `claude-opus-5-5` (ревью Opus + тесты граничных случаев и гонок); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
 
 ## Что должно быть сделано
