@@ -36,6 +36,9 @@ export default defineNuxtConfig({
     '/app': { ssr: false },
     '/app/**': { ssr: false },
   },
+  // OpenAPI новых ресурсов (ADR v3): defineRouteMeta в обработчиках. Спецификация и Swagger UI
+  // отдаются только в dev (/_openapi.json, /_swagger); в production-сборке маршрутов нет.
+  nitro: { experimental: { openAPI: true } },
   runtimeConfig: {
     betterAuthSecret: '',
     telegramBotToken: '',

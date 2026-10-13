@@ -21,6 +21,11 @@ export class OrganizationSubscriptionsDisabledError extends OrganizationError {
     super('organization.subscriptions_disabled', 'Subscriptions are disabled for this organization')
   }
 }
+export class OrganizationInvalidSettingsError extends OrganizationError {
+  constructor(message: string) {
+    super('organization.invalid_settings', message)
+  }
+}
 export class SlugTakenError extends OrganizationError {
   constructor(slug: string) {
     super('organization.slug_taken', `Slug "${slug}" is already taken`)

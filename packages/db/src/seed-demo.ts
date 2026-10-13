@@ -29,6 +29,7 @@ import {
   venues,
   type Booking,
   type Event,
+  type NewOrganization,
   type Organization,
   type User,
 } from './schema'
@@ -132,6 +133,27 @@ const VT_PLAYERS = [
   'tanya',
   'gosha',
 ]
+
+/** Настройки групп v3 (19.2.2): различаются между группами, чтобы харнесс видел не только defaults. */
+const DEMO_GROUP_SETTINGS: Record<string, Partial<NewOrganization>> = {
+  'demo-vt-minsk': {
+    maxSeatsPerBooking: 3,
+    cancellationDeadlineHours: 6,
+    district: 'Центральный',
+    seoIndex: true,
+  },
+  'demo-minskvoley': {
+    maxSeatsPerBooking: 2,
+    cancellationDeadlineHours: 12,
+    district: 'Фрунзенский',
+  },
+  'demo-spikeclub': {
+    maxSeatsPerBooking: 4,
+    defaultJoinMode: 'invite',
+    cancellationDeadlineHours: 24,
+    district: 'Советский',
+  },
+}
 
 export const DEMO_ORGANIZATIONS: DemoOrganization[] = [
   {
@@ -483,6 +505,7 @@ async function ensureOrganization(
       ownerUserId: ownerId,
       publicPageEnabled: true,
       subscriptionsEnabled: spec.plans.length > 0,
+      ...DEMO_GROUP_SETTINGS[spec.slug],
     })
     .onConflictDoNothing()
   const [org] = await tx.select().from(organizations).where(eq(organizations.slug, spec.slug))
@@ -651,7 +674,9 @@ async function ensureEvent(
       targetAmount: spec.split?.target ?? null,
       pricingSettledAt: settled ? new Date(startsAt.getTime() - 2 * HOUR) : null,
       pricingParticipantCount: settled ? active.length : null,
-      cancellationDeadlineHours: 6,
+      // снимок политики группы (D-02), как делает events.create
+      cancellationDeadlineHours: ctx.org.cancellationDeadlineHours,
+      cancellationAllowed: ctx.org.cancellationAllowed,
       status: spec.status,
     })
     .returning()

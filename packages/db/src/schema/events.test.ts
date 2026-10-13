@@ -106,6 +106,8 @@ describe('events schema (integration)', () => {
           ),
         )
         await tx.execute(sql.raw('ALTER TABLE bookings DROP COLUMN allocated_amount'))
+        // 0021 (19.2.2) ссылается на тип из organizations.default_price_mode
+        await tx.execute(sql.raw('ALTER TABLE organizations DROP COLUMN default_price_mode'))
         await tx.execute(sql.raw('DROP TYPE public.event_price_mode'))
         await tx.execute(
           sql`INSERT INTO events (organization_id, created_by_user_id, title, starts_at, ends_at, capacity, price) VALUES (${org.id}, ${owner.id}, 'Legacy free', '2026-06-01T18:00:00Z', '2026-06-01T20:00:00Z', 4, 0), (${org.id}, ${owner.id}, 'Legacy paid', '2026-06-01T18:00:00Z', '2026-06-01T20:00:00Z', 4, 1500)`,

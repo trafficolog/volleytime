@@ -21,6 +21,7 @@ const CODE_STATUS: Record<string, number> = {
   'organization.suspended': 403,
   'organization.slug_taken': 409,
   'organization.subscriptions_disabled': 409,
+  'organization.invalid_settings': 422,
   // member
   'member.already_exists': 409,
   'member.not_found': 404,

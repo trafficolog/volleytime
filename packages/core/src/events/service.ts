@@ -12,6 +12,7 @@ import {
   ne,
   or,
   organizationMembers,
+  organizations,
   payments,
   sql,
   venues,
@@ -21,10 +22,11 @@ import {
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
 import { collectNotification } from '../notifier/collect'
+import { OrganizationNotFoundError } from '../organizations/errors'
 import { paymentService } from '../payments/service'
 import { requireCanManageContent } from '../permissions/policies'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
-import { resolveOrgCurrency } from '../shared/currency'
+import { CurrencyMismatchError } from '../shared/currency'
 import { subscriptionService } from '../subscriptions/service'
 
 import {
@@ -81,6 +83,31 @@ export const eventService = {
       if (data.startsAt <= new Date()) throw new EventStartsInPastError() // 5.13.11
       if (data.venueId) await assertVenueInOrg(db, data.venueId, orgId)
 
+      // Настройки группы читаются под FOR SHARE: параллельное изменение настроек
+      // (FOR UPDATE) не вклинится между снимком и вставкой события (D-02, 19.2.2).
+      const [org] = await db
+        .select({
+          defaultCurrency: organizations.defaultCurrency,
+          defaultPriceMode: organizations.defaultPriceMode,
+          cancellationAllowed: organizations.cancellationAllowed,
+          cancellationDeadlineHours: organizations.cancellationDeadlineHours,
+        })
+        .from(organizations)
+        .where(eq(organizations.id, orgId))
+        .for('share')
+      if (!org) throw new OrganizationNotFoundError(orgId)
+      if (data.currency && data.currency.toUpperCase() !== org.defaultCurrency) {
+        throw new CurrencyMismatchError(org.defaultCurrency, data.currency)
+      }
+
+      // режим оплаты — значение по умолчанию группы, которое событие может переопределить
+      const pricing = EventPricingInput.parse({
+        priceMode: data.priceMode ?? org.defaultPriceMode,
+        price: data.price,
+        targetAmount: data.targetAmount,
+      })
+      if (pricing.priceMode === 'split') requireSplitCapability()
+
       const [event] = await db
         .insert(events)
         .values({
@@ -94,11 +121,13 @@ export const eventService = {
           startsAt: data.startsAt,
           endsAt: data.endsAt,
           capacity: data.capacity,
-          price: data.price,
-          priceMode: data.priceMode,
-          targetAmount: data.targetAmount,
-          currency: await resolveOrgCurrency(ctx, orgId, data.currency),
-          cancellationDeadlineHours: data.cancellationDeadlineHours ?? null,
+          price: pricing.price,
+          priceMode: pricing.priceMode,
+          targetAmount: pricing.targetAmount,
+          currency: org.defaultCurrency,
+          // политика отмены — снимок группы; из входа не берётся (D-02)
+          cancellationAllowed: org.cancellationAllowed,
+          cancellationDeadlineHours: org.cancellationDeadlineHours,
           status: data.status,
         })
         .returning()
@@ -194,7 +223,9 @@ export const eventService = {
   },
 
   async update(ctx: ServiceContext, eventId: number, input: UpdateInput): Promise<Event> {
+    // cancellationDeadlineHours игнорируется: политика отмены меняется только в группе (D-02)
     const data = UpdateEventInput.parse(input)
+    delete data.cancellationDeadlineHours
     // мутация и audit атомарны (5.13.12)
     return inTransaction(ctx, async (ctx) => {
       const db = getDb(ctx)
