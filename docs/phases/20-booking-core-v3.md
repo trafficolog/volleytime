@@ -34,7 +34,7 @@ depends_on: []
 | [20.1](../epics/20-1-pricing-seats-join.md)       | Цена, места и режим записи  |     3 | 36-72 |
 | [20.2](../epics/20-2-balance-series.md)           | Баланс событий и серии      |     2 | 32-64 |
 | [20.3](../epics/20-3-automation-notifications.md) | Автоматизация и уведомления |     3 | 24-48 |
-| [20.4](../epics/20-4-player-miniapp-core.md)      | Mini App игрока — ядро      |    10 | 44-88 |
+| [20.4](../epics/20-4-player-miniapp-core.md)      | Mini App игрока — ядро      |    11 | 48-96 |
 | [20.5](../epics/20-5-cabinet-core.md)             | Кабинет — ядро              |     7 | 40-80 |
 | [20.6](../epics/20-6-public-event-page.md)        | Публичная страница события  |     1 |   4-8 |
 | [20.7](../epics/20-7-release-v0-2-0.md)           | Релиз v0.2.0                |     1 |  8-16 |
