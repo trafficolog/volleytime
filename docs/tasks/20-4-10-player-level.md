@@ -2,11 +2,11 @@
 id: '20.4.10'
 phase: '20'
 epic: '20.4'
-status: todo
+status: in_progress
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-10-14
+status_note: 'Реализовано (review pending): уровень в профиле и в списке игроков, фильтр по уровню. Уровень в составе события не сделан: нужен level в publicRoster (API и публичная страница) — эскалация оркестратору. Визуальная сверка: docs/operations/qa/2026-10-14-20-4-10-player-level.md.'
 ref_id: 'M-14'
 complexity: S
 impl_model: claude-haiku-5-5

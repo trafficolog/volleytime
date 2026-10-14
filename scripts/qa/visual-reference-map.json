@@ -53,6 +53,16 @@
       "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
     },
     {
+      "id": "organizer-members",
+      "title": "Организатор: игроки (уровни и фильтр)",
+      "viewport": "miniapp",
+      "role": "organizer",
+      "org": "vt",
+      "path": "/m/orgs/{org}/members",
+      "references": ["3-miniapp-organizer/01-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
       "id": "player-bookings",
       "title": "Игрок: мои записи",
       "viewport": "miniapp",
