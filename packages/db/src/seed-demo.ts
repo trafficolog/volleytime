@@ -48,9 +48,12 @@ export const DEMO_EMAIL_DOMAIN = 'demo.volleytime.local'
 type Role = 'owner' | 'organizer' | 'assistant' | 'player'
 type PayMethod = 'cash' | 'transfer'
 
-/** Как участник оказался в составе события. */
+/**
+ * Как участник оказался в составе события. `count` — места записи (20.1.2, «+N» в составе):
+ * fixed — один платёж на место; по умолчанию одно место, как R0.7.
+ */
 type Seat =
-  | { user: string; kind: 'paid'; method?: PayMethod } // fixed: подтверждён, платёж прошёл
+  | { user: string; kind: 'paid'; method?: PayMethod; count?: number } // fixed: подтверждён, платёж прошёл
   | { user: string; kind: 'pending'; method?: PayMethod } // fixed/split: ждёт оплаты
   | { user: string; kind: 'subscription' } // fixed: списано занятие абонемента
   | { user: string; kind: 'waitlisted' } // лист ожидания
@@ -116,7 +119,12 @@ export const DEMO_USERS: Record<string, string> = {
   liza: 'Лиза',
 }
 
-const paid = (user: string, method: PayMethod = 'cash'): Seat => ({ user, kind: 'paid', method })
+const paid = (user: string, method: PayMethod = 'cash', count = 1): Seat => ({
+  user,
+  kind: 'paid',
+  method,
+  count,
+})
 const pending = (user: string, method: PayMethod = 'transfer'): Seat => ({
   user,
   kind: 'pending',
@@ -240,7 +248,8 @@ export const DEMO_ORGANIZATIONS: DemoOrganization[] = [
           sub('sonya'),
           sub('katya'),
           sub('lesha'),
-          paid('artem'),
+          // запись на два места — «Артём +1» (20.1.2)
+          paid('artem', 'cash', 2),
           paid('lera'),
           paid('igor', 'transfer'),
           paid('denis'),
@@ -720,6 +729,8 @@ async function ensureEvent(
     const share = seat.kind !== 'waitlisted' && settled ? shares[activeIndex] : undefined
     if (seat.kind !== 'waitlisted') activeIndex += 1
     const amount = share ?? spec.price ?? 0
+    // места записи — только fixed (доли split сида считаются по записям на одно место)
+    const seatCount = seat.kind === 'paid' && !spec.split ? (seat.count ?? 1) : 1
 
     let status: Booking['status']
     let method: Booking['method']
@@ -749,6 +760,7 @@ async function ensureEvent(
         method,
         subscriptionId,
         allocatedAmount: share ?? null,
+        seats: seatCount,
         bookedAt,
         confirmedAt: status === 'confirmed' || status === 'attended' ? bookedAt : null,
       })
@@ -769,15 +781,23 @@ async function ensureEvent(
     const needsPayment =
       (seat.kind === 'paid' || seat.kind === 'pending') && (!spec.split || settled) && amount > 0
     if (needsPayment) {
-      const paymentId = await addPayment(ctx, {
-        userId: user.id,
-        amount,
-        method: method as PayMethod,
-        succeeded: seat.kind === 'paid',
-        at: new Date(bookedAt.getTime() + HOUR),
-        bookingId: booking!.id,
-      })
-      await ctx.tx.update(bookings).set({ paymentId }).where(eq(bookings.id, booking!.id))
+      // один платёж на место (ADR v3, «Денежная модель нескольких мест»); payment_id — первый
+      let firstPaymentId: number | null = null
+      for (let unit = 0; unit < seatCount; unit += 1) {
+        const paymentId = await addPayment(ctx, {
+          userId: user.id,
+          amount,
+          method: method as PayMethod,
+          succeeded: seat.kind === 'paid',
+          at: new Date(bookedAt.getTime() + HOUR + unit * 1000),
+          bookingId: booking!.id,
+        })
+        firstPaymentId ??= paymentId
+      }
+      await ctx.tx
+        .update(bookings)
+        .set({ paymentId: firstPaymentId })
+        .where(eq(bookings.id, booking!.id))
     }
   }
 }

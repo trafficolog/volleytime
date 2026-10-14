@@ -13,6 +13,7 @@ import { seedDemo } from './seed-demo'
 const TAG = '0023_player_levels'
 const TAG22 = '0022_group_cancellation_default'
 const TAG24 = '0024_event_balance'
+const TAG25 = '0025_multi_seat_booking'
 const BASE_URL = process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL ?? ''
 
 /**
@@ -68,6 +69,8 @@ describe('migration 0023 player levels (integration)', { timeout: 60_000 }, () =
       expect(await columns(sql, 'organizations')).toContain('levels')
       expect(await columns(sql, 'events')).toContain('level')
 
+      expect(await rollbackLastMigration(url)).toBe(TAG25)
+
       expect(await rollbackLastMigration(url)).toBe(TAG24)
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await exists(sql, 'table', 'player_levels')).toBe(false)
@@ -116,6 +119,7 @@ describe('migration 0023 player levels (integration)', { timeout: 60_000 }, () =
     const { url, sql } = await scratchDb()
     try {
       await runMigrations(url)
+      expect(await rollbackLastMigration(url)).toBe(TAG25)
       expect(await rollbackLastMigration(url)).toBe(TAG24)
       expect(await rollbackLastMigration(url)).toBe(TAG) // теперь БД на 0022
 
@@ -156,6 +160,7 @@ describe('migration 0023 player levels (integration)', { timeout: 60_000 }, () =
 
       // откат возвращает 0022 и не трогает остальные данные
       await sql`UPDATE organization_members SET level = 'v2' WHERE user_id = ${user!.id}`
+      expect(await rollbackLastMigration(url)).toBe(TAG25)
       expect(await rollbackLastMigration(url)).toBe(TAG24)
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await sql`SELECT rating_in_org FROM organization_members ORDER BY id`).toEqual([
@@ -229,6 +234,8 @@ describe('migration 0023 player levels (integration)', { timeout: 60_000 }, () =
       expect(
         (await sql`SELECT level FROM organization_members ORDER BY id LIMIT 1`)[0]!.level,
       ).toBe('v4_plus')
+
+      expect(await rollbackLastMigration(url)).toBe(TAG25)
 
       expect(await rollbackLastMigration(url)).toBe(TAG24)
       expect(await rollbackLastMigration(url)).toBe(TAG)

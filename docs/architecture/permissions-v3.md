@@ -86,26 +86,26 @@ Mini App и Login Widget сходятся в одну Telegram-личность:
 
 Пути — из [ADR v3](./ADR-v3-domain.md#пути-и-именование).
 
-| Ресурс                    | Действие и эндпоинт                                                                    | Уровень         | Карточка          |
-| ------------------------- | -------------------------------------------------------------------------------------- | --------------- | ----------------- |
-| Уровни В1–В4+             | `GET /api/levels` (справочник)                                                         | auth            | 19.2.3            |
-|                           | уровень участника `PATCH …/members/{id}` `{level}`, уровни группы в `PATCH …/settings` | manager / owner | 19.2.3            |
-| Цена и места              | `GET …/events/{id}/price?seats=N` — реализовано, в IDOR-таблице; черновик — manager    | member          | 20.1.1            |
-|                           | `PATCH …/bookings/{id}` `{seats}`                                                      | self            | 20.1.2            |
-| Приглашение на событие    | `POST …/events/{id}/invites`                                                           | manager         | 20.1.3            |
-|                           | `POST …/events/{id}/invite-requests`                                                   | member          | 20.1.3            |
-|                           | `GET …/invite-requests`, `POST …/{requestId}/approve\|decline`                         | manager         | 20.1.3            |
-| Предложение места (оффер) | принять / отказаться                                                                   | self            | 20.3.1            |
-| Баланс событий            | `GET …/event-balance`, `GET …/event-balance/entries`                                   | manager         | 20.2.1            |
-|                           | `POST …/event-balance/purchase-requests`                                               | owner           | 20.2.1, UI 21.2.8 |
-|                           | начисление, исправление, решение по заявке — операторская команда `db:event-balance`   | root            | 20.2.1, UI 22.2.2 |
-| Серии и черновики         | `POST …/series/preview`, `POST …/series`, `GET …/series/{id}`, `PATCH …/series/{id}`   | manager         | 20.2.2            |
-| Уведомления               | `GET /api/notifications`, `POST /api/notifications/read`                               | self            | 20.3.2            |
-| Сборы                     | `GET …/collections`, `GET …/collections/{id}`                                          | member          | 21.2.4            |
-|                           | `POST/PATCH …/collections`, закрыть, отменить                                          | manager         | 21.2.4            |
-|                           | `POST …/collections/{id}/contributions` (свой взнос)                                   | member          | 21.2.4            |
-|                           | подтвердить / отклонить взнос                                                          | manager         | 21.2.4            |
-| Root Admin                | `/api/platform/**`: группы, баланс и гранты, заявки на покупку, настройки, журнал      | root            | 22.x              |
+| Ресурс                    | Действие и эндпоинт                                                                        | Уровень         | Карточка          |
+| ------------------------- | ------------------------------------------------------------------------------------------ | --------------- | ----------------- |
+| Уровни В1–В4+             | `GET /api/levels` (справочник)                                                             | auth            | 19.2.3            |
+|                           | уровень участника `PATCH …/members/{id}` `{level}`, уровни группы в `PATCH …/settings`     | manager / owner | 19.2.3            |
+| Цена и места              | `GET …/events/{id}/price?seats=N` — реализовано, в IDOR-таблице; черновик — manager        | member          | 20.1.1            |
+|                           | `PATCH …/bookings/{id}` `{seats}` — реализовано, в IDOR-таблице; чужая запись группы — 403 | self            | 20.1.2            |
+| Приглашение на событие    | `POST …/events/{id}/invites`                                                               | manager         | 20.1.3            |
+|                           | `POST …/events/{id}/invite-requests`                                                       | member          | 20.1.3            |
+|                           | `GET …/invite-requests`, `POST …/{requestId}/approve\|decline`                             | manager         | 20.1.3            |
+| Предложение места (оффер) | принять / отказаться                                                                       | self            | 20.3.1            |
+| Баланс событий            | `GET …/event-balance`, `GET …/event-balance/entries`                                       | manager         | 20.2.1            |
+|                           | `POST …/event-balance/purchase-requests`                                                   | owner           | 20.2.1, UI 21.2.8 |
+|                           | начисление, исправление, решение по заявке — операторская команда `db:event-balance`       | root            | 20.2.1, UI 22.2.2 |
+| Серии и черновики         | `POST …/series/preview`, `POST …/series`, `GET …/series/{id}`, `PATCH …/series/{id}`       | manager         | 20.2.2            |
+| Уведомления               | `GET /api/notifications`, `POST /api/notifications/read`                                   | self            | 20.3.2            |
+| Сборы                     | `GET …/collections`, `GET …/collections/{id}`                                              | member          | 21.2.4            |
+|                           | `POST/PATCH …/collections`, закрыть, отменить                                              | manager         | 21.2.4            |
+|                           | `POST …/collections/{id}/contributions` (свой взнос)                                       | member          | 21.2.4            |
+|                           | подтвердить / отклонить взнос                                                              | manager         | 21.2.4            |
+| Root Admin                | `/api/platform/**`: группы, баланс и гранты, заявки на покупку, настройки, журнал          | root            | 22.x              |
 
 Правила для v3:
 

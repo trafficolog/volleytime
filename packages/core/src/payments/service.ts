@@ -2,15 +2,19 @@ import {
   and,
   asc,
   bookings,
+  desc,
   eq,
   events,
   inArray,
+  isNull,
+  ne,
   organizationMembers,
   payments,
   sql,
   subscriptionPlans,
   subscriptions,
   users,
+  type Booking,
   type Payment,
 } from '@volley-time/db'
 
@@ -24,12 +28,15 @@ import { getDb, type ServiceContext } from '../shared/context'
 import { PaymentNotFoundError, PaymentNotPendingError, PaymentNotSucceededError } from './errors'
 import { listPaymentHistory } from './history'
 
+type Db = ReturnType<typeof getDb>
+type BookingRef = Pick<Booking, 'id' | 'incarnation'>
+
 /**
  * Условный переход статуса платежа (Task 6.8.1): `WHERE status = from [AND organization_id]`.
  * 0 строк → точная ошибка. Возвращает платёж ДО перехода и после.
  */
 async function transitionPayment(
-  db: ReturnType<typeof getDb>,
+  db: Db,
   paymentId: number,
   from: Payment['status'],
   set: Partial<typeof payments.$inferInsert>,
@@ -51,7 +58,7 @@ async function transitionPayment(
 }
 
 /** Booking money operations share the event-first lock order with settlement and cancellation. */
-async function lockPaymentEvent(db: ReturnType<typeof getDb>, paymentId: number): Promise<void> {
+async function lockPaymentEvent(db: Db, paymentId: number): Promise<void> {
   const [bookingEvent] = await db
     .select({ eventId: bookings.eventId })
     .from(payments)
@@ -61,9 +68,32 @@ async function lockPaymentEvent(db: ReturnType<typeof getDb>, paymentId: number)
   if (bookingEvent) await db.execute(sql`SELECT pg_advisory_xact_lock(${bookingEvent.eventId})`)
 }
 
+/**
+ * Живые платежи записи (ADR v3, «Денежная модель нескольких мест»): текущее воплощение, место не
+ * освобождено, `pending`/`succeeded`. Инвариант: для платной fixed-записи вне очереди их число = seats.
+ */
+function liveOf(booking: BookingRef) {
+  return and(
+    eq(payments.bookingId, booking.id),
+    eq(payments.bookingIncarnation, booking.incarnation),
+    isNull(payments.seatReleasedAt),
+    inArray(payments.status, ['pending', 'succeeded']),
+  )
+}
+
+/** Платёж — живой платёж записи (а не прошлого воплощения или освобождённого места). */
+function isLive(payment: Payment, booking: BookingRef | undefined): booking is Booking {
+  return (
+    !!booking &&
+    payment.bookingId === booking.id &&
+    payment.bookingIncarnation === booking.incarnation &&
+    payment.seatReleasedAt === null
+  )
+}
+
 /** Контекст платежа для уведомлений (8.8.5): событие или план абонемента. */
 async function paymentContext(
-  db: ReturnType<typeof getDb>,
+  db: Db,
   payment: Payment,
 ): Promise<{ eventTitle?: string; eventDate?: string; eventId?: number; planName?: string }> {
   if (payment.bookingId) {
@@ -90,13 +120,20 @@ async function paymentContext(
 }
 
 /**
- * Уведомить управляющих организации о новом pending-платеже (Task 8.8.6).
+ * Уведомить управляющих организации о новом pending-платеже (Task 8.8.6). Для записи на несколько
+ * мест — одно уведомление на операцию с суммой и числом мест (20.1.2).
  * Собирается в транзакции, отправляется после коммита.
  */
 async function notifyOrganizersAboutPending(
   ctx: ServiceContext,
   payment: Payment,
-  extra: { eventTitle?: string; eventDate?: string; eventId?: number; planName?: string } = {},
+  extra: {
+    eventTitle?: string
+    eventDate?: string
+    eventId?: number
+    planName?: string
+  } = {},
+  total: { amount: number; seats: number } = { amount: payment.amount, seats: 1 },
 ): Promise<void> {
   const db = getDb(ctx)
   const [payer] = await db
@@ -122,7 +159,8 @@ async function notifyOrganizersAboutPending(
       userId: m.userId,
       type: 'payment_pending_organizer',
       params: {
-        amount: payment.amount,
+        amount: total.amount,
+        seats: total.seats,
         currency: payment.currency,
         method: payment.method,
         playerName,
@@ -133,6 +171,8 @@ async function notifyOrganizersAboutPending(
     })
   }
 }
+
+const sum = (rows: Payment[]) => rows.reduce((a, p) => a + p.amount, 0)
 
 export const paymentService = {
   listHistory: listPaymentHistory,
@@ -149,6 +189,7 @@ export const paymentService = {
     },
     options: { notifyOrganizers?: boolean } = {},
   ): Promise<Payment> {
+    // booking_incarnation подставляет триггер БД (текущее воплощение записи, 20.1.2)
     const [p] = await getDb(ctx)
       .insert(payments)
       .values({ ...params, subscriptionId: null, status: 'pending' })
@@ -156,6 +197,143 @@ export const paymentService = {
     if (options.notifyOrganizers !== false)
       await notifyOrganizersAboutPending(ctx, p!, await paymentContext(getDb(ctx), p!))
     return p!
+  },
+
+  /**
+   * Fixed по местам (20.1.2, ADR): `count` pending-платежей записи на `amount` каждый — один платёж
+   * на место; сумма K × цена точна без деления. Организаторы получают одно уведомление на операцию.
+   * Вызывается под advisory-lock события.
+   */
+  async createSeatPayments(
+    ctx: ServiceContext,
+    booking: Pick<Booking, 'id' | 'incarnation' | 'organizationId' | 'userId'>,
+    params: { count: number; amount: number; currency: string; method: 'cash' | 'transfer' },
+  ): Promise<Payment[]> {
+    if (!Number.isInteger(params.count) || params.count < 1)
+      throw new RangeError('count must be >= 1')
+    const db = getDb(ctx)
+    const rows = await db
+      .insert(payments)
+      .values(
+        Array.from({ length: params.count }, () => ({
+          organizationId: booking.organizationId,
+          userId: booking.userId,
+          bookingId: booking.id,
+          bookingIncarnation: booking.incarnation,
+          subscriptionId: null,
+          amount: params.amount,
+          currency: params.currency,
+          method: params.method,
+          status: 'pending' as const,
+        })),
+      )
+      .returning()
+    const created = rows.sort((a, b) => a.id - b.id)
+    await notifyOrganizersAboutPending(ctx, created[0]!, await paymentContext(db, created[0]!), {
+      amount: sum(created),
+      seats: created.length,
+    })
+    return created
+  },
+
+  /** Живые платежи записи в порядке создания (`created_at, id`). */
+  async listLive(ctx: ServiceContext, booking: BookingRef): Promise<Payment[]> {
+    return getDb(ctx)
+      .select()
+      .from(payments)
+      .where(liveOf(booking))
+      .orderBy(asc(payments.createdAt), asc(payments.id))
+  },
+
+  /**
+   * Снять `count` мест с денег записи (частичная отмена, 20.1.2, D-14): сначала неоплаченные места —
+   * самые поздние `pending` → `cancelled`; если их не хватает — самые поздние `succeeded` освобождаются
+   * (`seat_released_at`), платёж остаётся `succeeded`, касса не меняется. Под advisory-lock события.
+   */
+  async releaseSeats(
+    ctx: ServiceContext,
+    booking: BookingRef,
+    count: number,
+  ): Promise<{ cancelled: number; released: number }> {
+    const db = getDb(ctx)
+    const live = await db
+      .select()
+      .from(payments)
+      .where(liveOf(booking))
+      .orderBy(desc(payments.createdAt), desc(payments.id))
+    const pending = live.filter((p) => p.status === 'pending').slice(0, count)
+    const paid = live.filter((p) => p.status === 'succeeded').slice(0, count - pending.length)
+    if (pending.length > 0)
+      await db
+        .update(payments)
+        .set({ status: 'cancelled' })
+        .where(
+          and(
+            inArray(
+              payments.id,
+              pending.map((p) => p.id),
+            ),
+            eq(payments.status, 'pending'),
+          ),
+        )
+    if (paid.length > 0)
+      await db
+        .update(payments)
+        .set({ seatReleasedAt: new Date() })
+        .where(
+          and(
+            inArray(
+              payments.id,
+              paid.map((p) => p.id),
+            ),
+            eq(payments.status, 'succeeded'),
+          ),
+        )
+    return { cancelled: pending.length, released: paid.length }
+  },
+
+  /**
+   * Отмена записи (bookingService.cancel, D-14): все `pending`-живые платежи → `cancelled`, все
+   * `succeeded`-живые освобождаются без возврата. Возвращает, сколько оплаченных мест освобождено.
+   */
+  async releaseAll(ctx: ServiceContext, booking: BookingRef): Promise<{ released: number }> {
+    const db = getDb(ctx)
+    await db
+      .update(payments)
+      .set({ status: 'cancelled' })
+      .where(and(liveOf(booking), eq(payments.status, 'pending')))
+    const released = await db
+      .update(payments)
+      .set({ seatReleasedAt: new Date() })
+      .where(and(liveOf(booking), eq(payments.status, 'succeeded')))
+      .returning({ id: payments.id })
+    return { released: released.length }
+  },
+
+  /**
+   * Статус записи — производная от платежей мест (ADR): платная запись в основе `confirmed` тогда и
+   * только тогда, когда все её живые платежи `succeeded`; `bookings.payment_id` — первый живой платёж
+   * (для читателей R0.7). Записи без живых платежей (абонемент, бесплатно, split до фиксации) не меняются.
+   */
+  async syncBookingPayments(ctx: ServiceContext, bookingId: number): Promise<Booking | null> {
+    const db = getDb(ctx)
+    const booking = await db.query.bookings.findFirst({ where: eq(bookings.id, bookingId) })
+    if (!booking || !['pending_payment', 'confirmed'].includes(booking.status)) return null
+    const live = await this.listLive(ctx, booking)
+    if (live.length === 0) return booking
+    const status = live.some((p) => p.status === 'pending') ? 'pending_payment' : 'confirmed'
+    if (status === booking.status && booking.paymentId === live[0]!.id) return booking
+    const [synced] = await db
+      .update(bookings)
+      .set({
+        status,
+        paymentId: live[0]!.id,
+        confirmedAt: status === 'confirmed' ? (booking.confirmedAt ?? new Date()) : null,
+        updatedAt: new Date(),
+      })
+      .where(eq(bookings.id, booking.id))
+      .returning()
+    return synced!
   },
 
   /** Создать pending-платёж за абонемент. */
@@ -186,7 +364,9 @@ export const paymentService = {
 
   /**
    * Ожидающие оплаты с контекстом для организатора (Task 6.8.11): игрок (публичные поля),
-   * событие брони или план абонемента.
+   * событие брони или план абонемента. Платежи мест одной записи — одна строка (20.1.2): `id` —
+   * первый платёж (подтверждение и отклонение по нему действуют на всю запись), `amount` — сумма,
+   * `seats` — число неоплаченных мест, `paymentIds` — все платежи строки.
    */
   async listPending(ctx: ServiceContext, orgId: number) {
     const rows = await getDb(ctx)
@@ -197,6 +377,8 @@ export const paymentService = {
         method: payments.method,
         createdAt: payments.createdAt,
         bookingId: payments.bookingId,
+        bookingIncarnation: payments.bookingIncarnation,
+        currentIncarnation: bookings.incarnation,
         subscriptionId: payments.subscriptionId,
         userId: users.id,
         userName: users.name,
@@ -214,10 +396,27 @@ export const paymentService = {
       .leftJoin(subscriptions, eq(subscriptions.id, payments.subscriptionId))
       .leftJoin(subscriptionPlans, eq(subscriptionPlans.id, subscriptions.planId))
       .where(and(eq(payments.organizationId, orgId), eq(payments.status, 'pending')))
-      .orderBy(asc(payments.createdAt))
-    return rows.map((r) => ({
+      .orderBy(asc(payments.createdAt), asc(payments.id))
+    const groups = new Map<
+      string,
+      { first: (typeof rows)[number]; amount: number; paymentIds: number[] }
+    >()
+    for (const r of rows) {
+      const key =
+        r.bookingId !== null && r.bookingIncarnation === r.currentIncarnation
+          ? `booking:${r.bookingId}`
+          : `payment:${r.id}`
+      const group = groups.get(key)
+      if (group) {
+        group.amount += r.amount
+        group.paymentIds.push(r.id)
+      } else groups.set(key, { first: r, amount: r.amount, paymentIds: [r.id] })
+    }
+    return [...groups.values()].map(({ first: r, amount, paymentIds }) => ({
       id: r.id,
-      amount: r.amount,
+      amount,
+      seats: paymentIds.length,
+      paymentIds,
       currency: r.currency,
       method: r.method,
       createdAt: r.createdAt,
@@ -235,9 +434,10 @@ export const paymentService = {
   },
 
   /**
-   * Подтвердить оплату (single source of truth). Атомарно:
-   * payment→succeeded + booking→confirmed / subscription→active + ledger income.
-   * Если booking уже не pending_payment — payment всё равно succeeded (деньги получены).
+   * Подтвердить оплату (single source of truth). Для платежа записи — операция над записью (20.1.2):
+   * все `pending`-живые платежи её мест → `succeeded` (каждый условно, доход кассы — по платежу),
+   * затем статус записи пересчитывается (`confirmed`, когда все живые оплачены); одно уведомление.
+   * Платёж прошлого воплощения записи новую бронь не трогает (6.8.5). Абонемент → active.
    */
   async confirm(
     ctx: ServiceContext,
@@ -248,28 +448,33 @@ export const paymentService = {
     return db.transaction(async (tx) => {
       // атомарно: только pending → succeeded; параллельный confirm получит 409 (6.8.1)
       await lockPaymentEvent(tx, paymentId)
+      const confirmedSet = { status: 'succeeded' as const, confirmedByUserId: ctx.userId }
       const succeeded = await transitionPayment(
         tx,
         paymentId,
         'pending',
-        { status: 'succeeded', confirmedByUserId: ctx.userId, confirmedAt: new Date() },
+        { ...confirmedSet, confirmedAt: new Date() },
         opts.orgId ?? ctx.organization?.id,
       )
       const payment = succeeded
+      const confirmed: Payment[] = [payment]
 
       // side effect
       if (payment.bookingId) {
-        // бронь подтверждается, только если ссылается именно на этот платёж (6.8.5)
-        await tx
-          .update(bookings)
-          .set({ status: 'confirmed', confirmedAt: new Date(), updatedAt: new Date() })
-          .where(
-            and(
-              eq(bookings.id, payment.bookingId),
-              eq(bookings.paymentId, payment.id),
-              eq(bookings.status, 'pending_payment'),
-            ),
-          )
+        const booking = await tx.query.bookings.findFirst({
+          where: eq(bookings.id, payment.bookingId),
+        })
+        if (isLive(payment, booking)) {
+          const others = await tx
+            .update(payments)
+            .set({ ...confirmedSet, confirmedAt: new Date() })
+            .where(
+              and(liveOf(booking), eq(payments.status, 'pending'), ne(payments.id, payment.id)),
+            )
+            .returning()
+          confirmed.push(...others.sort((a, b) => a.id - b.id))
+          await this.syncBookingPayments({ ...ctx, db: tx }, booking.id)
+        }
       } else if (payment.subscriptionId) {
         // активация со сроком плана, отсчёт от подтверждения (6.8.3)
         const sub = await tx.query.subscriptions.findFirst({
@@ -305,25 +510,27 @@ export const paymentService = {
         }
       }
 
-      // ledger income
-      await ledgerService.createEntry(
-        { userId: ctx.userId, db: tx },
-        {
-          organizationId: payment.organizationId,
-          type: 'income',
-          category: 'payment_income',
-          amount: payment.amount,
-          currency: payment.currency,
-          paymentId: payment.id,
-          description: payment.bookingId ? 'Оплата участия' : 'Оплата абонемента',
-        },
-      )
+      // ledger income — по каждому платежу (ledger_income_payment_uniq)
+      for (const p of confirmed)
+        await ledgerService.createEntry(
+          { userId: ctx.userId, db: tx },
+          {
+            organizationId: p.organizationId,
+            type: 'income',
+            category: 'payment_income',
+            amount: p.amount,
+            currency: p.currency,
+            paymentId: p.id,
+            description: p.bookingId ? 'Оплата участия' : 'Оплата абонемента',
+          },
+        )
 
       collectNotification(ctx, {
         userId: payment.userId,
         type: 'payment_confirmed',
         params: {
-          amount: payment.amount,
+          amount: sum(confirmed),
+          seats: confirmed.length,
           currency: payment.currency,
           organizationId: payment.organizationId,
           target: payment.subscriptionId ? 'subscriptions' : 'event',
@@ -335,7 +542,12 @@ export const paymentService = {
     })
   },
 
-  /** Отклонить pending-платёж. Booking отменяется (слот освобождается). */
+  /**
+   * Отклонить pending-платёж. Для платежа записи — операция над записью (20.1.2): все `pending`-живые
+   * платежи её мест → `cancelled`. Есть оплаченные места — снимаются только неоплаченные (seats
+   * уменьшается, запись `confirmed`, освободившиеся места уходят очереди); оплаченных нет — запись
+   * отменяется целиком (6.8.4, с продвижением очереди). Платёж прошлого воплощения запись не трогает.
+   */
   async cancel(
     ctx: ServiceContext,
     paymentId: number,
@@ -366,27 +578,59 @@ export const paymentService = {
         organizationId,
       )
       const payment = cancelled
+      const rejected: Payment[] = [payment]
+      let keptSeats = 0
 
       if (payment.bookingId) {
         const booking = await tx.query.bookings.findFirst({
           where: eq(bookings.id, payment.bookingId),
         })
         // старый платёж не трогает новую бронь (6.8.5)
-        if (booking && booking.paymentId === payment.id && booking.status === 'pending_payment') {
-          // освобождение места через общую отмену → промоушен листа ожидания (6.8.4).
-          // Ленивый импорт: bookings/service импортирует payments/service.
-          const { bookingService } = await import('../bookings/service')
+        if (isLive(payment, booking) && ['pending_payment', 'confirmed'].includes(booking.status)) {
           const txCtx = { ...ctx, db: tx }
+          const others = await tx
+            .update(payments)
+            .set({ status: 'cancelled' })
+            .where(and(liveOf(booking), eq(payments.status, 'pending')))
+            .returning()
+          rejected.push(...others)
+          const paid = await this.listLive(txCtx, booking)
           const event = await tx.query.events.findFirst({
             where: eq(events.id, booking.eventId),
             columns: { startsAt: true },
           })
-          if (event && event.startsAt > new Date()) {
+          // Ленивый импорт: bookings/service импортирует payments/service.
+          const { bookingService } = await import('../bookings/service')
+          if (paid.length > 0) {
+            // оплаченные места остаются: снимаются только отклонённые (ADR, D-14)
+            keptSeats = paid.length
+            await tx
+              .update(bookings)
+              .set({ seats: paid.length, updatedAt: new Date() })
+              .where(eq(bookings.id, booking.id))
+            await this.syncBookingPayments(txCtx, booking.id)
+            await auditService.record(txCtx, {
+              organizationId: booking.organizationId,
+              action: AUDIT_ACTIONS.BOOKING_SEATS_CHANGED,
+              entityType: 'booking',
+              entityId: booking.id,
+              oldValue: { seats: booking.seats },
+              newValue: { seats: paid.length, reason: 'payment_rejected' },
+            })
+            if (event && event.startsAt > new Date())
+              await bookingService.promoteFromWaitlist(txCtx, booking.eventId)
+          } else if (event && event.startsAt > new Date()) {
+            // освобождение места через общую отмену → промоушен листа ожидания (6.8.4).
             await bookingService.cancel(txCtx, booking.id, { byAdmin: true })
           } else {
             await tx
               .update(bookings)
-              .set({ status: 'cancelled', cancelledAt: new Date(), updatedAt: new Date() })
+              .set({
+                status: 'cancelled',
+                waitlistSeats: 0,
+                cancelledAt: new Date(),
+                updatedAt: new Date(),
+              })
               .where(eq(bookings.id, booking.id))
           }
         }
@@ -404,7 +648,9 @@ export const paymentService = {
         userId: payment.userId,
         type: 'payment_rejected',
         params: {
-          amount: payment.amount,
+          amount: sum(rejected),
+          seats: rejected.length,
+          keptSeats,
           currency: payment.currency,
           organizationId: payment.organizationId,
           target: payment.subscriptionId ? 'subscriptions' : 'event',
@@ -415,7 +661,10 @@ export const paymentService = {
     })
   },
 
-  /** Вернуть succeeded-платёж: refunded + ledger expense (append-only). */
+  /**
+   * Вернуть succeeded-платёж: refunded + ledger expense (append-only). Доступно и для освобождённого
+   * места (D-14): `seat_released_at` при возврате не меняется.
+   */
   async refund(ctx: ServiceContext, paymentId: number, reason?: string): Promise<Payment> {
     const db = getDb(ctx)
     return db.transaction(async (tx) => {

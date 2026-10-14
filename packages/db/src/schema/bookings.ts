@@ -53,6 +53,12 @@ export const bookings = pgTable(
     // FK → payments(id) ON DELETE SET NULL добавлен SQL-миграцией 0014 (цикл импортов bookings↔payments)
     paymentId: integer('payment_id'),
     allocatedAmount: integer('allocated_amount'), // immutable minor units after split settlement
+    // места записи (20.1.2, ADR v3): seats — места в своём статусе (основа или очередь целиком),
+    // waitlist_seats — ещё места в очереди у записи в основе; incarnation растёт при реактивации
+    // отменённой записи (триггер БД), платежи прошлых воплощений не «живые»
+    seats: integer('seats').notNull().default(1),
+    waitlistSeats: integer('waitlist_seats').notNull().default(0),
+    incarnation: integer('incarnation').notNull().default(1),
     bookedAt: timestamp('booked_at', { withTimezone: true }).notNull().defaultNow(),
     confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
     cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
@@ -68,6 +74,13 @@ export const bookings = pgTable(
       'bookings_allocated_amount_positive',
       sql`${t.allocatedAmount} IS NULL OR ${t.allocatedAmount} > 0`,
     ),
+    check('bookings_seats_positive', sql`${t.seats} >= 1`),
+    check('bookings_waitlist_seats_non_negative', sql`${t.waitlistSeats} >= 0`),
+    check(
+      'bookings_waitlist_seats_status',
+      sql`${t.waitlistSeats} = 0 OR ${t.status} IN ('confirmed', 'pending_payment')`,
+    ),
+    check('bookings_incarnation_positive', sql`${t.incarnation} >= 1`),
   ],
 )
 

@@ -142,11 +142,18 @@ describe('seed-demo (integration)', () => {
              OR p.amount <> CASE WHEN e.price_mode = 'split' THEN b.allocated_amount ELSE e.price END)`)
     expect(badLinks.n).toBe(0)
 
+    // каждый платёж записи — живой платёж её текущего воплощения (20.1.2), их число = seats
     const strayPayments = await one<{ n: number }>(sql`
       SELECT count(*)::int AS n FROM payments p
+      LEFT JOIN bookings b ON b.id = p.booking_id
       WHERE p.booking_id IS NOT NULL
-        AND NOT EXISTS (SELECT 1 FROM bookings b WHERE b.payment_id = p.id)`)
+        AND (b.id IS NULL OR p.booking_incarnation <> b.incarnation OR p.seat_released_at IS NOT NULL)`)
     expect(strayPayments.n).toBe(0)
+    const seatPayments = await one<{ n: number }>(sql`
+      SELECT count(*)::int AS n FROM bookings b
+      WHERE b.payment_id IS NOT NULL
+        AND b.seats <> (SELECT count(*) FROM payments p WHERE p.booking_id = b.id)`)
+    expect(seatPayments.n).toBe(0)
 
     // нет платежа у незафиксированного split и у листа ожидания
     const unexpected = await one<{ n: number }>(sql`

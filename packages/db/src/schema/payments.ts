@@ -40,6 +40,11 @@ export const payments = pgTable(
     subscriptionId: integer('subscription_id').references(() => subscriptions.id, {
       onDelete: 'set null',
     }),
+    // воплощение записи на момент создания платежа (20.1.2): живые платежи записи —
+    // booking_incarnation = bookings.incarnation, seat_released_at IS NULL, pending/succeeded
+    bookingIncarnation: integer('booking_incarnation'),
+    // оплаченное место освобождено игроком без возврата (D-14): платёж остаётся succeeded
+    seatReleasedAt: timestamp('seat_released_at', { withTimezone: true }),
     amount: integer('amount').notNull(), // minor units
     currency: varchar('currency', { length: 8 }).notNull().default('BYN'),
     method: paymentMethodEnum('method').notNull(),
@@ -55,8 +60,18 @@ export const payments = pgTable(
   (t) => [
     index('payments_org_status_idx').on(t.organizationId, t.status),
     index('payments_booking_idx').on(t.bookingId),
+    index('payments_booking_incarnation_idx').on(t.bookingId, t.bookingIncarnation),
     index('payments_subscription_idx').on(t.subscriptionId),
     check('payments_amount_positive', sql`${t.amount} > 0`),
+    // в одну сторону: ON DELETE SET NULL по booking_id оставляет воплощение как историю
+    check(
+      'payments_booking_incarnation_required',
+      sql`${t.bookingId} IS NULL OR ${t.bookingIncarnation} IS NOT NULL`,
+    ),
+    check(
+      'payments_seat_released_status',
+      sql`${t.seatReleasedAt} IS NULL OR ${t.status} IN ('succeeded', 'refunded')`,
+    ),
   ],
 )
 

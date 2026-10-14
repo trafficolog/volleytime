@@ -22,6 +22,7 @@ import { DEFAULT_TIMEZONE, zonedInputToDate } from '@volley-time/shared'
 
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
+import { queuedSeatsSql, takenSeats, takenSeatsSql } from '../bookings/seats'
 import { eventBalanceService } from '../event-balance/service'
 import { collectNotification } from '../notifier/collect'
 import { OrganizationNotFoundError } from '../organizations/errors'
@@ -69,9 +70,20 @@ async function assertVenueInOrg(
 }
 
 export interface EventStats {
+  /** Занято мест — SUM(seats) записей в составе (20.1.2). */
   taken: number
+  /** Игроков в составе — COUNT(*) тех же записей; не равно `taken` при записях на несколько мест. */
+  players: number
+  /** Мест в очереди: записи `waitlisted` целиком и очередная часть записей в основе. */
   waitlist: number
-  myBooking: { id: number; status: string; method: string; paymentId: number | null } | null
+  myBooking: {
+    id: number
+    status: string
+    method: string
+    paymentId: number | null
+    seats: number
+    waitlistSeats: number
+  } | null
   venue: { name: string; address: string | null } | null
 }
 
@@ -208,8 +220,9 @@ export const eventService = {
     const counts = await db
       .select({
         eventId: bookings.eventId,
-        taken: sql<number>`count(*) FILTER (WHERE ${bookings.status} IN ('confirmed','pending_payment','attended','no_show'))::int`,
-        waitlist: sql<number>`count(*) FILTER (WHERE ${bookings.status} = 'waitlisted')::int`,
+        taken: takenSeatsSql,
+        players: sql<number>`count(*) FILTER (WHERE ${bookings.status} IN ('confirmed','pending_payment','attended','no_show'))::int`,
+        waitlist: queuedSeatsSql,
       })
       .from(bookings)
       .where(inArray(bookings.eventId, eventIds))
@@ -221,6 +234,8 @@ export const eventService = {
         status: bookings.status,
         method: bookings.method,
         paymentId: bookings.paymentId,
+        seats: bookings.seats,
+        waitlistSeats: bookings.waitlistSeats,
       })
       .from(bookings)
       .where(and(inArray(bookings.eventId, eventIds), eq(bookings.userId, ctx.userId)))
@@ -229,15 +244,22 @@ export const eventService = {
       .from(events)
       .innerJoin(venues, eq(venues.id, events.venueId))
       .where(inArray(events.id, eventIds))
-    for (const id of eventIds) out.set(id, { taken: 0, waitlist: 0, myBooking: null, venue: null })
+    for (const id of eventIds)
+      out.set(id, { taken: 0, players: 0, waitlist: 0, myBooking: null, venue: null })
     for (const c of counts)
-      Object.assign(out.get(c.eventId)!, { taken: c.taken, waitlist: c.waitlist })
+      Object.assign(out.get(c.eventId)!, {
+        taken: c.taken,
+        players: c.players,
+        waitlist: c.waitlist,
+      })
     for (const m of mine)
       out.get(m.eventId)!.myBooking = {
         id: m.id,
         status: m.status,
         method: m.method,
         paymentId: m.paymentId,
+        seats: m.seats,
+        waitlistSeats: m.waitlistSeats,
       }
     for (const v of venueRows) out.get(v.eventId)!.venue = { name: v.name, address: v.address }
     return out
@@ -320,18 +342,10 @@ export const eventService = {
       }
       if (data.startsAt && data.startsAt <= new Date()) throw new EventStartsInPastError()
 
-      // вместимость не ниже занятых мест (5.13.11)
+      // вместимость не ниже занятых мест — SUM(seats) (5.13.11, 20.1.2)
       if (data.capacity !== undefined) {
-        const [row] = await db
-          .select({ taken: sql<number>`count(*)::int` })
-          .from(bookings)
-          .where(
-            and(
-              eq(bookings.eventId, eventId),
-              sql`${bookings.status} IN ('confirmed', 'pending_payment')`,
-            ),
-          )
-        if (data.capacity < (row?.taken ?? 0)) throw new EventCapacityBelowTakenError(row!.taken)
+        const taken = await takenSeats(db, eventId)
+        if (data.capacity < taken) throw new EventCapacityBelowTakenError(taken)
       }
 
       const [updated] = await db
@@ -388,24 +402,42 @@ export const eventService = {
 
       for (const b of activeBookings) {
         let refunded = false
-        // 1. вернуть сессию абонемента (только списанную: у waitlisted это лишь выбор, 5.13.6)
+        // 1. вернуть занятия абонемента — по месту (только списанные: у waitlisted это лишь выбор, 5.13.6)
         if (b.subscriptionId && ['confirmed', 'attended', 'no_show'].includes(b.status)) {
-          await subscriptionService.restoreSession({ userId: b.userId, db: tx }, b.subscriptionId)
+          await subscriptionService.restoreSessions(
+            { userId: b.userId, db: tx },
+            b.subscriptionId,
+            b.seats,
+          )
           refunded = true
         }
 
-        // 2. платёж: succeeded -> refund (ledger expense), pending -> cancel
-        if (b.paymentId) {
-          const [payment] = await tx
-            .select()
-            .from(payments)
-            .where(eq(payments.id, b.paymentId))
-            .for('update')
-          // переходы условные (6.8.1): повторный возврат невозможен даже без лока
-          if (payment?.status === 'succeeded' && payment.bookingId === b.id) {
+        // 2. платежи мест (ADR v3, D-14): fixed — succeeded-живые платежи неотменённой записи
+        // возвращаются, освобождённые игроком места — нет; split — дополнительно зафиксированная доля
+        // текущего воплощения возвращается и при освобождённом месте (как R0.7 с allocated_amount).
+        // pending-платежи текущего воплощения отменяются. Переходы условные (6.8.1).
+        const owned = await tx
+          .select()
+          .from(payments)
+          .where(
+            and(
+              eq(payments.bookingId, b.id),
+              eq(payments.bookingIncarnation, b.incarnation),
+              inArray(payments.status, ['pending', 'succeeded']),
+            ),
+          )
+          .orderBy(asc(payments.id))
+          .for('update')
+        for (const payment of owned) {
+          const refundable =
+            b.status !== 'cancelled'
+              ? payment.seatReleasedAt === null ||
+                (existing.priceMode === 'split' && b.allocatedAmount !== null)
+              : existing.priceMode === 'split' && b.allocatedAmount !== null
+          if (payment.status === 'succeeded' && refundable) {
             await paymentService.refund({ ...ctx, db: tx }, payment.id, 'Отмена события')
             refunded = true
-          } else if (payment?.status === 'pending') {
+          } else if (payment.status === 'pending') {
             await tx
               .update(payments)
               .set({ status: 'cancelled' })
@@ -416,7 +448,12 @@ export const eventService = {
         // 3. бронь -> cancelled (без promotion: событие отменено)
         await tx
           .update(bookings)
-          .set({ status: 'cancelled', cancelledAt: new Date(), updatedAt: new Date() })
+          .set({
+            status: 'cancelled',
+            waitlistSeats: 0,
+            cancelledAt: new Date(),
+            updatedAt: new Date(),
+          })
           .where(eq(bookings.id, b.id))
 
         collectNotification(ctx, {

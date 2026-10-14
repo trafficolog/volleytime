@@ -25,6 +25,7 @@ import { PlanNotAvailableError } from '../subscription-plans/errors'
 
 import {
   NoActiveSubscriptionError,
+  NotEnoughSessionsError,
   SubscriptionNotFoundError,
   SubscriptionNotPendingError,
   SubscriptionPendingExistsError,
@@ -166,32 +167,58 @@ export const subscriptionService = {
     orgId: number,
     subscriptionId?: number,
   ): Promise<Subscription> {
+    return this.consumeSessions(ctx, orgId, 1, subscriptionId)
+  },
+
+  /**
+   * Атомарно списать `count` занятий с **одного** абонемента (20.1.2, ADR: одно занятие на место).
+   * FIFO по expiresAt выбирает первый абонемент, где хватает `count`; без дробления по нескольким.
+   * Нет активного абонемента — `subscription.no_active`; есть, но ни в одном не хватает —
+   * `subscription.not_enough_sessions` (409). Условие повторяется в UPDATE (гонка списаний).
+   */
+  async consumeSessions(
+    ctx: ServiceContext,
+    orgId: number,
+    count: number,
+    subscriptionId?: number,
+  ): Promise<Subscription> {
+    if (!Number.isInteger(count) || count < 1) throw new RangeError('count must be >= 1')
     const db = getDb(ctx)
     const now = new Date()
 
     // единое условие для обеих веток (Task 5.13.5): свой, этой организации, active, не истёк, есть остаток
-    const usable = and(
+    const active = and(
       eq(subscriptions.userId, ctx.userId),
       eq(subscriptions.organizationId, orgId),
       eq(subscriptions.status, 'active'),
       sql`${subscriptions.usedSessions} < ${subscriptions.totalSessions}`,
       or(isNull(subscriptions.expiresAt), gt(subscriptions.expiresAt, now)),
+      subscriptionId ? eq(subscriptions.id, subscriptionId) : undefined,
     )
+    const usable = and(
+      active,
+      sql`${subscriptions.usedSessions} + ${count} <= ${subscriptions.totalSessions}`,
+    )
+    const shortage = async () => {
+      if (count === 1) return new NoActiveSubscriptionError()
+      const any = await db.query.subscriptions.findFirst({ where: active, columns: { id: true } })
+      return any ? new NotEnoughSessionsError(count) : new NoActiveSubscriptionError()
+    }
     const candidate = await db.query.subscriptions.findFirst({
-      where: subscriptionId ? and(eq(subscriptions.id, subscriptionId), usable) : usable,
+      where: usable,
       orderBy: [asc(subscriptions.expiresAt), asc(subscriptions.id)],
     })
 
-    if (!candidate) throw new NoActiveSubscriptionError()
+    if (!candidate) throw await shortage()
 
     // atomic consume: условие повторяется в UPDATE (гонка с другим списанием или истечением)
     const [updated] = await db
       .update(subscriptions)
-      .set({ usedSessions: sql`${subscriptions.usedSessions} + 1`, updatedAt: new Date() })
+      .set({ usedSessions: sql`${subscriptions.usedSessions} + ${count}`, updatedAt: new Date() })
       .where(and(eq(subscriptions.id, candidate.id), usable))
       .returning()
 
-    if (!updated) throw new NoActiveSubscriptionError() // гонка проиграна
+    if (!updated) throw await shortage() // гонка проиграна
 
     // exhausted если исчерпан
     if (updated.usedSessions >= updated.totalSessions) {
@@ -207,11 +234,21 @@ export const subscriptionService = {
 
   /** Восстановить 1 сессию (при отмене брони). Возвращает exhausted→active если был. */
   async restoreSession(ctx: ServiceContext, subscriptionId: number): Promise<Subscription> {
+    return this.restoreSessions(ctx, subscriptionId, 1)
+  },
+
+  /** Восстановить `count` занятий (отмена записи или её мест, 20.1.2). exhausted→active. */
+  async restoreSessions(
+    ctx: ServiceContext,
+    subscriptionId: number,
+    count: number,
+  ): Promise<Subscription> {
+    if (!Number.isInteger(count) || count < 1) throw new RangeError('count must be >= 1')
     const db = getDb(ctx)
     const [restored] = await db
       .update(subscriptions)
       .set({
-        usedSessions: sql`GREATEST(${subscriptions.usedSessions} - 1, 0)`,
+        usedSessions: sql`GREATEST(${subscriptions.usedSessions} - ${count}, 0)`,
         status: sql`CASE WHEN ${subscriptions.status} = 'exhausted' THEN 'active' ELSE ${subscriptions.status} END`,
         updatedAt: new Date(),
       })
@@ -248,6 +285,7 @@ export const subscriptionService = {
         subscriptionId: bookings.subscriptionId,
         bookingId: bookings.id,
         status: bookings.status,
+        seats: bookings.seats,
         eventTitle: events.title,
         startsAt: events.startsAt,
       })
@@ -270,6 +308,7 @@ export const subscriptionService = {
         .map((u) => ({
           bookingId: u.bookingId,
           status: u.status,
+          seats: u.seats,
           eventTitle: u.eventTitle,
           startsAt: u.startsAt,
         })),

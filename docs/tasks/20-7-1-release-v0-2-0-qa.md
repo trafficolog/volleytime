@@ -82,6 +82,7 @@ tags: [reference-v3]
 3. Продвижение через Promote (9.8.17), backup до миграций, smoke, проверка отката с новыми миграциями
 4. Тег v0.2.0 и запись в RELEASES/current-state
 5. Баланс событий (20.2.1, ADR v3 правило совместимости 5): провести `EVENT_BALANCE_ENFORCED` в `scripts/render-production-env.mjs` (только точное `true`, иначе `false`, контрактный тест как у `EVENT_SPLIT_PRICING_ENABLED`) и в `deploy.yml` (repository variable); выкладка с выключенным списанием; перед включением выполнить `pnpm db:event-balance reconcile --operator <root email>` (без `--apply`, затем с `--apply` по решению) из migrator-контейнера и разобрать отчёт; включить переменную после выкладки полного релиза; проверить влияние новой переменной на guard `verify-live-rollback-env.sh` (сравнение env живых контейнеров с rollback-набором) и на откат к runtime без баланса
+6. Места в записи (20.1.2, ADR v3 правило совместимости 4): провести `EVENT_MULTI_SEAT_ENABLED` в `scripts/render-production-env.mjs` (только точное `true`, иначе `false`, контрактный тест как у `EVENT_SPLIT_PRICING_ENABLED`) и в `deploy.yml` (repository variable); выкладка с выключенной записью на несколько мест; расширить quiescent-guard отката (`scripts/verify-split-rollback.sh`) capability-label образа и запросом «нет данных нескольких мест» `SELECT EXISTS (SELECT 1 FROM bookings WHERE seats > 1 OR waitlist_seats > 0)` для runtime без поддержки мест; включить переменную только после выкладки полного релиза и проверки guard
 
 ## Критерии приёмки
 
