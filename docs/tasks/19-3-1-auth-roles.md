@@ -56,7 +56,7 @@ tags: [reference-v3]
 - Включение требует действий владельца и отслеживается отдельной follow-up задачей, в этой карточке не делается:
   1. BotFather `/setdomain` — привязать production-домен к боту, иначе виджет Telegram не отрисуется;
   2. прокинуть `TELEGRAM_LOGIN_WIDGET_ENABLED`, `TELEGRAM_LOGIN_WIDGET_MAX_AGE_SECONDS` и при необходимости `TELEGRAM_INIT_DATA_MAX_AGE_SECONDS` в `docker-compose.prod.yml` и deploy workflow (секреты/vars), затем выкатка через **Promote to production**;
-  3. кнопка виджета на экране входа — UI-карточка [20.5.1](20-5-1-auth.md). Виджет подключается **только через JS-callback** (`data-onauth`), который отправляет данные `POST /api/auth/sign-in/telegram-widget`; `data-auth-url` (редирект с данными в query string) не использовать — подписанные данные попадут в URL, логи и историю браузера;
+  3. кнопка виджета на экране входа — UI-карточка [20.5.1](20-5-1-auth.md). Виджет подключается **только через JS-колбэк `Telegram.Login.auth`** (не `data-onauth`: eval запрещён CSP; см. [20.5.1](20-5-1-auth.md)), который отправляет данные `POST /api/auth/sign-in/telegram-widget`; `data-auth-url` (редирект с данными в query string) не использовать — подписанные данные попадут в URL, логи и историю браузера;
   4. по желанию в 20.5.1: отклонять повторно использованный `hash` виджета в пределах срока жизни (защита от повтора перехваченных данных) — заметка, не требование этой карточки.
 - Неверное значение этих переменных в production останавливает старт web (fail closed), в лог попадает только имя переменной.
 

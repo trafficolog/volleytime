@@ -1,8 +1,21 @@
-/** Вход в веб через Telegram Login Widget (D-05, 20.5.1): только JS-callback, без `data-auth-url`. */
+/**
+ * Вход в веб через Telegram (D-05, 20.5.1): только JS-колбэк `Telegram.Login.auth`.
+ * Не `data-auth-url` (данные в URL) и не `data-onauth` (eval, запрещён CSP).
+ */
 export const TELEGRAM_WIDGET_ENDPOINT = '/api/auth/sign-in/telegram-widget'
 export const TELEGRAM_WIDGET_SCRIPT = 'https://telegram.org/js/telegram-widget.js?22'
-/** Имя глобального callback из `data-onauth`: виджет вызывает его с подписанными данными. */
-export const TELEGRAM_WIDGET_CALLBACK = 'vtTelegramLoginAuth'
+
+/** Часть API telegram-widget.js, которую мы используем. */
+export interface TelegramWindow {
+  Telegram?: {
+    Login?: {
+      auth: (
+        options: { bot_id: number; request_access: boolean | 'write' },
+        callback: (user: Record<string, unknown> | false) => void,
+      ) => void
+    }
+  }
+}
 
 export type WidgetSignInResult = { kind: 'ok' } | { kind: 'error' }
 

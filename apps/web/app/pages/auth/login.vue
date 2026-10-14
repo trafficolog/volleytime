@@ -20,7 +20,8 @@ const resendIn = ref(0)
 const entry = ref<OrganizerEntry>({ kind: 'none' })
 const heading = ref<HTMLElement | null>(null)
 // Кнопка Telegram показывается только если сервер сообщил, что флаг включён (D-05)
-const widgetBot = ref<string | null>(null)
+const widgetBotId = ref<number | null>(null)
+const widgetError = ref('')
 const widgetReady = ref(false)
 let timer: ReturnType<typeof setInterval> | undefined
 
@@ -32,12 +33,12 @@ const telegramUrl = computed(() => botLink(runtimeConfig.public.telegramBotUsern
 
 onMounted(async () => {
   try {
-    const options = await $fetch<{ telegramWidget: { botUsername: string } | null }>(
+    const options = await $fetch<{ telegramWidget: { botId: number } | null }>(
       '/api/auth/login-options',
     )
-    widgetBot.value = options?.telegramWidget?.botUsername ?? null
+    widgetBotId.value = options?.telegramWidget?.botId ?? null
   } catch {
-    widgetBot.value = null
+    widgetBotId.value = null
   }
 })
 
@@ -64,6 +65,7 @@ async function sendCode() {
   if (submitting.value || !email.value) return
   submitting.value = true
   error.value = ''
+  widgetError.value = ''
   try {
     await $fetch('/api/auth/email-otp/send-verification-otp', {
       method: 'POST',
@@ -135,12 +137,15 @@ async function onTelegramAuth(widgetUser: Record<string, unknown>) {
   if (submitting.value) return
   submitting.value = true
   error.value = ''
+  widgetError.value = ''
   try {
     const result = await signInWithTelegramWidget(widgetUser, (body) =>
       $fetch<unknown>(TELEGRAM_WIDGET_ENDPOINT, { method: 'POST', body }),
     )
     if (result.kind === 'error') {
-      error.value = 'Не удалось войти через Telegram. Попробуйте ещё раз или получите код на email.'
+      // отдельное состояние: ошибка Telegram не относится к полю email (aria-invalid не ставим)
+      widgetError.value =
+        'Не удалось войти через Telegram. Попробуйте ещё раз или получите код на email.'
       return
     }
     step.value = 'verifying'
@@ -216,10 +221,18 @@ async function chooseOrganization(org: AuthOrg) {
             <VtIcon name="close" :size="17" class="auth__banner-icon" />
             <span class="auth__banner-title">{{ error }}</span>
           </div>
-          <template v-if="widgetBot">
+          <div
+            v-if="widgetError"
+            id="auth-widget-error"
+            class="auth__banner auth__banner--rose"
+            role="alert"
+          >
+            <VtIcon name="close" :size="17" class="auth__banner-icon" />
+            <span class="auth__banner-title">{{ widgetError }}</span>
+          </div>
+          <template v-if="widgetBotId">
             <TelegramLoginButton
-              v-show="widgetReady"
-              :bot-username="widgetBot"
+              :bot-id="widgetBotId"
               @auth="onTelegramAuth"
               @ready="widgetReady = true"
             />

@@ -1,4 +1,7 @@
 // @vitest-environment happy-dom
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+
 import type { User } from '@volley-time/db'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -106,12 +109,24 @@ afterEach(() => {
   vi.useRealTimers()
   document.head.innerHTML = ''
   document.body.innerHTML = ''
-  delete (window as unknown as Record<string, unknown>).vtTelegramLoginAuth
+  delete (window as unknown as Record<string, unknown>).Telegram
 })
 
-const widgetOn = async () => ({ telegramWidget: { botUsername: 'volleytimeby_bot' } })
+const widgetOn = async () => ({ telegramWidget: { botId: 424242 } })
 const widgetScript = () =>
-  document.querySelector<HTMLScriptElement>('script[data-telegram-login]') ?? null
+  document.querySelector<HTMLScriptElement>('script[src*="telegram-widget.js"]') ?? null
+/** Подменяет Telegram.Login из telegram-widget.js (в тестах скрипт из сети не грузится). */
+function installTelegram() {
+  const auth =
+    vi.fn<
+      (
+        options: { bot_id: number; request_access: boolean },
+        callback: (user: Record<string, unknown> | false) => void,
+      ) => void
+    >()
+  ;(window as unknown as { Telegram: unknown }).Telegram = { Login: { auth } }
+  return auth
+}
 
 async function toCodeStep(wrapper: VueWrapper) {
   await wrapper.get('#email').setValue('o@example.test')
@@ -318,41 +333,35 @@ describe('login: email code sign-in (always available)', () => {
   })
 })
 
-describe('login: Telegram Login Widget (D-05, flag from the server)', () => {
-  it('renders the widget only when the server says the flag is on, via data-onauth', async () => {
+describe('login: Telegram Login (D-05, flag from the server, Telegram.Login.auth callback)', () => {
+  it('loads the script and shows the button only after Telegram.Login exists', async () => {
     const { wrapper, calls } = setup({ options: widgetOn })
     await flushPromises()
     expect(calls.some((c) => c.url === '/api/auth/login-options')).toBe(true)
-    expect(wrapper.find('[data-testid="telegram-login-widget"]').exists()).toBe(true)
     const script = widgetScript()!
     expect(script.src).toMatch(/^https:\/\/telegram\.org\/js\/telegram-widget\.js/)
-    expect(script.getAttribute('data-telegram-login')).toBe('volleytimeby_bot')
-    expect(script.getAttribute('data-onauth')).toBe('vtTelegramLoginAuth(user)')
-    expect(script.hasAttribute('data-auth-url')).toBe(false)
-    expect(document.documentElement.outerHTML).not.toContain('data-auth-url')
-  })
-
-  it('keeps the widget slot and the "или" divider hidden until Telegram draws its button', async () => {
-    const { wrapper } = setup({ options: widgetOn })
-    await flushPromises()
-    const slot = wrapper.get('[data-testid="telegram-login-widget"]')
-    expect((slot.element as HTMLElement).style.display).toBe('none')
+    // eval-dependent declarative attributes are never used (CSP forbids unsafe-eval)
+    for (const attr of ['data-onauth', 'data-auth-url', 'data-telegram-login']) {
+      expect(script.hasAttribute(attr)).toBe(false)
+    }
+    expect(wrapper.find('[data-testid="telegram-login-button"]').exists()).toBe(false)
     expect(wrapper.find('.auth__divider').exists()).toBe(false)
-    slot.element.appendChild(document.createElement('iframe'))
+    installTelegram()
+    script.dispatchEvent(new Event('load'))
     await flushPromises()
-    expect((slot.element as HTMLElement).style.display).not.toBe('none')
+    expect(wrapper.get('[data-testid="telegram-login-button"]').text()).toContain(
+      'Войти через Telegram',
+    )
     expect(wrapper.find('.auth__divider').exists()).toBe(true)
   })
 
-  it('shows email-code sign-in only (no dead widget) when the flag is off', async () => {
+  it('shows email-code sign-in only (no widget script, no button) when the flag is off', async () => {
     const { wrapper } = setup({ options: async () => ({ telegramWidget: null }) })
     await flushPromises()
     expect(widgetScript()).toBeNull()
-    expect(wrapper.find('[data-testid="telegram-login-widget"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="telegram-login-button"]').exists()).toBe(false)
+    expect(wrapper.find('.auth__divider').exists()).toBe(false)
     expect(wrapper.find('#email').exists()).toBe(true)
-    expect(typeof (window as unknown as Record<string, unknown>).vtTelegramLoginAuth).toBe(
-      'undefined',
-    )
   })
 
   it('falls back to email-only when the options request fails', async () => {
@@ -367,23 +376,35 @@ describe('login: Telegram Login Widget (D-05, flag from the server)', () => {
     expect(wrapper.find('#email').exists()).toBe(true)
   })
 
-  it('does not show the widget on steps after the email step', async () => {
+  it('keeps the button hidden when the script never provides Telegram.Login', async () => {
     const { wrapper } = setup({ options: widgetOn })
     await flushPromises()
-    await toCodeStep(wrapper)
-    expect(wrapper.find('[data-testid="telegram-login-widget"]').exists()).toBe(false)
+    widgetScript()!.dispatchEvent(new Event('load'))
+    await flushPromises()
+    expect(wrapper.find('[data-testid="telegram-login-button"]').exists()).toBe(false)
   })
 
-  it('posts the widget data in the body and opens the organization on success', async () => {
-    const { calls, navigations } = setup({
+  it('does not show the button on steps after the email step', async () => {
+    installTelegram()
+    const { wrapper } = setup({ options: widgetOn })
+    await flushPromises()
+    expect(wrapper.find('[data-testid="telegram-login-button"]').exists()).toBe(true)
+    await toCodeStep(wrapper)
+    expect(wrapper.find('[data-testid="telegram-login-button"]').exists()).toBe(false)
+  })
+
+  it('calls Telegram.Login.auth with the public bot id, POSTs the data in the body, opens the org', async () => {
+    const auth = installTelegram()
+    const { wrapper, calls, navigations } = setup({
       options: widgetOn,
       post: { '/api/auth/sign-in/telegram-widget': async () => ({ userId: 1, isNewUser: false }) },
     })
     await flushPromises()
+    await wrapper.get('[data-testid="telegram-login-button"]').trigger('click')
+    expect(auth).toHaveBeenCalledOnce()
+    expect(auth.mock.calls[0]![0]).toEqual({ bot_id: 424242, request_access: false })
     const signed = { id: 7302, first_name: 'Игрок', auth_date: 1, hash: 'f'.repeat(64) }
-    const callback = (window as unknown as Record<string, (u: unknown) => void>)
-      .vtTelegramLoginAuth!
-    callback(signed)
+    auth.mock.calls[0]![1](signed)
     await flushPromises()
     const post = calls.find((c) => c.url === '/api/auth/sign-in/telegram-widget')!
     expect(post.options).toMatchObject({ method: 'POST', body: signed })
@@ -391,7 +412,20 @@ describe('login: Telegram Login Widget (D-05, flag from the server)', () => {
     expect(navigations).toEqual(['/m/orgs/7'])
   })
 
-  it('announces a rejected widget sign-in and keeps the email form usable', async () => {
+  it('does nothing when the person closes the Telegram window (callback gets false)', async () => {
+    const auth = installTelegram()
+    const { wrapper, calls, navigations } = setup({ options: widgetOn })
+    await flushPromises()
+    await wrapper.get('[data-testid="telegram-login-button"]').trigger('click')
+    auth.mock.calls[0]![1](false)
+    await flushPromises()
+    expect(calls.some((c) => c.url === '/api/auth/sign-in/telegram-widget')).toBe(false)
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(navigations).toEqual([])
+  })
+
+  it('announces a rejected Telegram sign-in without marking the email field invalid', async () => {
+    const auth = installTelegram()
     const { wrapper, navigations } = setup({
       options: widgetOn,
       post: {
@@ -401,36 +435,36 @@ describe('login: Telegram Login Widget (D-05, flag from the server)', () => {
       },
     })
     await flushPromises()
-    const callback = (window as unknown as Record<string, (u: unknown) => void>)
-      .vtTelegramLoginAuth!
-    callback({ id: 1, hash: 'x' })
+    await wrapper.get('[data-testid="telegram-login-button"]').trigger('click')
+    auth.mock.calls[0]![1]({ id: 1, hash: 'x' })
     await flushPromises()
     expect(wrapper.get('[role="alert"]').text()).toContain('Telegram')
-    expect(wrapper.find('#email').exists()).toBe(true)
+    const email = wrapper.get('#email')
+    expect(email.attributes('aria-invalid')).toBe('false')
+    expect(email.attributes('aria-describedby')).toBeUndefined()
     expect(navigations).toEqual([])
-  })
-
-  it('removes the global callback when the page is left', async () => {
-    const { wrapper } = setup({ options: widgetOn })
+    // the next email attempt clears the Telegram error
+    await email.setValue('o@example.test')
+    await wrapper.get('form').trigger('submit')
     await flushPromises()
-    wrapper.unmount()
-    mounted.pop()
-    expect((window as unknown as Record<string, unknown>).vtTelegramLoginAuth).toBeUndefined()
+    expect(wrapper.find('#auth-widget-error').exists()).toBe(false)
   })
 })
 
-describe('TelegramLoginButton', () => {
-  it('is an accessible group and emits the widget user', async () => {
-    const wrapper = mount(TelegramLoginButton, { props: { botUsername: 'volleytimeby_bot' } })
-    mounted.push(wrapper)
-    expect(wrapper.get('[role="group"]').attributes('aria-label')).toBe('Вход через Telegram')
-    ;(window as unknown as Record<string, (u: unknown) => void>).vtTelegramLoginAuth!({ id: 5 })
-    expect(wrapper.emitted('auth')).toEqual([[{ id: 5 }]])
-  })
-
-  it('refuses a malformed bot username', () => {
-    const wrapper = mount(TelegramLoginButton, { props: { botUsername: 'bad"><x' } })
-    mounted.push(wrapper)
-    expect(widgetScript()).toBeNull()
+describe('login sources never use eval-dependent declarative widget attributes', () => {
+  const sources = [
+    './login.vue',
+    '../../components/TelegramLoginButton.vue',
+    '../../utils/telegram-widget.ts',
+  ]
+  it.each(sources)('%s has no data-onauth / data-auth-url / data-telegram-login', (file) => {
+    const text = readFileSync(fileURLToPath(new URL(file, import.meta.url)), 'utf8')
+    // comments may explain why; strip them before checking real usage
+    const code = text
+      .replace(/<!--[\s\S]*?-->/g, '')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '')
+    expect(code).not.toMatch(/data-onauth|data-auth-url|data-telegram-login|data-request-access/)
+    expect(code).not.toMatch(/\beval\(|new Function\(/)
   })
 })

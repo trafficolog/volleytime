@@ -67,7 +67,7 @@ describe('login screen widget callback → better-auth session (integration, 20.
   })
 
   it('a valid test-signed payload creates a session when the flag is on', async () => {
-    expect(loginOptionsFromEnv(process.env, 'volleytimeby_bot').telegramWidget).not.toBeNull()
+    expect(loginOptionsFromEnv(process.env).telegramWidget).toEqual({ botId: 123456 })
     const result = await signInWithTelegramWidget(signWidget(7501), post)
     expect(result).toEqual({ kind: 'ok' })
     const session = await auth.api.getSession({ headers: new Headers({ cookie: cookie() }) })
@@ -90,7 +90,7 @@ describe('login screen widget callback → better-auth session (integration, 20.
 
   it('flag off: the server hides the button and the endpoint answers 404, no session', async () => {
     delete process.env.TELEGRAM_LOGIN_WIDGET_ENABLED
-    expect(loginOptionsFromEnv(process.env, 'volleytimeby_bot')).toEqual({ telegramWidget: null })
+    expect(loginOptionsFromEnv(process.env)).toEqual({ telegramWidget: null })
     expect(await signInWithTelegramWidget(signWidget(7504), post)).toEqual({ kind: 'error' })
     expect(lastResponse?.status).toBe(404)
     expect(cookie()).not.toContain('session_token')

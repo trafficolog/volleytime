@@ -1,19 +1,24 @@
 import { loginWidgetEnabledFromEnv } from '@volley-time/auth'
 
-/** Публичные параметры экрана входа (D-05). Без секретов: только флаг и username бота. */
+/**
+ * Публичные параметры экрана входа (D-05). Без секретов: только флаг и публичный числовой
+ * id бота (часть токена до двоеточия; Telegram.Login.auth требует его в `bot_id`).
+ */
 export interface LoginOptions {
-  telegramWidget: { botUsername: string } | null
+  telegramWidget: { botId: number } | null
 }
 
-const BOT_USERNAME = /^[A-Za-z0-9_]{5,32}$/
+/** Числовой префикс токена бота; остальная часть токена никогда не покидает функцию. */
+export function botIdFromToken(token: string | undefined): number | null {
+  const match = /^(\d{1,15}):/.exec(token?.trim() ?? '')
+  if (!match) return null
+  const id = Number(match[1])
+  return Number.isSafeInteger(id) && id > 0 ? id : null
+}
 
-export function loginOptionsFromEnv(
-  env: Record<string, string | undefined>,
-  botUsername: string | undefined,
-): LoginOptions {
-  const username = botUsername?.trim().replace(/^@/, '') ?? ''
-  if (!loginWidgetEnabledFromEnv(env) || !BOT_USERNAME.test(username)) {
-    return { telegramWidget: null }
-  }
-  return { telegramWidget: { botUsername: username } }
+export function loginOptionsFromEnv(env: Record<string, string | undefined>): LoginOptions {
+  if (!loginWidgetEnabledFromEnv(env)) return { telegramWidget: null }
+  // как botTokenFromEnv в auth: NUXT_* перекрывает обычную переменную
+  const botId = botIdFromToken(env.NUXT_TELEGRAM_BOT_TOKEN || env.TELEGRAM_BOT_TOKEN)
+  return botId === null ? { telegramWidget: null } : { telegramWidget: { botId } }
 }
