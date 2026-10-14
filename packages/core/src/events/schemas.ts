@@ -97,3 +97,9 @@ export const ListEventsQuery = z.object({
   offset: z.coerce.number().int().min(0).default(0),
 })
 export type ListEventsQuery = z.input<typeof ListEventsQuery>
+
+/** GET …/events/{id}/price?seats=N (20.1.1): N — целое 1..10 (верхняя граница CHECK max_seats_per_booking). */
+export const EventPriceQuery = z.object({
+  seats: z.coerce.number().int().min(1).max(10).optional(),
+})
+export type EventPriceQuery = z.input<typeof EventPriceQuery>

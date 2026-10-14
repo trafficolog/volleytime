@@ -54,3 +54,8 @@ export class BookingNotCancellableError extends BookingError {
     super('booking.not_cancellable', `Booking cannot be cancelled: ${reason}`)
   }
 }
+export class SeatsOverLimitError extends BookingError {
+  constructor() {
+    super('booking.seats_over_limit', 'Seats exceed the group limit or the event capacity')
+  }
+}

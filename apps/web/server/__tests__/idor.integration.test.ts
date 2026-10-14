@@ -69,6 +69,7 @@ const ROUTES: OrgRouteTable = {
     access: 'manager',
     body: () => ({ title: 'Renamed event' }),
   },
+  'GET /api/organizations/:orgId/events/:eventId/price': { access: 'member' },
   'POST /api/organizations/:orgId/events/:eventId/settle': { access: 'manager', body: () => ({}) },
   'GET /api/organizations/:orgId/events': { access: 'member' },
   'POST /api/organizations/:orgId/events': {

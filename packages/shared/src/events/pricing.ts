@@ -6,19 +6,37 @@ function assertTarget(amount: number): void {
   }
 }
 
+/**
+ * Делит сумму split по единицам-местам (20.1.1, D-01): запись на `seats` мест — `seats` единиц
+ * подряд в порядке (bookedAt, bookingId); остаток копеек получают первые единицы. Сумма долей
+ * равна цели до копейки. Без `seats` каждая запись — одно место, результат как в R0.7.
+ */
 export function allocateSplitAmount(
   totalAmount: number,
-  participants: readonly { bookingId: number; bookedAt: Date }[],
+  participants: readonly { bookingId: number; bookedAt: Date; seats?: number }[],
 ): { bookingId: number; amount: number }[] {
   assertTarget(totalAmount)
-  if (participants.length === 0 || totalAmount < participants.length) {
+  let units = 0
+  for (const p of participants) {
+    const seats = p.seats ?? 1
+    if (!Number.isInteger(seats) || seats < 1)
+      throw new RangeError('Seats must be a positive integer')
+    units += seats
+  }
+  if (units === 0 || totalAmount < units) {
     throw new RangeError('Split target must cover at least one cent per participant')
   }
-  const quotient = Math.floor(totalAmount / participants.length)
-  const remainder = totalAmount % participants.length
+  const quotient = Math.floor(totalAmount / units)
+  const remainder = totalAmount % units
+  let unit = 0
   return [...participants]
     .sort((a, b) => a.bookedAt.getTime() - b.bookedAt.getTime() || a.bookingId - b.bookingId)
-    .map((p, index) => ({ bookingId: p.bookingId, amount: quotient + (index < remainder ? 1 : 0) }))
+    .map((p) => {
+      const seats = p.seats ?? 1
+      const extra = Math.max(0, Math.min(unit + seats, remainder) - unit)
+      unit += seats
+      return { bookingId: p.bookingId, amount: seats * quotient + extra }
+    })
 }
 
 export function previewSplitAmount(

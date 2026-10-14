@@ -57,6 +57,7 @@ const CODE_STATUS: Record<string, number> = {
   'booking.attendance_too_early': 422,
   'booking.method_not_allowed': 422,
   'booking.not_cancellable': 409,
+  'booking.seats_over_limit': 422,
   'event.starts_in_past': 422,
   'event.capacity_below_taken': 422,
   'money.currency_mismatch': 422,
