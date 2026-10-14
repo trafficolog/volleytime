@@ -2,11 +2,11 @@
 id: '20.4.3'
 phase: '20'
 epic: '20.4'
-status: in_progress
+status: done
 release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-14
-status_note: 'PR #122 (ветка trafficolog/feat/20.4.3-group-switcher, tested revision c74ad22), review pending: шторка «Мои группы» (GroupSwitcher) в шапке игрока и организатора, монограммы (логотипа в модели группы нет), список ссылок с aria-current (отклонение от role=radio принято, см. карточку), недоступные группы не ссылки, «Создать свою группу», «Вступить по ссылке». Визуальная сверка и открытые пункты: docs/operations/qa/2026-10-14-20-4-3-group-switcher.md.'
+status_note: 'PR #122 merged as 4f80cdc, ревью standard: merge после одного раунда исправлений, CI зелёный на 2d1fd61; отклонение по доступности от handoff README:161 (ссылки с aria-current вместо role=radio) зафиксировано в карточке; трёхшаговый мастер создания группы вынесен в карточку v0.3.0 21.1.7.'
 ref_id: 'M-04'
 complexity: S
 impl_model: claude-haiku-5-5
