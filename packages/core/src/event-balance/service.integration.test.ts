@@ -173,6 +173,19 @@ describe('event balance (integration, 20.2.1)', () => {
     expect((await drift()).length).toBe(0)
   })
 
+  it('only a transition into published spends: draft → closed/finished is free', async () => {
+    for (const status of ['closed', 'finished'] as const) {
+      const draft = await eventService.create(
+        { userId: ownerId },
+        orgId,
+        eventInput(`Draft ${status}`, { status: 'draft' }),
+      )
+      await eventService.update({ userId: ownerId }, draft.id, { status })
+    }
+    expect(await balanceOf()).toBe(5)
+    expect((await entriesOf()).filter((e) => e.reason === 'spend')).toHaveLength(0)
+  })
+
   it('never goes negative: publishing at zero fails and creates nothing', async () => {
     await setBalance(0)
     const before = await db.select().from(events).where(eq(events.organizationId, orgId))

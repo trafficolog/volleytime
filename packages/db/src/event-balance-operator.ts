@@ -2,8 +2,14 @@
  * Операторская команда баланса событий для root (20.2.1, мост до UI 22.2.2/22.2.3).
  *
  * Каждое изменение баланса — строка журнала с автором-оператором (users.is_root_admin, проверяется в
- * базе) и причиной (комментарий), плюс запись audit_log. Изменения идут через appendEventBalanceEntry
- * (блокировка проекции, баланс никогда не уходит в минус). Команда живёт в packages/db, потому что
+ * базе; email без учёта регистра) и причиной (комментарий), плюс запись audit_log. Одна операция
+ * grant/correct — не больше 1000 событий.
+ *
+ * ВАЖНО: --operator — атрибуция, а не аутентификация. Команда не проверяет, что её запускает именно
+ * этот человек: доступ к ней даёт только доступ к серверу и migrator-контейнеру (DATABASE_URL);
+ * оператор с таким доступом указывает себя, и это попадает в журнал и audit_log.
+ *
+ * Изменения идут через appendEventBalanceEntry (блокировка проекции, баланс никогда не уходит в минус). Команда живёт в packages/db, потому что
  * production-образ миграций — единственный с tsx и доступом к БД:
  *
  *   docker compose -f docker-compose.prod.yml run --rm --no-deps migrate \
@@ -55,12 +61,14 @@ export class OperatorError extends Error {
 }
 
 const OPERATOR_SOURCE = 'operator-cli'
+/** Предел одной операции начисления/исправления: защита от опечатки в --units. */
+export const OPERATOR_MAX_UNITS = 1000
 
 async function resolveOperator(db: DbOrTx, email: string): Promise<number> {
   const [user] = await db
     .select({ id: users.id, isRootAdmin: users.isRootAdmin, isActive: users.isActive })
     .from(users)
-    .where(eq(users.email, email))
+    .where(sql`lower(${users.email}) = lower(${email.trim()})`)
   if (!user || !user.isRootAdmin || !user.isActive) {
     throw new OperatorError('forbidden.root_only', `Operator ${email} is not an active root admin`)
   }
@@ -131,12 +139,12 @@ export async function grantEventBalance(
   const valid = params.correction
     ? Number.isSafeInteger(params.units) && params.units !== 0
     : Number.isSafeInteger(params.units) && params.units > 0
-  if (!valid) {
+  if (!valid || Math.abs(params.units) > OPERATOR_MAX_UNITS) {
     throw new OperatorError(
       'operator.invalid_units',
       params.correction
-        ? '--units must be a non-zero integer'
-        : '--units must be a positive integer',
+        ? `--units must be a non-zero integer within ±${OPERATOR_MAX_UNITS}`
+        : `--units must be a positive integer up to ${OPERATOR_MAX_UNITS}`,
     )
   }
   return database.transaction(async (tx) => {

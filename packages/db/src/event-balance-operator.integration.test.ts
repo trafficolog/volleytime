@@ -141,6 +141,45 @@ describe('event balance operator command (integration)', () => {
     })
   })
 
+  it('matches the operator email case-insensitively and caps one operation at 1000 events', async () => {
+    const entry = await grantEventBalance(db, {
+      organizationId: orgId,
+      units: 1000,
+      operator: rootEmail.toUpperCase(),
+      comment: 'Крупный пакет',
+    })
+    expect(entry.balanceAfter).toBe(1000)
+    for (const [units, correction] of [
+      [1001, false],
+      [-1001, true],
+      [1001, true],
+    ] as const) {
+      await expect(
+        grantEventBalance(db, {
+          organizationId: orgId,
+          units,
+          operator: rootEmail,
+          comment: 'too much',
+          correction,
+        }),
+      ).rejects.toThrow(/1000/)
+    }
+    expect(await balanceOf()).toBe(1000)
+  })
+
+  it('appendEventBalanceEntry refuses to run outside a transaction', async () => {
+    await expect(
+      appendEventBalanceEntry(db, {
+        organizationId: orgId,
+        delta: 1,
+        reason: 'grant',
+        actor: { kind: 'system', source: 'test' },
+        comment: 'x',
+      }),
+    ).rejects.toThrow(/transaction/)
+    expect(await entriesOf()).toHaveLength(0)
+  })
+
   it('correction: any sign, never below zero, unknown organization refused', async () => {
     await grantEventBalance(db, {
       organizationId: orgId,

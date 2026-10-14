@@ -1,4 +1,5 @@
 import { and, eq, sql } from 'drizzle-orm'
+import { PgTransaction } from 'drizzle-orm/pg-core'
 
 import type { DbOrTx } from './client'
 import {
@@ -74,6 +75,11 @@ export async function appendEventBalanceEntry(
   db: DbOrTx,
   input: EventBalanceEntryInput,
 ): Promise<EventBalanceEntry> {
+  // блокировка строки проекции действует только до конца транзакции: вне её проверка «не в минус»
+  // и запись журнала не были бы атомарны с операцией вызывающего
+  if (!(db instanceof PgTransaction)) {
+    throw new Error('appendEventBalanceEntry must run inside a transaction')
+  }
   if (!Number.isSafeInteger(input.delta) || input.delta === 0) {
     throw new Error('Event balance delta must be a non-zero integer')
   }

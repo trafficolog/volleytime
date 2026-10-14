@@ -135,7 +135,7 @@ export const eventService = {
         .returning()
       // публикация списывает 1 событие баланса; нехватка откатывает создание (20.2.1, D-04)
       const spend =
-        event!.status === 'draft' ? null : await eventBalanceService.spendOnPublish(ctx, event!)
+        event!.status === 'published' ? await eventBalanceService.spendOnPublish(ctx, event!) : null
       await auditService.record(ctx, {
         organizationId: orgId,
         action: AUDIT_ACTIONS.EVENT_CREATED,
@@ -326,9 +326,10 @@ export const eventService = {
         .set({ ...data, ...pricing, updatedAt: new Date() })
         .where(eq(events.id, eventId))
         .returning()
-      // публикация черновика списывает 1 событие (D-04); порядок блокировок: событие → баланс
+      // списывает только переход в published (публикация черновика, D-04); черновик, сразу
+      // закрытый или завершённый, не публиковался. Порядок блокировок: событие → баланс
       const spend =
-        existing.status === 'draft' && updated!.status !== 'draft'
+        existing.status === 'draft' && updated!.status === 'published'
           ? await eventBalanceService.spendOnPublish(ctx, updated!)
           : null
       await auditService.record(ctx, {
