@@ -515,6 +515,88 @@ describe('multi-seat booking (20.1.2, PostgreSQL)', () => {
     expect(await reload(bd.id)).toMatchObject({ status: 'pending_payment', seats: 1 })
   })
 
+  describe('reject of the cash part of a mixed subscription + cash booking (review PR #126)', () => {
+    // 5 занятий: 3 уже потрачены на другое событие, 2 — на места основы записи b (исчерпан);
+    // очередные места b при продвижении оплачиваются наличными (решение владельца C)
+    async function mixed(cashSeats: number) {
+      const other = await makeEvent()
+      const ev = await makeEvent({ capacity: 2 + cashSeats })
+      const b = await player()
+      const plan = await planService.create(owner(), {
+        organizationId: orgId,
+        name: 'Пять занятий',
+        totalSessions: 5,
+      })
+      const sub = await subscriptionService.createFromPlan({ userId: b }, orgId, plan.id, {
+        autoActivate: true,
+      })
+      await bookingService.book({ userId: b }, orgId, other.id, {
+        method: 'subscription',
+        seats: 3,
+      })
+      const holders: { userId: number; id: number }[] = []
+      for (let i = 0; i < cashSeats; i += 1) {
+        const userId = await player()
+        holders.push({
+          userId,
+          id: (await bookingService.book({ userId }, orgId, ev.id, { method: 'cash' })).id,
+        })
+      }
+      const bb = await bookingService.book({ userId: b }, orgId, ev.id, {
+        method: 'subscription',
+        seats: 2 + cashSeats,
+        allowWaitlist: true,
+      })
+      expect(bb).toMatchObject({ status: 'confirmed', seats: 2, waitlistSeats: cashSeats })
+      const used = async () =>
+        (await subscriptionService.getById({ userId: b }, sub.id)).usedSessions
+      expect(await used()).toBe(5)
+      return { bb, holders, used }
+    }
+
+    it('2 subscription seats + 1 pending cash: reject keeps the 2 paid seats, returns no session', async () => {
+      const { bb, holders, used } = await mixed(1)
+      await bookingService.cancel({ userId: holders[0]!.userId }, holders[0]!.id)
+      expect(await reload(bb.id)).toMatchObject({ status: 'pending_payment', seats: 3 })
+      const [cash] = await livePayments(bb.id)
+      const notifications: PendingNotification[] = []
+      await paymentService.cancel({ ...owner(), notifications }, cash!.id, { orgId })
+      expect(await reload(bb.id)).toMatchObject({
+        status: 'confirmed',
+        seats: 2,
+        waitlistSeats: 0,
+        paymentId: null,
+      })
+      expect(await used()).toBe(5)
+      expect((await livePayments(bb.id)).map((p) => p.status)).toEqual(['cancelled'])
+      expect(notifications.find((n) => n.type === 'payment_rejected')!.params).toMatchObject({
+        keptSeats: 2,
+      })
+    })
+
+    it('2 subscription seats + 1 paid cash + 1 pending cash: reject keeps 3 seats, returns no session', async () => {
+      const { bb, holders, used } = await mixed(2)
+      await bookingService.cancel({ userId: holders[0]!.userId }, holders[0]!.id)
+      const [paid] = await livePayments(bb.id)
+      await paymentService.confirm(owner(), paid!.id, { orgId })
+      expect(await reload(bb.id)).toMatchObject({ status: 'confirmed', seats: 3 })
+      await bookingService.cancel({ userId: holders[1]!.userId }, holders[1]!.id)
+      expect(await reload(bb.id)).toMatchObject({ status: 'pending_payment', seats: 4 })
+      const pending = (await livePayments(bb.id)).find((p) => p.status === 'pending')!
+      await paymentService.cancel(owner(), pending.id, { orgId })
+      expect(await reload(bb.id)).toMatchObject({
+        status: 'confirmed',
+        seats: 3,
+        paymentId: paid!.id,
+      })
+      expect(await used()).toBe(5)
+      expect((await livePayments(bb.id)).map((p) => [p.status, p.seatReleasedAt])).toEqual([
+        ['succeeded', null],
+        ['cancelled', null],
+      ])
+    })
+  })
+
   it('adding unpaid seats keeps the confirmation time of the booking', async () => {
     const ev = await makeEvent()
     const p = await player()

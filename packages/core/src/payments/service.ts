@@ -320,7 +320,21 @@ export const paymentService = {
     const booking = await db.query.bookings.findFirst({ where: eq(bookings.id, bookingId) })
     if (!booking || !['pending_payment', 'confirmed'].includes(booking.status)) return null
     const live = await this.listLive(ctx, booking)
-    if (live.length === 0) return booking
+    if (live.length === 0) {
+      // запись на абонементе без наличных мест: все места оплачены занятиями
+      if (booking.method !== 'subscription' || booking.status === 'confirmed') return booking
+      const [synced] = await db
+        .update(bookings)
+        .set({
+          status: 'confirmed',
+          paymentId: null,
+          confirmedAt: booking.confirmedAt ?? new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(bookings.id, booking.id))
+        .returning()
+      return synced!
+    }
     const status = live.some((p) => p.status === 'pending') ? 'pending_payment' : 'confirmed'
     if (status === booking.status && booking.paymentId === live[0]!.id) return booking
     const [synced] = await db
@@ -590,6 +604,13 @@ export const paymentService = {
         // старый платёж не трогает новую бронь (6.8.5)
         if (isLive(payment, booking) && ['pending_payment', 'confirmed'].includes(booking.status)) {
           const txCtx = { ...ctx, db: tx }
+          // места записи на абонементе, оплаченные занятиями: места сверх живых платежей (до отклонения
+          // их было на один больше — отклоняемый платёж уже cancelled). Они оплачены и остаются.
+          const liveBefore = (await this.listLive(txCtx, booking)).length + 1
+          const subscriptionSeats =
+            booking.method === 'subscription' && booking.subscriptionId
+              ? Math.max(0, booking.seats - liveBefore)
+              : 0
           const others = await tx
             .update(payments)
             .set({ status: 'cancelled' })
@@ -603,12 +624,13 @@ export const paymentService = {
           })
           // Ленивый импорт: bookings/service импортирует payments/service.
           const { bookingService } = await import('../bookings/service')
-          if (paid.length > 0) {
-            // оплаченные места остаются: снимаются только отклонённые (ADR, D-14)
-            keptSeats = paid.length
+          const kept = paid.length + subscriptionSeats
+          if (kept > 0) {
+            // оплаченные места (платежи и занятия абонемента) остаются: снимаются только отклонённые
+            keptSeats = kept
             await tx
               .update(bookings)
-              .set({ seats: paid.length, updatedAt: new Date() })
+              .set({ seats: kept, updatedAt: new Date() })
               .where(eq(bookings.id, booking.id))
             await this.syncBookingPayments(txCtx, booking.id)
             await auditService.record(txCtx, {
@@ -617,7 +639,7 @@ export const paymentService = {
               entityType: 'booking',
               entityId: booking.id,
               oldValue: { seats: booking.seats },
-              newValue: { seats: paid.length, reason: 'payment_rejected' },
+              newValue: { seats: kept, reason: 'payment_rejected' },
             })
             if (event && event.startsAt > new Date())
               await bookingService.promoteFromWaitlist(txCtx, booking.eventId)
