@@ -2,11 +2,11 @@
 id: '19.3.1'
 phase: '19'
 epic: '19.3'
-status: in_progress
+status: done
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-13
-status_note: 'Реализация в PR, ожидает ревью Opus. Сделано: матрица прав docs/architecture/permissions-v3.md; IDOR-тест на все роуты /api/organizations/{orgId}/** (новый роут без строки падает); найден и исправлен IDOR записи на чужое событие (422 → 404 event.not_found, UI обновляет экран); настраиваемый срок жизни initData; Telegram Login Widget за флагом TELEGRAM_LOGIN_WIDGET_ENABLED (по умолчанию выключен); гард root requireRootAdmin для /api/platform. Визуальная сверка экрана 6-auth не делалась: UI входа принадлежит 20.5.1.'
+last_reviewed: 2026-10-14
+status_note: 'Сделано (PR #113 и follow-up по ревью Opus): матрица прав docs/architecture/permissions-v3.md; IDOR-тест на все роуты /api/organizations/{orgId}/** с положительным контролем минимальной роли и снимком группы, audit_log и users (новый роут без строки падает); согласован статус записи на событие: отсутствующее и чужое событие оба дают 404 event.not_found (раньше чужое — 422), экран игрока обновляется; настраиваемый срок жизни initData; Telegram Login Widget за флагом TELEGRAM_LOGIN_WIDGET_ENABLED (по умолчанию выключен, 404 на любой запрос до разбора тела и конфигурации); первый вход новой Telegram-личности устойчив к гонке; гард root requireRootAdmin для /api/platform. Визуальная сверка 6-auth перенесена в 20.5.1 решением владельца 2026-10-14.'
 ref_id: 'P-11'
 complexity: XL
 impl_model: claude-opus-5-5
@@ -48,7 +48,7 @@ tags: [reference-v3]
 3. Роли: игрок, организатор, админ группы, root
 4. Проверка доступа на каждом эндпоинте
 5. Данные и API: Middleware авторизации; Матрица прав по ролям.
-6. Сверить экраны с референсом через харнесс [19.0.2](19-0-2-visual-reference-harness.md) и приложить отчёт к PR.
+6. ~~Сверить экраны с референсом через харнесс 19.0.2~~ — перенесено в [20.5.1](20-5-1-auth.md) решением владельца 2026-10-14: карточка не меняет UI.
 
 ## Включение в production
 
@@ -56,16 +56,17 @@ tags: [reference-v3]
 - Включение требует действий владельца и отслеживается отдельной follow-up задачей, в этой карточке не делается:
   1. BotFather `/setdomain` — привязать production-домен к боту, иначе виджет Telegram не отрисуется;
   2. прокинуть `TELEGRAM_LOGIN_WIDGET_ENABLED`, `TELEGRAM_LOGIN_WIDGET_MAX_AGE_SECONDS` и при необходимости `TELEGRAM_INIT_DATA_MAX_AGE_SECONDS` в `docker-compose.prod.yml` и deploy workflow (секреты/vars), затем выкатка через **Promote to production**;
-  3. кнопка виджета на экране входа — UI-карточка [20.5.1](20-5-1-auth.md).
+  3. кнопка виджета на экране входа — UI-карточка [20.5.1](20-5-1-auth.md). Виджет подключается **только через JS-callback** (`data-onauth`), который отправляет данные `POST /api/auth/sign-in/telegram-widget`; `data-auth-url` (редирект с данными в query string) не использовать — подписанные данные попадут в URL, логи и историю браузера;
+  4. по желанию в 20.5.1: отклонять повторно использованный `hash` виджета в пределах срока жизни (защита от повтора перехваченных данных) — заметка, не требование этой карточки.
 - Неверное значение этих переменных в production останавливает старт web (fail closed), в лог попадает только имя переменной.
 
 ## Критерии приёмки
 
 - ✅ Подделанный initData отклоняется
 - ✅ Организатор не видит данные чужой группы (тесты на IDOR)
-- ✅ Отчёт визуальной сверки по экранам из `reference.screens` без открытых расхождений Critical/Important
+- ~~Отчёт визуальной сверки по экранам из `reference.screens` без открытых расхождений Critical/Important~~ — перенесено в 20.5.1 решением владельца 2026-10-14
 - ✅ Пять gates CODING_STANDARDS на tested revision; ревью `claude-opus-5-5` без Critical/Important
-- ✅ RED→GREEN тесты на граничные случаи, деньги/доступ и конкурентность приложены к PR
+- ✅ RED→GREEN тесты на граничные случаи, деньги/доступ и конкурентность приложены к PR (конкурентность: параллельный первый вход Mini App + Login Widget новой Telegram-личности → один пользователь, оба входа успешны)
 
 ## Подсказки
 

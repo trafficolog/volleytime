@@ -13,6 +13,7 @@ export {
 } from './telegram/login-widget'
 export {
   telegramAuthSettingsFromEnv,
+  loginWidgetEnabledFromEnv,
   TelegramConfigError,
   type TelegramAuthSettings,
 } from './telegram/settings'

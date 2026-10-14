@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { TelegramConfigError, telegramAuthSettingsFromEnv } from './settings'
+import {
+  loginWidgetEnabledFromEnv,
+  TelegramConfigError,
+  telegramAuthSettingsFromEnv,
+} from './settings'
 
 describe('telegramAuthSettingsFromEnv (19.3.1)', () => {
   it('defaults: initData 1 hour (3.9.10), Login Widget disabled, widget 1 hour', () => {
@@ -33,5 +37,18 @@ describe('telegramAuthSettingsFromEnv (19.3.1)', () => {
     ['TELEGRAM_LOGIN_WIDGET_ENABLED', 'yes'],
   ])('fails closed on invalid %s=%s', (key, value) => {
     expect(() => telegramAuthSettingsFromEnv({ [key]: value })).toThrow(TelegramConfigError)
+  })
+
+  it('widget flag gate: only an explicit true enables, an invalid value stays off', () => {
+    expect(loginWidgetEnabledFromEnv({})).toBe(false)
+    expect(loginWidgetEnabledFromEnv({ TELEGRAM_LOGIN_WIDGET_ENABLED: 'true' })).toBe(true)
+    expect(loginWidgetEnabledFromEnv({ TELEGRAM_LOGIN_WIDGET_ENABLED: '1' })).toBe(true)
+    expect(loginWidgetEnabledFromEnv({ TELEGRAM_LOGIN_WIDGET_ENABLED: 'yes' })).toBe(false)
+    expect(
+      loginWidgetEnabledFromEnv({
+        TELEGRAM_LOGIN_WIDGET_ENABLED: 'true',
+        TELEGRAM_LOGIN_WIDGET_MAX_AGE_SECONDS: 'forever',
+      }),
+    ).toBe(true)
   })
 })

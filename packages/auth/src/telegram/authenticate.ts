@@ -13,20 +13,25 @@ export interface TelegramAuthOptions {
   maxAgeSeconds?: number
 }
 
+async function findTelegramUserId(telegramUserId: bigint): Promise<number | undefined> {
+  const existing = await db.query.users.findFirst({
+    where: eq(users.telegramUserId, telegramUserId),
+  })
+  return existing?.id
+}
+
 /**
  * Найти User по подтверждённой Telegram-личности или создать нового (equal identity, 3.3.4).
  * Mini App и Login Widget сходятся сюда: один telegram_user_id — один User.
+ * Первый вход гонками (два запроса одновременно) не падает: проигравший вставку
+ * (`ON CONFLICT DO NOTHING` по уникальному telegram_user_id) перечитывает победителя.
  */
 async function findOrCreateTelegramUser(tg: ValidatedTelegramUser): Promise<TelegramAuthResult> {
-  const existing = await db.query.users.findFirst({
-    where: eq(users.telegramUserId, tg.id),
-  })
-  if (existing) {
-    return { userId: existing.id, isNewUser: false }
-  }
+  const existingId = await findTelegramUserId(tg.id)
+  if (existingId !== undefined) return { userId: existingId, isNewUser: false }
 
   const name = [tg.first_name, tg.last_name].filter(Boolean).join(' ') || null
-  const userId = await db.transaction(async (tx) => {
+  const createdId = await db.transaction(async (tx) => {
     const [created] = await tx
       .insert(users)
       .values({
@@ -35,8 +40,9 @@ async function findOrCreateTelegramUser(tg: ValidatedTelegramUser): Promise<Tele
         name,
         image: tg.photo_url ?? null,
       })
+      .onConflictDoNothing({ target: users.telegramUserId })
       .returning()
-    if (!created) throw new Error('Failed to create user')
+    if (!created) return undefined // другой запрос создал пользователя раньше
 
     await tx.insert(accounts).values({
       userId: created.id,
@@ -45,8 +51,12 @@ async function findOrCreateTelegramUser(tg: ValidatedTelegramUser): Promise<Tele
     })
     return created.id
   })
+  if (createdId !== undefined) return { userId: createdId, isNewUser: true }
 
-  return { userId, isNewUser: true }
+  // ON CONFLICT ждёт коммита конкурента, поэтому его строка уже видна
+  const winnerId = await findTelegramUserId(tg.id)
+  if (winnerId === undefined) throw new Error('Telegram user vanished after a concurrent insert')
+  return { userId: winnerId, isNewUser: false }
 }
 
 /**
