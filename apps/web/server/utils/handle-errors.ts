@@ -77,6 +77,7 @@ const CODE_STATUS: Record<string, number> = {
   'forbidden.moderate': 403,
   'forbidden.pending_approval': 403,
   'forbidden.not_member': 403,
+  'forbidden.root_only': 403,
 }
 
 /**

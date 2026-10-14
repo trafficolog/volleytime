@@ -39,6 +39,14 @@ function toRoute(file: string) {
   return routeFromRelativeFile(path.relative(path.join(serverDir, 'api'), file))
 }
 
+/** Все роуты server/api (без auth/** и health) — для table-driven тестов (19.3.1). */
+export async function listApiRoutes(): Promise<{ method: string; route: string }[]> {
+  const files = await walk(path.join(serverDir, 'api'))
+  return files
+    .filter((f) => !f.includes(`${path.sep}auth${path.sep}`) && !f.endsWith('health.get.ts'))
+    .map(toRoute)
+}
+
 export interface TestResponse {
   status: number
   body: unknown
@@ -73,6 +81,7 @@ export async function createTestApi() {
     'member-action',
     'tenant-path',
     'internal-auth',
+    'root-admin',
   ]) {
     Object.assign(g, await import(pathToFileURL(path.join(serverDir, 'utils', `${mod}.ts`)).href))
   }

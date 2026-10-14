@@ -6,6 +6,8 @@ const staleEventRejections = new Set([
   'booking.deadline_passed',
   'booking.already_booked',
   'booking.method_not_allowed',
+  // событие удалено или принадлежит другой группе: сервер отвечает 404 (19.3.1)
+  'event.not_found',
 ])
 
 export function shouldRefreshPlayerEventAfterRejection(code: string | null | undefined): boolean {

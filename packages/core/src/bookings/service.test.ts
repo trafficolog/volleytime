@@ -1,6 +1,7 @@
 import { closeDb, db, eq, events, organizations, users } from '@volley-time/db'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
+import { EventNotFoundError } from '../events/errors'
 import { eventService } from '../events/service'
 import { memberService } from '../members/service'
 import { organizationService } from '../organizations/service'
@@ -139,6 +140,23 @@ describe('bookingService.book (integration)', () => {
     await expect(
       bookingService.book({ userId: pid }, orgId, ev.id, { method: 'free' }),
     ).rejects.toThrow(EventNotBookableError)
+  })
+
+  it('event of another organization → EventNotFoundError, same as missing (IDOR, 19.3.1)', async () => {
+    const ev = await makeEvent()
+    const pid = await newPlayer()
+    const [otherOwner] = await db
+      .insert(users)
+      .values({ email: `oo-${Math.random()}@t.by` })
+      .returning()
+    const other = await organizationService.create({ userId: otherOwner!.id }, { name: 'Other' })
+    await memberService.add({ userId: otherOwner!.id }, { organizationId: other.id, userId: pid })
+    await expect(
+      bookingService.book({ userId: pid }, other.id, ev.id, { method: 'free' }),
+    ).rejects.toThrow(EventNotFoundError)
+    await expect(
+      bookingService.book({ userId: pid }, orgId, 2_000_000_000, { method: 'free' }),
+    ).rejects.toThrow(EventNotFoundError)
   })
 
   it('non-member → EventNotBookableError', async () => {

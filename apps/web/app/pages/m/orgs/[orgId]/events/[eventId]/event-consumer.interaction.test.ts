@@ -15,6 +15,7 @@ import {
 } from 'vue'
 
 import Page from './index.vue'
+import { apiErrorCode, apiErrorMessage, apiErrorStatus } from '~/utils/api-error'
 import MyChip from '~/components/vt/MyChip.vue'
 import SeatsMini from '~/components/vt/SeatsMini.vue'
 import StateChip from '~/components/vt/StateChip.vue'
@@ -56,6 +57,7 @@ const fixture = () => ({
   },
 })
 let data = ref({ event: fixture(), roster: [] })
+let eventError = ref<unknown>(null)
 const refresh = vi.fn(async () => undefined)
 const refreshOther = vi.fn(async () => undefined)
 const post = vi.fn(async (_url: string, _opts?: { method?: string; body?: unknown }) => ({}))
@@ -114,6 +116,7 @@ const settleLatest = () => {
 }
 beforeEach(() => {
   data = ref({ event: fixture(), roster: [] })
+  eventError = ref(null)
   route.params = { orgId: '30', eventId: '71' }
   route.fullPath = path
   refresh.mockReset().mockResolvedValue(undefined)
@@ -143,7 +146,7 @@ beforeEach(() => {
             myMember: { organizationId: 30, role: 'player', status: 'active' },
           })
         : data,
-      error: ref(null),
+      error: url().endsWith('/30') ? ref(null) : eventError,
       pending: ref(false),
       refresh,
     }),
@@ -316,3 +319,29 @@ describe.each([path, `${path}/`])(
     })
   },
 )
+
+describe('booking rejected because the event is gone (19.3.1)', () => {
+  it('404 event.not_found refreshes the page into the unavailable state, not a generic failure', async () => {
+    Object.entries({ apiErrorCode, apiErrorMessage, apiErrorStatus }).forEach(([name, value]) =>
+      vi.stubGlobal(name, value),
+    )
+    data.value.event.myBooking = null
+    const notFound = { statusCode: 404, data: { data: { code: 'event.not_found' } } }
+    post.mockRejectedValueOnce(notFound)
+    refresh.mockImplementationOnce(async () => {
+      eventError.value = notFound
+    })
+    wrapper = await render()
+    await button('Записаться').trigger('click')
+    await button('Наличными').trigger('click')
+    await flushPromises()
+    expect(post).toHaveBeenCalledOnce()
+    expect(refresh).toHaveBeenCalledOnce()
+    expect(haptic).toHaveBeenCalledWith('error')
+    expect(wrapper.get('[role="alert"]').text()).toBe(
+      'Событие не найдено. Событие больше недоступно.',
+    )
+    expect(wrapper.text()).not.toContain('Не удалось записаться')
+    expect(wrapper.find('a[href="/m/orgs/30/events"]').exists()).toBe(true)
+  })
+})
