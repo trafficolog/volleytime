@@ -6,7 +6,7 @@ status: in_progress
 release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-14
-status_note: 'PR открыт, review pending: шторка «Мои группы» (GroupSwitcher) в шапке игрока и организатора, монограммы (логотипа в модели группы нет), role=radio с roving tabindex, «Создать свою группу». Визуальная сверка и открытые пункты: docs/operations/qa/2026-10-14-20-4-3-group-switcher.md.'
+status_note: 'PR #122 (ветка trafficolog/feat/20.4.3-group-switcher, tested revision a0272ab), review pending: шторка «Мои группы» (GroupSwitcher) в шапке игрока и организатора, монограммы (логотипа в модели группы нет), role=radio с roving tabindex, «Создать свою группу». Визуальная сверка и открытые пункты: docs/operations/qa/2026-10-14-20-4-3-group-switcher.md.'
 ref_id: 'M-04'
 complexity: S
 impl_model: claude-haiku-5-5
