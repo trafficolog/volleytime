@@ -42,6 +42,7 @@ tags: [reference-v3]
 
 - **Состав и запись** — Запись игрока и состав у организатора — одни и те же данные и статусы. С этим связаны: [P-05 → 20.1.2](20-1-2-multi-seat-booking.md), [M-05 → 19.1.2](19-1-2-booking-statuses.md), [M-06 → 20.4.5](20-4-5-event-booking.md), [W-05 → 20.5.6](20-5-6-event-card.md), [P-04 → 20.3.1](20-3-1-event-jobs.md). [Подробнее](../design/reference-v3/specs/links.md#booking)
 - **Настройки группы** — Кабинет задаёт поведение Mini App. С этим связаны: [P-02 → 19.2.2](19-2-2-group-settings.md), [W-11 → 20.5.7](20-5-7-settings.md), [W-09 → 21.2.6](21-2-6-subscriptions.md), [M-02 → 20.4.2](20-4-2-tab-bar.md), [M-06 → 20.4.5](20-4-5-event-booking.md), [W-04 → 20.5.5](20-5-5-event-create.md). [Подробнее](../design/reference-v3/specs/links.md#settings)
+- **Перенесено из 20.1.2 (решение владельца 2026-10-14, [D-03, уточнение](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-03)):** UI частичной отмены мест (`PATCH …/bookings/{id} {seats}`) и показ «оплачено, место освобождено» (`payments.seat_released_at`). Отдельного экрана частичной отмены в референсе нет — состояния собираются из атомов v3, сверка — по экрану отмены записи. Включение `EVENT_MULTI_SEAT_ENABLED` требует этой карточки, 20.4.5, 20.5.6 и п. 6 карточки 20.7.1.
 
 ## Что должно быть сделано
 

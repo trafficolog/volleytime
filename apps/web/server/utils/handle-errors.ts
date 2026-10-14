@@ -59,6 +59,10 @@ const CODE_STATUS: Record<string, number> = {
   'booking.method_not_allowed': 422,
   'booking.not_cancellable': 409,
   'booking.seats_over_limit': 422,
+  // места в записи (20.1.2)
+  'booking.not_enough_seats': 409,
+  'booking.multi_seat_disabled': 409,
+  'subscription.not_enough_sessions': 409,
   'event.starts_in_past': 422,
   'event.capacity_below_taken': 422,
   'money.currency_mismatch': 422,

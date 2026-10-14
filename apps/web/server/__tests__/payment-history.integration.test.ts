@@ -136,7 +136,9 @@ describe('payment history HTTP (integration)', () => {
       'event',
       'id',
       'method',
+      'paymentIds',
       'plan',
+      'seats',
       'subscriptionId',
       'user',
     ])

@@ -19,6 +19,7 @@ import {
 } from '@volley-time/shared'
 
 import { SeatsOverLimitError } from '../bookings/errors'
+import { OCCUPYING_STATUSES as ACTIVE_STATUSES, takenSeatsSql } from '../bookings/seats'
 import { requireCanManageContent } from '../permissions/policies'
 import { getDb, type ServiceContext } from '../shared/context'
 
@@ -32,18 +33,25 @@ export async function readEventPricing(
   const event = await db.query.events.findFirst({ where: eq(events.id, eventId) })
   if (!event) throw new EventNotFoundError(eventId)
   const [counts] = await db
-    .select({
-      taken: sql<number>`count(*) FILTER (WHERE ${bookings.status} IN ('confirmed', 'pending_payment', 'attended', 'no_show'))::int`,
-    })
+    .select({ taken: takenSeatsSql })
     .from(bookings)
     .where(eq(bookings.eventId, eventId))
+  // статус оплаты моей записи — по живым платежам мест (20.1.2): есть неоплаченное место — pending
   const [mine] = await db
-    .select({ allocatedAmount: bookings.allocatedAmount, paymentStatus: payments.status })
+    .select({
+      allocatedAmount: bookings.allocatedAmount,
+      // имена квалифицированы явно: drizzle не пишет таблицу у колонок запроса без JOIN,
+      // а в коррелированном подзапросе "id" разрешился бы в payments.id
+      paymentStatus: sql<'pending' | 'succeeded' | null>`(
+        SELECT CASE WHEN bool_or(p.status = 'pending') THEN 'pending' ELSE 'succeeded' END
+        FROM "payments" p
+        WHERE p.booking_id = "bookings"."id"
+          AND p.booking_incarnation = "bookings"."incarnation"
+          AND p.seat_released_at IS NULL
+          AND p.status IN ('pending', 'succeeded')
+        HAVING count(*) > 0)`,
+    })
     .from(bookings)
-    .leftJoin(
-      payments,
-      and(eq(payments.id, bookings.paymentId), eq(payments.bookingId, bookings.id)),
-    )
     .where(and(eq(bookings.eventId, eventId), eq(bookings.userId, ctx.userId)))
   const common = {
     mode: event.priceMode,
@@ -77,9 +85,6 @@ export async function readEventPricing(
   }
 }
 
-/** Статусы записи, места которых входят в состав (как `readEventPricing` и `settle`). */
-const ACTIVE_STATUSES = ['confirmed', 'pending_payment', 'attended', 'no_show'] as const
-
 export interface EventPriceQuoteView extends EventPriceQuote {
   currency: string
 }
@@ -87,8 +92,8 @@ export interface EventPriceQuoteView extends EventPriceQuote {
 /**
  * Цена места для `seats` мест игрока (20.1.1, P-03): единый расчёт `quoteEventPrice` для Mini App,
  * кабинета и публичной страницы. Чтение без блокировок: до закрытия split — прогноз по текущему
- * составу, после фиксации — снимок `pricing_participant_count` и доля игрока, которые не меняются.
- * До 20.1.2 запись держит одно место; 20.1.2 заменит подсчёт на SUM(seats).
+ * составу (занято мест — SUM(seats), 20.1.2), после фиксации — снимок `pricing_participant_count`
+ * (места) и доля игрока, которые не меняются. Мои места — `bookings.seats` моей записи в составе.
  */
 export async function readEventPriceQuote(
   ctx: ServiceContext,
@@ -106,9 +111,7 @@ export async function readEventPriceQuote(
   })
   if (!org) throw new EventNotFoundError(input.eventId)
   const [counts] = await db
-    .select({
-      taken: sql<number>`count(*) FILTER (WHERE ${inArray(bookings.status, [...ACTIVE_STATUSES])})::int`,
-    })
+    .select({ taken: takenSeatsSql })
     .from(bookings)
     .where(eq(bookings.eventId, event.id))
   const mine = await db.query.bookings.findFirst({
@@ -117,9 +120,9 @@ export async function readEventPriceQuote(
       eq(bookings.userId, ctx.userId),
       inArray(bookings.status, [...ACTIVE_STATUSES]),
     ),
-    columns: { allocatedAmount: true },
+    columns: { allocatedAmount: true, seats: true },
   })
-  const mySeats = mine ? 1 : 0
+  const mySeats = mine?.seats ?? 0
   const seats = input.seats ?? (mySeats || 1)
   if (seats > org.maxSeatsPerBooking || seats > event.capacity) throw new SeatsOverLimitError()
   const quote =

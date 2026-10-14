@@ -60,6 +60,7 @@ describe('payment history (integration)', () => {
       'method',
       'plan',
       'refundedAt',
+      'seatReleasedAt',
       'status',
       'user',
     ])

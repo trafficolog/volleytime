@@ -23,6 +23,7 @@ export const AUDIT_ACTIONS = {
   BOOKING_CREATED: 'booking.created',
   BOOKING_CANCELLED: 'booking.cancelled',
   BOOKING_PROMOTED: 'booking.promoted',
+  BOOKING_SEATS_CHANGED: 'booking.seats_changed',
   BOOKING_ATTENDANCE_MARKED: 'booking.attendance_marked',
   SUBSCRIPTION_PURCHASED: 'subscription.purchased',
   SUBSCRIPTION_ACTIVATED: 'subscription.activated',

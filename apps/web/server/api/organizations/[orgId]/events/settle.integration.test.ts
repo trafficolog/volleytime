@@ -132,7 +132,11 @@ describe('split settlement and pricing HTTP projections', () => {
     expect(player.event).not.toHaveProperty('pricingPermissions')
     expect(player.event).not.toHaveProperty('pricingFinancials')
     expect(player.roster).toEqual([
-      { user: { id: playerId, name: null, telegramUsername: null, image: null }, paid: false },
+      {
+        user: { id: playerId, name: null, telegramUsername: null, image: null },
+        seats: 1,
+        paid: false,
+      },
     ])
     expect(
       (await request('GET', `/api/organizations/${orgId}/events`, { user: playerId })).body,

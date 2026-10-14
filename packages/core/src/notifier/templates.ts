@@ -58,7 +58,18 @@ export interface TemplateParams {
   needsPayment?: boolean
   refunded?: boolean
   miniAppUrl?: string
+  /** Места операции (20.1.2): записано, продвинуто из очереди, оплачено. */
+  seats?: number
+  /** Места записи в очереди сверх основы («часть в основу, часть в очередь»). */
+  waitlistSeats?: number
+  /** Оплаченные места, оставшиеся у записи после отклонения неоплаченных (20.1.2). */
+  keptSeats?: number
 }
+
+/** « · мест: N» для операций над несколькими местами; одно место — текст R0.7 без изменений. */
+const seatsNote = (p: TemplateParams): string =>
+  (p.seats && p.seats > 1 ? `\n🎟 Мест: ${p.seats}` : '') +
+  (p.waitlistSeats ? `\n📋 Ещё в очереди: ${p.waitlistSeats}` : '')
 
 /** Рендер уведомления: текст + опциональная клавиатура. */
 export function renderMessage(type: NotificationType, p: TemplateParams): RenderedMessage {
@@ -79,12 +90,15 @@ export function renderMessage(type: NotificationType, p: TemplateParams): Render
 
   switch (type) {
     case 'booking_confirmed':
-      return { text: `✅ Вы записаны на <b>${title}</b>${when}`, keyboard: openBtn() }
+      return {
+        text: `✅ Вы записаны на <b>${title}</b>${when}${seatsNote(p)}`,
+        keyboard: openBtn(),
+      }
     // бронь держится до подтверждения оплаты — отдельный текст, чтобы место не считали закреплённым (8.9.1)
     case 'booking_pending_payment':
       return {
         text:
-          `📝 Место на <b>${title}</b>${when} забронировано.\n\n` +
+          `📝 Место на <b>${title}</b>${when} забронировано.${seatsNote(p)}\n\n` +
           `💳 Оплатите ${formatMoney(p.amount ?? 0, p.currency)}` +
           (p.method === 'transfer' ? ' переводом' : ' наличными') +
           ` организатору — держим место до подтверждения оплаты.`,
@@ -92,7 +106,7 @@ export function renderMessage(type: NotificationType, p: TemplateParams): Render
       }
     case 'booking_waitlisted':
       return {
-        text: `📋 Вы в листе ожидания на <b>${title}</b>${when}\n\nЕсли место освободится, мы сообщим.`,
+        text: `📋 Вы в листе ожидания на <b>${title}</b>${when}${seatsNote(p)}\n\nЕсли место освободится, мы сообщим.`,
         keyboard: openBtn(),
       }
     case 'split_booking_reserved':
@@ -121,7 +135,7 @@ export function renderMessage(type: NotificationType, p: TemplateParams): Render
     case 'waitlist_promoted':
       return {
         text:
-          `🎉 Освободилось место — вы в составе на <b>${title}</b>${when}` +
+          `🎉 Освободилось место — вы в составе на <b>${title}</b>${when}${seatsNote(p)}` +
           (p.needsPayment ? '\n\n💳 Не забудьте оплатить участие.' : ''),
         keyboard: openBtn(),
       }
@@ -129,14 +143,18 @@ export function renderMessage(type: NotificationType, p: TemplateParams): Render
       return {
         text:
           `✅ Оплата ${formatMoney(p.amount ?? 0, p.currency)} подтверждена.\n` +
-          (p.planName ? `Абонемент «${esc(p.planName)}» активирован.` : `<b>${title}</b>${when}`),
+          (p.planName
+            ? `Абонемент «${esc(p.planName)}» активирован.`
+            : `<b>${title}</b>${when}${seatsNote(p)}`),
         keyboard: openBtn(),
       }
     case 'payment_rejected':
       return {
         text: p.planName
           ? `❌ Оплата абонемента «${esc(p.planName)}» отклонена.\n\nСвяжитесь с организатором.`
-          : `❌ Оплата за <b>${title}</b>${when} отклонена. Запись отменена.\n\nСвяжитесь с организатором.`,
+          : p.keptSeats
+            ? `❌ Оплата за <b>${title}</b>${when} отклонена. Неоплаченные места сняты, оплаченных мест: ${p.keptSeats}.\n\nСвяжитесь с организатором.`
+            : `❌ Оплата за <b>${title}</b>${when} отклонена. Запись отменена.\n\nСвяжитесь с организатором.`,
         keyboard: openBtn(),
       }
     case 'payment_pending_organizer':
@@ -145,6 +163,7 @@ export function renderMessage(type: NotificationType, p: TemplateParams): Render
           `💰 Новая заявка на оплату\n` +
           (p.planName ? `Абонемент «${esc(p.planName)}»\n` : `<b>${title}</b>${when}\n`) +
           `Игрок: ${esc(p.playerName ?? '—')}\n` +
+          (p.seats && p.seats > 1 ? `Мест: ${p.seats}\n` : '') +
           `Сумма: ${formatMoney(p.amount ?? 0, p.currency)}` +
           (p.method ? ` (${p.method === 'transfer' ? 'перевод' : 'наличные'})` : ''),
         keyboard: openBtn(),

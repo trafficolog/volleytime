@@ -55,6 +55,11 @@ const ROUTES: OrgRouteTable = {
     access: 'member',
     body: () => ({}),
   },
+  // 20.1.2: места своей записи — self (чужая запись своей группы — 403, проверяется в сервисе)
+  'PATCH /api/organizations/:orgId/bookings/:bookingId': {
+    access: 'member',
+    body: () => ({ seats: 1 }),
+  },
   'GET /api/organizations/:orgId/bookings/my': { access: 'member' },
   'GET /api/organizations/:orgId/dashboard': { access: 'member' },
   'GET /api/organizations/:orgId/event-balance': { access: 'manager' },

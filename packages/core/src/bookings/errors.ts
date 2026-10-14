@@ -59,3 +59,15 @@ export class SeatsOverLimitError extends BookingError {
     super('booking.seats_over_limit', 'Seats exceed the group limit or the event capacity')
   }
 }
+export class BookingNotEnoughSeatsError extends BookingError {
+  freeSeats: number
+  constructor(freeSeats: number) {
+    super('booking.not_enough_seats', `Not enough free seats (${freeSeats} left)`)
+    this.freeSeats = freeSeats
+  }
+}
+export class MultiSeatDisabledError extends BookingError {
+  constructor() {
+    super('booking.multi_seat_disabled', 'Booking several seats is not enabled')
+  }
+}

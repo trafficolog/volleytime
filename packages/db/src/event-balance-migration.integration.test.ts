@@ -15,6 +15,7 @@ import { seedDemo } from './seed-demo'
 
 const TAG = '0024_event_balance'
 const TAG23 = '0023_player_levels'
+const TAG25 = '0025_multi_seat_booking'
 const BASE_URL = process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL ?? ''
 const MIGRATION_FILE = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -102,6 +103,8 @@ describe('migration 0024 event balance (integration)', { timeout: 60_000 }, () =
       for (const t of NEW_TYPES) expect(await exists(sql, 'type', t), t).toBe(true)
       expect(await sql`SELECT 1 FROM event_balance_entries`).toHaveLength(0)
 
+      expect(await rollbackLastMigration(url)).toBe(TAG25)
+
       expect(await rollbackLastMigration(url)).toBe(TAG)
       for (const t of NEW_TABLES) expect(await exists(sql, 'table', t), t).toBe(false)
       for (const t of NEW_TYPES) expect(await exists(sql, 'type', t), t).toBe(false)
@@ -117,6 +120,7 @@ describe('migration 0024 event balance (integration)', { timeout: 60_000 }, () =
     const { url, sql } = await scratchDb()
     try {
       await runMigrations(url)
+      expect(await rollbackLastMigration(url)).toBe(TAG25)
       expect(await rollbackLastMigration(url)).toBe(TAG) // теперь БД на 0023
       const r07 = await seedR07(sql)
 
@@ -167,6 +171,7 @@ describe('migration 0024 event balance (integration)', { timeout: 60_000 }, () =
         VALUES (${r07.orgIds[0]!}, ${r07.userId}, 'Old 2', now() + interval '1 day', now() + interval '2 day', 10, 'published')`
 
       // откат возвращает 0023 и не трогает данные R0.7
+      expect(await rollbackLastMigration(url)).toBe(TAG25)
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await sql`SELECT 1 FROM organizations`).toHaveLength(3)
       expect(await sql`SELECT 1 FROM events`).toHaveLength(3)
@@ -324,6 +329,10 @@ describe('migration 0024 event balance (integration)', { timeout: 60_000 }, () =
       await seedDemo(database)
       expect(await count('event_balance_entries')).toBe(balance.entries)
       expect(await count('event_balance_purchase_requests')).toBe(balance.requests)
+
+      // откат 0025 требует отсутствия данных нескольких мест (precondition rollback-скрипта)
+      await sql`UPDATE bookings SET seats = 1, waitlist_seats = 0 WHERE seats > 1 OR waitlist_seats > 0`
+      expect(await rollbackLastMigration(url)).toBe(TAG25)
 
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect({

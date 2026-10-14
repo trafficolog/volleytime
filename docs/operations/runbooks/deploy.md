@@ -154,6 +154,8 @@ Recovery additionally captures network ownership of any running current/partial 
 
 The creation capability is rendered from the nonsecret GitHub repository variable `EVENT_SPLIT_PRICING_ENABLED`, enabled only by exact `true`; unset or any other value renders `false`. Keep it disabled until all six feature dependencies, Task 7 local review/exact-head CI, integrated-main five gates/whole-branch review/exact-main CI and runner image-bundle evidence pass. Then promote reviewed main by fast-forward to prod and enable the complete release using the approved rollout sequence. Local tests do not prove VPS stop behavior, real image labels, Telegram delivery or pilot acceptance.
 
+v0.2.0 multi-seat booking (Task 20.1.2, migration `0025_multi_seat_booking`) adds `bookings.seats`, `waitlist_seats`, `incarnation`, `payments.booking_incarnation` and `seat_released_at` with constant defaults, a backfill and two compatibility triggers; the previous runtime keeps working on the new schema while every booking holds one seat. Writing more than one seat is enabled only by exact `EVENT_MULTI_SEAT_ENABLED=true`; keep it unset (false) until the release task 20.7.1 renders the variable and extends this quiescent guard with `SELECT EXISTS (SELECT 1 FROM bookings WHERE seats > 1 OR waitlist_seats > 0)` and an image capability label. Once such rows exist, a runtime without multi-seat support counts occupancy with `count(*)` and is unsafe; do not roll back to it or apply `packages/db/rollback/0025_multi_seat_booking.sql` while the query returns true.
+
 The SHA argument identifies the **failed candidate**, not an arbitrary target. After a read-only audit confirms eligibility, run the helper preserved in that candidate's staging:
 
 ```bash

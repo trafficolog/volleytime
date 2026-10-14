@@ -29,6 +29,8 @@ export interface PaymentHistoryRow {
   createdAt: string
   confirmedAt: Date | null
   refundedAt: Date | null
+  /** Оплаченное место освобождено игроком без возврата (D-14): «оплачено, место освобождено». */
+  seatReleasedAt: Date | null
   user: Pick<User, 'id' | 'name' | 'telegramUsername' | 'image'>
   event: { id: number; title: string; startsAt: Date } | null
   plan: { name: string } | null
@@ -56,6 +58,7 @@ export async function listPaymentHistory(
       createdAt: sql<string>`to_char(${payments.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
       confirmedAt: payments.confirmedAt,
       refundedAt: payments.refundedAt,
+      seatReleasedAt: payments.seatReleasedAt,
       user: {
         id: users.id,
         name: users.name,

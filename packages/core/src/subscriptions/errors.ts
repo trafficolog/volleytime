@@ -26,3 +26,11 @@ export class SubscriptionNotPendingError extends SubscriptionError {
     super('subscription.not_pending', 'Subscription is not pending')
   }
 }
+export class NotEnoughSessionsError extends SubscriptionError {
+  constructor(seats: number) {
+    super(
+      'subscription.not_enough_sessions',
+      `No single active subscription has ${seats} remaining sessions`,
+    )
+  }
+}

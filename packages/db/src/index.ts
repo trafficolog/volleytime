@@ -11,6 +11,7 @@ export {
   ne,
   sql,
   inArray,
+  notInArray,
   desc,
   asc,
   gte,

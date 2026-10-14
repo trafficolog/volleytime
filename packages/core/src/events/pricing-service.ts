@@ -78,14 +78,16 @@ export const eventPricingService = {
         .for('update')
       if (participants.length === 0)
         throw new EventError('event.split_empty', 'Add participants before settling')
-      if (event.targetAmount! < participants.length)
+      // доли — по единицам-местам (20.1.2, ADR): цель сравнивается с суммой мест, не с числом записей
+      const seatCount = participants.reduce((total, b) => total + b.seats, 0)
+      if (event.targetAmount! < seatCount)
         throw new EventError(
           'event.split_target_too_small',
           'The target must cover at least one cent per participant',
         )
       const allocation = allocateSplitAmount(
         event.targetAmount!,
-        participants.map((b) => ({ bookingId: b.id, bookedAt: b.bookedAt })),
+        participants.map((b) => ({ bookingId: b.id, bookedAt: b.bookedAt, seats: b.seats })),
       )
       const byId = new Map(participants.map((b) => [b.id, b]))
       for (const share of allocation) {
@@ -117,6 +119,8 @@ export const eventPricingService = {
           .set({
             paymentId: payment.id,
             allocatedAmount: share.amount,
+            // очередная часть мест после фиксации не продвигается — снимается (ревью 20.1.2)
+            waitlistSeats: 0,
             status: 'pending_payment',
             confirmedAt: null,
             updatedAt: new Date(),
@@ -128,7 +132,8 @@ export const eventPricingService = {
         .set({
           status: 'closed',
           pricingSettledAt: new Date(),
-          pricingParticipantCount: participants.length,
+          // имя колонки R0.7; после 20.1.2 — число мест на момент фиксации
+          pricingParticipantCount: seatCount,
           updatedAt: new Date(),
         })
         .where(eq(events.id, eventId))
