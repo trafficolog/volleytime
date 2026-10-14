@@ -2,11 +2,11 @@
 id: '19.1.4'
 phase: '19'
 epic: '19.1'
-status: todo
+status: in_progress
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-10-14
+status_note: 'Реализовано, ревью pending (claude-sonnet-5-5). Тест-страж apps/web/app/utils/event-balance-term.test.ts (RED→GREEN): в исходниках приложения и бота нет «credit». Глоссарий «Баланс событий» в docs/DOMAIN.md уже был, добавлено не нужно. Тексты design-экспорта в docs/design/reference-v3/handoff не редактируются (референс); экраны «Credits & тарифы» и «Выдача баланса» появятся в фазе 22 с новым термином.'
 ref_id: 'R-08'
 complexity: S
 impl_model: claude-haiku-5-5
