@@ -46,6 +46,20 @@ function parseFlag(env: Env, key: string): boolean {
   throw new TelegramConfigError(`${key} must be true or false`)
 }
 
+/**
+ * Включён ли Login Widget — проверяется до любой другой конфигурации. Неверное значение флага
+ * считается выключенным: эндпоинт остаётся скрытым (404), а ошибку конфигурации ловит
+ * проверка при старте сервера.
+ */
+export function loginWidgetEnabledFromEnv(env: Env = process.env): boolean {
+  try {
+    return parseFlag(env, 'TELEGRAM_LOGIN_WIDGET_ENABLED')
+  } catch (e) {
+    if (e instanceof TelegramConfigError) return false
+    throw e
+  }
+}
+
 export function telegramAuthSettingsFromEnv(env: Env = process.env): TelegramAuthSettings {
   return {
     initDataMaxAgeSeconds: parseMaxAge(

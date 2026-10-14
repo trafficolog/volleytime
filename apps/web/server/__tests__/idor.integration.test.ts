@@ -8,6 +8,8 @@ import {
   venueService,
 } from '@volley-time/core'
 import {
+  asc,
+  auditLog,
   bookings,
   closeDb,
   db,
@@ -227,7 +229,10 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
     }
   }
 
-  /** Состояние всех строк группы — чтобы доказать, что отказ ничего не изменил. */
+  /**
+   * Состояние всех строк группы, всего журнала и всех пользователей — чтобы доказать, что
+   * отказ ничего не изменил (ни в группе, ни в аудите, ни в профилях).
+   */
   async function snapshot(orgId: number): Promise<string> {
     const rows = await Promise.all([
       db.select().from(organizations).where(eq(organizations.id, orgId)),
@@ -240,6 +245,8 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
       db.select().from(subscriptions).where(eq(subscriptions.organizationId, orgId)),
       db.select().from(inviteLinks).where(eq(inviteLinks.organizationId, orgId)),
       db.select().from(ledgerEntries).where(eq(ledgerEntries.organizationId, orgId)),
+      db.select().from(auditLog).orderBy(asc(auditLog.id)),
+      db.select().from(users).orderBy(asc(users.id)),
     ])
     return JSON.stringify(rows, (_, v) => (typeof v === 'bigint' ? v.toString() : v))
   }
@@ -366,6 +373,30 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
       expect(await snapshot(A.ids.orgId)).toBe(beforeA)
       expect(await snapshot(B.ids.orgId)).toBe(beforeB)
     },
+  )
+
+  // Положительный контроль: минимальная роль из матрицы с тем же телом проходит проверку
+  // доступа. Иначе отказы выше могли бы быть ложными (сломанный путь или тело тоже дают 403/404).
+  // Своя свежая группа на каждый роут: мутации не портят общие фикстуры A/B.
+  it.each(ENTRIES)(
+    '%s: minimum role passes the access check (positive control)',
+    async (key, spec) => {
+      const { method, route } = splitRouteKey(key)
+      const C = await makeOrg(`C${Math.random().toString(36).slice(2, 6)}`)
+      const user = {
+        tenant: C.applicant,
+        member: C.player,
+        manager: C.organizer,
+        owner: C.owner,
+      }[spec.access]
+      const res = await request(method, buildPath(route, C.ids), { user, body: spec.body?.(C.ids) })
+      expect(
+        [401, 403, 404],
+        `${key} as ${spec.access} → ${res.status} ${res.text.slice(0, 200)}`,
+      ).not.toContain(res.status)
+      expect(res.status, `${key} → ${res.text.slice(0, 200)}`).toBeLessThan(500)
+    },
+    20_000,
   )
 
   afterAll(async () => {

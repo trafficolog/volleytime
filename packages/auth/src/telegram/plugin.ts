@@ -10,8 +10,8 @@ import {
 } from '../linking'
 
 import { authenticateViaLoginWidget, authenticateViaTelegram } from './authenticate'
-import { LoginWidgetPayload } from './login-widget'
 import {
+  loginWidgetEnabledFromEnv,
   TelegramConfigError,
   telegramAuthSettingsFromEnv,
   type TelegramAuthSettings,
@@ -23,6 +23,8 @@ export interface TelegramPluginOptions {
   getBotToken: () => string
   /** Срок жизни initData и флаг Login Widget; читаются лениво на каждый запрос (19.3.1). */
   getSettings?: () => TelegramAuthSettings
+  /** Флаг Login Widget; по умолчанию — из окружения. Проверяется первым (404 при выключенном). */
+  isLoginWidgetEnabled?: () => boolean
 }
 
 /** Токен бота из окружения процесса (web: NUXT_* перекрывает обычную переменную). */
@@ -57,6 +59,12 @@ function requireSettings(opts: TelegramPluginOptions): TelegramAuthSettings {
   }
 }
 
+const WIDGET_PATH = '/sign-in/telegram-widget'
+const WIDGET_DISABLED = {
+  message: 'Вход через Telegram на сайте не включён',
+  code: 'telegram.login_widget_disabled',
+}
+
 const INVALID_TELEGRAM_SIGN_IN =
   'Не удалось подтвердить вход через Telegram. Откройте приложение заново из чата с ботом.'
 
@@ -65,8 +73,19 @@ const INVALID_TELEGRAM_SIGN_IN =
  * Единственный источник сессий — better-auth: эндпоинт создаёт стандартную сессию и cookie.
  */
 export function telegramPlugin(opts: TelegramPluginOptions) {
+  const widgetEnabled = () => (opts.isLoginWidgetEnabled ?? loginWidgetEnabledFromEnv)()
   return {
     id: 'telegram',
+    /**
+     * Выключенный Login Widget отвечает 404 до разбора тела (иначе не-JSON дал бы 400 и выдал
+     * существование эндпоинта) и до проверки конфигурации (19.3.1 review).
+     */
+    onRequest: async (request: Request) => {
+      if (request.method !== 'POST') return
+      if (!new URL(request.url).pathname.endsWith(WIDGET_PATH)) return
+      if (widgetEnabled()) return
+      return { response: Response.json(WIDGET_DISABLED, { status: 404 }) }
+    },
     endpoints: {
       signInTelegram: createAuthEndpoint(
         '/sign-in/telegram',
@@ -104,19 +123,17 @@ export function telegramPlugin(opts: TelegramPluginOptions) {
 
       /**
        * Вход в веб через Telegram Login Widget (D-05, 19.3.1). Выключен, пока не задан
-       * TELEGRAM_LOGIN_WIDGET_ENABLED=true: до этого эндпоинт отвечает 404.
+       * TELEGRAM_LOGIN_WIDGET_ENABLED=true: до этого эндпоинт отвечает 404 на любой запрос —
+       * тело не разбирается, конфигурация не проверяется. Поэтому схема тела свободная,
+       * а LoginWidgetPayload разбирается внутри, после проверки флага.
        */
       signInTelegramWidget: createAuthEndpoint(
-        '/sign-in/telegram-widget',
-        { method: 'POST', body: LoginWidgetPayload },
+        WIDGET_PATH,
+        { method: 'POST', body: z.unknown().optional() },
         async (ctx) => {
+          // повтор гейта onRequest для вызовов через auth.api без HTTP
+          if (!widgetEnabled()) throw new APIError('NOT_FOUND', WIDGET_DISABLED)
           const settings = requireSettings(opts)
-          if (!settings.loginWidget.enabled) {
-            throw new APIError('NOT_FOUND', {
-              message: 'Вход через Telegram на сайте не включён',
-              code: 'telegram.login_widget_disabled',
-            })
-          }
           const botToken = requireToken(opts)
           let result: Awaited<ReturnType<typeof authenticateViaLoginWidget>>
           try {

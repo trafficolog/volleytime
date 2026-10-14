@@ -1,6 +1,6 @@
 import { createHash, createHmac } from 'node:crypto'
 
-import { closeDb, db, users } from '@volley-time/db'
+import { accounts, and, closeDb, db, eq, users } from '@volley-time/db'
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { auth } from '../config'
@@ -36,6 +36,22 @@ function signWidget(tgId: number, token = BOT_TOKEN, ageSeconds = 0) {
     .join('\n')
   const secret = createHash('sha256').update(token).digest()
   return { ...fields, hash: createHmac('sha256', secret).update(dcs).digest('hex') }
+}
+
+function postRaw(path: string, rawBody: string) {
+  return auth.handler(
+    new Request(`http://localhost:3000/api/auth${path}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: 'http://localhost:3000' },
+      body: rawBody,
+    }),
+  )
+}
+
+/** Вернуть переменную окружения как была: `process.env.X = undefined` записал бы строку "undefined". */
+function restoreEnv(key: string, value: string | undefined) {
+  if (value === undefined) delete process.env[key]
+  else process.env[key] = value
 }
 
 function post(path: string, body: unknown, cookie?: string) {
@@ -76,7 +92,7 @@ describe('telegramPlugin — single better-auth session (integration, 3.9.4)', (
     await db.delete(users)
   })
   afterEach(() => {
-    process.env.TELEGRAM_BOT_TOKEN = orig
+    restoreEnv('TELEGRAM_BOT_TOKEN', orig)
   })
 
   it('valid initData → better-auth session visible via get-session', async () => {
@@ -103,8 +119,12 @@ describe('telegramPlugin — single better-auth session (integration, 3.9.4)', (
 
   it('SECURITY: bot token not configured → 500, never 200', async () => {
     process.env.TELEGRAM_BOT_TOKEN = ''
-    const res = await post('/sign-in/telegram', { initData: signInitData(7003, '') })
-    expect(res.status).toBe(500)
+    try {
+      const res = await post('/sign-in/telegram', { initData: signInitData(7003, '') })
+      expect(res.status).toBe(500)
+    } finally {
+      process.env.TELEGRAM_BOT_TOKEN = BOT_TOKEN
+    }
   })
 
   it('link/telegram: 401 without session, 200 for email user, 409 on conflict (3.9.8)', async () => {
@@ -229,8 +249,89 @@ describe('telegramPlugin — single better-auth session (integration, 3.9.4)', (
 
     it('SECURITY: bot token not configured → 500, never 200', async () => {
       process.env.TELEGRAM_BOT_TOKEN = ''
-      const res = await post('/sign-in/telegram-widget', signWidget(7309, ''))
-      expect(res.status).toBe(500)
+      try {
+        const res = await post('/sign-in/telegram-widget', signWidget(7309, ''))
+        expect(res.status).toBe(500)
+      } finally {
+        process.env.TELEGRAM_BOT_TOKEN = BOT_TOKEN
+      }
+    })
+  })
+
+  describe('Login Widget switched off: 404 for every request (19.3.1 review)', () => {
+    const keys = [
+      'TELEGRAM_LOGIN_WIDGET_ENABLED',
+      'TELEGRAM_LOGIN_WIDGET_MAX_AGE_SECONDS',
+      'TELEGRAM_INIT_DATA_MAX_AGE_SECONDS',
+    ] as const
+    const saved = Object.fromEntries(keys.map((k) => [k, process.env[k]]))
+    beforeEach(() => {
+      for (const k of keys) delete process.env[k]
+    })
+    afterEach(() => {
+      for (const k of keys) restoreEnv(k, saved[k])
+    })
+
+    it.each([
+      ['empty object', '{}'],
+      ['array', '[1,2]'],
+      ['null', 'null'],
+      ['string', '"garbage"'],
+      ['not JSON', 'garbage{'],
+      ['partial payload', '{"id":"x"}'],
+    ])('%s body → 404, no session, no user', async (_label, raw) => {
+      const res = await postRaw('/sign-in/telegram-widget', raw)
+      expect(res.status).toBe(404)
+      expect(cookieOf(res)).not.toContain('session_token')
+      expect(await db.query.users.findFirst()).toBeUndefined()
+    })
+
+    it.each([
+      ['invalid widget max age', 'TELEGRAM_LOGIN_WIDGET_MAX_AGE_SECONDS', 'forever'],
+      ['invalid initData max age', 'TELEGRAM_INIT_DATA_MAX_AGE_SECONDS', 'x'],
+      ['invalid flag value', 'TELEGRAM_LOGIN_WIDGET_ENABLED', 'yes'],
+      ['missing bot token', 'TELEGRAM_BOT_TOKEN', ''],
+    ])('%s → still 404 before any config error', async (_label, key, value) => {
+      process.env[key] = value
+      const res = await post('/sign-in/telegram-widget', signWidget(7401))
+      expect(res.status).toBe(404)
+      expect(cookieOf(res)).not.toContain('session_token')
+    })
+  })
+
+  describe('first sign-in race for a new Telegram identity (19.3.1 review)', () => {
+    const origFlag = process.env.TELEGRAM_LOGIN_WIDGET_ENABLED
+    beforeEach(() => {
+      process.env.TELEGRAM_LOGIN_WIDGET_ENABLED = 'true'
+    })
+    afterEach(() => restoreEnv('TELEGRAM_LOGIN_WIDGET_ENABLED', origFlag))
+
+    it('parallel Mini App and widget sign-ins → both succeed, one user, one account', async () => {
+      const ids = Array.from({ length: 8 }, (_, i) => 7500 + i)
+      const results = await Promise.all(
+        ids.flatMap((id) => [
+          post('/sign-in/telegram', { initData: signInitData(id) }),
+          post('/sign-in/telegram-widget', signWidget(id)),
+          post('/sign-in/telegram', { initData: signInitData(id) }),
+        ]),
+      )
+      expect(results.map((r) => r.status)).toEqual(results.map(() => 200))
+      const bodies = (await Promise.all(results.map((r) => r.json()))) as { userId: number }[]
+      for (let i = 0; i < ids.length; i++) {
+        const group = bodies.slice(i * 3, i * 3 + 3).map((b) => b.userId)
+        expect(new Set(group).size).toBe(1)
+        const rows = await db
+          .select()
+          .from(users)
+          .where(eq(users.telegramUserId, BigInt(ids[i]!)))
+        expect(rows).toHaveLength(1)
+        const acc = await db
+          .select()
+          .from(accounts)
+          .where(and(eq(accounts.providerId, 'telegram'), eq(accounts.accountId, String(ids[i]))))
+        expect(acc).toHaveLength(1)
+        expect(acc[0]!.userId).toBe(rows[0]!.id)
+      }
     })
   })
 
