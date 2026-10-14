@@ -2,11 +2,11 @@
 id: '20.5.4'
 phase: '20'
 epic: '20.5'
-status: todo
+status: in_progress
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-10-14
+status_note: 'Реализовано, ревью ожидается: таблица W-03, календарь-месяц, лист выбора дня, фильтры сохраняются при смене вида. Колонка «Оплаты», поиск, «Фильтры», экспорт и «Показано N из M» не входят (нет данных списка / вне карточки). Отчёт: docs/operations/qa/2026-10-14-20-5-4-cabinet-events-visual.md'
 ref_id: 'W-03'
 complexity: M
 impl_model: claude-sonnet-5-5

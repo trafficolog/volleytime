@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import type { EventListItem } from '~/components/EventCard.vue'
-import { appendDesktopEventPage } from '~/utils/desktop-calendar'
+import {
+  appendDesktopEventPage,
+  eventFilterQuery,
+  type EventFilterKey,
+} from '~/utils/desktop-calendar'
 
 definePageMeta({ layout: 'desktop-org', middleware: ['auth'] })
 
@@ -8,8 +12,18 @@ const route = useRoute()
 const orgId = computed(() => Number(route.params.orgId))
 const base = computed(() => `/app/orgs/${orgId.value}`)
 const { tz } = useOrgTimezone(orgId)
-const filter = ref<'upcoming' | 'past' | 'all'>('upcoming')
+const filter = ref<EventFilterKey>('all')
 const view = ref<'list' | 'calendar'>('list')
+const viewOptions = [
+  { value: 'list', label: 'Список' },
+  { value: 'calendar', label: 'Календарь' },
+]
+const filterOptions = [
+  { value: 'all', label: 'Все' },
+  { value: 'open', label: 'Открыта запись' },
+  { value: 'past', label: 'Прошедшие' },
+  { value: 'cancelled', label: 'Отменённые' },
+]
 const events = ref<EventListItem[]>([])
 const loading = ref(false)
 const error = ref('')
@@ -26,7 +40,7 @@ async function loadPage(offset: number) {
   try {
     const result = await $fetch<{ events: EventListItem[] }>(
       `/api/organizations/${targetOrgId}/events`,
-      { query: { filter: targetFilter, limit: 50, offset } },
+      { query: { ...eventFilterQuery(targetFilter), limit: 50, offset } },
     )
     if (token !== generation || orgId.value !== targetOrgId || filter.value !== targetFilter) return
     events.value = appendDesktopEventPage(events.value, result.events, offset)
@@ -38,6 +52,14 @@ async function loadPage(offset: number) {
     if (token === generation) loading.value = false
   }
 }
+
+const emptyTitle = computed(() =>
+  filter.value === 'past'
+    ? 'Прошедших событий нет'
+    : filter.value === 'cancelled'
+      ? 'Отменённых событий нет'
+      : 'Событий пока нет',
+)
 
 watch(
   [orgId, filter],
@@ -60,48 +82,17 @@ onBeforeUnmount(() => generation++)
       <div>
         <p class="vt-cap">Управление группой</p>
         <h1 tabindex="-1">События</h1>
-        <p class="text-vt-mute-2">Список и календарь используют одну загруженную выборку.</p>
+        <p class="text-vt-mute-2">Все тренировки и игры организации</p>
       </div>
-      <NuxtLink :to="`${base}/events/new`" class="vt-btn vt-btn--primary">
-        <VtIcon name="plus" :size="16" /> Новое событие
-      </NuxtLink>
+      <div class="vt-desktop-events__filters">
+        <VtSegment v-model="view" label="Вид событий" :options="viewOptions" />
+        <NuxtLink :to="`${base}/events/new`" class="vt-btn vt-btn--primary vt-btn--sm">
+          <VtIcon name="plus" :size="14" /> Создать
+        </NuxtLink>
+      </div>
     </header>
 
-    <div class="vt-desktop-events__controls">
-      <div class="vt-desktop-events__filters" aria-label="Период событий">
-        <button
-          v-for="option in [
-            { key: 'upcoming', label: 'Предстоящие' },
-            { key: 'past', label: 'Прошедшие' },
-            { key: 'all', label: 'Все' },
-          ] as const"
-          :key="option.key"
-          type="button"
-          class="vt-btn vt-btn--sm"
-          :class="filter === option.key ? 'vt-btn--ink' : 'vt-btn--ghost'"
-          :aria-pressed="filter === option.key"
-          @click="filter = option.key"
-        >
-          {{ option.label }}
-        </button>
-      </div>
-      <div class="vt-desktop-events__filters" aria-label="Вид событий">
-        <button
-          v-for="option in [
-            { key: 'list', label: 'Список' },
-            { key: 'calendar', label: 'Календарь' },
-          ] as const"
-          :key="option.key"
-          type="button"
-          class="vt-btn vt-btn--sm"
-          :class="view === option.key ? 'vt-btn--ink' : 'vt-btn--ghost'"
-          :aria-pressed="view === option.key"
-          @click="view = option.key"
-        >
-          {{ option.label }}
-        </button>
-      </div>
-    </div>
+    <VtSegment v-model="filter" label="Фильтр событий" variant="chips" :options="filterOptions" />
 
     <SkeletonList v-if="loading && events.length === 0" :count="3" />
     <ErrorState v-else-if="error && events.length === 0" :message="error" @retry="loadPage(0)" />
@@ -109,22 +100,19 @@ onBeforeUnmount(() => generation++)
       <p class="text-vt-mute-2" role="status">
         Загружено: {{ events.length }}{{ hasMore ? ' · доступны ещё' : '' }}.
       </p>
-      <EmptyState
-        v-if="events.length === 0"
-        icon="calendar"
-        :title="filter === 'past' ? 'Прошедших событий нет' : 'Событий пока нет'"
-      >
+      <EmptyState v-if="events.length === 0" icon="calendar" :title="emptyTitle">
         <template #action>
           <NuxtLink :to="`${base}/events/new`" class="vt-btn vt-btn--primary"
             >Создать событие</NuxtLink
           >
         </template>
       </EmptyState>
-      <ul v-else-if="view === 'list'" class="vt-desktop-events__list">
-        <li v-for="event in events" :key="event.id">
-          <EventCard :event="event" :tz="tz" :to="`${base}/events/${event.id}`" />
-        </li>
-      </ul>
+      <DesktopEventTable
+        v-else-if="view === 'list'"
+        :events="events"
+        :time-zone="tz"
+        :base="base"
+      />
       <DesktopEventCalendar v-else :events="events" :time-zone="tz" :base="base" />
       <ErrorState v-if="error && events.length" :message="error" @retry="loadPage(events.length)" />
       <button
