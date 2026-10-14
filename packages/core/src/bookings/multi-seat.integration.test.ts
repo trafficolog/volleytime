@@ -597,6 +597,52 @@ describe('multi-seat booking (20.1.2, PostgreSQL)', () => {
     })
   })
 
+  it('reject of a subscription booking whose seats are all pending cash returns no session (hardening)', async () => {
+    const other = await makeEvent()
+    const ev = await makeEvent()
+    const p = await player()
+    const plan = await planService.create(owner(), {
+      organizationId: orgId,
+      name: 'Пять занятий',
+      totalSessions: 5,
+    })
+    const sub = await subscriptionService.createFromPlan({ userId: p }, orgId, plan.id, {
+      autoActivate: true,
+    })
+    await bookingService.book({ userId: p }, orgId, other.id, { method: 'subscription', seats: 4 })
+    // состояние собрано напрямую: запись на абонементе, все места которой — неоплаченные наличные
+    const [b] = await db
+      .insert(bookings)
+      .values({
+        eventId: ev.id,
+        userId: p,
+        organizationId: orgId,
+        status: 'pending_payment',
+        method: 'subscription',
+        subscriptionId: sub.id,
+        seats: 2,
+      })
+      .returning()
+    const cash = await db
+      .insert(payments)
+      .values(
+        [0, 1].map(() => ({
+          organizationId: orgId,
+          userId: p,
+          bookingId: b!.id,
+          bookingIncarnation: b!.incarnation,
+          amount: 1500,
+          method: 'cash' as const,
+          status: 'pending' as const,
+        })),
+      )
+      .returning()
+    await paymentService.cancel(owner(), cash[0]!.id, { orgId })
+    expect(await reload(b!.id)).toMatchObject({ status: 'cancelled' })
+    expect((await livePayments(b!.id)).map((x) => x.status)).toEqual(['cancelled', 'cancelled'])
+    expect((await subscriptionService.getById({ userId: p }, sub.id)).usedSessions).toBe(4)
+  })
+
   it('adding unpaid seats keeps the confirmation time of the booking', async () => {
     const ev = await makeEvent()
     const p = await player()
