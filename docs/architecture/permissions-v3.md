@@ -58,6 +58,7 @@ Mini App и Login Widget сходятся в одну Telegram-личность:
 | Участники        | `GET /members`                                                   | member  | статусы кроме `active` — manager                            |
 |                  | `POST /members/{id}/approve\|reject\|block\|unblock`             | manager | organizer — только `player`/`assistant`; не себя и не owner |
 |                  | `PATCH /members/{id}` (роль)                                     | owner   | owner не назначается                                        |
+|                  | `PATCH /members/{id}/level` (уровень В1–В4+)                     | manager | только участник своей группы; чужой id — 404                |
 |                  | `POST /members/leave`                                            | tenant  | owner не может выйти                                        |
 | Приглашения      | `GET /invites`, `POST /invites/{id}/revoke`                      | manager |                                                             |
 |                  | `POST /invites`                                                  | manager | роль `organizer`/`assistant` — только owner                 |

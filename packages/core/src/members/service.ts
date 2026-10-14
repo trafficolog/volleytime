@@ -18,12 +18,21 @@ import {
   CannotChangeOwnerRoleError,
   CannotChangeOwnRoleError,
   MemberInvalidTransitionError,
+  MemberLevelNotAssignableError,
   MemberNotFoundError,
   OwnerCannotLeaveError,
 } from './errors'
-import { AddMemberInput, ChangeMemberRoleInput, type AddMemberInput as AddInput } from './schemas'
+import {
+  AddMemberInput,
+  ChangeMemberRoleInput,
+  SetMemberLevelInput,
+  type AddMemberInput as AddInput,
+} from './schemas'
 
 const snapshot = (m: OrganizationMember) => ({ role: m.role, status: m.status })
+
+/** Уровень можно назначить заявителю, активному участнику и гостю. */
+const LEVEL_ASSIGNABLE_STATUSES: OrganizationMember['status'][] = ['pending', 'active', 'guest']
 
 /** Участник с публичными полями пользователя (без email/phone/telegram id). Task 4.9.13. */
 export interface MemberWithUser {
@@ -31,6 +40,8 @@ export interface MemberWithUser {
   organizationId: number
   role: OrganizationMember['role']
   status: OrganizationMember['status']
+  /** Уровень игрока в группе (19.2.3); null — не назначен. */
+  level: OrganizationMember['level']
   joinedAt: Date | null
   createdAt: Date
   user: { id: number; name: string | null; telegramUsername: string | null; image: string | null }
@@ -110,6 +121,48 @@ export const memberService = {
         entityId: m.id,
         oldValue: { role: m.role },
         newValue: { role: validRole },
+      })
+      return updated!
+    })
+  },
+
+  /**
+   * Назначить или снять (null) уровень игрока в группе (19.2.3). Уровень принадлежит участнику
+   * группы, а не пользователю. Уровень не назначается заблокированным, вышедшим и отклонённым.
+   * Права актора (canManageContent) проверяет API-слой; участник чужой группы — «не найден».
+   * Без изменения значения записи в audit нет.
+   */
+  async setLevel(
+    ctx: ServiceContext,
+    memberId: number,
+    input: SetMemberLevelInput,
+  ): Promise<OrganizationMember> {
+    const { level } = SetMemberLevelInput.parse(input)
+    return inTransaction(ctx, async (tx) => {
+      const [m] = await getDb(tx)
+        .select()
+        .from(organizationMembers)
+        .where(eq(organizationMembers.id, memberId))
+        .for('update')
+      if (!m || (ctx.organization && m.organizationId !== ctx.organization.id)) {
+        throw new MemberNotFoundError(memberId)
+      }
+      if (!LEVEL_ASSIGNABLE_STATUSES.includes(m.status)) {
+        throw new MemberLevelNotAssignableError(m.status)
+      }
+      if (m.level === level) return m
+      const [updated] = await getDb(tx)
+        .update(organizationMembers)
+        .set({ level, updatedAt: new Date() })
+        .where(eq(organizationMembers.id, memberId))
+        .returning()
+      await auditService.record(tx, {
+        organizationId: m.organizationId,
+        action: AUDIT_ACTIONS.MEMBER_LEVEL_CHANGED,
+        entityType: 'member',
+        entityId: m.id,
+        oldValue: { level: m.level },
+        newValue: { level },
       })
       return updated!
     })
@@ -221,6 +274,7 @@ export const memberService = {
         organizationId: organizationMembers.organizationId,
         role: organizationMembers.role,
         status: organizationMembers.status,
+        level: organizationMembers.level,
         joinedAt: organizationMembers.joinedAt,
         createdAt: organizationMembers.createdAt,
         userId: users.id,

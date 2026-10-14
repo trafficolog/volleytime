@@ -31,6 +31,7 @@ const CODE_STATUS: Record<string, number> = {
   'member.cannot_change_own_role': 422,
   'member.blocked': 403,
   'member.invalid_transition': 409,
+  'member.level_not_assignable': 409,
   // invite
   'invite.not_found': 404,
   'invite.revoked': 410,

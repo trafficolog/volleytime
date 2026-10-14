@@ -2,11 +2,11 @@
 id: '19.2.3'
 phase: '19'
 epic: '19.2'
-status: todo
+status: in_progress
 release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-12
-status_note: ''
+status_note: 'Implemented in PR #117; review pending. IDOR table and permissions-v3 updated.'
 ref_id: 'P-10'
 complexity: M
 impl_model: claude-sonnet-5-5

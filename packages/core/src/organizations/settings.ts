@@ -1,9 +1,10 @@
-import { eq, organizations, type Organization } from '@volley-time/db'
+import { eq, organizations, type Organization, type PlayerLevelCode } from '@volley-time/db'
 import { z } from 'zod'
 
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
 import { isSplitPricingEnabled } from '../events/pricing-capability'
+import { GroupLevelsInput } from '../levels/schemas'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
 
 import {
@@ -42,6 +43,7 @@ export const UpdateOrganizationSettingsInput = z
     seoIndex: z.boolean(),
     city: optionalText,
     district: optionalText,
+    levels: GroupLevelsInput,
   })
   .partial()
   .strict()
@@ -58,6 +60,8 @@ export interface OrganizationSettings {
   seoIndex: boolean
   city: string | null
   district: string | null
+  /** Уровни группы (19.2.3) в порядке шкалы В1–В4+; пустой список — не указаны. */
+  levels: PlayerLevelCode[]
 }
 
 const SETTING_KEYS = [
@@ -70,7 +74,10 @@ const SETTING_KEYS = [
   'seoIndex',
   'city',
   'district',
+  'levels',
 ] as const satisfies readonly (keyof OrganizationSettings & keyof Organization)[]
+
+const sameValue = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 
 export function pickSettings(org: Organization): OrganizationSettings {
   return {
@@ -83,6 +90,7 @@ export function pickSettings(org: Organization): OrganizationSettings {
     seoIndex: org.seoIndex,
     city: org.city,
     district: org.district,
+    levels: org.levels,
   }
 }
 
@@ -128,7 +136,7 @@ export const organizationSettingsService = {
 
       const before = pickSettings(existing)
       const changed = SETTING_KEYS.filter(
-        (key) => data[key] !== undefined && data[key] !== before[key],
+        (key) => data[key] !== undefined && !sameValue(data[key], before[key]),
       )
       if (changed.length === 0) return before
 

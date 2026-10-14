@@ -162,6 +162,13 @@
       "when": 1791909787180,
       "tag": "0022_group_cancellation_default",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791911721297,
+      "tag": "0023_player_levels",
+      "breakpoints": true
     }
   ]
 }

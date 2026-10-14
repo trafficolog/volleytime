@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { LevelCode } from '../levels/schemas'
+
 const pricingFields = {
   priceMode: z.enum(['fixed', 'split']).default('fixed'),
   price: z.number().int().min(0).max(2147483647).default(0),
@@ -40,6 +42,8 @@ export const CreateEventInput = z
     // Политика отмены принадлежит группе, событие хранит снимок (D-02, 19.2.2). Поле принимается
     // только для совместимости со старой формой события и игнорируется; уйдёт вместе с 20.5.5.
     cancellationDeadlineHours: z.number().int().min(0).max(720).nullable().optional(),
+    // требуемый уровень события (19.2.3); не указан — для любого
+    level: LevelCode.nullable().optional(),
     status: z.enum(['draft', 'published']).default('published'),
   })
   .strict()
@@ -68,6 +72,7 @@ export const UpdateEventInput = z
     targetAmount: pricingFields.targetAmount.removeDefault().optional(),
     // игнорируется: политика отмены редактируется только в настройках группы (D-02)
     cancellationDeadlineHours: z.number().int().min(0).max(720).nullable().optional(),
+    level: LevelCode.nullable().optional(),
     status: z.enum(['draft', 'published', 'closed', 'finished']).optional(),
   })
   .strict()

@@ -1,5 +1,6 @@
 export { type ServiceContext, getDb, inTransaction } from './shared/context'
 export * from './organizations'
+export * from './levels'
 export * from './members'
 export * from './permissions'
 export * from './invites'

@@ -1,5 +1,11 @@
 import { z } from 'zod'
 
+import { LevelCode } from '../levels/schemas'
+
+/** Уровень игрока в группе (19.2.3); null снимает уровень. Неизвестные ключи запрещены. */
+export const SetMemberLevelInput = z.object({ level: LevelCode.nullable() }).strict()
+export type SetMemberLevelInput = z.infer<typeof SetMemberLevelInput>
+
 export const AddMemberInput = z.object({
   organizationId: z.number().int().positive(),
   userId: z.number().int().positive(),
