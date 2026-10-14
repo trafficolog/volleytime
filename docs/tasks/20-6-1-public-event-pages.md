@@ -35,6 +35,9 @@ tags: [reference-v3]
 - **Как есть (main `e68acf2`):** Публичной страницы события нет (`organizations.publicPageEnabled` без маршрута).
 - **Дельта до референса:** `GET /public/events/{slug}` без авторизации, три режима (fixed / split-прогноз / закрыто), CTA «Записаться через Telegram».
 - Модель: реализация `claude-sonnet-5-5`, ревью `claude-sonnet-5-5` (независимое ревью); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
+- **Перенесено из 20.1.1 ([решение владельца 2026-10-14](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-01)):** визуальная сверка цены по `5-public` (вкладки fixed / split / split-closed); цена — только из `quoteEventPrice` (тот же расчёт, что `GET …/events/{id}/price`, 20.1.1).
+  - Ответ цены не сигнализирует полный состав: `seatCount.current` ограничен вместимостью — «мест нет» показывать по занятости события, а не по цене (ревью 20.1.1, Minor).
+  - Для отменённого события split эндпоинт по-прежнему отдаёт прогноз — интерфейс цену отменённого события не показывает (ревью 20.1.1, Minor).
 
 **Общий функционал с другими интерфейсами:**
 
@@ -51,6 +54,8 @@ tags: [reference-v3]
 
 - ✅ Цена совпадает с P-03
 - ✅ Отчёт визуальной сверки по экранам из `reference.screens` без открытых расхождений Critical/Important
+- ✅ Цена и прогноз берутся из `quoteEventPrice` (тот же расчёт, что `GET …/events/{id}/price`, 20.1.1; публичный эндпоинт без авторизации вызывает функцию напрямую), а не из `readEventPricing`/`previewSplitAmount`; тест доказывает совпадение показанной цены с ответом эндпоинта для тех же мест (перенесено из 20.1.1, [решение владельца 2026-10-14](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-01))
+- ✅ Визуальная сверка включает блок цены по `5-public` (fixed, split, split-closed) (перенесено из 20.1.1)
 - ✅ Пять gates CODING_STANDARDS на tested revision; ревью `claude-sonnet-5-5` без Critical/Important
 
 ## Подсказки

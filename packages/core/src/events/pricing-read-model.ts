@@ -1,11 +1,24 @@
-import { and, bookings, eq, events, organizationMembers, payments, sql } from '@volley-time/db'
+import {
+  and,
+  bookings,
+  eq,
+  events,
+  inArray,
+  organizationMembers,
+  organizations,
+  payments,
+  sql,
+} from '@volley-time/db'
 import {
   previewSplitAmount,
+  quoteEventPrice,
+  type EventPriceQuote,
   type EventPricingView,
   type PricingFinancials,
   type PricingPermissions,
 } from '@volley-time/shared'
 
+import { SeatsOverLimitError } from '../bookings/errors'
 import { requireCanManageContent } from '../permissions/policies'
 import { getDb, type ServiceContext } from '../shared/context'
 
@@ -62,6 +75,78 @@ export async function readEventPricing(
     ...common,
     ...previewSplitAmount(event.targetAmount!, counts?.taken ?? 0, event.capacity),
   }
+}
+
+/** Статусы записи, места которых входят в состав (как `readEventPricing` и `settle`). */
+const ACTIVE_STATUSES = ['confirmed', 'pending_payment', 'attended', 'no_show'] as const
+
+export interface EventPriceQuoteView extends EventPriceQuote {
+  currency: string
+}
+
+/**
+ * Цена места для `seats` мест игрока (20.1.1, P-03): единый расчёт `quoteEventPrice` для Mini App,
+ * кабинета и публичной страницы. Чтение без блокировок: до закрытия split — прогноз по текущему
+ * составу, после фиксации — снимок `pricing_participant_count` и доля игрока, которые не меняются.
+ * До 20.1.2 запись держит одно место; 20.1.2 заменит подсчёт на SUM(seats).
+ */
+export async function readEventPriceQuote(
+  ctx: ServiceContext,
+  input: { organizationId: number; eventId: number; seats?: number; includeDrafts: boolean },
+): Promise<EventPriceQuoteView> {
+  const db = getDb(ctx)
+  const event = await db.query.events.findFirst({
+    where: and(eq(events.id, input.eventId), eq(events.organizationId, input.organizationId)),
+  })
+  if (!event || (event.status === 'draft' && !input.includeDrafts))
+    throw new EventNotFoundError(input.eventId)
+  const org = await db.query.organizations.findFirst({
+    where: eq(organizations.id, input.organizationId),
+    columns: { subscriptionsEnabled: true, maxSeatsPerBooking: true },
+  })
+  if (!org) throw new EventNotFoundError(input.eventId)
+  const [counts] = await db
+    .select({
+      taken: sql<number>`count(*) FILTER (WHERE ${inArray(bookings.status, [...ACTIVE_STATUSES])})::int`,
+    })
+    .from(bookings)
+    .where(eq(bookings.eventId, event.id))
+  const mine = await db.query.bookings.findFirst({
+    where: and(
+      eq(bookings.eventId, event.id),
+      eq(bookings.userId, ctx.userId),
+      inArray(bookings.status, [...ACTIVE_STATUSES]),
+    ),
+    columns: { allocatedAmount: true },
+  })
+  const mySeats = mine ? 1 : 0
+  const seats = input.seats ?? (mySeats || 1)
+  if (seats > org.maxSeatsPerBooking || seats > event.capacity) throw new SeatsOverLimitError()
+  const quote =
+    event.priceMode === 'fixed'
+      ? quoteEventPrice({
+          mode: 'fixed',
+          price: event.price,
+          seats,
+          subscriptionsEnabled: org.subscriptionsEnabled,
+        })
+      : quoteEventPrice({
+          mode: 'split',
+          targetAmount: event.targetAmount!,
+          capacity: event.capacity,
+          // после уменьшения вместимости состав не может превышать её в формуле прогноза
+          takenSeats: Math.min(counts?.taken ?? 0, event.capacity),
+          mySeats,
+          seats,
+          settled:
+            event.pricingSettledAt !== null
+              ? {
+                  participantCount: event.pricingParticipantCount!,
+                  myAllocatedAmount: mine?.allocatedAmount ?? null,
+                }
+              : null,
+        })
+  return { ...quote, currency: event.currency }
 }
 
 async function managerEvent(ctx: ServiceContext, eventId: number) {

@@ -37,6 +37,10 @@ tags: [reference-v3]
 - Решения владельца (2026-10-12): [D-03](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-03) — место из очереди предлагается первому с TTL 30 мин через планировщик, затем следующему; без планировщика — прежнее автопродвижение.
 - Решения владельца (2026-10-13): [D-14](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-14) — при отмене игроком оплаченные места автоматически не возвращаются (R0.7 6.8.6); платёж остаётся `succeeded`, возврат — действие организатора.
 - Модель: реализация `claude-opus-5-5`, ревью `claude-opus-5-5` (ревью Opus + тесты граничных случаев и гонок); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
+- **Из ревью 20.1.1 (Minor):**
+  - `readEventPriceQuote` (`packages/core/src/events/pricing-read-model.ts`) — перевести подсчёт занятых мест на `SUM(seats)` и места игрока на `bookings.seats`.
+  - `eventPricingService.settle` — передавать `seats` записи в `allocateSplitAmount` (деление по единицам-местам уже реализовано), `pricing_participant_count` = сумма мест.
+  - Не сохранять `total` fixed (цена × места — до 10 × максимум int4) в колонку `integer`: сумма может превысить int4; платёж — по месту (ADR).
 
 **Общий функционал с другими интерфейсами:**
 
