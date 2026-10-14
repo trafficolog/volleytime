@@ -76,6 +76,8 @@ watch(
     if (!open.value || !dialogRef.value) return
     for (const child of document.body.children) {
       if (!(child instanceof HTMLElement) || child === dialogRef.value) continue
+      // Live-регион тостов остаётся доступным скринридеру поверх листа.
+      if (child.hasAttribute('data-vt-toast-host')) continue
       previousInert.set(child, child.inert)
       child.inert = true
     }

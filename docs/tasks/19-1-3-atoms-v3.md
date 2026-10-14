@@ -2,11 +2,11 @@
 id: '19.1.3'
 phase: '19'
 epic: '19.1'
-status: todo
+status: done
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-10-14
+status_note: 'PR #110 (ddad219) и follow-up: компоненты, dev-витрина /dev/atoms, визуальная сверка в docs/operations/qa/2026-10-13-wave1-visual.md (раздел 19.1.3). Открытый Minor: проп иконки у VtSelect — добавить в карточке первого экрана, которому он нужен.'
 ref_id: ''
 complexity: M
 impl_model: claude-sonnet-5-5

@@ -130,4 +130,19 @@ describe('VtSheet keyboard interaction', () => {
     fixture.wrapper.unmount()
     expect(appRoot.inert).toBe(false)
   })
+
+  it('keeps the toast live region out of the inert set while open', async () => {
+    const toastHost = document.createElement('div')
+    toastHost.setAttribute('data-vt-toast-host', '')
+    document.body.appendChild(toastHost)
+    const fixture = renderSheet()
+    document.querySelector<HTMLButtonElement>('#trigger')!.click()
+    await nextTick()
+    await nextTick()
+
+    expect(toastHost.inert).toBe(false)
+    expect((fixture.wrapper.element.parentElement as HTMLElement).inert).toBe(true)
+    fixture.wrapper.unmount()
+    toastHost.remove()
+  })
 })
