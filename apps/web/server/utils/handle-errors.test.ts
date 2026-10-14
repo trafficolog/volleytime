@@ -29,6 +29,13 @@ describe('handleServiceError (4.9.11)', async () => {
     expect(err.data.issues).toEqual([{ path: 'name', message: expect.any(String) }])
   })
 
+  it('event balance shortage → 409 event_balance.insufficient (20.2.1)', async () => {
+    const { InsufficientEventBalanceError } = await import('@volley-time/core')
+    const err = catchErr(new InsufficientEventBalanceError())
+    expect(err.statusCode).toBe(409)
+    expect(err.data.code).toBe('event_balance.insufficient')
+  })
+
   it('unknown error (SQL) → 500 without details', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const err = catchErr(new Error('select * from "organization_members" where status = foo'))

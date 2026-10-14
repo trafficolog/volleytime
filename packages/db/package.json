@@ -10,7 +10,8 @@
     "db:studio": "drizzle-kit studio",
     "test": "vitest run",
     "db:rollback": "tsx src/rollback.ts",
-    "db:seed:demo": "tsx src/seed-demo.ts"
+    "db:seed:demo": "tsx src/seed-demo.ts",
+    "db:event-balance": "tsx src/event-balance-operator.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",

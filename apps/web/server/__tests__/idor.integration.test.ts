@@ -14,9 +14,12 @@ import {
   closeDb,
   db,
   eq,
+  eventBalanceEntries,
+  eventBalancePurchaseRequests,
   events,
   inviteLinks,
   ledgerEntries,
+  organizationEventBalances,
   organizationMembers,
   organizations,
   payments,
@@ -54,6 +57,12 @@ const ROUTES: OrgRouteTable = {
   },
   'GET /api/organizations/:orgId/bookings/my': { access: 'member' },
   'GET /api/organizations/:orgId/dashboard': { access: 'member' },
+  'GET /api/organizations/:orgId/event-balance': { access: 'manager' },
+  'GET /api/organizations/:orgId/event-balance/entries': { access: 'manager' },
+  'POST /api/organizations/:orgId/event-balance/purchase-requests': {
+    access: 'owner',
+    body: () => ({ packageCode: 'events_10' }),
+  },
   'POST /api/organizations/:orgId/events/:eventId/attendance': {
     access: 'manager',
     body: (ids) => ({ marks: [{ bookingId: ids.bookingId, attended: true }] }),
@@ -250,6 +259,15 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
       db.select().from(subscriptions).where(eq(subscriptions.organizationId, orgId)),
       db.select().from(inviteLinks).where(eq(inviteLinks.organizationId, orgId)),
       db.select().from(ledgerEntries).where(eq(ledgerEntries.organizationId, orgId)),
+      db
+        .select()
+        .from(organizationEventBalances)
+        .where(eq(organizationEventBalances.organizationId, orgId)),
+      db.select().from(eventBalanceEntries).where(eq(eventBalanceEntries.organizationId, orgId)),
+      db
+        .select()
+        .from(eventBalancePurchaseRequests)
+        .where(eq(eventBalancePurchaseRequests.organizationId, orgId)),
       db.select().from(auditLog).orderBy(asc(auditLog.id)),
       db.select().from(users).orderBy(asc(users.id)),
     ])

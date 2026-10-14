@@ -17,7 +17,15 @@ import { and, eq, sql } from 'drizzle-orm'
 
 import type { DB, Transaction } from './client'
 import {
+  appendEventBalanceEntry,
+  EVENT_BALANCE_DEMO_QUOTA,
+  hasEventBalanceEntryForEvent,
+  hasStartingGrant,
+} from './event-balance'
+import {
   bookings,
+  eventBalanceEntries,
+  eventBalancePurchaseRequests,
   events,
   ledgerEntries,
   organizationMembers,
@@ -846,6 +854,97 @@ async function seedOrganization(tx: Transaction, spec: DemoOrganization): Promis
   }
 
   for (const event of spec.events) await ensureEvent(ctx, event, venueIds, subscriptionIds)
+  await ensureEventBalance(ctx)
+}
+
+const DEMO_BALANCE_TOP_UP = 40
+const DEMO_BALANCE_SOURCE = 'seed:demo'
+
+/**
+ * Баланс событий группы (20.2.1): demo-квота, пополнение, списание за каждое опубликованное событие,
+ * возврат за отменённое без активных записей (D-09, D-13) и одна заявка на покупку в ожидании.
+ * Все изменения — через appendEventBalanceEntry (проекция = сумма журнала). Идемпотентно: каждая
+ * операция проверяется по журналу перед записью.
+ */
+async function ensureEventBalance(ctx: Ctx): Promise<void> {
+  const { tx, org, owner } = ctx
+  if (!(await hasStartingGrant(tx, org.id))) {
+    await appendEventBalanceEntry(tx, {
+      organizationId: org.id,
+      delta: EVENT_BALANCE_DEMO_QUOTA,
+      reason: 'demo_grant',
+      actor: { kind: 'system', source: 'org-create' },
+      comment: `Demo-квота новой группы: ${EVENT_BALANCE_DEMO_QUOTA} событий`,
+    })
+  }
+  const [topUp] = await tx
+    .select({ id: eventBalanceEntries.id })
+    .from(eventBalanceEntries)
+    .where(
+      and(
+        eq(eventBalanceEntries.organizationId, org.id),
+        eq(eventBalanceEntries.reason, 'grant'),
+        eq(eventBalanceEntries.source, DEMO_BALANCE_SOURCE),
+      ),
+    )
+  if (!topUp) {
+    await appendEventBalanceEntry(tx, {
+      organizationId: org.id,
+      delta: DEMO_BALANCE_TOP_UP,
+      reason: 'grant',
+      actor: { kind: 'system', source: DEMO_BALANCE_SOURCE },
+      comment: 'Демо-данные: пополнение баланса',
+    })
+  }
+
+  const orgEvents = await tx
+    .select()
+    .from(events)
+    .where(eq(events.organizationId, org.id))
+    .orderBy(events.startsAt, events.id)
+  for (const event of orgEvents) {
+    if (event.status === 'draft' || (await hasEventBalanceEntryForEvent(tx, event.id, 'spend'))) {
+      continue
+    }
+    await appendEventBalanceEntry(tx, {
+      organizationId: org.id,
+      delta: -1,
+      reason: 'spend',
+      eventId: event.id,
+      actor: { kind: 'user', userId: owner.id },
+    })
+  }
+  for (const event of orgEvents.filter((e) => e.status === 'cancelled')) {
+    if (await hasEventBalanceEntryForEvent(tx, event.id, 'refund')) continue
+    const [activeBooking] = await tx
+      .select({ id: bookings.id })
+      .from(bookings)
+      .where(and(eq(bookings.eventId, event.id), sql`${bookings.status} <> 'cancelled'`))
+      .limit(1)
+    if (activeBooking) continue
+    await appendEventBalanceEntry(tx, {
+      organizationId: org.id,
+      delta: 1,
+      reason: 'refund',
+      eventId: event.id,
+      actor: { kind: 'user', userId: owner.id },
+    })
+  }
+
+  const [request] = await tx
+    .select({ id: eventBalancePurchaseRequests.id })
+    .from(eventBalancePurchaseRequests)
+    .where(eq(eventBalancePurchaseRequests.organizationId, org.id))
+    .limit(1)
+  if (!request) {
+    await tx.insert(eventBalancePurchaseRequests).values({
+      organizationId: org.id,
+      requestedByUserId: owner.id,
+      units: 30,
+      amount: 12_000,
+      currency: org.defaultCurrency,
+    })
+  }
 }
 
 export interface DemoSeedSummary {

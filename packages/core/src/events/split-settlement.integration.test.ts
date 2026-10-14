@@ -105,7 +105,9 @@ describe('atomic split settlement (PostgreSQL)', () => {
     })
     expect(allocated.map((b) => b.allocatedAmount)).toEqual([3334, 3333, 3333, null])
     expect(allocated[3]).toMatchObject({ id: waiting.id, paymentId: null, status: 'waitlisted' })
-    expect((await db.select().from(payments)).map((p) => p.amount)).toEqual([3334, 3333, 3333])
+    expect((await db.select().from(payments).orderBy(payments.id)).map((p) => p.amount)).toEqual([
+      3334, 3333, 3333,
+    ])
     expect(await db.select().from(ledgerEntries)).toEqual([])
     expect(notifications.filter((n) => n.type === 'payment_pending_organizer')).toEqual([])
     const auditCount = (await db.select().from(auditLog)).length

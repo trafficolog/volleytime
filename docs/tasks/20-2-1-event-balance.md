@@ -2,11 +2,11 @@
 id: '20.2.1'
 phase: '20'
 epic: '20.2'
-status: todo
+status: in_progress
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-10-14
+status_note: 'Реализовано, ждёт ревью Opus: миграция 0024_event_balance (журнал append-only + проекция, pilot_grant 48 существующим группам, откат), сервис event-balance (demo 5, списание при публикации за EVENT_BALANCE_ENFORCED, возврат D-09/D-13), GET/POST event-balance, операторская команда db:event-balance. Визуальная сверка неприменима (UI — 21.2.8). Находки ревью Opus исправлены, ждёт повторного ревью.'
 ref_id: 'P-08'
 complexity: XL
 impl_model: claude-opus-5-5
@@ -36,6 +36,7 @@ tags: [reference-v3]
 - **Дельта до референса:** Журнал операций (append-only), списание при публикации события (D-04), возврат при отмене по D-09, demo-квота (5 по handoff), порог «баланс заканчивается». Карточки 7.1–7.3 и 7.8.1 — входные материалы.
 - Поглощает карточки (входные материалы, читать перед реализацией): [7.1.1](7-1-1-credit-schema.md), [7.1.2](7-1-2-credit-service.md), [7.2.1](7-2-1-demo-grant.md), [7.3.1](7-3-1-credit-spend.md), [7.3.2](7-3-2-credit-refund.md), [7.8.1](7-8-1-credit-tests.md).
 - Решения владельца (2026-10-12): [D-09](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-09) — у события необязательное время открытия записи; баланс возвращается, если событие отменено до открытия или без активных записей; [D-10](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-10) — «баланс событий» везде, единица — «событие»; тексты макетов с credits заменяются при реализации.
+- Решения владельца (2026-10-14, уточнение к [D-11](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-11)): цены пакетов как в макете — 10 событий 50 Br, 30 — 120 Br, 100 — 350 Br; порог «баланс заканчивается» — 10 событий.
 - Решения владельца (2026-10-13): [D-12](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-12) — стартовый баланс существующих групп 48 событий (`pilot_grant`), demo-квота новых групп 5; [D-13](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-13) — любая неотменённая запись, включая лист ожидания, блокирует возврат.
 - Модель: реализация `claude-opus-5-5`, ревью `claude-opus-5-5` (ревью Opus + тесты граничных случаев и гонок); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
 
@@ -70,6 +71,17 @@ tags: [reference-v3]
 - Исходники макета: `docs/design/reference-v3/handoff/screens-web.jsx`, `docs/design/reference-v3/handoff/screens-web-forms.jsx`; токены — `handoff/styles.css`; доменные функции — `handoff/atoms.jsx`.
 - Handoff: [README](../design/reference-v3/handoff/README.md) — статусная модель, доменная логика, доступность.
 - Меняет модель данных: схема и контракт по ADR [19.2.1](19-2-1-domain-model.md) до UI; миграция forward-compatible (deploy runbook).
+
+## Заметки реализации и ревью (PR #121)
+
+- Списание — только при переходе в `published` (создание опубликованным, `draft → published`); черновик, переведённый сразу в `closed`/`finished`, не списывает.
+- Операторская команда `pnpm db:event-balance` (`packages/db/src/event-balance-operator.ts`) запускается из migrator-контейнера. `--operator` — атрибуция, а не аутентификация: команду может выполнить только тот, у кого есть доступ к серверу и migrator-контейнеру; email root сверяется без учёта регистра; одна операция `grant`/`correct` — не больше 1000 событий.
+- Включение `EVENT_BALANCE_ENFORCED` в production — пункт 5 задачи [20.7.1](20-7-1-release-v0-2-0-qa.md).
+- Известные ограничения (без кода, по итогам ревью):
+  - `reconcile` ищет события без списания по `events.created_at >= since` (по умолчанию — момент `pilot_grant`): черновик, созданный до миграции и опубликованный после, в отчёт не попадёт; при необходимости передать `--since`.
+  - Число заявок на покупку в статусе `pending` у группы не ограничено (повторное нажатие создаёт вторую заявку); решение root по каждой.
+  - Миграция 0024 не задаёт `lock_timeout`: она создаёт только новые таблицы и читает `organizations`, блокировки существующих таблиц — FK-ссылки (`SHARE ROW EXCLUSIVE` на `organizations`, `events`, `users`) на время транзакции миграции в окне выкладки.
+  - CHECK «`spend`/`refund` требуют `event_id`» в схеме нет: `event_id` становится NULL при удалении события (`ON DELETE SET NULL`, история сохраняется); связь проверяет сервис.
 
 ## Не делать
 

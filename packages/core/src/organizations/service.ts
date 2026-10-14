@@ -11,6 +11,7 @@ import { slugify, uniqueSlug } from '@volley-time/shared'
 
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
+import { eventBalanceService } from '../event-balance/service'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
 
 import {
@@ -97,6 +98,8 @@ export const organizationService = {
         entityId: ownerMember!.id,
         newValue: { role: 'owner', status: 'active' },
       })
+      // demo-квота баланса событий атомарно с созданием группы (20.2.1, D-12)
+      await eventBalanceService.grantDemoQuota(txCtx, org.id)
 
       return org
     })

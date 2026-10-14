@@ -34,6 +34,8 @@ export const AUDIT_ACTIONS = {
   VENUE_ARCHIVED: 'venue.archived',
   LEDGER_EXPENSE_ADDED: 'ledger.expense_added',
   LEDGER_INCOME_ADDED: 'ledger.income_added',
+  // баланс событий (20.2.1); начисления и решения root пишет операторская команда (packages/db)
+  EVENT_BALANCE_PURCHASE_REQUESTED: 'event_balance.purchase_requested',
 } as const
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS]
@@ -48,3 +50,4 @@ export type AuditEntityType =
   | 'venue'
   | 'payment'
   | 'ledger_entry'
+  | 'event_balance_purchase_request'
