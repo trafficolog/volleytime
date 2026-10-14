@@ -13,6 +13,20 @@ describe('group monogram (M-04 placeholder logo)', () => {
     expect(groupMonogram('Спайк').initials).toBe('С')
   })
 
+  it('keeps Belarusian letters і and ў as initials', () => {
+    expect(groupMonogram('Ўсход іскра').initials).toBe('ЎІ')
+    expect(groupMonogram('іскра').initials).toBe('І')
+  })
+
+  it('skips emoji and digit-only words and falls back to Г when no letters remain', () => {
+    expect(groupMonogram('🏐 Клуб').initials).toBe('К')
+    expect(groupMonogram('2024 🏐').initials).toBe('Г')
+    expect(groupMonogram('🏐🏐').initials).toBe('Г')
+    expect(groupMonogram('12345').initials).toBe('Г')
+    expect(groupMonogram('').initials).toBe('Г')
+    expect(groupMonogram('   ').initials).toBe('Г')
+  })
+
   it('keeps the same tint for the same name and only uses token classes', () => {
     const first = groupMonogram('VolleyTime Минск')
     expect(groupMonogram('VolleyTime Минск')).toEqual(first)

@@ -207,7 +207,7 @@ describe('organizer Home', () => {
     expect(wrapper.text()).not.toContain('Бесплатно')
     wrapper.unmount()
   })
-  it('links pending and suspended switcher choices to their informational pages without selecting them', async () => {
+  it('keeps pending and suspended switcher choices non-navigable and never selects them', async () => {
     orgData.value.myMember.role = 'player'
     groupList.value = [
       { id: 31, name: 'Ожидание', city: null, status: 'active', membershipStatus: 'pending' },
@@ -235,14 +235,14 @@ describe('organizer Home', () => {
     })
     await flushPromises()
     for (const id of [31, 32]) {
-      const link = wrapper.get(`a[href="/m/orgs/${id}"]`)
-      await link.trigger('click')
+      expect(wrapper.find(`a[href="/m/orgs/${id}"]`).exists()).toBe(false)
     }
+    expect(wrapper.findAll('[aria-disabled="true"]')).toHaveLength(2)
     expect(selectGroup).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 
-  it('opens the group switcher from the organizer header title and lists groups as radios', async () => {
+  it('opens the group switcher from the organizer header title and lists groups as links with aria-current', async () => {
     orgData.value.myMember.role = 'owner'
     groupList.value = [
       { id: 30, name: 'Группа', city: 'Минск', status: 'active', membershipStatus: 'active' },
@@ -271,11 +271,11 @@ describe('organizer Home', () => {
       },
     })
     await flushPromises()
-    expect(wrapper.find('[role="radiogroup"]').exists()).toBe(false)
+    expect(wrapper.find('ul a[aria-current]').exists()).toBe(false)
     await wrapper.get('button[aria-controls="group-switcher"]').trigger('click')
     await flushPromises()
-    expect(wrapper.findAll('[role="radio"]')).toHaveLength(2)
-    expect(wrapper.get('[role="radio"][aria-checked="true"]').attributes('href')).toBe('/m/orgs/30')
+    expect(wrapper.findAll('ul > li')).toHaveLength(2)
+    expect(wrapper.get('ul a[aria-current="true"]').attributes('href')).toBe('/m/orgs/30')
     wrapper.unmount()
   })
 

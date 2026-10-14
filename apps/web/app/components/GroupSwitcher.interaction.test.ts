@@ -55,6 +55,7 @@ beforeEach(() => {
       membershipStatus: 'active',
     },
     { id: 32, name: 'Ожидание', city: null, status: 'active', membershipStatus: 'pending' },
+    { id: 33, name: 'Приостановлена', city: null, status: 'suspended', membershipStatus: 'active' },
   ]
 })
 
@@ -65,34 +66,42 @@ afterEach(() => {
 })
 
 describe('GroupSwitcher (M-04 «Мои группы»)', () => {
-  it('lists groups as a radiogroup and marks the current group as checked', async () => {
+  it('lists groups as a plain list of links and marks the current group with aria-current', async () => {
     const wrapper = mountSwitcher(30)
     await flushPromises()
-    expect(wrapper.find('[role="radiogroup"]').exists()).toBe(true)
-    const radios = wrapper.findAll('[role="radio"]')
-    expect(radios).toHaveLength(3)
-    expect(radios[0]!.attributes('aria-checked')).toBe('true')
-    expect(radios[1]!.attributes('aria-checked')).toBe('false')
-    // Выбранная группа — залитый flame-круг с галочкой; у остальных заливки нет.
-    const mark = radios[0]!.get('[data-selected-mark]')
-    expect(mark.classes()).toContain('bg-vt-flame')
-    expect(mark.find('svg').exists()).toBe(true)
-    expect(radios[1]!.get('[data-selected-mark]').classes()).not.toContain('bg-vt-flame')
+    expect(wrapper.find('[role="radiogroup"]').exists()).toBe(false)
+    expect(wrapper.find('[role="radio"]').exists()).toBe(false)
+    const items = wrapper.findAll('ul > li')
+    expect(items).toHaveLength(4)
+    const current = wrapper.get('a[href="/m/orgs/30"]')
+    expect(current.attributes('aria-current')).toBe('true')
+    expect(wrapper.get('a[href="/m/orgs/31"]').attributes('aria-current')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('fills the current group with a flame circle and check mark only', async () => {
+    const wrapper = mountSwitcher(30)
+    await flushPromises()
+    const first = wrapper.get('a[href="/m/orgs/30"]')
+    const second = wrapper.get('a[href="/m/orgs/31"]')
+    expect(first!.get('[data-selected-mark]').classes()).toContain('bg-vt-flame')
+    expect(first!.get('[data-selected-mark]').find('svg').exists()).toBe(true)
+    expect(second!.get('[data-selected-mark]').classes()).not.toContain('bg-vt-flame')
     wrapper.unmount()
   })
 
   it('shows initials instead of a logo for groups without one', async () => {
     const wrapper = mountSwitcher()
     await flushPromises()
-    expect(wrapper.findAll('[role="radio"]')[1]!.get('[data-monogram]').text()).toBe('МВ')
+    expect(wrapper.get('a[href="/m/orgs/31"] [data-monogram]').text()).toBe('МВ')
     wrapper.unmount()
   })
 
-  it('offers creating one own group next to joining by invite', async () => {
+  it('offers creating own group and joining by link with the prototype icon', async () => {
     const wrapper = mountSwitcher()
     await flushPromises()
     expect(wrapper.get('a[href="/m/orgs/create"]').text()).toContain('Создать свою группу')
-    expect(wrapper.get('a[href="/m/orgs"]').text()).toContain('Вступить по приглашению')
+    expect(wrapper.get('a[href="/m/orgs"]').text()).toContain('Вступить по ссылке')
     wrapper.unmount()
   })
 
@@ -103,45 +112,35 @@ describe('GroupSwitcher (M-04 «Мои группы»)', () => {
     wrapper.unmount()
   })
 
-  it('moves focus between groups with arrow keys without selecting them', async () => {
+  it('uses native tab order: no tabindex overrides and no custom key handling', async () => {
     const wrapper = mountSwitcher(30)
     await flushPromises()
-    const [first, second] = wrapper
-      .findAll('[role="radio"]')
-      .map((radio) => radio.element as HTMLElement)
-    first!.focus()
-    await wrapper.get('[role="radiogroup"]').trigger('keydown', { key: 'ArrowDown' })
-    expect(document.activeElement).toBe(second)
-    await wrapper.get('[role="radiogroup"]').trigger('keydown', { key: 'ArrowUp' })
-    expect(document.activeElement).toBe(first)
-    expect(selectOrg).not.toHaveBeenCalled()
+    expect(wrapper.findAll('[tabindex]')).toHaveLength(0)
     wrapper.unmount()
   })
 
-  it('activates the focused group with Space and gives roving tabindex to the current group', async () => {
+  it('navigates and selects a selectable group on click', async () => {
     const wrapper = mountSwitcher(30)
     await flushPromises()
-    const radios = wrapper.findAll('[role="radio"]')
-    expect(radios.map((radio) => radio.attributes('tabindex'))).toEqual(['0', '-1', '-1'])
-    const second = radios[1]!.element as HTMLElement
-    second.focus()
-    await wrapper.get('[role="radiogroup"]').trigger('keydown', { key: ' ' })
+    const link = wrapper.get('a[href="/m/orgs/31"]')
+    expect(link.attributes('href')).toBe('/m/orgs/31')
+    await link.trigger('click')
     expect(selectOrg).toHaveBeenCalledWith(31)
     wrapper.unmount()
   })
 
-  it('selects a selectable group on click and does not select pending groups', async () => {
+  it('renders pending and suspended groups as disabled non-links with a status label', async () => {
     const wrapper = mountSwitcher(30)
     await flushPromises()
-    await wrapper.get('a[href="/m/orgs/31"]').trigger('click')
-    expect(selectOrg).toHaveBeenCalledWith(31)
-    wrapper.unmount()
-    selectOrg.mockClear()
-
-    const pending = mountSwitcher(30)
-    await flushPromises()
-    await pending.get('a[href="/m/orgs/32"]').trigger('click')
+    for (const id of [32, 33]) {
+      expect(wrapper.find(`a[href="/m/orgs/${id}"]`).exists()).toBe(false)
+    }
+    const pending = wrapper.get('[aria-disabled="true"]')
+    expect(pending.text()).toContain('Ожидание')
+    expect(pending.text()).toContain('Заявка на рассмотрении')
+    expect(wrapper.findAll('[aria-disabled="true"]')[1]!.text()).toContain('Группа приостановлена')
+    expect(wrapper.findAll('[aria-disabled="true"]')).toHaveLength(2)
     expect(selectOrg).not.toHaveBeenCalled()
-    pending.unmount()
+    wrapper.unmount()
   })
 })

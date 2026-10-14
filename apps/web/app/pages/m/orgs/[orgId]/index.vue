@@ -134,19 +134,28 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
       back="/m/orgs"
     >
       <template #title>
-        <h1 class="text-base font-semibold min-w-0">
-          <button
-            type="button"
-            class="flex min-h-11 max-w-full items-center gap-1 text-left font-semibold"
-            aria-haspopup="dialog"
-            aria-controls="group-switcher"
-            :aria-expanded="groupsOpen"
-            @click="groupsOpen = true"
+        <div class="flex min-w-0 items-center gap-2.5">
+          <span
+            data-monogram
+            aria-hidden="true"
+            class="font-display flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-base font-bold"
+            :class="org ? groupMonogram(org.name).className : 'bg-vt-bone'"
+            >{{ org ? groupMonogram(org.name).initials : '' }}</span
           >
-            <span class="truncate">{{ org?.name ?? 'Группа' }}</span>
-            <VtIcon name="chevron-r" :size="14" class="shrink-0 rotate-90" aria-hidden="true" />
-          </button>
-        </h1>
+          <h1 class="min-w-0 text-base font-semibold">
+            <button
+              type="button"
+              class="flex min-h-11 max-w-full items-center gap-1 text-left font-semibold"
+              aria-haspopup="dialog"
+              aria-controls="group-switcher"
+              :aria-expanded="groupsOpen"
+              @click="groupsOpen = true"
+            >
+              <span class="truncate">{{ org?.name ?? 'Группа' }}</span>
+              <VtIcon name="chevron-r" :size="14" class="shrink-0 rotate-90" aria-hidden="true" />
+            </button>
+          </h1>
+        </div>
       </template>
       <template #right>
         <NuxtLink
