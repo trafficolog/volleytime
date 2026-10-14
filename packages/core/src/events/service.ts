@@ -128,6 +128,7 @@ export const eventService = {
           // политика отмены — снимок группы; из входа не берётся (D-02)
           cancellationAllowed: org.cancellationAllowed,
           cancellationDeadlineHours: org.cancellationDeadlineHours,
+          level: data.level ?? null,
           status: data.status,
         })
         .returning()

@@ -34,6 +34,11 @@ defineRouteMeta({
                     seoIndex: { type: 'boolean' },
                     city: { type: 'string', nullable: true },
                     district: { type: 'string', nullable: true },
+                    levels: {
+                      type: 'array',
+                      items: { type: 'string', enum: ['v1', 'v2', 'v3', 'v4', 'v4_plus'] },
+                      description: 'уровни группы в порядке шкалы В1–В4+ (GET /api/levels)',
+                    },
                   },
                 },
               },

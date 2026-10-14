@@ -31,6 +31,7 @@ import {
   type Event,
   type NewOrganization,
   type Organization,
+  type PlayerLevelCode,
   type User,
 } from './schema'
 
@@ -47,6 +48,8 @@ type Seat =
   | { user: string; kind: 'waitlisted' } // лист ожидания
 
 interface DemoEvent {
+  /** Требуемый уровень события (19.2.3); не указан — для любого. */
+  level?: PlayerLevelCode
   title: string
   venue: string
   /** День относительно даты создания группы. */
@@ -141,19 +144,25 @@ const DEMO_GROUP_SETTINGS: Record<string, Partial<NewOrganization>> = {
     cancellationDeadlineHours: 6,
     district: 'Центральный',
     seoIndex: true,
+    levels: ['v3', 'v4'],
   },
   'demo-minskvoley': {
     maxSeatsPerBooking: 2,
     cancellationDeadlineHours: 12,
     district: 'Фрунзенский',
+    levels: ['v2', 'v3'],
   },
   'demo-spikeclub': {
     maxSeatsPerBooking: 4,
     defaultJoinMode: 'invite',
     cancellationDeadlineHours: 24,
     district: 'Советский',
+    levels: ['v1', 'v2'],
   },
 }
+
+/** Уровни игроков по кругу (19.2.3): разные значения, чтобы фильтры и составы было на чём смотреть. */
+const DEMO_MEMBER_LEVELS: PlayerLevelCode[] = ['v2', 'v3', 'v3', 'v4', 'v4_plus', 'v4', 'v2']
 
 export const DEMO_ORGANIZATIONS: DemoOrganization[] = [
   {
@@ -187,6 +196,7 @@ export const DEMO_ORGANIZATIONS: DemoOrganization[] = [
     ],
     events: [
       {
+        level: 'v3',
         title: 'Основа',
         venue: 'Школа №24',
         day: -3,
@@ -361,6 +371,7 @@ export const DEMO_ORGANIZATIONS: DemoOrganization[] = [
     expenses: [{ category: 'rent', amount: 9000, day: -7, description: 'Аренда зала' }],
     events: [
       {
+        level: 'v2',
         title: 'Воскресная игра',
         venue: 'Зал МинскВолей',
         day: -7,
@@ -415,6 +426,7 @@ export const DEMO_ORGANIZATIONS: DemoOrganization[] = [
     expenses: [{ category: 'rent', amount: 15000, day: -2, description: 'Аренда СпайкАрены' }],
     events: [
       {
+        level: 'v1',
         title: 'Тренировка',
         venue: 'СпайкАрена',
         day: 2,
@@ -687,6 +699,7 @@ async function ensureEvent(
       // снимок политики группы (D-02), как делает events.create
       cancellationDeadlineHours: ctx.org.cancellationDeadlineHours,
       cancellationAllowed: ctx.org.cancellationAllowed,
+      level: spec.level ?? null,
       status: spec.status,
     })
     .returning()
@@ -769,9 +782,11 @@ async function seedOrganization(tx: Transaction, spec: DemoOrganization): Promis
     [spec.owner, 'owner'],
     ...(Object.entries(spec.members) as [string, Role][]),
   ]
-  for (const [key, role] of members) {
+  for (const [index, [key, role]] of members.entries()) {
     const user = people.get(key) ?? (await ensureUser(tx, key))
     people.set(key, user)
+    // владелец — В1, остальные по кругу; участники прежнего сида получают уровень, если он не задан
+    const level = index === 0 ? 'v1' : DEMO_MEMBER_LEVELS[(index - 1) % DEMO_MEMBER_LEVELS.length]!
     await tx
       .insert(organizationMembers)
       .values({
@@ -779,9 +794,13 @@ async function seedOrganization(tx: Transaction, spec: DemoOrganization): Promis
         userId: user.id,
         role,
         status: 'active',
+        level,
         joinedAt: org.createdAt,
       })
-      .onConflictDoNothing()
+      .onConflictDoUpdate({
+        target: [organizationMembers.organizationId, organizationMembers.userId],
+        set: { level: sql`coalesce(${organizationMembers.level}, excluded.level)` },
+      })
   }
 
   const venueIds = new Map<string, number>()

@@ -14,6 +14,7 @@ import {
 } from 'drizzle-orm/pg-core'
 
 import { eventJoinModeEnum, eventPriceModeEnum } from './event-enums'
+import { playerLevelEnum } from './level-enums'
 import { users } from './users'
 
 export const orgStatusEnum = pgEnum('organization_status', ['active', 'suspended', 'archived'])
@@ -49,6 +50,11 @@ export const organizations = pgTable(
     cancellationDeadlineHours: integer('cancellation_deadline_hours').default(6),
     seoIndex: boolean('seo_index').notNull().default(false),
     district: text('district'),
+    // уровни группы (несколько, 19.2.3); пустой массив — не указаны
+    levels: playerLevelEnum('levels')
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

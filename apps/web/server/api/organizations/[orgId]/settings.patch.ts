@@ -32,6 +32,11 @@ defineRouteMeta({
               seoIndex: { type: 'boolean' },
               city: { type: 'string', nullable: true, description: 'до 100 символов' },
               district: { type: 'string', nullable: true, description: 'до 100 символов' },
+              levels: {
+                type: 'array',
+                items: { type: 'string', enum: ['v1', 'v2', 'v3', 'v4', 'v4_plus'] },
+                description: 'уровни группы (несколько); повторы убираются, [] очищает',
+              },
             },
           },
         },

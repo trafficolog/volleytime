@@ -37,6 +37,7 @@ const member: OrganizationMember = {
   invitedByUserId: null,
   inviteId: null,
   ratingInOrg: null,
+  level: null,
   createdAt: new Date('2026-09-29T07:00:00Z'),
   updatedAt: new Date('2026-09-29T07:00:00Z'),
 }

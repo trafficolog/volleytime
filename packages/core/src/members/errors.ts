@@ -41,6 +41,11 @@ export class MemberBlockedByOrgError extends MemberError {
     super('member.blocked', 'You are blocked in this organization')
   }
 }
+export class MemberLevelNotAssignableError extends MemberError {
+  constructor(status: string) {
+    super('member.level_not_assignable', `Level cannot be set for a member with status ${status}`)
+  }
+}
 export class MemberInvalidTransitionError extends MemberError {
   constructor(from: string, to: string) {
     super('member.invalid_transition', `Cannot change member status from ${from} to ${to}`)

@@ -13,7 +13,9 @@ import {
 } from 'drizzle-orm/pg-core'
 
 import { eventPriceModeEnum } from './event-enums'
+import { playerLevelEnum } from './level-enums'
 import { organizations } from './organizations'
+import { playerLevels } from './player-levels'
 import { users } from './users'
 import { venues } from './venues'
 
@@ -58,6 +60,8 @@ export const events = pgTable(
     cancellationDeadlineHours: integer('cancellation_deadline_hours'),
     // снимок политики группы при создании (D-02, 19.2.2); у существующих событий true
     cancellationAllowed: boolean('cancellation_allowed').notNull().default(true),
+    // требуемый уровень события (19.2.3); NULL — для любого
+    level: playerLevelEnum('level').references(() => playerLevels.code, { onDelete: 'restrict' }),
     status: eventStatusEnum('status').notNull().default('published'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
