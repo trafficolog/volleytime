@@ -65,6 +65,7 @@ describe('organizationSettingsService (integration)', () => {
         seoIndex: false,
         city: 'Минск',
         district: null,
+        levels: [],
       })
     })
 
