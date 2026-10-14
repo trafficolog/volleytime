@@ -104,6 +104,38 @@
       "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
     },
     {
+      "id": "player-group-switcher",
+      "title": "Игрок: шторка «Мои группы»",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "path": "/m/orgs/{org}",
+      "steps": [{ "click": "button[aria-controls='group-switcher']" }],
+      "references": ["3-miniapp-player/01-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
+      "id": "organizer-group-switcher",
+      "title": "Организатор: шторка «Мои группы»",
+      "viewport": "miniapp",
+      "role": "organizer",
+      "org": "vt",
+      "path": "/m/orgs/{org}",
+      "steps": [{ "click": "button[aria-controls='group-switcher']" }],
+      "references": ["3-miniapp-organizer/01-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
+      "id": "player-group-create",
+      "title": "Игрок: создание группы (шаг 1)",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "path": "/m/orgs/create",
+      "references": ["3-miniapp-player/14-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
       "id": "cabinet-overview",
       "title": "Кабинет: обзор",
       "viewport": "cabinet",

@@ -32,7 +32,12 @@ export default {
           'rose-ink': v('rose-ink'),
           'on-accent': v('on-accent'),
           'orange-soft': v('orange-soft'),
+          'orange-ink': v('orange-ink'),
           'blue-soft-tile': v('blue-soft-tile'),
+          'flame-ink': v('flame-ink'),
+          'grass-soft': v('grass-soft'),
+          'grass-ink': v('grass-ink'),
+          'amber-soft': v('amber-soft'),
         },
       },
       fontFamily: {
