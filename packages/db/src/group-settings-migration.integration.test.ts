@@ -13,6 +13,7 @@ import { seedDemo } from './seed-demo'
 const TAG = '0021_group_settings_v3'
 const TAG22 = '0022_group_cancellation_default'
 const TAG23 = '0023_player_levels'
+const TAG24 = '0024_event_balance'
 const BASE_URL = process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL ?? ''
 
 const ORG_COLUMNS = [
@@ -66,6 +67,7 @@ describe('migrations 0021 group settings and 0022 cancellation default (integrat
       expect(await columns(sql, 'organizations')).toEqual(expect.arrayContaining(ORG_COLUMNS))
       expect(await columns(sql, 'events')).toContain('cancellation_allowed')
 
+      expect(await rollbackLastMigration(url)).toBe(TAG24)
       expect(await rollbackLastMigration(url)).toBe(TAG23)
       expect(await rollbackLastMigration(url)).toBe(TAG22)
       expect(await rollbackLastMigration(url)).toBe(TAG)
@@ -87,6 +89,7 @@ describe('migrations 0021 group settings and 0022 cancellation default (integrat
     try {
       // БД, где уже применена прежняя 0021 (до 0022)
       await runMigrations(url)
+      await rollbackLastMigration(url) // 0024
       await rollbackLastMigration(url) // 0023
       await rollbackLastMigration(url) // 0022
 
@@ -204,6 +207,7 @@ describe('migrations 0021 group settings and 0022 cancellation default (integrat
         WHERE e.cancellation_deadline_hours IS DISTINCT FROM o.cancellation_deadline_hours`
       expect(mismatched).toHaveLength(0)
 
+      expect(await rollbackLastMigration(url)).toBe(TAG24)
       expect(await rollbackLastMigration(url)).toBe(TAG23)
       expect(await rollbackLastMigration(url)).toBe(TAG22)
       expect(await columns(sql, 'organizations')).toContain('max_seats_per_booking')

@@ -21,6 +21,7 @@ import {
 
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
+import { eventBalanceService } from '../event-balance/service'
 import { collectNotification } from '../notifier/collect'
 import { OrganizationNotFoundError } from '../organizations/errors'
 import { paymentService } from '../payments/service'
@@ -132,6 +133,9 @@ export const eventService = {
           status: data.status,
         })
         .returning()
+      // публикация списывает 1 событие баланса; нехватка откатывает создание (20.2.1, D-04)
+      const spend =
+        event!.status === 'draft' ? null : await eventBalanceService.spendOnPublish(ctx, event!)
       await auditService.record(ctx, {
         organizationId: orgId,
         action: AUDIT_ACTIONS.EVENT_CREATED,
@@ -142,6 +146,9 @@ export const eventService = {
           startsAt: event!.startsAt,
           capacity: event!.capacity,
           price: event!.price,
+          ...(spend
+            ? { eventBalance: { delta: spend.delta, balanceAfter: spend.balanceAfter } }
+            : {}),
         },
       })
       return event!
@@ -319,12 +326,19 @@ export const eventService = {
         .set({ ...data, ...pricing, updatedAt: new Date() })
         .where(eq(events.id, eventId))
         .returning()
+      // публикация черновика списывает 1 событие (D-04); порядок блокировок: событие → баланс
+      const spend =
+        existing.status === 'draft' && updated!.status !== 'draft'
+          ? await eventBalanceService.spendOnPublish(ctx, updated!)
+          : null
       await auditService.record(ctx, {
         organizationId: existing.organizationId,
         action: AUDIT_ACTIONS.EVENT_UPDATED,
         entityType: 'event',
         entityId: eventId,
-        newValue: data,
+        newValue: spend
+          ? { ...data, eventBalance: { delta: spend.delta, balanceAfter: spend.balanceAfter } }
+          : data,
       })
       return updated!
     })
@@ -344,6 +358,10 @@ export const eventService = {
       if (!locked) throw new EventNotFoundError(eventId)
       const existing = locked
       if (existing.status === 'cancelled') return existing
+
+      // возврат баланса (D-09, D-13) решается и проводится ДО цикла отмены записей: после цикла все
+      // записи уже cancelled. Порядок блокировок: событие → баланс → платежи/абонементы (ADR, п. 7).
+      const refund = await eventBalanceService.refundOnCancel({ ...ctx, db: tx }, existing)
 
       const activeBookings = await tx.query.bookings.findMany({
         where: and(
@@ -400,7 +418,7 @@ export const eventService = {
         })
       }
 
-      // TODO(Phase 7.3): credit refund; (Phase 15): cancel scheduled jobs
+      // TODO(Phase 15): cancel scheduled jobs
       const [cancelled] = await tx
         .update(events)
         .set({ status: 'cancelled', updatedAt: new Date() })
@@ -413,7 +431,12 @@ export const eventService = {
           action: AUDIT_ACTIONS.EVENT_CANCELLED,
           entityType: 'event',
           entityId: eventId,
-          newValue: { cancelledBookings: activeBookings.length },
+          newValue: {
+            cancelledBookings: activeBookings.length,
+            ...(refund
+              ? { eventBalance: { delta: refund.delta, balanceAfter: refund.balanceAfter } }
+              : {}),
+          },
         },
       )
       return cancelled!

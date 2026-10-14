@@ -1,6 +1,7 @@
 export { db, closeDb, type DB, type Transaction, type DbOrTx } from './client'
 export { runMigrations } from './migrate'
 export * from './schema'
+export * from './event-balance'
 
 // re-export часто используемых операторов (единая точка, без прямой зависимости потребителей от drizzle-orm)
 export {

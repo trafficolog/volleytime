@@ -11,6 +11,7 @@ import {
   OrganizationError,
   TenantError,
   CurrencyMismatchError,
+  EventBalanceError,
 } from '@volley-time/core'
 
 /** HTTP-статусы для доменных error-кодов. */
@@ -70,6 +71,8 @@ const CODE_STATUS: Record<string, number> = {
   'payment.not_found': 404,
   'payment.not_pending': 409,
   'payment.not_succeeded': 409,
+  // баланс событий (20.2.1)
+  'event_balance.insufficient': 409,
   // forbidden
   'forbidden.manage_content': 403,
   'forbidden.manage_members': 403,
@@ -97,7 +100,8 @@ export function handleServiceError(e: unknown): never {
     e instanceof SubscriptionError ||
     e instanceof PaymentError ||
     e instanceof ForbiddenError ||
-    e instanceof CurrencyMismatchError
+    e instanceof CurrencyMismatchError ||
+    e instanceof EventBalanceError
   ) {
     const status = CODE_STATUS[e.code] ?? 400
     throw createError({ statusCode: status, statusMessage: e.message, data: { code: e.code } })

@@ -2,11 +2,11 @@
 id: '20.2.1'
 phase: '20'
 epic: '20.2'
-status: todo
+status: in_progress
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-10-14
+status_note: 'Реализовано, ждёт ревью Opus: миграция 0024_event_balance (журнал append-only + проекция, pilot_grant 48 существующим группам, откат), сервис event-balance (demo 5, списание при публикации за EVENT_BALANCE_ENFORCED, возврат D-09/D-13), GET/POST event-balance, операторская команда db:event-balance. Визуальная сверка неприменима (UI — 21.2.8).'
 ref_id: 'P-08'
 complexity: XL
 impl_model: claude-opus-5-5
