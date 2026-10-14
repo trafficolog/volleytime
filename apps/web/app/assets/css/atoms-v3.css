@@ -136,8 +136,10 @@
   gap: 4px;
 }
 .vt-seg--segment {
+  display: inline-flex;
+  gap: 2px;
   padding: 4px;
-  border-radius: var(--r-pill);
+  border-radius: var(--r-chip);
   background: var(--vt-ctl-chip);
 }
 .vt-seg--chips {
@@ -153,8 +155,8 @@
   color: var(--vt-ink);
 }
 .vt-seg--segment .vt-seg__item {
-  flex: 1;
   min-height: 40px;
+  padding: 0 14px;
   border-radius: var(--r-pill);
   font-size: var(--fs-sm);
   background: transparent;
@@ -172,10 +174,11 @@
 .vt-seg--chips .vt-seg__item {
   min-height: 32px;
   padding: 0 12px;
-  border-radius: var(--r-chip);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--vt-stroke);
   font-size: 11.5px;
   white-space: nowrap;
-  background: var(--vt-ctl-track);
+  background: transparent;
 }
 .vt-seg--chips .vt-seg__item::after {
   content: '';
@@ -183,6 +186,7 @@
   inset: -6px -2px;
 }
 .vt-seg--chips .vt-seg__item[aria-checked='true'] {
+  border-color: var(--vt-ink);
   background: var(--vt-ink);
   color: var(--vt-paper);
 }
