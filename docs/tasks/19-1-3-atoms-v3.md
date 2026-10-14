@@ -56,6 +56,10 @@ tags: [reference-v3]
 - Исходники макета: `docs/design/reference-v3/handoff/brand.jsx`, `docs/design/reference-v3/handoff/atoms.jsx`, `docs/design/reference-v3/handoff/styles.css`, `docs/design/reference-v3/handoff/brand-ideas.jsx`; токены — `handoff/styles.css`; доменные функции — `handoff/atoms.jsx`.
 - Handoff: [README](../design/reference-v3/handoff/README.md) — статусная модель, доменная логика, доступность.
 
+## Решения по реализации
+
+- Радиус нижнего листа (Sheet): README референса (16 px) приоритетнее прототипа `app-nav.jsx` (24 px); оставлено 16.
+
 ## Не делать
 
 - ❌ Не переносить React/Babel прототипа и моковые данные; только Vue-компоненты, токены проекта и реальные API

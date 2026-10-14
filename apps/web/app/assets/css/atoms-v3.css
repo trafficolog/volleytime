@@ -1,0 +1,390 @@
+/* Atoms v3 (task 19.1.3): select, toggle, segment, popover, alert, toast, sheet.
+   Токены только из tokens.css; движение гасится глобальным prefers-reduced-motion в main.css. */
+
+.vt-btn--rose {
+  background: var(--vt-rose);
+  color: var(--vt-on-rose);
+}
+
+/* Select */
+.vt-select {
+  position: relative;
+  width: 100%;
+}
+.vt-select__button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+.vt-select__button--open {
+  border-color: var(--vt-ink);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--vt-ink) 8%, transparent);
+}
+.vt-select__value {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vt-select__value--empty {
+  color: var(--vt-mute-2);
+}
+.vt-select__chevron {
+  color: var(--vt-mute);
+  transition: transform 0.15s;
+}
+.vt-select__button--open .vt-select__chevron {
+  transform: rotate(180deg);
+}
+.vt-select__list {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin: 0;
+  padding: 6px;
+  max-height: 240px;
+  overflow: auto;
+  list-style: none;
+  background: var(--vt-paper);
+  border: 1px solid var(--vt-stroke);
+  border-radius: var(--r-chip);
+  box-shadow: var(--vt-pop-shadow);
+}
+.vt-select__option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+.vt-select__option--active {
+  background: var(--vt-bone);
+}
+.vt-select__option--selected {
+  background: var(--vt-ctl-track);
+  font-weight: 600;
+}
+.vt-select__option[aria-disabled='true'] {
+  color: var(--vt-mute-2);
+  cursor: not-allowed;
+}
+.vt-select__text {
+  flex: 1;
+}
+.vt-select__sub {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-2xs);
+  font-weight: 400;
+  color: var(--vt-mute-2);
+}
+
+/* Toggle 36×20, hit area 44×44 */
+.vt-toggle {
+  position: relative;
+  flex-shrink: 0;
+  width: 36px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--vt-stroke-2);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.vt-toggle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
+.vt-toggle[aria-checked='true'] {
+  background: var(--vt-ink);
+}
+.vt-toggle__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--r-pill);
+  background: var(--vt-paper);
+  transition: left 0.15s;
+}
+.vt-toggle[aria-checked='true'] .vt-toggle__thumb {
+  left: 18px;
+}
+.vt-toggle:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Segmented pill (WSeg) and choice chips */
+.vt-seg {
+  display: flex;
+  gap: 4px;
+}
+.vt-seg--segment {
+  display: inline-flex;
+  gap: 2px;
+  padding: 4px;
+  border-radius: var(--r-chip);
+  background: var(--vt-ctl-chip);
+}
+.vt-seg--chips {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.vt-seg__item {
+  position: relative;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  color: var(--vt-ink);
+}
+.vt-seg--segment .vt-seg__item {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-sm);
+  background: transparent;
+}
+/* 40 px визуально, 44 px зона нажатия */
+.vt-seg--segment .vt-seg__item::after {
+  content: '';
+  position: absolute;
+  inset: -2px 0;
+}
+.vt-seg--segment .vt-seg__item[aria-checked='true'] {
+  background: var(--vt-paper);
+  box-shadow: var(--vt-shadow-card);
+}
+.vt-seg--chips .vt-seg__item {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--vt-stroke);
+  font-size: 11.5px;
+  white-space: nowrap;
+  background: transparent;
+}
+.vt-seg--chips .vt-seg__item::after {
+  content: '';
+  position: absolute;
+  inset: -6px -2px;
+}
+.vt-seg--chips .vt-seg__item[aria-checked='true'] {
+  border-color: var(--vt-ink);
+  background: var(--vt-ink);
+  color: var(--vt-paper);
+}
+.vt-seg__item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Popover (web) */
+.vt-popover-root {
+  position: relative;
+  display: inline-block;
+}
+.vt-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  z-index: 60;
+  width: 210px;
+  padding: 6px;
+  background: var(--vt-paper);
+  border: 1px solid var(--vt-stroke);
+  border-radius: var(--r-chip);
+  box-shadow: var(--vt-pop-shadow);
+  animation: vt-pop-in 0.12s ease-out;
+}
+.vt-popover--right {
+  right: 0;
+}
+.vt-popover--left {
+  left: 0;
+}
+.vt-popover__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--vt-ink);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+.vt-popover__item:hover:not(:disabled),
+.vt-popover__item:focus-visible {
+  background: var(--vt-bone-2);
+}
+.vt-popover__item--danger {
+  color: var(--vt-rose-ink);
+}
+.vt-popover__item:disabled {
+  color: var(--vt-mute-2);
+  cursor: not-allowed;
+}
+.vt-popover__label {
+  flex: 1;
+}
+.vt-popover__shortcut {
+  font-family: var(--f-mono);
+  font-size: var(--fs-2xs);
+  color: var(--vt-mute-2);
+}
+
+/* Alert */
+.vt-alert-root {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vt-alert-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--vt-scrim);
+  animation: vt-fade 0.14s ease-out;
+}
+.vt-alert {
+  position: relative;
+  width: min(86%, 360px);
+  padding: 20px;
+  background: var(--vt-paper);
+  border: 1px solid var(--vt-stroke);
+  border-radius: var(--r-btn);
+  box-shadow: var(--vt-modal-shadow);
+}
+.vt-alert__title {
+  margin: 0;
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: var(--fs-md);
+}
+.vt-alert__body {
+  margin: 8px 0 0;
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+  color: var(--vt-mute-2);
+}
+.vt-alert__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+/* Toast */
+.vt-toast-host {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  z-index: 80;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.vt-toast {
+  padding: 10px 16px;
+  border-radius: var(--r-pill);
+  background: var(--vt-toast-bg);
+  color: var(--vt-on-hero);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: var(--vt-toast-shadow);
+  animation: vt-toast-in 0.18s ease-out;
+}
+.vt-toast--danger {
+  background: var(--vt-rose);
+  color: var(--vt-on-rose);
+}
+
+/* Sheet (v3): scrim token, 180 ms rise */
+.vt-sheet-scrim {
+  background: var(--vt-scrim);
+  animation: vt-fade 0.14s ease-out;
+}
+.vt-sheet-panel {
+  box-shadow: var(--vt-sheet-shadow);
+  animation: vt-sheet-up 0.18s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@keyframes vt-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes vt-sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes vt-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes vt-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Reduced motion (reference styles.css): пространственное движение заменяется короткой
+   сменой прозрачности 150 мс. Класс сильнее глобального `*` из main.css, поэтому побеждает. */
+@media (prefers-reduced-motion: reduce) {
+  .vt-sheet-panel,
+  .vt-popover,
+  .vt-toast {
+    animation-name: vt-fade !important;
+    animation-duration: 150ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  .vt-sheet-scrim,
+  .vt-alert-scrim {
+    animation-name: vt-fade !important;
+    animation-duration: 150ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
