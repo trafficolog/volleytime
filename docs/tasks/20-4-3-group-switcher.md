@@ -2,11 +2,11 @@
 id: '20.4.3'
 phase: '20'
 epic: '20.4'
-status: todo
+status: in_progress
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-10-14
+status_note: 'PR #122 (ветка trafficolog/feat/20.4.3-group-switcher, tested revision c74ad22), review pending: шторка «Мои группы» (GroupSwitcher) в шапке игрока и организатора, монограммы (логотипа в модели группы нет), список ссылок с aria-current (отклонение от role=radio принято, см. карточку), недоступные группы не ссылки, «Создать свою группу», «Вступить по ссылке». Визуальная сверка и открытые пункты: docs/operations/qa/2026-10-14-20-4-3-group-switcher.md.'
 ref_id: 'M-04'
 complexity: S
 impl_model: claude-haiku-5-5
@@ -19,7 +19,7 @@ decisions: []
 estimated_hours: '2-4'
 reference:
   spec: 'docs/design/reference-v3/specs/02-mini-app/M-04-group-switcher.md'
-  screens: ['3-miniapp-player/14-screen.png']
+  screens: ['3-miniapp-player/01-screen.png', '3-miniapp-organizer/01-screen.png']
 tags: [reference-v3]
 ---
 
@@ -52,7 +52,10 @@ tags: [reference-v3]
 
 ## Подсказки
 
-- Скриншоты: [3-miniapp-player/14-screen.png](../design/reference-v3/screenshots/3-miniapp-player/14-screen.png) (окно 924×540 — ориентир; размеры и отступы брать из исходников).
+- Скриншоты триггера в шапках главных экранов: [3-miniapp-player/01-screen.png](../design/reference-v3/screenshots/3-miniapp-player/01-screen.png) и [3-miniapp-organizer/01-screen.png](../design/reference-v3/screenshots/3-miniapp-organizer/01-screen.png) (окно 924×540 — ориентир; размеры и отступы брать из исходников).
+- Самой шторки в наборе скриншотов нет: состав и поведение сверяются с `handoff/screens-player.jsx`, строки 9–18 (`switchOrg`). [3-miniapp-player/14-screen.png](../design/reference-v3/screenshots/3-miniapp-player/14-screen.png) — мастер создания группы «Своя группа · Шаг 1 из 3», относится к другой задаче; к этой карточке не привязан.
+- Принятое отклонение от `handoff/README.md` (строка 161, «Группы»): текущая группа в шторке — `aria-current` на ссылке, а не `role="radio"`. Причина: выбор группы переходит по ссылке, поэтому радиогруппа с клавиатурной моделью выбора не соответствует поведению; визуально сохранены залитый flame-круг с галочкой. Не-доступные группы (ожидание, приостановлена) не являются ссылками (`aria-disabled`).
+- Текст «Вступить по ссылке» и иконка `link` — по прототипу; ведёт на `/m/orgs`, где открывается ввод приглашения (маршрута «onboard» в приложении нет).
 - Исходники макета: `docs/design/reference-v3/handoff/screens-player.jsx`, `docs/design/reference-v3/handoff/app-nav.jsx`, `docs/design/reference-v3/handoff/atoms.jsx`; токены — `handoff/styles.css`; доменные функции — `handoff/atoms.jsx`.
 - Handoff: [README](../design/reference-v3/handoff/README.md) — статусная модель, доменная логика, доступность.
 - Haiku-задача: только вёрстка, тексты и переименования. Если нужна бизнес-логика — остановиться и эскалировать оркестратору.

@@ -16,10 +16,10 @@ import {
 import Home from './index.vue'
 
 import EventCard from '~/components/EventCard.vue'
-import { apiErrorMessage } from '~/utils/api-error'
 import MyChip from '~/components/vt/MyChip.vue'
 import SeatsMini from '~/components/vt/SeatsMini.vue'
 import StateChip from '~/components/vt/StateChip.vue'
+import { apiErrorMessage } from '~/utils/api-error'
 
 const HomeHost = defineComponent({ render: () => h(Suspense, null, { default: () => h(Home) }) })
 
@@ -207,7 +207,7 @@ describe('organizer Home', () => {
     expect(wrapper.text()).not.toContain('Бесплатно')
     wrapper.unmount()
   })
-  it('links pending and suspended switcher choices to their informational pages without selecting them', async () => {
+  it('keeps pending and suspended switcher choices non-navigable and never selects them', async () => {
     orgData.value.myMember.role = 'player'
     groupList.value = [
       { id: 31, name: 'Ожидание', city: null, status: 'active', membershipStatus: 'pending' },
@@ -235,10 +235,47 @@ describe('organizer Home', () => {
     })
     await flushPromises()
     for (const id of [31, 32]) {
-      const link = wrapper.get(`a[href="/m/orgs/${id}"]`)
-      await link.trigger('click')
+      expect(wrapper.find(`a[href="/m/orgs/${id}"]`).exists()).toBe(false)
     }
+    expect(wrapper.findAll('[aria-disabled="true"]')).toHaveLength(2)
     expect(selectGroup).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('opens the group switcher from the organizer header title and lists groups as links with aria-current', async () => {
+    orgData.value.myMember.role = 'owner'
+    groupList.value = [
+      { id: 30, name: 'Группа', city: 'Минск', status: 'active', membershipStatus: 'active' },
+      { id: 31, name: 'Соседи', city: null, status: 'active', membershipStatus: 'active' },
+    ]
+    const wrapper = mount(HomeHost, {
+      global: {
+        stubs: {
+          NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
+          VtMiniHeader: {
+            props: ['title', 'sub', 'back'],
+            template:
+              '<header><slot name="title"><h1>{{ title }}</h1></slot><slot name="right" /></header>',
+          },
+          VtSheet: {
+            props: ['modelValue', 'title'],
+            template: '<section v-if="modelValue" :aria-label="title"><slot /></section>',
+          },
+          VtIcon: { template: '<span />' },
+          VtChip: { template: '<span><slot /></span>' },
+          VtMyChip: MyChip,
+          VtStateChip: StateChip,
+          VtSeatsMini: SeatsMini,
+          EmptyState: { template: '<span />' },
+        },
+      },
+    })
+    await flushPromises()
+    expect(wrapper.find('ul a[aria-current]').exists()).toBe(false)
+    await wrapper.get('button[aria-controls="group-switcher"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.findAll('ul > li')).toHaveLength(2)
+    expect(wrapper.get('ul a[aria-current="true"]').attributes('href')).toBe('/m/orgs/30')
     wrapper.unmount()
   })
 

@@ -14,6 +14,7 @@ const PATHS: Record<string, string> = {
   users:
     '<circle cx="9" cy="9" r="3.5"/><path d="M3 19c.7-3 3.3-5 6-5s5.3 2 6 5"/><path d="M16 11a3 3 0 1 0 0-6"/><path d="M18 19c-.4-2-1.8-3.5-3.5-4.3"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
+  link: '<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/>',
   'chevron-r': '<path d="m9 6 6 6-6 6"/>',
   'chevron-l': '<path d="m15 6-6 6 6 6"/>',
   close: '<path d="m6 6 12 12M18 6 6 18"/>',

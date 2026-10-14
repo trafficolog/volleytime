@@ -28,7 +28,9 @@ onUnmounted(() => cleanup?.())
         <VtIcon name="chevron-l" :size="16" />
       </NuxtLink>
       <div class="min-w-0">
-        <h1 class="text-base font-semibold truncate">{{ title }}</h1>
+        <slot name="title">
+          <h1 class="text-base font-semibold truncate">{{ title }}</h1>
+        </slot>
         <p v-if="sub" class="text-[11.5px] text-vt-mute-2 mt-0.5 truncate">{{ sub }}</p>
       </div>
     </div>

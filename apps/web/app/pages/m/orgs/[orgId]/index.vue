@@ -3,8 +3,10 @@ import type { Organization, OrganizationMember } from '@volley-time/db'
 import { formatDay, formatShortDate, formatTime, type EventPricingView } from '@volley-time/shared'
 
 import type { EventListItem } from '~/components/EventCard.vue'
+import GroupSwitcher from '~/components/GroupSwitcher.vue'
 import { eventPricingLabel, splitBookingPaymentLabel } from '~/utils/event-pricing-label'
 import { groupEntryState, visibleGroup } from '~/utils/group-entry-state'
+import { groupMonogram } from '~/utils/group-monogram'
 import { formatMoneyRu } from '~/utils/labels'
 import {
   organizerHomeSubtitle,
@@ -13,7 +15,6 @@ import {
 } from '~/utils/organizer-miniapp'
 import { bookingPaymentChip } from '~/utils/player-event'
 import { playerHomeAccess, projectPlayerHome } from '~/utils/player-home'
-import { playerGroupOptions } from '~/utils/player-navigation'
 import { createPlayerRequestGuard } from '~/utils/player-request-guard'
 
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
@@ -74,25 +75,7 @@ const activeManager = computed(
   () =>
     !!org.value && me.value?.status === 'active' && ['owner', 'organizer'].includes(me.value.role),
 )
-const { orgs, loading: groupsLoading, fetchAll, selectOrg } = useOrganizations()
 const groupsOpen = ref(false)
-const groupsError = ref('')
-const groupOptions = computed(() => playerGroupOptions(orgs.value, orgId.value))
-
-async function openGroups() {
-  groupsOpen.value = true
-  groupsError.value = ''
-  try {
-    await fetchAll()
-  } catch (error) {
-    groupsError.value = apiErrorMessage(error, 'Не удалось загрузить группы')
-  }
-}
-
-function chooseGroup(group: { id: number; selectable: boolean }) {
-  if (group.selectable) selectOrg(group.id)
-  groupsOpen.value = false
-}
 
 const dashboard = shallowRef<Dashboard | null>(null)
 const dashboardOrgId = ref<number | null>(null)
@@ -150,6 +133,30 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
       :sub="headerSubtitle"
       back="/m/orgs"
     >
+      <template #title>
+        <div class="flex min-w-0 items-center gap-2.5">
+          <span
+            data-monogram
+            aria-hidden="true"
+            class="font-display flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-base font-bold"
+            :class="org ? groupMonogram(org.name).className : 'bg-vt-bone'"
+            >{{ org ? groupMonogram(org.name).initials : '' }}</span
+          >
+          <h1 class="min-w-0 text-base font-semibold">
+            <button
+              type="button"
+              class="flex min-h-11 max-w-full items-center gap-1 text-left font-semibold"
+              aria-haspopup="dialog"
+              aria-controls="group-switcher"
+              :aria-expanded="groupsOpen"
+              @click="groupsOpen = true"
+            >
+              <span class="truncate">{{ org?.name ?? 'Группа' }}</span>
+              <VtIcon name="chevron-r" :size="14" class="shrink-0 rotate-90" aria-hidden="true" />
+            </button>
+          </h1>
+        </div>
+      </template>
       <template #right>
         <NuxtLink
           v-if="home"
@@ -167,11 +174,18 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
         class="flex items-center gap-3 min-w-0 min-h-11 text-left"
         :disabled="!org"
         :aria-label="org ? `Выбрать группу. Сейчас ${org.name}` : 'Загрузка группы'"
-        @click="openGroups"
+        aria-haspopup="dialog"
+        aria-controls="group-switcher"
+        :aria-expanded="groupsOpen"
+        @click="groupsOpen = true"
       >
-        <span class="vt-avi vt-avi--lg !rounded-xl bg-vt-bone" aria-hidden="true">
-          <img :src="'/logo/vt-mark-color.svg'" alt="" class="!object-contain p-1" />
-        </span>
+        <span
+          data-monogram
+          aria-hidden="true"
+          class="font-display flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-base font-bold"
+          :class="org ? groupMonogram(org.name).className : 'bg-vt-bone'"
+          >{{ org ? groupMonogram(org.name).initials : '' }}</span
+        >
         <span class="min-w-0">
           <span class="font-semibold text-[15px] truncate flex items-center gap-1">
             {{ org?.name ?? 'Группа' }} <VtIcon name="chevron-r" :size="14" class="rotate-90" />
@@ -545,39 +559,7 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
       </template>
     </main>
 
-    <VtSheet v-model="groupsOpen" title="Мои группы">
-      <SkeletonList v-if="groupsLoading" :count="2" />
-      <ErrorState v-else-if="groupsError" :message="groupsError" @retry="openGroups" />
-      <ul v-else class="space-y-3">
-        <li v-for="group in groupOptions" :key="group.id">
-          <NuxtLink
-            :to="group.to"
-            class="vt-card p-4 flex items-center gap-3 min-h-11"
-            :aria-current="group.selected ? 'true' : undefined"
-            @click="chooseGroup(group)"
-          >
-            <VtIcon :name="group.selected ? 'check' : 'users'" :size="18" />
-            <span class="min-w-0 flex-1">
-              <span class="block font-semibold truncate">{{ group.name }}</span>
-              <span
-                v-if="group.statusLabel || group.city"
-                class="block text-xs text-vt-mute-2 mt-1"
-              >
-                {{ group.statusLabel ?? group.city }}
-              </span>
-            </span>
-            <VtIcon name="chevron-r" :size="16" />
-          </NuxtLink>
-        </li>
-      </ul>
-      <NuxtLink
-        to="/m/orgs"
-        class="vt-btn vt-btn--ghost vt-btn--full mt-4"
-        @click="groupsOpen = false"
-      >
-        Вступить по приглашению
-      </NuxtLink>
-    </VtSheet>
+    <GroupSwitcher id="group-switcher" v-model="groupsOpen" :current-org-id="orgId" />
   </div>
 </template>
 
