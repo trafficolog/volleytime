@@ -18,6 +18,7 @@ import {
   venues,
   type Event,
 } from '@volley-time/db'
+import { DEFAULT_TIMEZONE, zonedInputToDate } from '@volley-time/shared'
 
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
@@ -176,10 +177,22 @@ export const eventService = {
     if (opts.filter === 'upcoming') conds.push(gte(events.startsAt, now))
     if (opts.filter === 'past') conds.push(lt(events.startsAt, now))
     if (opts.status) conds.push(eq(events.status, opts.status))
+    if (opts.from && opts.to) {
+      const org = await db.query.organizations.findFirst({
+        where: eq(organizations.id, orgId),
+        columns: { defaultTimezone: true },
+      })
+      const tz = org?.defaultTimezone ?? DEFAULT_TIMEZONE
+      const nextDay = new Date(Date.parse(`${opts.to}T00:00:00Z`) + 86_400_000)
+        .toISOString()
+        .slice(0, 10)
+      conds.push(gte(events.startsAt, zonedInputToDate(`${opts.from}T00:00`, tz)))
+      conds.push(lt(events.startsAt, zonedInputToDate(`${nextDay}T00:00`, tz)))
+    }
     return db.query.events.findMany({
       where: and(...conds),
       orderBy: opts.filter === 'past' ? [desc(events.startsAt)] : [asc(events.startsAt)],
-      limit: opts.limit,
+      limit: opts.limit ?? (opts.from ? 500 : 50),
       offset: opts.offset,
     })
   },

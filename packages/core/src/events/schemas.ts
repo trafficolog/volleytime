@@ -90,12 +90,44 @@ export const UpdateEventInput = z
   )
 export type UpdateEventInput = z.input<typeof UpdateEventInput>
 
-export const ListEventsQuery = z.object({
-  filter: z.enum(['upcoming', 'past', 'all']).default('upcoming'),
-  status: z.enum(['draft', 'published', 'closed', 'finished', 'cancelled']).optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
-  offset: z.coerce.number().int().min(0).default(0),
-})
+/** Максимальная ширина диапазона `from`/`to` в днях (включительно): календарь кабинета, 20.5.4. */
+export const MAX_EVENT_RANGE_DAYS = 62
+const IsoDay = z.iso.date()
+const dayNumber = (day: string) => Date.parse(`${day}T00:00:00Z`) / 86_400_000
+
+/**
+ * `from`/`to` — календарные даты `YYYY-MM-DD` в часовом поясе организации, обе границы включительно:
+ * события с началом в [from 00:00, to+1 00:00) по времени организации. Задаются только вместе.
+ * В диапазоне страницы не нужны: лимит по умолчанию 500 (иначе 50, максимум 100).
+ */
+export const ListEventsQuery = z
+  .object({
+    filter: z.enum(['upcoming', 'past', 'all']).default('upcoming'),
+    status: z.enum(['draft', 'published', 'closed', 'finished', 'cancelled']).optional(),
+    from: IsoDay.optional(),
+    to: IsoDay.optional(),
+    limit: z.coerce.number().int().min(1).max(500).optional(),
+    offset: z.coerce.number().int().min(0).default(0),
+  })
+  .superRefine((q, ctx) => {
+    if ((q.from === undefined) !== (q.to === undefined)) {
+      ctx.addIssue({ code: 'custom', path: ['to'], message: 'from and to must be given together' })
+      return
+    }
+    if (q.from !== undefined && q.to !== undefined) {
+      const days = dayNumber(q.to) - dayNumber(q.from) + 1
+      if (days < 1)
+        ctx.addIssue({ code: 'custom', path: ['to'], message: 'to must not be before from' })
+      else if (days > MAX_EVENT_RANGE_DAYS)
+        ctx.addIssue({
+          code: 'custom',
+          path: ['to'],
+          message: `range must not exceed ${MAX_EVENT_RANGE_DAYS} days`,
+        })
+    } else if (q.limit !== undefined && q.limit > 100) {
+      ctx.addIssue({ code: 'custom', path: ['limit'], message: 'limit must not exceed 100' })
+    }
+  })
 export type ListEventsQuery = z.input<typeof ListEventsQuery>
 
 /** GET …/events/{id}/price?seats=N (20.1.1): N — целое 1..10 (верхняя граница CHECK max_seats_per_booking). */

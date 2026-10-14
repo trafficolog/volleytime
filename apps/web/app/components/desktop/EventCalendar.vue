@@ -11,11 +11,19 @@ import {
 import { eventStateOf, meterTint, seatsOf } from '~/utils/status-model'
 
 /** Календарь-месяц кабинета (W-03, 20.5.4): ≤2 события в ячейке, «+N ещё» → лист выбора. */
-const props = defineProps<{ events: EventListItem[]; timeZone: string; base: string }>()
+const props = defineProps<{
+  events: EventListItem[]
+  timeZone: string
+  base: string
+  loading?: boolean
+  error?: string
+}>()
+const emit = defineEmits<{ retry: [] }>()
+/** Показанный месяц `YYYY-MM` живёт на странице: переживает смену фильтра и вида. */
+const month = defineModel<string>('month', { required: true })
 
 const MAX_PILLS = 2
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
-const month = ref(monthOfInstant(new Date(), props.timeZone))
 const picked = ref<MonthCell | null>(null)
 const pickerOpen = ref(false)
 
@@ -26,6 +34,7 @@ const label = computed(() => {
   const name = new Intl.DateTimeFormat('ru-RU', { month: 'long', timeZone: 'UTC' }).format(date)
   return `${name} ${year}`
 })
+const monthIsEmpty = computed(() => !grid.value.some((c) => c.inMonth && c.events.length > 0))
 const weeks = computed(() =>
   Array.from({ length: grid.value.length / 7 }, (_, i) => grid.value.slice(i * 7, i * 7 + 7)),
 )
@@ -88,7 +97,17 @@ function openDay(cell: MonthCell) {
         </button>
       </div>
     </header>
-    <table class="vt-desktop-calendar__grid" aria-label="Календарь событий">
+    <p v-if="error" class="vt-desktop-calendar__hint" role="alert">
+      {{ error }}
+      <button type="button" class="vt-btn vt-btn--ghost vt-btn--sm" @click="emit('retry')">
+        Повторить
+      </button>
+    </p>
+    <p v-else-if="loading" class="vt-desktop-calendar__hint" role="status">Загружаем…</p>
+    <p v-else-if="monthIsEmpty" class="vt-desktop-calendar__hint" role="status">
+      В этом месяце событий нет.
+    </p>
+    <table class="vt-desktop-calendar__grid" :aria-busy="loading" aria-label="Календарь событий">
       <thead>
         <tr>
           <th v-for="d in WEEKDAYS" :key="d" scope="col" class="vt-cap">{{ d }}</th>
@@ -108,7 +127,7 @@ function openDay(cell: MonthCell) {
               <span
                 v-if="cell.events.length > 1"
                 class="vt-desktop-calendar__count vt-mono"
-                :aria-label="`${cell.events.length} ${eventsWord(cell.events.length)}`"
+                aria-hidden="true"
                 >{{ cell.events.length }}</span
               >
             </div>

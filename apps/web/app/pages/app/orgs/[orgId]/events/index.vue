@@ -2,7 +2,9 @@
 import type { EventListItem } from '~/components/EventCard.vue'
 import {
   appendDesktopEventPage,
+  buildMonthGrid,
   eventFilterQuery,
+  monthOfInstant,
   type EventFilterKey,
 } from '~/utils/desktop-calendar'
 
@@ -24,7 +26,12 @@ const filterOptions = [
   { value: 'past', label: 'Прошедшие' },
   { value: 'cancelled', label: 'Отменённые' },
 ]
+const month = ref(monthOfInstant(new Date(), tz.value))
 const events = ref<EventListItem[]>([])
+const calendarEvents = ref<EventListItem[]>([])
+const calendarLoading = ref(false)
+const calendarError = ref('')
+let calendarGeneration = 0
 const loading = ref(false)
 const error = ref('')
 const hasMore = ref(false)
@@ -53,6 +60,34 @@ async function loadPage(offset: number) {
   }
 }
 
+/** Календарь грузит выбранный месяц целиком (диапазон from/to), а не страницу списка. */
+async function loadCalendar() {
+  const token = ++calendarGeneration
+  const targetOrgId = orgId.value
+  const grid = buildMonthGrid(month.value, [])
+  calendarLoading.value = true
+  calendarError.value = ''
+  try {
+    const result = await $fetch<{ events: EventListItem[] }>(
+      `/api/organizations/${targetOrgId}/events`,
+      {
+        query: {
+          ...eventFilterQuery(filter.value),
+          from: grid[0]!.day,
+          to: grid[grid.length - 1]!.day,
+        },
+      },
+    )
+    if (token !== calendarGeneration) return
+    calendarEvents.value = result.events
+  } catch (cause) {
+    if (token !== calendarGeneration) return
+    calendarError.value = apiErrorMessage(cause, 'Не удалось загрузить события')
+  } finally {
+    if (token === calendarGeneration) calendarLoading.value = false
+  }
+}
+
 const emptyTitle = computed(() =>
   filter.value === 'past'
     ? 'Прошедших событий нет'
@@ -73,7 +108,22 @@ watch(
   },
   { immediate: true },
 )
-onBeforeUnmount(() => generation++)
+watch(orgId, () => {
+  calendarEvents.value = []
+})
+// Сетка не очищается на время перезагрузки: старые данные остаются до прихода новых.
+watch(
+  [orgId, filter, month, view],
+  () => {
+    if (view.value === 'calendar') void loadCalendar()
+    else calendarGeneration++
+  },
+  { immediate: true },
+)
+onBeforeUnmount(() => {
+  generation++
+  calendarGeneration++
+})
 </script>
 
 <template>
@@ -94,36 +144,46 @@ onBeforeUnmount(() => generation++)
 
     <VtSegment v-model="filter" label="Фильтр событий" variant="chips" :options="filterOptions" />
 
-    <SkeletonList v-if="loading && events.length === 0" :count="3" />
-    <ErrorState v-else-if="error && events.length === 0" :message="error" @retry="loadPage(0)" />
+    <DesktopEventCalendar
+      v-if="view === 'calendar'"
+      v-model:month="month"
+      :events="calendarEvents"
+      :time-zone="tz"
+      :base="base"
+      :loading="calendarLoading"
+      :error="calendarError"
+      @retry="loadCalendar"
+    />
     <template v-else>
-      <p class="text-vt-mute-2" role="status">
-        Загружено: {{ events.length }}{{ hasMore ? ' · доступны ещё' : '' }}.
-      </p>
-      <EmptyState v-if="events.length === 0" icon="calendar" :title="emptyTitle">
-        <template #action>
-          <NuxtLink :to="`${base}/events/new`" class="vt-btn vt-btn--primary"
-            >Создать событие</NuxtLink
-          >
-        </template>
-      </EmptyState>
-      <DesktopEventTable
-        v-else-if="view === 'list'"
-        :events="events"
-        :time-zone="tz"
-        :base="base"
-      />
-      <DesktopEventCalendar v-else :events="events" :time-zone="tz" :base="base" />
-      <ErrorState v-if="error && events.length" :message="error" @retry="loadPage(events.length)" />
-      <button
-        v-if="hasMore"
-        type="button"
-        class="vt-btn vt-btn--ghost"
-        :disabled="loading"
-        @click="loadPage(events.length)"
-      >
-        {{ loading ? 'Загружаем…' : 'Загрузить ещё' }}
-      </button>
+      <SkeletonList v-if="loading && events.length === 0" :count="3" />
+      <ErrorState v-else-if="error && events.length === 0" :message="error" @retry="loadPage(0)" />
+      <template v-else>
+        <p class="text-vt-mute-2" role="status">
+          Загружено: {{ events.length }}{{ hasMore ? ' · доступны ещё' : '' }}.
+        </p>
+        <EmptyState v-if="events.length === 0" icon="calendar" :title="emptyTitle">
+          <template #action>
+            <NuxtLink :to="`${base}/events/new`" class="vt-btn vt-btn--primary"
+              >Создать событие</NuxtLink
+            >
+          </template>
+        </EmptyState>
+        <DesktopEventTable v-else :events="events" :time-zone="tz" :base="base" />
+        <ErrorState
+          v-if="error && events.length"
+          :message="error"
+          @retry="loadPage(events.length)"
+        />
+        <button
+          v-if="hasMore"
+          type="button"
+          class="vt-btn vt-btn--ghost"
+          :disabled="loading"
+          @click="loadPage(events.length)"
+        >
+          {{ loading ? 'Загружаем…' : 'Загрузить ещё' }}
+        </button>
+      </template>
     </template>
   </div>
 </template>

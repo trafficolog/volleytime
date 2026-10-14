@@ -37,9 +37,16 @@ const events = [
   ev(3, 'Мини-турнир', '2026-05-28T12:00:00Z'),
   ev(4, 'Вечерняя', '2026-05-28T17:00:00Z', { status: 'cancelled' }),
 ]
-const apiFetch = vi.fn(async (_url: string, _opts?: { query?: Record<string, unknown> }) => ({
-  events,
-}))
+let listEvents: typeof events = events
+let rangeEvents: typeof events | null = null
+let holdRange: Promise<void> | null = null
+const apiFetch = vi.fn(async (_url: string, opts?: { query?: Record<string, unknown> }) => {
+  if (opts?.query?.from) {
+    if (holdRange) await holdRange
+    return { events: rangeEvents ?? events }
+  }
+  return { events: listEvents }
+})
 
 Object.entries({
   computed,
@@ -86,6 +93,9 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date('2026-05-20T09:00:00Z'))
   apiFetch.mockClear()
+  listEvents = events
+  rangeEvents = null
+  holdRange = null
 })
 afterEach(() => {
   vi.useRealTimers()
@@ -136,7 +146,7 @@ describe('cabinet events list (W-03)', () => {
     await flushPromises()
     await filterRadios(wrapper)[2]!.trigger('click')
     await flushPromises()
-    const calls = apiFetch.mock.calls.length
+    const calls = apiFetch.mock.calls.filter(([, o]) => !o?.query?.from).length
     const checked = () => wrapper.get('[aria-label="Фильтр событий"] [aria-checked="true"]').text()
 
     await viewRadios(wrapper)[1]!.trigger('click')
@@ -146,7 +156,7 @@ describe('cabinet events list (W-03)', () => {
     await viewRadios(wrapper)[0]!.trigger('click')
     expect(wrapper.find('tbody tr').exists()).toBe(true)
     expect(checked()).toBe('Прошедшие')
-    expect(apiFetch.mock.calls).toHaveLength(calls)
+    expect(apiFetch.mock.calls.filter(([, o]) => !o?.query?.from)).toHaveLength(calls)
     wrapper.unmount()
   })
 })
@@ -156,6 +166,7 @@ describe('cabinet events calendar (W-03)', () => {
     const wrapper = render()
     await flushPromises()
     await viewRadios(wrapper)[1]!.trigger('click')
+    await flushPromises()
     return wrapper
   }
 
@@ -199,6 +210,72 @@ describe('cabinet events calendar (W-03)', () => {
       .find((b) => b.text() === 'Сегодня')!
       .trigger('click')
     expect(wrapper.get('h2').text().toLowerCase()).toContain('май 2026')
+    wrapper.unmount()
+  })
+
+  it('fetches the shown month by from/to with the active filter', async () => {
+    const wrapper = await openCalendar()
+    const query = apiFetch.mock.calls.at(-1)![1]!.query!
+    expect(query).toMatchObject({ filter: 'all', from: '2026-04-27', to: '2026-05-31' })
+    expect(query).not.toHaveProperty('offset')
+    await wrapper.get('button[aria-label="Следующий месяц"]').trigger('click')
+    await flushPromises()
+    expect(apiFetch.mock.calls.at(-1)![1]!.query).toMatchObject({
+      from: '2026-06-01',
+      to: '2026-07-05',
+    })
+    wrapper.unmount()
+  })
+
+  it('shows the current month events even when the list page holds only older ones', async () => {
+    const old = Array.from({ length: 50 }, (_, i) =>
+      ev(100 + i, `Старое ${i}`, '2025-01-10T10:00:00Z'),
+    )
+    listEvents = old
+    const wrapper = await openCalendar()
+    expect(wrapper.findAll('td[data-day="2026-05-28"] a')).toHaveLength(2)
+    wrapper.unmount()
+  })
+
+  it('keeps the month across filter changes and view toggles', async () => {
+    const wrapper = await openCalendar()
+    await wrapper.get('button[aria-label="Следующий месяц"]').trigger('click')
+    await filterRadios(wrapper)[2]!.trigger('click')
+    await flushPromises()
+    expect(wrapper.get('h2').text().toLowerCase()).toContain('июнь 2026')
+    expect(apiFetch.mock.calls.at(-1)![1]!.query).toMatchObject({
+      filter: 'past',
+      from: '2026-06-01',
+    })
+    await viewRadios(wrapper)[0]!.trigger('click')
+    await viewRadios(wrapper)[1]!.trigger('click')
+    await flushPromises()
+    expect(wrapper.get('h2').text().toLowerCase()).toContain('июнь 2026')
+    wrapper.unmount()
+  })
+
+  it('does not blank the grid while the next month is loading', async () => {
+    const wrapper = await openCalendar()
+    let release!: () => void
+    holdRange = new Promise<void>((resolve) => (release = resolve))
+    rangeEvents = []
+    await filterRadios(wrapper)[1]!.trigger('click')
+    expect(wrapper.find('td[data-day="2026-05-28"] a').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Загружаем')
+    release()
+    await flushPromises()
+    expect(wrapper.find('td[data-day="2026-05-28"] a').exists()).toBe(false)
+    expect(wrapper.text()).toContain('В этом месяце событий нет')
+    wrapper.unmount()
+  })
+
+  it('hides the duplicated day count from assistive technology', async () => {
+    const wrapper = await openCalendar()
+    expect(
+      wrapper.get('td[data-day="2026-05-28"] .vt-desktop-calendar__count').attributes(),
+    ).toMatchObject({
+      'aria-hidden': 'true',
+    })
     wrapper.unmount()
   })
 })

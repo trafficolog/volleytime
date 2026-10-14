@@ -89,3 +89,27 @@ describe('month navigation (20.5.4)', () => {
     expect(cell?.events.map((e) => e.id)).toEqual([1, 2])
   })
 })
+
+describe('org-day grouping at timezone edges (20.5.4)', () => {
+  const days = (iso: string, tz: string) => [...groupEventsByOrgDay([event(1, iso)], tz).keys()][0]
+
+  it('splits at local midnight on both sides', () => {
+    expect(days('2026-05-31T20:59:59Z', 'Europe/Minsk')).toBe('2026-05-31')
+    expect(days('2026-05-31T21:00:00Z', 'Europe/Minsk')).toBe('2026-06-01')
+  })
+
+  it('follows the offset across a DST change (America/New_York)', () => {
+    // 2026-03-08: EST (UTC-5) -> EDT (UTC-4) at 02:00 local
+    expect(days('2026-03-08T04:59:00Z', 'America/New_York')).toBe('2026-03-07')
+    expect(days('2026-03-08T05:00:00Z', 'America/New_York')).toBe('2026-03-08')
+    expect(days('2026-03-09T03:59:00Z', 'America/New_York')).toBe('2026-03-08')
+    expect(days('2026-03-09T04:00:00Z', 'America/New_York')).toBe('2026-03-09')
+  })
+
+  it('keeps the 25-hour fall-back day together', () => {
+    // 2026-11-01: EDT -> EST, local day spans 04:00Z .. 04:59Z next UTC day... until 05:00Z
+    expect(days('2026-11-01T03:59:00Z', 'America/New_York')).toBe('2026-10-31')
+    expect(days('2026-11-02T04:59:00Z', 'America/New_York')).toBe('2026-11-01')
+    expect(days('2026-11-02T05:00:00Z', 'America/New_York')).toBe('2026-11-02')
+  })
+})
