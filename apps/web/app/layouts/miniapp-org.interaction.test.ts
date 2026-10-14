@@ -128,7 +128,8 @@ describe('Mini App layout navigation interaction', () => {
   it('keeps player tabs as navigable links without a menu button', async () => {
     const { wrapper, router } = await renderLayout('player')
     expect(wrapper.find('button[aria-controls="organizer-menu-dialog"]').exists()).toBe(false)
-    expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(4)
+    expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(3)
+    expect(wrapper.find('a[href="/m/orgs/7/bookings"]').exists()).toBe(false)
     expect(wrapper.find('a[href="/m/orgs/7/profile"]').exists()).toBe(true)
     expect(wrapper.find('a[href="/m/orgs/7/events"]').exists()).toBe(false)
     await wrapper.get('a[href="/m/orgs/7/profile"]').trigger('click')
@@ -137,11 +138,26 @@ describe('Mini App layout navigation interaction', () => {
     wrapper.unmount()
   })
 
-  it('keeps the three player destinations when subscriptions are disabled', async () => {
+  it('keeps Главная and Профиль when subscriptions are disabled', async () => {
     const { wrapper } = await renderLayout('player', false)
-    expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(3)
+    expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(2)
+    expect(wrapper.find('a[href="/m/orgs/7/subscriptions"]').exists()).toBe(false)
     expect(wrapper.find('button[aria-controls="organizer-menu-dialog"]').exists()).toBe(false)
     wrapper.unmount()
+  })
+
+  it('marks no tab as current when the active route belongs to a hidden tab', async () => {
+    route.path = '/m/orgs/7/subscriptions'
+    route.fullPath = '/m/orgs/7/subscriptions'
+    try {
+      const { wrapper } = await renderLayout('player', false)
+      expect(wrapper.findAll('[aria-current="page"]')).toHaveLength(0)
+      expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(2)
+      wrapper.unmount()
+    } finally {
+      route.path = '/m/orgs/7'
+      route.fullPath = '/m/orgs/7'
+    }
   })
 
   it('hides tabs and manager menu while the organization response belongs to another group', async () => {

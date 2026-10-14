@@ -5,7 +5,6 @@ import {
   organizerHomeSubtitle,
   organizerTabItems,
   pendingPaymentsForEvent,
-  playerTabItems,
   projectOrganizerHome,
 } from './organizer-miniapp'
 
@@ -43,14 +42,6 @@ describe('organizer Mini App navigation', () => {
       { kind: 'link', to: `${base}/cashbox`, label: 'Касса', icon: 'chart' },
       { kind: 'link', to: `${base}/payments`, label: 'Оплаты', icon: 'wallet' },
       { kind: 'action', id: 'menu', label: 'Меню', icon: 'menu' },
-    ])
-  })
-
-  it('keeps player navigation as links', () => {
-    expect(playerTabItems(base, false)).toEqual([
-      { kind: 'link', to: base, label: 'Главная', icon: 'home' },
-      { kind: 'link', to: `${base}/events`, label: 'События', icon: 'calendar', prefix: true },
-      { kind: 'link', to: `${base}/bookings`, label: 'Записи', icon: 'ticket' },
     ])
   })
 })
