@@ -6,7 +6,7 @@ release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-12
 status_note: ''
-estimated_hours: '40-80'
+estimated_hours: '48-96'
 depends_on:
   [
     '19.1.1',
@@ -19,6 +19,7 @@ depends_on:
     '20.1.3',
     '20.2.1',
     '20.2.2',
+    '20.3.3',
   ]
 ---
 
@@ -37,15 +38,16 @@ depends_on:
 
 ## Задачи
 
-| ID                                          | Задача                               | Референс | Сложн. | Реализация          | Ревью               |
-| ------------------------------------------- | ------------------------------------ | -------- | ------ | ------------------- | ------------------- |
-| [20.5.1](../tasks/20-5-1-auth.md)           | Авторизация кабинета и Mini App v3   | W-16     | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
-| [20.5.2](../tasks/20-5-2-cabinet-search.md) | Поиск кабинета                       | P-13     | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
-| [20.5.3](../tasks/20-5-3-cabinet-shell.md)  | Оболочка кабинета v3                 | W-01     | M      | `claude-sonnet-5-5` | `claude-sonnet-5-5` |
-| [20.5.4](../tasks/20-5-4-events.md)         | События кабинета: список и календарь | W-03     | M      | `claude-sonnet-5-5` | `claude-sonnet-5-5` |
-| [20.5.5](../tasks/20-5-5-event-create.md)   | Создание события и серии в кабинете  | W-04     | L      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
-| [20.5.6](../tasks/20-5-6-event-card.md)     | Карточка события в кабинете v3       | W-05     | L      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
-| [20.5.7](../tasks/20-5-7-settings.md)       | Настройки группы в кабинете          | W-11     | L      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
+| ID                                                    | Задача                                | Референс | Сложн. | Реализация          | Ревью               |
+| ----------------------------------------------------- | ------------------------------------- | -------- | ------ | ------------------- | ------------------- |
+| [20.5.1](../tasks/20-5-1-auth.md)                     | Авторизация кабинета и Mini App v3    | W-16     | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
+| [20.5.2](../tasks/20-5-2-cabinet-search.md)           | Поиск кабинета                        | P-13     | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
+| [20.5.3](../tasks/20-5-3-cabinet-shell.md)            | Оболочка кабинета v3                  | W-01     | M      | `claude-sonnet-5-5` | `claude-sonnet-5-5` |
+| [20.5.4](../tasks/20-5-4-events.md)                   | События кабинета: список и календарь  | W-03     | M      | `claude-sonnet-5-5` | `claude-sonnet-5-5` |
+| [20.5.5](../tasks/20-5-5-event-create.md)             | Создание события и серии в кабинете   | W-04     | L      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
+| [20.5.6](../tasks/20-5-6-event-card.md)               | Карточка события в кабинете v3        | W-05     | L      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
+| [20.5.7](../tasks/20-5-7-settings.md)                 | Настройки группы в кабинете           | W-11     | L      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
+| [20.5.8](../tasks/20-5-8-events-payments-row-menu.md) | Оплаты и меню строки в списке событий | —        | L      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
 
 ## Не делать
 
