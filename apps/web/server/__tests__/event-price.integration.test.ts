@@ -136,7 +136,9 @@ describe('event price API (20.1.1)', () => {
       perSeat: { min: 2500, max: 3334 },
       seatCount: { current: 3, max: 4 },
     })
-    // Mini App и кабинет читают тот же расчёт: верх прогноза = текущая доля представления события
+    // Сверяется только perSeat.max уже записавшегося игрока (N ≥ 1 записавшихся, места по умолчанию)
+    // с maxAmount представления GET /events/{id} (readEventPricing) для игрока и организатора.
+    // Единый источник цены на экранах — критерий 20.4.6, 20.5.6, 20.6.1 (решение владельца 2026-10-14).
     expect((current.perSeat as { max: number }).max).toBe(
       (await eventView(eventId, players[0]!)).maxAmount,
     )
