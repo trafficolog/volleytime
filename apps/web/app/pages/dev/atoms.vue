@@ -14,7 +14,7 @@ const view = ref('list')
 const remind = ref('1h')
 const kind = ref('Аренда зала')
 const venue = ref('v1')
-const level = ref('ba')
+const level = ref('v3')
 const menuOpen = ref(false)
 const alertOpen = ref(false)
 const sheetOpen = ref(false)
@@ -31,9 +31,9 @@ const venues = [
 ]
 const levels = [
   { value: 'all', label: 'Любой' },
-  { value: 'ba', label: 'B / A' },
-  { value: 'a', label: 'A · продвинутый' },
-  { value: 'c', label: 'C · новички' },
+  { value: 'v2', label: 'В2 · сильный любительский' },
+  { value: 'v3', label: 'В3 · средний любительский' },
+  { value: 'v4_plus', label: 'В4+ · начинающие' },
 ]
 const reminders = [
   { value: '1h', label: 'за 1 ч' },
