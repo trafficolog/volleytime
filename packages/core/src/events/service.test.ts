@@ -180,6 +180,67 @@ describe('eventService (integration)', () => {
     expect(cancelled.every((e) => e.status === 'cancelled')).toBe(true)
   })
 
+  describe('list range from/to (20.5.4)', () => {
+    const mk = (title: string, startsAt: string) =>
+      eventService.create({ userId: ownerId }, orgId, {
+        title,
+        startsAt: new Date(startsAt),
+        endsAt: new Date(new Date(startsAt).getTime() + 3600_000),
+        capacity: 10,
+      })
+
+    it('filters by organization-timezone days, both bounds inclusive', async () => {
+      // Europe/Minsk = UTC+3: 21:30Z 31 мая — уже 1 июня по времени организации
+      await mk('late-may-utc', '2030-05-31T20:59:00Z')
+      await mk('first-of-june', '2030-05-31T21:00:00Z')
+      await mk('last-of-june', '2030-06-30T20:59:00Z')
+      await mk('first-of-july', '2030-06-30T21:00:00Z')
+      const june = await eventService.list({ userId: ownerId }, orgId, {
+        filter: 'all',
+        from: '2030-06-01',
+        to: '2030-06-30',
+      })
+      expect(june.map((e) => e.title)).toEqual(['first-of-june', 'last-of-june'])
+    })
+
+    it('returns every event of the range even above the default page size', async () => {
+      for (let i = 0; i < 55; i++) await mk(`e${i}`, '2030-03-10T10:00:00Z')
+      const rows = await eventService.list({ userId: ownerId }, orgId, {
+        filter: 'all',
+        from: '2030-03-01',
+        to: '2030-03-31',
+      })
+      expect(rows).toHaveLength(55)
+    })
+
+    it('does not leak events of another organization', async () => {
+      await mk('mine', '2030-04-10T10:00:00Z')
+      const other = await organizationService.create({ userId: ownerId }, { name: 'Other Org' })
+      await eventService.create({ userId: ownerId }, other.id, {
+        title: 'foreign',
+        startsAt: new Date('2030-04-10T11:00:00Z'),
+        endsAt: new Date('2030-04-10T12:00:00Z'),
+        capacity: 10,
+      })
+      const rows = await eventService.list({ userId: ownerId }, orgId, {
+        filter: 'all',
+        from: '2030-04-01',
+        to: '2030-04-30',
+      })
+      expect(rows.map((e) => e.title)).toEqual(['mine'])
+    })
+
+    it('validates the range', async () => {
+      const list = (q: Record<string, unknown>) => eventService.list({ userId: ownerId }, orgId, q)
+      await expect(list({ from: '2030-06-01' })).rejects.toThrow()
+      await expect(list({ from: '2030-06-10', to: '2030-06-01' })).rejects.toThrow()
+      await expect(list({ from: '2030-06-01', to: 'nope' })).rejects.toThrow()
+      await expect(list({ from: '2030-01-01', to: '2030-03-04' })).rejects.toThrow(/62/)
+      await expect(list({ from: '2030-01-01', to: '2030-03-03' })).resolves.toEqual([])
+      await expect(list({ limit: 101 })).rejects.toThrow()
+    })
+  })
+
   afterAll(async () => {
     await db.delete(organizations)
     await db.delete(users)
