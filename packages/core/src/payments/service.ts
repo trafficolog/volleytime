@@ -645,7 +645,11 @@ export const paymentService = {
               await bookingService.promoteFromWaitlist(txCtx, booking.eventId)
           } else if (event && event.startsAt > new Date()) {
             // освобождение места через общую отмену → промоушен листа ожидания (6.8.4).
-            await bookingService.cancel(txCtx, booking.id, { byAdmin: true })
+            // число мест на абонементе посчитано до отмены платежей (здесь 0: kept === 0)
+            await bookingService.cancel(txCtx, booking.id, {
+              byAdmin: true,
+              subscriptionSeats,
+            })
           } else {
             await tx
               .update(bookings)

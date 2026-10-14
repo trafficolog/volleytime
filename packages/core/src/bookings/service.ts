@@ -656,7 +656,7 @@ export const bookingService = {
   async cancel(
     ctx: ServiceContext,
     bookingId: number,
-    opts: { byAdmin?: boolean } = {},
+    opts: { byAdmin?: boolean; subscriptionSeats?: number } = {},
   ): Promise<{ booking: Booking; promoted: Booking | null }> {
     const db = getDb(ctx)
     return db.transaction(async (tx) => {
@@ -700,9 +700,13 @@ export const bookingService = {
 
       // восстановить занятия абонемента — по месту, только если они были списаны (у waitlisted
       // subscription_id лишь запоминает выбор, 5.13.6)
-      const subscriptionSeats = ['confirmed', 'pending_payment'].includes(booking.status)
-        ? await subscriptionSeatsOf({ ...ctx, db: tx }, booking)
-        : 0
+      // Вызывающий, уже отменивший платежи мест (отклонение оплаты), передаёт число мест на
+      // абонементе до отмены: после неё «места сверх живых платежей» завысили бы возврат.
+      const subscriptionSeats = !['confirmed', 'pending_payment'].includes(booking.status)
+        ? 0
+        : opts.subscriptionSeats !== undefined
+          ? Math.min(opts.subscriptionSeats, booking.seats)
+          : await subscriptionSeatsOf({ ...ctx, db: tx }, booking)
       if (subscriptionSeats > 0) {
         await subscriptionService.restoreSessions(
           { userId: booking.userId, db: tx },
