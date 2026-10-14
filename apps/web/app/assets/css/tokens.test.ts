@@ -221,6 +221,13 @@ describe('Bento Bold v3 token scale and overlays', () => {
     expect(nuxt).not.toContain('/favicon.png')
   })
 
+  it('switches the colour logo mark to the on-blue variant on dark surfaces', () => {
+    expect(existsSync(join(publicDir, 'logo', 'vt-mark-on-blue.svg'))).toBe(true)
+    expect(main).toMatch(
+      /:is\(\.dark, \.vt-dark\) img\[src\$='\/logo\/vt-mark-color\.svg'\]\s*\{\s*content:\s*url\('\/logo\/vt-mark-on-blue\.svg'\)/,
+    )
+  })
+
   it('does not reference the retired PNG logo from app code', () => {
     function scan(directory: string): string[] {
       return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {

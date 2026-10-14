@@ -294,11 +294,15 @@
 
 .vt-desktop-dashboard .vt-card.vt-desktop-dashboard__balance {
   background: var(--vt-blue-ink);
-  color: var(--vt-paper);
+  color: var(--vt-on-hero);
 }
 
 .vt-desktop-dashboard__balance .vt-cap {
-  color: var(--vt-paper);
+  color: var(--vt-on-hero);
+}
+
+.vt-desktop-dashboard__balance > p:not(.vt-desktop-dashboard__balance-value) {
+  color: var(--vt-on-hero-2);
 }
 
 .vt-desktop-dashboard__balance-value,
