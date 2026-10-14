@@ -2,11 +2,11 @@
 id: '19.1.1'
 phase: '19'
 epic: '19.1'
-status: in_progress
+status: done
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-13
-status_note: 'Токены и SVG/PNG-ассеты v3: PR #101 + #103, ревью merge. Открыт только критерий визуального отчёта (харнесс 19.0.2).'
+last_reviewed: 2026-10-14
+status_note: 'Токены и SVG/PNG-ассеты v3: PR #101 + #103, ревью merge; D1 и D2 исправлены (PR #112), повторная проверка пройдена: docs/operations/qa/2026-10-13-wave1-visual.md.'
 ref_id: 'P-15'
 complexity: S
 impl_model: claude-haiku-5-5
