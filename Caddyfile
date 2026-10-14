@@ -19,7 +19,7 @@
 		-Server
 		# ВАЖНО: НЕ ставить X-Frame-Options DENY — сломает Mini App в Telegram webview.
 		# CSP с учётом Telegram (Task 9.9.11): SDK и шрифты Google, встраивание только из Telegram.
-		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://telegram.org; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: https://t.me https://*.telegram.org https://telegram.org; connect-src 'self'; frame-ancestors https://web.telegram.org https://*.telegram.org https://telegram.org; base-uri 'self'; form-action 'self'"
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://telegram.org; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: https://t.me https://*.telegram.org https://telegram.org; connect-src 'self'; frame-src https://oauth.telegram.org; frame-ancestors https://web.telegram.org https://*.telegram.org https://telegram.org; base-uri 'self'; form-action 'self'"
 	}
 
 	encode gzip zstd
