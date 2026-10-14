@@ -403,11 +403,18 @@ export const eventService = {
       for (const b of activeBookings) {
         let refunded = false
         // 1. вернуть занятия абонемента — по месту (только списанные: у waitlisted это лишь выбор, 5.13.6)
-        if (b.subscriptionId && ['confirmed', 'attended', 'no_show'].includes(b.status)) {
+        // места сверх живых платежей — занятия; места из очереди без занятий оплачены наличными
+        const subscriptionSeats =
+          b.method === 'subscription' &&
+          b.subscriptionId &&
+          ['confirmed', 'pending_payment', 'attended', 'no_show'].includes(b.status)
+            ? b.seats - (await paymentService.listLive({ ...ctx, db: tx }, b)).length
+            : 0
+        if (subscriptionSeats > 0) {
           await subscriptionService.restoreSessions(
             { userId: b.userId, db: tx },
-            b.subscriptionId,
-            b.seats,
+            b.subscriptionId!,
+            subscriptionSeats,
           )
           refunded = true
         }

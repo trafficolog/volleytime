@@ -119,6 +119,8 @@ export const eventPricingService = {
           .set({
             paymentId: payment.id,
             allocatedAmount: share.amount,
+            // очередная часть мест после фиксации не продвигается — снимается (ревью 20.1.2)
+            waitlistSeats: 0,
             status: 'pending_payment',
             confirmedAt: null,
             updatedAt: new Date(),

@@ -9,7 +9,6 @@ import {
   events,
   inArray,
   ne,
-  notInArray,
   organizationMembers,
   organizations,
   payments,
@@ -103,10 +102,22 @@ function assertSelfCancellable(event: Event): void {
 }
 
 /**
+ * Места записи, оплаченные занятиями абонемента: у записи на абонементе места сверх живых платежей
+ * (места, продвинутые из очереди без занятий, оплачиваются наличными — решение владельца 2026-10-14).
+ */
+async function subscriptionSeatsOf(ctx: ServiceContext, booking: Booking): Promise<number> {
+  if (booking.method !== 'subscription' || !booking.subscriptionId) return 0
+  const live = await paymentService.listLive(ctx, booking)
+  return Math.max(0, booking.seats - live.length)
+}
+
+/**
  * Добавить `count` мест записи, уже стоящей в основе (`confirmed`/`pending_payment`): из её очереди
  * (`fromQueue`) или новым запросом игрока. Деньги — по месту (ADR): fixed cash/transfer — ещё `count`
  * платежей и статус пересчитывается; абонемент — ещё `count` занятий с того же абонемента; бесплатно
  * и split до фиксации — без денег. Под advisory-lock события.
+ * `cashFallback` (продвижение из очереди): если занятий абонемента не хватает, места не пропускаются,
+ * а оплачиваются наличными — порядок очереди не нарушается (решение владельца 2026-10-14, как 5.13.6).
  */
 async function addMainSeats(
   ctx: ServiceContext,
@@ -114,15 +125,23 @@ async function addMainSeats(
   booking: Booking,
   count: number,
   fromQueue: number,
+  opts: { cashFallback?: boolean } = {},
 ): Promise<Booking> {
   const db = getDb(ctx)
+  let payMethod: 'cash' | 'transfer' | null =
+    booking.method === 'cash' || booking.method === 'transfer' ? booking.method : null
   if (event.priceMode === 'fixed' && event.price > 0 && booking.method === 'subscription') {
-    await subscriptionService.consumeSessions(
-      { userId: booking.userId, db },
-      booking.organizationId,
-      count,
-      booking.subscriptionId ?? undefined,
-    )
+    try {
+      await subscriptionService.consumeSessions(
+        { userId: booking.userId, db },
+        booking.organizationId,
+        count,
+        booking.subscriptionId ?? undefined,
+      )
+    } catch (e) {
+      if (!opts.cashFallback || !isSessionShortage(e)) throw e
+      payMethod = 'cash'
+    }
   }
   const [updated] = await db
     .update(bookings)
@@ -133,16 +152,12 @@ async function addMainSeats(
     })
     .where(eq(bookings.id, booking.id))
     .returning()
-  if (
-    event.priceMode === 'fixed' &&
-    event.price > 0 &&
-    (booking.method === 'cash' || booking.method === 'transfer')
-  ) {
+  if (event.priceMode === 'fixed' && event.price > 0 && payMethod) {
     await paymentService.createSeatPayments({ ...ctx, userId: booking.userId }, updated!, {
       count,
       amount: event.price,
       currency: event.currency,
-      method: booking.method,
+      method: payMethod,
     })
     return (await paymentService.syncBookingPayments(ctx, booking.id)) ?? updated!
   }
@@ -400,14 +415,19 @@ export const bookingService = {
           booking.status === 'waitlisted' ? 0 : Math.min(remove, booking.waitlistSeats)
         const fromMain = booking.status === 'waitlisted' ? 0 : remove - fromQueue
         if (fromMain > 0) {
-          if (booking.subscriptionId && booking.status === 'confirmed') {
+          // порядок: неоплаченные места → места абонемента (занятия возвращаются) → оплаченные
+          const live = await paymentService.listLive(txCtx, booking)
+          const unpaid = Math.min(fromMain, live.filter((p) => p.status === 'pending').length)
+          const restore = Math.min(fromMain - unpaid, await subscriptionSeatsOf(txCtx, booking))
+          if (restore > 0) {
             await subscriptionService.restoreSessions(
               { userId: booking.userId, db: tx },
-              booking.subscriptionId,
-              fromMain,
+              booking.subscriptionId!,
+              restore,
             )
           }
-          await paymentService.releaseSeats(txCtx, booking, fromMain)
+          if (fromMain - restore > 0)
+            await paymentService.releaseSeats(txCtx, booking, fromMain - restore)
         }
         const [changed] = await tx
           .update(bookings)
@@ -660,6 +680,11 @@ export const bookingService = {
         throw new BookingNotCancellableError('split allocation is final')
       }
 
+      // политика группы (снимок D-02): запрет отмены игроком — до проверок посещения (порядок R0.7)
+      if (isSelf && !opts.byAdmin && !event.cancellationAllowed) {
+        throw new BookingCancellationNotAllowedError()
+      }
+
       // посещение отмечено или событие началось — отмена невозможна (Task 5.13.10)
       if (booking.status === 'attended' || booking.status === 'no_show') {
         throw new BookingNotCancellableError('attendance already marked')
@@ -669,17 +694,20 @@ export const bookingService = {
       }
 
       // политика группы (снимок D-02) и срок: только для игрока; организатор отменяет всегда
-      if (isSelf && !opts.byAdmin) assertSelfCancellable(event)
+      if (isSelf && !opts.byAdmin) assertSelfCancellable(event) // срок отмены
 
       const freedSlot = booking.status === 'confirmed' || booking.status === 'pending_payment'
 
       // восстановить занятия абонемента — по месту, только если они были списаны (у waitlisted
       // subscription_id лишь запоминает выбор, 5.13.6)
-      if (booking.subscriptionId && booking.status === 'confirmed') {
+      const subscriptionSeats = ['confirmed', 'pending_payment'].includes(booking.status)
+        ? await subscriptionSeatsOf({ ...ctx, db: tx }, booking)
+        : 0
+      if (subscriptionSeats > 0) {
         await subscriptionService.restoreSessions(
           { userId: booking.userId, db: tx },
-          booking.subscriptionId,
-          booking.seats,
+          booking.subscriptionId!,
+          subscriptionSeats,
         )
       }
 
@@ -727,8 +755,8 @@ export const bookingService = {
    * Отдать свободные места очереди (FIFO по (bookedAt, id), D-03 без планировщика — автопродвижение).
    * Первый в очереди получает столько мест, сколько свободно (остаток остаётся в очереди), затем
    * следующий — пока есть свободные места. free → confirmed; платное → pending_payment (оплата по месту);
-   * абонемент списывает занятие на место, без абонемента — оплата наличными (5.13.6). Запись в основе
-   * с очередной частью на абонементе, у которого не хватает занятий, пропускается в этом проходе.
+   * абонемент списывает занятие на место, без занятий — оплата наличными (5.13.6); запись в очереди
+   * никогда не пропускается, порядок очереди не нарушается (решение владельца 2026-10-14).
    * Возвращает первую продвинутую бронь или null.
    */
   async promoteFromWaitlist(ctx: ServiceContext, eventId: number): Promise<Booking | null> {
@@ -740,7 +768,6 @@ export const bookingService = {
       if (!event || event.status !== 'published' || event.pricingSettledAt) return null
 
       let first: Booking | null = null
-      const skipped: number[] = [0]
       for (;;) {
         const free = event.capacity - (await takenSeats(db, eventId))
         if (free <= 0) break
@@ -748,7 +775,7 @@ export const bookingService = {
         const [next] = await db
           .select()
           .from(bookings)
-          .where(and(eq(bookings.eventId, eventId), inQueueSql, notInArray(bookings.id, skipped)))
+          .where(and(eq(bookings.eventId, eventId), inQueueSql))
           .orderBy(asc(bookings.bookedAt), asc(bookings.id))
           .limit(1)
           .for('update', { skipLocked: true })
@@ -759,13 +786,7 @@ export const bookingService = {
           promoted = await promoteWaiting(ctx, event, next, Math.min(free, next.seats))
         } else {
           const count = Math.min(free, next.waitlistSeats)
-          try {
-            promoted = await inTransaction(ctx, (sp) => addMainSeats(sp, event, next, count, count))
-          } catch (e) {
-            if (!isSessionShortage(e)) throw e
-            skipped.push(next.id)
-            continue
-          }
+          promoted = await addMainSeats(ctx, event, next, count, count, { cashFallback: true })
           await auditService.record(ctx, {
             organizationId: next.organizationId,
             action: AUDIT_ACTIONS.BOOKING_PROMOTED,

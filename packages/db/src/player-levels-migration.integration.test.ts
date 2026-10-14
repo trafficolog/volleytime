@@ -235,6 +235,8 @@ describe('migration 0023 player levels (integration)', { timeout: 60_000 }, () =
         (await sql`SELECT level FROM organization_members ORDER BY id LIMIT 1`)[0]!.level,
       ).toBe('v4_plus')
 
+      // откат 0025 требует отсутствия данных нескольких мест (precondition rollback-скрипта)
+      await sql`UPDATE bookings SET seats = 1, waitlist_seats = 0 WHERE seats > 1 OR waitlist_seats > 0`
       expect(await rollbackLastMigration(url)).toBe(TAG25)
 
       expect(await rollbackLastMigration(url)).toBe(TAG24)

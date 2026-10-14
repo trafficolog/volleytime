@@ -4,6 +4,13 @@
 -- для R0.7. Откат допустим только когда нет данных нескольких мест: прежний runtime считает записи
 -- через count(*) — проверить `SELECT EXISTS (SELECT 1 FROM bookings WHERE seats > 1 OR waitlist_seats > 0)`
 -- = false до отката (deploy runbook, ADR «Правила совместимости», п. 4).
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM "bookings" WHERE "seats" > 1 OR "waitlist_seats" > 0) THEN
+    RAISE EXCEPTION 'rollback 0025 refused: bookings with seats > 1 or waitlist_seats > 0 exist';
+  END IF;
+END
+$$;
 DROP TRIGGER IF EXISTS "payments_fill_booking_incarnation" ON "payments";
 DROP FUNCTION IF EXISTS "payments_fill_booking_incarnation"();
 DROP TRIGGER IF EXISTS "bookings_bump_incarnation" ON "bookings";

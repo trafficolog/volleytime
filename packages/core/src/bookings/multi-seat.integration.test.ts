@@ -455,4 +455,101 @@ describe('multi-seat booking (20.1.2, PostgreSQL)', () => {
       bookingService.changeSeats({ userId: a }, ba.id, { seats: 1 }),
     ).rejects.toMatchObject({ code: 'booking.not_cancellable' })
   })
+
+  it('queued seats on a subscription without sessions fall back to cash and keep the queue order (owner 2026-10-14)', async () => {
+    const ev = await makeEvent({ capacity: 3 })
+    const x = await player()
+    const b = await player()
+    const c = await player()
+    const d = await player()
+    const plan = await planService.create(owner(), {
+      organizationId: orgId,
+      name: 'Два занятия',
+      totalSessions: 2,
+    })
+    const sub = await subscriptionService.createFromPlan({ userId: b }, orgId, plan.id, {
+      autoActivate: true,
+    })
+    const bx = await bookingService.book({ userId: x }, orgId, ev.id, { method: 'cash' })
+    const bb = await bookingService.book({ userId: b }, orgId, ev.id, {
+      method: 'subscription',
+      seats: 3,
+      allowWaitlist: true,
+    })
+    expect(bb).toMatchObject({ status: 'confirmed', seats: 2, waitlistSeats: 1 })
+    expect((await subscriptionService.getById({ userId: b }, sub.id)).usedSessions).toBe(2)
+    const bc = await bookingService.book({ userId: c }, orgId, ev.id, { method: 'cash' })
+    expect(bc.status).toBe('waitlisted')
+
+    // освободилось место: первая в очереди — очередная часть записи b; занятий нет → наличные
+    await bookingService.cancel({ userId: x }, bx.id)
+    expect(await reload(bb.id)).toMatchObject({
+      status: 'pending_payment',
+      seats: 3,
+      waitlistSeats: 0,
+      method: 'subscription',
+    })
+    const cash = await livePayments(bb.id)
+    expect(cash.map((p) => [p.status, p.amount, p.method])).toEqual([['pending', 1500, 'cash']])
+    expect(await reload(bc.id)).toMatchObject({ status: 'waitlisted' })
+    // новичок не занимает место впереди: свободных мест нет, он встаёт в очередь после c
+    const bd = await bookingService.book({ userId: d }, orgId, ev.id, { method: 'cash' })
+    expect(bd.status).toBe('waitlisted')
+
+    // оплата наличного места подтверждает запись; частичная отмена: сначала наличное неоплаченное
+    // нет — оно оплачено; затем места абонемента (занятие возвращается)
+    await paymentService.confirm(owner(), cash[0]!.id, { orgId })
+    expect(await reload(bb.id)).toMatchObject({ status: 'confirmed' })
+    await bookingService.changeSeats({ userId: b }, bb.id, { seats: 2 })
+    expect((await subscriptionService.getById({ userId: b }, sub.id)).usedSessions).toBe(1)
+    expect((await livePayments(bb.id))[0]).toMatchObject({
+      status: 'succeeded',
+      seatReleasedAt: null,
+    })
+    expect(await reload(bc.id)).toMatchObject({ status: 'pending_payment', seats: 1 })
+
+    // отмена записи: оставшееся занятие возвращается, оплаченное наличное место освобождается (D-14)
+    await bookingService.cancel({ userId: b }, bb.id)
+    expect((await subscriptionService.getById({ userId: b }, sub.id)).usedSessions).toBe(0)
+    expect((await livePayments(bb.id))[0]!.seatReleasedAt).not.toBeNull()
+    expect(await reload(bd.id)).toMatchObject({ status: 'pending_payment', seats: 1 })
+  })
+
+  it('adding unpaid seats keeps the confirmation time of the booking', async () => {
+    const ev = await makeEvent()
+    const p = await player()
+    const b = await bookingService.book({ userId: p }, orgId, ev.id, { method: 'cash', seats: 2 })
+    await paymentService.confirm(owner(), b.paymentId!, { orgId })
+    const confirmedAt = (await reload(b.id)).confirmedAt
+    expect(confirmedAt).not.toBeNull()
+    await bookingService.changeSeats({ userId: p }, b.id, { seats: 3 })
+    expect(await reload(b.id)).toMatchObject({ status: 'pending_payment', confirmedAt })
+  })
+
+  it('split settlement releases queued seats of partial bookings', async () => {
+    vi.stubEnv('EVENT_SPLIT_PRICING_ENABLED', 'true')
+    const ev = await eventService.create(owner(), orgId, {
+      title: 'Сбор',
+      startsAt: future(),
+      endsAt: future(26),
+      capacity: 3,
+      priceMode: 'split',
+      targetAmount: 900,
+    })
+    const a = await player()
+    const b = await player()
+    await bookingService.book({ userId: a }, orgId, ev.id, { method: 'cash', seats: 2 })
+    const bb = await bookingService.book({ userId: b }, orgId, ev.id, {
+      method: 'cash',
+      seats: 2,
+      allowWaitlist: true,
+    })
+    expect(bb).toMatchObject({ seats: 1, waitlistSeats: 1 })
+    await eventPricingService.settle(owner(), orgId, ev.id)
+    expect(await reload(bb.id)).toMatchObject({ seats: 1, waitlistSeats: 0, allocatedAmount: 300 })
+    expect((await eventService.statsFor({ userId: b }, [ev.id])).get(ev.id)).toMatchObject({
+      taken: 3,
+      waitlist: 0,
+    })
+  })
 })

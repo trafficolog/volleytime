@@ -211,6 +211,8 @@ describe('migrations 0021 group settings and 0022 cancellation default (integrat
         WHERE e.cancellation_deadline_hours IS DISTINCT FROM o.cancellation_deadline_hours`
       expect(mismatched).toHaveLength(0)
 
+      // откат 0025 требует отсутствия данных нескольких мест (precondition rollback-скрипта)
+      await sql`UPDATE bookings SET seats = 1, waitlist_seats = 0 WHERE seats > 1 OR waitlist_seats > 0`
       expect(await rollbackLastMigration(url)).toBe(TAG25)
 
       expect(await rollbackLastMigration(url)).toBe(TAG24)

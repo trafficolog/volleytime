@@ -126,7 +126,7 @@ describe('multi-seat concurrency (20.1.2, PostgreSQL)', () => {
       allowWaitlist: true,
     })
 
-    await Promise.allSettled([
+    const [shrink, grow, plain, consent, cancel] = await Promise.allSettled([
       bookingService.changeSeats({ userId: a! }, ba.id, { seats: 1 }),
       bookingService.changeSeats({ userId: b! }, bb.id, { seats: 4 }),
       bookingService.book({ userId: d! }, orgId, ev.id, { method: 'cash', seats: 2 }),
@@ -137,6 +137,21 @@ describe('multi-seat concurrency (20.1.2, PostgreSQL)', () => {
       }),
       bookingService.cancel({ userId: b! }, bb.id),
     ])
+    const code = (r: PromiseSettledResult<unknown>) =>
+      r.status === 'fulfilled' ? 'ok' : (r.reason as { code?: string }).code
+    // уменьшение, запись с согласием на очередь и отмена проходят при любом порядке
+    expect([code(shrink), code(consent), code(cancel)]).toEqual(['ok', 'ok', 'ok'])
+    // увеличение зависит от порядка: свободных мест нет или запись уже отменена
+    expect(['ok', 'booking.not_enough_seats', 'booking.not_cancellable']).toContain(code(grow))
+    // запись без согласия: в основу, целиком в очередь или 409 при частичной нехватке
+    expect(['ok', 'booking.not_enough_seats']).toContain(code(plain))
+    expect(await db.query.bookings.findFirst({ where: eq(bookings.id, ba.id) })).toMatchObject({
+      seats: 1,
+    })
+    expect(await db.query.bookings.findFirst({ where: eq(bookings.id, bb.id) })).toMatchObject({
+      status: 'cancelled',
+      waitlistSeats: 0,
+    })
     const { taken } = await occupancy(ev.id)
     expect(taken).toBeLessThanOrEqual(8)
     expect((await moneyDrift(ev.id)).length).toBe(0)

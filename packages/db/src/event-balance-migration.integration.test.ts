@@ -330,6 +330,8 @@ describe('migration 0024 event balance (integration)', { timeout: 60_000 }, () =
       expect(await count('event_balance_entries')).toBe(balance.entries)
       expect(await count('event_balance_purchase_requests')).toBe(balance.requests)
 
+      // откат 0025 требует отсутствия данных нескольких мест (precondition rollback-скрипта)
+      await sql`UPDATE bookings SET seats = 1, waitlist_seats = 0 WHERE seats > 1 OR waitlist_seats > 0`
       expect(await rollbackLastMigration(url)).toBe(TAG25)
 
       expect(await rollbackLastMigration(url)).toBe(TAG)

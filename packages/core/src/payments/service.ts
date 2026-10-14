@@ -328,7 +328,9 @@ export const paymentService = {
       .set({
         status,
         paymentId: live[0]!.id,
-        confirmedAt: status === 'confirmed' ? (booking.confirmedAt ?? new Date()) : null,
+        // добавление неоплаченных мест не стирает момент подтверждения записи (ревью 20.1.2)
+        confirmedAt:
+          status === 'confirmed' ? (booking.confirmedAt ?? new Date()) : booking.confirmedAt,
         updatedAt: new Date(),
       })
       .where(eq(bookings.id, booking.id))

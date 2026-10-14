@@ -220,6 +220,11 @@ describe('migration 0025 multi-seat booking (integration)', { timeout: 60_000 },
         sql`UPDATE payments SET booking_incarnation = NULL WHERE id = ${pa}`,
       ).rejects.toThrow(/payments_booking_incarnation_required/)
 
+      // очередная часть мест тоже блокирует откат
+      await sql`UPDATE bookings SET seats = 2, waitlist_seats = 1 WHERE id = ${a}`
+      await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0025 refused/)
+      await sql`UPDATE bookings SET seats = 1, waitlist_seats = 0 WHERE id = ${a}`
+
       // откат возвращает 0024 и не трогает данные R0.7
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await sql`SELECT 1 FROM bookings`).toHaveLength(3)
@@ -267,6 +272,11 @@ describe('migration 0025 multi-seat booking (integration)', { timeout: 60_000 },
       await seedDemo(database)
       expect(await snapshot()).toEqual(before)
 
+      // откат отказывает, пока есть данные нескольких мест (прежний runtime считает count(*)),
+      // и ничего не меняет: транзакция отката откатывается целиком
+      await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0025 refused/)
+      expect(await columns(sql)).toBe(NEW_COLUMNS.length)
+      await sql`UPDATE bookings SET seats = 1, waitlist_seats = 0 WHERE seats > 1`
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await snapshot()).toEqual(before)
       await runMigrations(url)
