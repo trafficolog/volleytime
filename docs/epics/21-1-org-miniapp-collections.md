@@ -48,7 +48,7 @@ depends_on:
 | [21.1.4](../tasks/21-1-4-group-schedule.md)                        | Расписание группы на месяц (игрок и организатор)          | M-11     | M      | `claude-sonnet-5-5` | `claude-sonnet-5-5` |
 | [21.1.5](../tasks/21-1-5-org-miniapp-collections-notifications.md) | Mini App организатора: сборы, уведомления                 | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
 | [21.1.6](../tasks/21-1-6-player-collections.md)                    | Сборы игрока: список, сбор, взнос                         | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
-| [21.1.7](../tasks/21-1-7-group-creation-wizard.md)                 | Мастер создания группы (3 шага)                           | —        | M      | `claude-sonnet-5-5` | `claude-sonnet-5-5` |
+| [21.1.7](../tasks/21-1-7-group-creation-wizard.md)                 | Мастер создания группы (3 шага)                           | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
 
 ## Не делать
 
