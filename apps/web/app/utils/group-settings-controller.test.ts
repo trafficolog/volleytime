@@ -215,7 +215,9 @@ describe('settings controller', () => {
     const { controller } = setup(request)
     const result = await controller.saveProfile({ name: 'Новая' }, { city: 'Брест' })
     expect(result.ok).toBe(false)
-    expect((result as { message?: string }).message).toContain('Название и описание сохранены')
+    expect((result as { message?: string }).message).toContain(
+      'Сохранено: название. Не сохранено: город',
+    )
     expect((result as { message?: string }).message).toContain('Нет прав')
   })
 })
