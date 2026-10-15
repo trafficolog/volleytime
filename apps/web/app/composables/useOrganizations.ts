@@ -55,6 +55,8 @@ export interface MemberRow {
   organizationId: number
   role: 'owner' | 'organizer' | 'assistant' | 'player'
   status: 'pending' | 'active' | 'guest' | 'blocked' | 'left' | 'rejected'
+  /** Код уровня В1–В4+ (`v1`…`v4_plus`) или null, если не назначен. */
+  level: string | null
   joinedAt: string | null
   createdAt: string
   user: { id: number; name: string | null; telegramUsername: string | null; image: string | null }

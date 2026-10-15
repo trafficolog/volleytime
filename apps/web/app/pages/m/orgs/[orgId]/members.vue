@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import type { OrganizationMember } from '@volley-time/db'
+
 import type { MemberRow } from '~/composables/useOrganizations'
 import { ROLE_LABELS, displayName, label } from '~/utils/labels'
+import {
+  LEVEL_FILTER_ALL,
+  filterByLevel,
+  levelFilterOptions,
+  levelTitle,
+  type PlayerLevelView,
+} from '~/utils/player-level'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
 const route = useRoute()
@@ -12,6 +20,10 @@ const { confirm } = useTelegram()
 const { data: orgData } = await useFetch<{ myMember: OrganizationMember }>(
   () => `/api/organizations/${orgId.value}`,
 )
+const { data: levelsData } = await useFetch<{ levels: PlayerLevelView[] }>('/api/levels', {
+  key: 'player-levels',
+})
+const levels = computed(() => levelsData.value?.levels ?? [])
 const me = computed(() => orgData.value?.myMember ?? null)
 const isManager = computed(
   () => me.value?.status === 'active' && ['owner', 'organizer'].includes(me.value.role),
@@ -25,6 +37,13 @@ const SEGMENTS: { id: Segment; label: string }[] = [
   { id: 'blocked', label: 'Заблокированные' },
 ]
 const pendingCount = ref(0)
+
+const levelFilter = ref(LEVEL_FILTER_ALL)
+const levelOptions = computed(() => levelFilterOptions(levels.value))
+/** Фильтр по уровню только для списков игроков; заявки показываются целиком. */
+const visibleMembers = computed(() =>
+  segment.value === 'pending' ? members.value : filterByLevel(members.value, levelFilter.value),
+)
 
 async function load() {
   await fetch([segment.value])
@@ -119,6 +138,14 @@ async function act(m: MemberRow, action: 'approve' | 'reject' | 'block' | 'unblo
       <p v-if="segment === 'pending'" class="text-[12.5px] text-vt-mute-2 px-1 pb-3">
         Заявки на вступление по приглашению. Примите, чтобы открыть доступ к событиям.
       </p>
+      <div v-if="segment !== 'pending' && members.length > 0" class="pb-3 -mx-1 overflow-x-auto">
+        <VtSegment
+          v-model="levelFilter"
+          :options="levelOptions"
+          label="Фильтр по уровню"
+          variant="chips"
+        />
+      </div>
 
       <SkeletonList v-if="loading" :count="4" />
       <ErrorState v-else-if="error" :message="error" @retry="load" />
@@ -132,6 +159,11 @@ async function act(m: MemberRow, action: 'approve' | 'reject' | 'block' | 'unblo
               ? 'Заблокированных нет'
               : 'В составе пока никого'
         "
+      />
+      <EmptyState
+        v-else-if="visibleMembers.length === 0"
+        icon="users"
+        title="Нет игроков с этим уровнем"
       />
 
       <ul v-else-if="segment === 'pending'" class="space-y-2.5">
@@ -161,7 +193,7 @@ async function act(m: MemberRow, action: 'approve' | 'reject' | 'block' | 'unblo
       </ul>
 
       <ul v-else class="vt-card overflow-hidden divide-y divide-[var(--vt-stroke)]">
-        <li v-for="m in members" :key="m.id">
+        <li v-for="m in visibleMembers" :key="m.id">
           <component
             :is="canModerate(m) ? 'button' : 'div'"
             :type="canModerate(m) ? 'button' : undefined"
@@ -176,6 +208,7 @@ async function act(m: MemberRow, action: 'approve' | 'reject' | 'block' | 'unblo
                 @{{ m.user.telegramUsername }}
               </div>
             </div>
+            <VtChip v-if="levelTitle(m.level, levels)">{{ levelTitle(m.level, levels) }}</VtChip>
             <VtChip :tone="ROLE_TONE[m.role] ?? 'default'">{{ label(ROLE_LABELS, m.role) }}</VtChip>
             <VtIcon v-if="canModerate(m)" name="more" :size="14" class="text-vt-mute" />
           </component>

@@ -17,6 +17,7 @@ import {
   shouldRefreshPlayerEventAfterRejection,
 } from '~/utils/player-event-action'
 import { playerHomeAccess } from '~/utils/player-home'
+import { levelTitle, type PlayerLevelView } from '~/utils/player-level'
 import { createPlayerRequestGuard } from '~/utils/player-request-guard'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
@@ -30,6 +31,8 @@ type EventDetails = Event & {
 interface RosterItem {
   user: { id: number; name: string | null; telegramUsername: string | null; image: string | null }
   paid: boolean
+  /** Уровень В1–В4+ (`v1`…`v4_plus`), только для участников группы; null — не назначен. */
+  level?: string | null
 }
 
 const route = useRoute()
@@ -72,6 +75,10 @@ const ev = computed(() =>
     : null,
 )
 const roster = computed(() => (ev.value ? (data.value?.roster ?? []) : []))
+const { data: levelsData } = await useFetch<{ levels: PlayerLevelView[] }>('/api/levels', {
+  key: 'player-levels',
+})
+const levels = computed(() => levelsData.value?.levels ?? [])
 const sourceStatus = computed(() => ({
   eventMatches: !!ev.value,
   organizationMatches: !!organization.value,
@@ -449,6 +456,9 @@ async function cancelMine() {
           >
             <VtAvatar size="sm" :name="displayName(r.user)" :src="r.user.image" />
             <span class="text-[13px] flex-1 truncate">{{ displayName(r.user) }}</span>
+            <VtChip v-if="levelTitle(r.level, levels)" class="shrink-0">{{
+              levelTitle(r.level, levels)
+            }}</VtChip>
           </li>
         </ul>
         <p v-else class="text-sm text-vt-mute-2 mt-3">

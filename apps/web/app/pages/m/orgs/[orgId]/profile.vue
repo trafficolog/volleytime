@@ -2,6 +2,7 @@
 import type { Organization, OrganizationMember } from '@volley-time/db'
 
 import { playerHomeAccess } from '~/utils/player-home'
+import { levelTitle, type PlayerLevelView } from '~/utils/player-level'
 import { playerGroupOptions, playerProfileFields } from '~/utils/player-navigation'
 
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
@@ -35,6 +36,16 @@ const { data, error, pending, refresh } = await useFetch<{
 }>(() => `/api/organizations/${orgId.value}`, { key: () => `org-profile-${orgId.value}` })
 const organization = computed(() =>
   data.value?.organization.id === orgId.value ? data.value.organization : null,
+)
+const { data: levelsData } = await useFetch<{ levels: PlayerLevelView[] }>('/api/levels', {
+  key: 'player-levels',
+})
+const levelCode = computed(() => data.value?.myMember?.level ?? null)
+const levelName = computed(() => levelTitle(levelCode.value, levelsData.value?.levels ?? []))
+const levelDescription = computed(
+  () =>
+    (levelsData.value?.levels ?? []).find((level) => level.code === levelCode.value)?.description ??
+    null,
 )
 const access = computed(() =>
   playerHomeAccess(
@@ -113,6 +124,19 @@ const access = computed(() =>
             </div>
           </dl>
           <p v-else class="text-sm text-vt-mute-2 mt-5">Личные данные пока не указаны.</p>
+        </section>
+
+        <section aria-labelledby="profile-level-title" class="space-y-3">
+          <h2 id="profile-level-title" class="vt-cap">Уровень в группе</h2>
+          <div class="vt-card p-4">
+            <template v-if="levelCode">
+              <VtChip tone="solid">{{ levelName ?? 'Уровень назначен' }}</VtChip>
+              <p v-if="levelDescription" class="text-sm text-vt-mute-2 mt-2">
+                {{ levelDescription }}
+              </p>
+            </template>
+            <p v-else class="text-sm text-vt-mute-2">Уровень пока не назначен организатором.</p>
+          </div>
         </section>
 
         <section class="space-y-3">
