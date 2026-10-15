@@ -13,7 +13,7 @@ impl_model: claude-opus-5-5
 review_model: claude-opus-5-5
 review_gate: opus+tests
 roles: [FE, BACK]
-depends_on: ['24.1.1', '20.1.3']
+depends_on: ['24.1.1', '20.1.3', '21.2.16']
 supersedes: []
 decisions: []
 estimated_hours: '16-32'
@@ -33,7 +33,7 @@ tags: [reference-v3]
 
 - Спецификация референса: [W-14 · Страница группы · рендер](../design/reference-v3/specs/03-organizer-web/W-14-group-page-render.md); макет: 4 Кабинет организатора → Страница группы → предпросмотр.
 - **Как есть (main `e68acf2`):** Нет.
-- **Дельта до референса:** SSR, schema.org, sitemap, canonical, OG, каталог города, Lighthouse SEO ≥ 95.
+- **Дельта до референса:** SSR, schema.org, sitemap, canonical, OG, каталог города, Lighthouse SEO ≥ 95. Логотип и короткую ссылку группы страница читает из [21.2.16](21-2-16-settings-logo-short-link.md) (v0.3.0): адрес `volleytime.by/<имя>` и логотип задаются там, здесь только рендер.
 - Модель: реализация `claude-opus-5-5`, ревью `claude-opus-5-5` (ревью Opus + тесты граничных случаев и гонок); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
 
 **Общий функционал с другими интерфейсами:**
