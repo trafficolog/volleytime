@@ -3,27 +3,22 @@ import { describe, expect, it } from 'vitest'
 import { playerGroupOptions, playerProfileFields, playerTabs } from './player-navigation'
 
 describe('player Mini App navigation', () => {
-  it('keeps three MVP tabs when subscriptions are unavailable', () => {
+  it('shows Главная and Профиль only when subscriptions are unavailable', () => {
     expect(playerTabs('/m/orgs/2', { showMenu: false }).map((tab) => tab.label)).toEqual([
       'Главная',
-      'Записи',
       'Профиль',
     ])
     expect(playerTabs('/m/orgs/2', { showMenu: false }).map((tab) => tab.to)).toEqual([
       '/m/orgs/2',
-      '/m/orgs/2/bookings',
       '/m/orgs/2/profile',
     ])
   })
 
-  it('adds only subscriptions when enabled or when read-only balance remains', () => {
-    expect(playerTabs('/m/orgs/2', { showMenu: true }).map((tab) => tab.label)).toEqual([
-      'Главная',
-      'Записи',
-      'Абонементы',
-      'Профиль',
-    ])
-    expect(playerTabs('/m/orgs/2', { showMenu: true })[2]?.to).toBe('/m/orgs/2/subscriptions')
+  it('adds Абонементы between Главная and Профиль when enabled, without a bookings tab', () => {
+    const tabs = playerTabs('/m/orgs/2', { showMenu: true })
+    expect(tabs.map((tab) => tab.label)).toEqual(['Главная', 'Абонементы', 'Профиль'])
+    expect(tabs[1]?.to).toBe('/m/orgs/2/subscriptions')
+    expect(tabs.some((tab) => tab.to.endsWith('/bookings'))).toBe(false)
   })
 })
 

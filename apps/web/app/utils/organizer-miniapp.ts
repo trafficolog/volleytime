@@ -96,17 +96,6 @@ export function organizerTabItems(base: string): TabItem[] {
   ]
 }
 
-export function playerTabItems(base: string, showSubscriptions: boolean): TabItem[] {
-  return [
-    { kind: 'link', to: base, label: 'Главная', icon: 'home' },
-    { kind: 'link', to: `${base}/events`, label: 'События', icon: 'calendar', prefix: true },
-    { kind: 'link', to: `${base}/bookings`, label: 'Записи', icon: 'ticket' },
-    ...(showSubscriptions
-      ? [{ kind: 'link' as const, to: `${base}/subscriptions`, label: 'Абонементы', icon: 'card' }]
-      : []),
-  ]
-}
-
 export function pendingPaymentsForEvent<T extends { event?: { id: number } | null }>(
   payments: readonly T[],
   eventId: number,
