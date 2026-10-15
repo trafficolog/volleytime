@@ -149,6 +149,20 @@ describe('migration 0026 event join mode and invites (integration)', { timeout: 
       expect(await objects(sql)).toBe(ALL)
       await sql`UPDATE events SET status = 'cancelled' WHERE id = ${e}`
 
+      // живой токен приглашения на событие тоже блокирует откат (прежний redeem не различает тип);
+      // использованные, истёкшие и отозванные — нет
+      await sql`
+        INSERT INTO invite_links (token, organization_id, created_by_user_id, type, event_id, max_uses, uses_count)
+        VALUES ('evtoken00000005', ${o}, ${u}, 'event_join', ${e}, 1, 1)`
+      await sql`
+        INSERT INTO invite_links (token, organization_id, created_by_user_id, type, event_id, max_uses, expires_at)
+        VALUES ('evtoken00000006', ${o}, ${u}, 'event_join', ${e}, 1, now() - interval '1 minute')`
+      await expect(rollbackLastMigration(url)).rejects.toThrow(
+        /rollback 0026 refused: live event_join invite tokens exist/,
+      )
+      expect(await objects(sql)).toBe(ALL)
+      await sql`UPDATE invite_links SET is_revoked = true WHERE token = 'evtoken00000004'`
+
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await objects(sql)).toBe(0)
       // приглашения на событие удалены (прежний redeem принял бы их как вступление в группу),

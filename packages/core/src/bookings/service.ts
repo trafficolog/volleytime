@@ -25,6 +25,7 @@ import { consumeEventInvite } from '../invites/event-invites'
 import { collectNotification } from '../notifier/collect'
 import { organizationService } from '../organizations/service'
 import { paymentService } from '../payments/service'
+import { canManageContent } from '../permissions/policies'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
 import { NoActiveSubscriptionError, NotEnoughSessionsError } from '../subscriptions/errors'
 import { subscriptionService } from '../subscriptions/service'
@@ -223,12 +224,16 @@ export const bookingService = {
       if (existing?.allocatedAmount != null) throw new EventNotBookableError('allocation is final')
 
       // 3a. режим записи (20.1.3): на событие `invite` — только по валидному приглашению; проверка и
-      // израсходование однократной ссылки — здесь, под lock события, в транзакции записи
+      // израсходование однократной ссылки — здесь, под lock события, в транзакции записи.
+      // Владелец и организатор записывают себя без приглашения (решение владельца 2026-10-15);
+      // book() всегда записывает ctx.userId — записи «за другого» здесь нет
       const inviteId =
-        event.joinMode === 'invite'
+        event.joinMode === 'invite' && !canManageContent(member)
           ? await consumeEventInvite(txCtx, event, {
               inviteToken: parsed.inviteToken,
-              previousInviteId: existing?.inviteId,
+              previous: existing
+                ? { bookingId: existing.id, inviteId: existing.inviteId }
+                : undefined,
             })
           : null
 

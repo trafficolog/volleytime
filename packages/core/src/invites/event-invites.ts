@@ -116,6 +116,9 @@ async function issueInvite(
       eventId: ev.id,
       type: 'event_join',
       createdByUserId: ctx.userId,
+      // прежний runtime без проверки типа мог бы принять токен в redeem: тогда — только заявка
+      // `pending`, а не активное членство (ревью PR #136, I-2)
+      defaultMemberStatus: 'pending',
       maxUses: 1,
       expiresAt,
     })
@@ -162,7 +165,9 @@ const onlyExpired = (inv: InviteLink | undefined): boolean =>
  * 4.9.3), поэтому однократная ссылка пропускает ровно одну запись при любой конкуренции, а
  * откат транзакции записи возвращает приглашение. Источники по порядку:
  * 1. `inviteToken` из тела — личная ссылка этого события;
- * 2. приглашение, по которому создана отменённая запись этого игрока (повторная запись);
+ * 2. приглашение, по которому создана отменённая запись этого игрока (повторная запись после своей
+ *    отмены, решение владельца 2026-10-15): приглашение того же события и группы, не отозвано и не
+ *    истекло (`uses_count` не учитывается); после отмены записи организатором — нельзя;
  * 3. приглашение, выданное игроку одобрением его запроса.
  * Чужой, неизвестный, отозванный или использованный токен — `booking.invite_required` (без
  * раскрытия причины); просроченная ссылка этого события — `invite.expired`.
@@ -171,7 +176,7 @@ const onlyExpired = (inv: InviteLink | undefined): boolean =>
 export async function consumeEventInvite(
   ctx: ServiceContext,
   ev: Event,
-  opts: { inviteToken?: string; previousInviteId?: number | null },
+  opts: { inviteToken?: string; previous?: { bookingId: number; inviteId: number | null } },
 ): Promise<number> {
   const db = getDb(ctx)
   if (opts.inviteToken) {
@@ -192,7 +197,28 @@ export async function consumeEventInvite(
     if (onlyExpired(known)) throw new InviteExpiredError()
     throw new BookingInviteRequiredError()
   }
-  if (opts.previousInviteId) return opts.previousInviteId
+  let expired = false
+  if (opts.previous?.inviteId) {
+    const stored = await db.query.inviteLinks.findFirst({
+      where: and(
+        eq(inviteLinks.id, opts.previous.inviteId),
+        eq(inviteLinks.type, 'event_join'),
+        eq(inviteLinks.eventId, ev.id),
+        eq(inviteLinks.organizationId, ev.organizationId),
+      ),
+    })
+    const lastCancel = await auditService.latest(
+      ctx,
+      'booking',
+      opts.previous.bookingId,
+      AUDIT_ACTIONS.BOOKING_CANCELLED,
+    )
+    const byAdmin = (lastCancel?.newValue as { byAdmin?: boolean } | null)?.byAdmin === true
+    if (stored && !stored.isRevoked && !byAdmin) {
+      if (stored.expiresAt === null || stored.expiresAt > new Date()) return stored.id
+      expired = true
+    }
+  }
 
   const approved = await db
     .select({ inviteId: eventInviteRequests.inviteId })
@@ -206,7 +232,6 @@ export async function consumeEventInvite(
       ),
     )
     .orderBy(desc(eventInviteRequests.decidedAt))
-  let expired = false
   for (const { inviteId } of approved) {
     const [inv] = await db
       .update(inviteLinks)

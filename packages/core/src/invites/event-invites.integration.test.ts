@@ -289,6 +289,107 @@ describe('event join mode and invites (20.1.3, PostgreSQL)', () => {
       expect(again).toMatchObject({ id: b.id, status: 'confirmed', inviteId: invite.id })
     })
 
+    it('rebook re-checks the stored invite: not after admin cancel, not revoked, not expired', async () => {
+      const ev = await makeEvent({ joinMode: 'invite' })
+      const bookWith = async (p: number) => {
+        const { invite } = await eventInviteService.create({ userId: ownerId }, orgId, ev.id)
+        return bookingService.book({ userId: p }, orgId, ev.id, {
+          method: 'free',
+          inviteToken: invite.token,
+        })
+      }
+      const rebook = (p: number) =>
+        code(bookingService.book({ userId: p }, orgId, ev.id, { method: 'free' }))
+
+      // отмена организатором — повторная запись без нового приглашения запрещена (даже с отзывом)
+      const a = await player()
+      const ba = await bookWith(a)
+      await bookingService.cancel({ userId: ownerId }, ba.id, { byAdmin: true })
+      expect(await rebook(a)).toBe('booking.invite_required')
+      await inviteService.revoke({ userId: ownerId }, orgId, ba.inviteId!)
+      expect(await rebook(a)).toBe('booking.invite_required')
+
+      // своя отмена → можно; отозванное после отмены приглашение → нельзя
+      const b = await player()
+      const bb = await bookWith(b)
+      await bookingService.cancel({ userId: b }, bb.id)
+      expect(await rebook(b)).toBe('ok')
+      await bookingService.cancel({ userId: b }, bb.id)
+      await inviteService.revoke({ userId: ownerId }, orgId, bb.inviteId!)
+      expect(await rebook(b)).toBe('booking.invite_required')
+
+      // истёкшее приглашение → ссылка просрочена
+      const c = await player()
+      const bc = await bookWith(c)
+      await bookingService.cancel({ userId: c }, bc.id)
+      await db
+        .update(inviteLinks)
+        .set({ expiresAt: new Date(Date.now() - 1000) })
+        .where(eq(inviteLinks.id, bc.inviteId!))
+      expect(await rebook(c)).toBe('invite.expired')
+      // новое приглашение снова пускает
+      const fresh = await eventInviteService.create({ userId: ownerId }, orgId, ev.id)
+      expect(
+        await code(
+          bookingService.book({ userId: c }, orgId, ev.id, {
+            method: 'free',
+            inviteToken: fresh.invite.token,
+          }),
+        ),
+      ).toBe('ok')
+    })
+
+    it('owner and organizer book themselves without an invite; assistant and player do not', async () => {
+      const ev = await makeEvent({ joinMode: 'invite' })
+      const role = async (r: 'organizer' | 'assistant') => {
+        const [u] = await db
+          .insert(users)
+          .values({ email: `${r}-${Math.random()}@t.by` })
+          .returning()
+        await memberService.add(
+          { userId: ownerId },
+          { organizationId: orgId, userId: u!.id, role: r },
+        )
+        return u!.id
+      }
+      const organizer = await role('organizer')
+      const assistant = await role('assistant')
+      const own = await bookingService.book({ userId: ownerId }, orgId, ev.id, { method: 'free' })
+      expect(own).toMatchObject({ userId: ownerId, inviteId: null, status: 'confirmed' })
+      const org = await bookingService.book({ userId: organizer }, orgId, ev.id, { method: 'free' })
+      expect(org).toMatchObject({ userId: organizer, inviteId: null })
+      expect(
+        await code(bookingService.book({ userId: assistant }, orgId, ev.id, { method: 'free' })),
+      ).toBe('booking.invite_required')
+      expect(
+        await code(
+          bookingService.book({ userId: await player() }, orgId, ev.id, { method: 'free' }),
+        ),
+      ).toBe('booking.invite_required')
+      // записи созданы только за самих управляющих
+      const rows = await db.select().from(bookings).where(eq(bookings.eventId, ev.id))
+      expect(rows.map((r) => r.userId).sort()).toEqual([ownerId, organizer].sort())
+    })
+
+    it('event invites would only create a pending application in an old redeem (I-2)', async () => {
+      const ev = await makeEvent({ joinMode: 'invite' })
+      const { invite } = await eventInviteService.create({ userId: ownerId }, orgId, ev.id)
+      expect(invite.defaultMemberStatus).toBe('pending')
+      const p = await player()
+      const req = await eventInviteRequestService.request({ userId: p }, orgId, ev.id)
+      const approved = await eventInviteRequestService.approve(
+        { userId: ownerId },
+        orgId,
+        ev.id,
+        req.id,
+      )
+      const [issued] = await db
+        .select()
+        .from(inviteLinks)
+        .where(eq(inviteLinks.id, approved.inviteId!))
+      expect(issued!.defaultMemberStatus).toBe('pending')
+    })
+
     it('event invite tokens never work as group invites', async () => {
       const ev = await makeEvent({ joinMode: 'invite' })
       const { invite } = await eventInviteService.create({ userId: ownerId }, orgId, ev.id)
