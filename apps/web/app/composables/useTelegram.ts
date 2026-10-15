@@ -1,4 +1,6 @@
-interface TelegramWebApp {
+import { initTelegramWebApp } from '../utils/telegram-shell'
+
+export interface TelegramWebApp {
   initData: string
   initDataUnsafe: {
     user?: { id: number; first_name: string; username?: string }
@@ -13,6 +15,10 @@ interface TelegramWebApp {
   offEvent?: (event: string, cb: () => void) => void
   setHeaderColor?: (color: string) => void
   setBackgroundColor?: (color: string) => void
+  setBottomBarColor?: (color: string) => void
+  disableVerticalSwipes?: () => void
+  safeAreaInset?: { top: number; bottom: number; left: number; right: number }
+  contentSafeAreaInset?: { top: number; bottom: number; left: number; right: number }
   isVersionAtLeast?: (version: string) => boolean
   showConfirm?: (message: string, cb: (ok: boolean) => void) => void
   MainButton: {
@@ -48,31 +54,6 @@ declare global {
   }
 }
 
-/**
- * Маппинг themeParams Telegram на токены дизайн-системы (Task 8.8.4).
- * Акцентные цвета статусов (grass/rose/amber) не переопределяются — они несут смысл.
- */
-export const THEME_TOKEN_MAP: Record<string, string[]> = {
-  bg_color: ['--vt-paper'],
-  secondary_bg_color: ['--vt-bone', '--vt-bone-2'],
-  text_color: ['--vt-ink'],
-  hint_color: ['--vt-mute', '--vt-mute-2'],
-  section_separator_color: ['--vt-stroke', '--vt-stroke-2'],
-  button_color: ['--vt-flame'],
-  button_text_color: ['--vt-on-accent'],
-}
-
-/** Чистая функция для тестов: какие переменные выставить по themeParams. */
-export function themeVariables(params: Record<string, string>): Record<string, string> {
-  const out: Record<string, string> = {}
-  for (const [key, value] of Object.entries(params)) {
-    if (!value) continue
-    for (const token of THEME_TOKEN_MAP[key] ?? []) out[token] = value
-    out[`--tg-${key.replace(/_/g, '-')}`] = value
-  }
-  return out
-}
-
 /** The SDK can exist outside Telegram or expose popup methods on older clients. */
 export function confirmWithFallback(
   message: string,
@@ -90,6 +71,8 @@ export function useTelegram() {
   const tg = import.meta.client ? window.Telegram?.WebApp : undefined
   /** В обычном браузере SDK тоже загружается, но initData пуст — это не Telegram. */
   const isTelegram = computed(() => !!tg?.initData)
+  /** Системная BackButton поддерживается (Bot API 6.1+) — своя кнопка в шапке не нужна. */
+  const nativeBack = computed(() => isTelegram.value && !!tg?.isVersionAtLeast?.('6.1'))
   const startParam = computed(() => {
     if (!import.meta.client) return null
     const fromSdk = tg?.initDataUnsafe?.start_param
@@ -99,26 +82,7 @@ export function useTelegram() {
   })
 
   function init() {
-    if (!tg) return
-    tg.ready()
-    tg.expand()
-    applyTheme()
-    tg.onEvent?.('themeChanged', applyTheme)
-  }
-
-  /** Применяет тему Telegram к токенам --vt-* (light/dark). */
-  function applyTheme() {
-    if (!tg || !import.meta.client) return
-    const root = document.documentElement
-    root.classList.toggle('dark', tg.colorScheme === 'dark')
-    for (const [name, value] of Object.entries(themeVariables(tg.themeParams))) {
-      root.style.setProperty(name, value)
-    }
-    const bg = tg.themeParams.bg_color
-    if (bg) {
-      tg.setHeaderColor?.(bg)
-      tg.setBackgroundColor?.(bg)
-    }
+    initTelegramWebApp(tg)
   }
 
   /**
@@ -138,20 +102,14 @@ export function useTelegram() {
     }
   }
 
-  function useBackButton(onClick: () => void) {
-    if (!tg) return () => {}
-    const handler = () => onClick()
-    tg.BackButton.offClick(handler)
-    tg.BackButton.onClick(handler)
-    tg.BackButton.show()
-    return () => {
-      tg.BackButton.offClick(handler)
-      tg.BackButton.hide()
-    }
-  }
-
-  function haptic(type: 'success' | 'error' | 'warning' | 'light' | 'medium' | 'heavy' = 'light') {
+  function haptic(
+    type: 'success' | 'error' | 'warning' | 'light' | 'medium' | 'heavy' | 'selection' = 'light',
+  ) {
     if (!tg) return
+    if (type === 'selection') {
+      tg.HapticFeedback.selectionChanged()
+      return
+    }
     if (type === 'success' || type === 'error' || type === 'warning') {
       tg.HapticFeedback.notificationOccurred(type)
     } else {
@@ -182,11 +140,10 @@ export function useTelegram() {
   return {
     confirm,
     isTelegram,
+    nativeBack,
     startParam,
     init,
-    applyTheme,
     useMainButton,
-    useBackButton,
     haptic,
     authenticate,
     webApp: tg,

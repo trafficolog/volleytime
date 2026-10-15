@@ -2,11 +2,11 @@
 id: '20.4.1'
 phase: '20'
 epic: '20.4'
-status: todo
+status: in_progress
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-10-15
+status_note: 'Реализовано, ревью ожидается: плагин telegram-shell (тема, safe area, BackButton с историей и закрытием листа), MainButton на создании группы, haptics; полноэкранный режим не включён (нужно решение владельца), проверка на реальном устройстве Telegram не выполнена — см. docs/operations/qa/2026-10-15-20-4-1-telegram-shell.md.'
 ref_id: 'M-01'
 complexity: M
 impl_model: claude-sonnet-5-5

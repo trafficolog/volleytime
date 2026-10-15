@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onUnmounted, ref, useId, watch } from 'vue'
 
+import { registerBackOverlay } from '../../utils/miniapp-back'
+
 /** Нижний лист (bottom sheet) для выбора действия. */
 const open = defineModel<boolean>({ default: false })
 const props = defineProps<{ title?: string; id?: string }>()
@@ -61,6 +63,17 @@ function onKeydown(event: KeyboardEvent) {
   }
 }
 
+// Системная BackButton Telegram сначала закрывает лист (Task 20.4.1).
+let unregisterBack: (() => void) | undefined
+watch(
+  open,
+  (isOpen) => {
+    unregisterBack?.()
+    unregisterBack = isOpen ? registerBackOverlay(() => (open.value = false)) : undefined
+  },
+  { immediate: true },
+)
+
 watch(
   open,
   async (isOpen) => {
@@ -87,7 +100,10 @@ watch(
   { immediate: true, flush: 'post' },
 )
 
-onUnmounted(restoreFocus)
+onUnmounted(() => {
+  unregisterBack?.()
+  restoreFocus()
+})
 </script>
 
 <template>
@@ -113,7 +129,7 @@ onUnmounted(restoreFocus)
       <div
         ref="panelRef"
         tabindex="-1"
-        class="vt-sheet-panel relative z-10 w-full max-h-[100dvh] overflow-y-auto overscroll-contain rounded-t-2xl bg-vt-paper border-t border-vt-stroke p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+        class="vt-sheet-panel relative z-10 w-full max-h-[100dvh] overflow-y-auto overscroll-contain rounded-t-2xl bg-vt-paper border-t border-vt-stroke p-4 pb-[calc(1rem+var(--vt-safe-bottom))]"
       >
         <div class="mx-auto mb-3 h-1 w-9 rounded-full bg-vt-stroke-2" aria-hidden="true" />
         <h2 v-if="title" :id="headingId" class="text-base font-semibold mb-3">{{ title }}</h2>

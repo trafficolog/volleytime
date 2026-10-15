@@ -305,7 +305,7 @@
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(84px + env(safe-area-inset-bottom));
+  bottom: calc(84px + var(--vt-safe-bottom));
   z-index: 80;
   display: flex;
   justify-content: center;
