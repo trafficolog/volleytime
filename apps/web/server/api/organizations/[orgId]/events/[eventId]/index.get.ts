@@ -20,7 +20,8 @@ export default defineApiHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'Event not found' })
   }
   const stats = (await eventService.statsFor(ctx, [ev.id])).get(ev.id)!
-  const roster = await bookingService.publicRoster(ctx, orgId, ev.id)
+  // Маршрут только для участников группы (requireOrgMember): уровни видны только им (решение 2026-10-14).
+  const roster = await bookingService.publicRoster(ctx, orgId, ev.id, { includeLevel: true })
   const pricing = await readEventPricing(ctx, ev.id)
   const managerPricing = canManageContent(event.context.member ?? null)
     ? {

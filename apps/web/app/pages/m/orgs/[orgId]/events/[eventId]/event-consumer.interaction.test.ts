@@ -15,11 +15,16 @@ import {
 } from 'vue'
 
 import Page from './index.vue'
-import { apiErrorCode, apiErrorMessage, apiErrorStatus } from '~/utils/api-error'
+
 import MyChip from '~/components/vt/MyChip.vue'
 import SeatsMini from '~/components/vt/SeatsMini.vue'
 import StateChip from '~/components/vt/StateChip.vue'
+import { apiErrorCode, apiErrorMessage, apiErrorStatus } from '~/utils/api-error'
 
+const levelsCatalog = [
+  { code: 'v1', title: 'В1', description: 'Полупрофи', sortOrder: 1 },
+  { code: 'v2', title: 'В2', description: 'Сильный любитель', sortOrder: 2 },
+]
 const path = '/m/orgs/30/events/71'
 const route = reactive({ params: { orgId: '30', eventId: '71' }, fullPath: path })
 const fixture = () => ({
@@ -139,17 +144,23 @@ beforeEach(() => {
     apiErrorCode: (error: { data?: { code?: string } } | null) => error?.data?.code,
     apiErrorStatus: () => 500,
     apiErrorMessage: (_error: unknown, fallback: string) => fallback,
-    useFetch: (url: () => string) => ({
-      data: url().endsWith('/30')
-        ? ref({
-            organization: { id: 30, subscriptionsEnabled: true },
-            myMember: { organizationId: 30, role: 'player', status: 'active' },
-          })
-        : data,
-      error: url().endsWith('/30') ? ref(null) : eventError,
-      pending: ref(false),
-      refresh,
-    }),
+    useFetch: (url: string | (() => string)) => {
+      const path = typeof url === 'function' ? url() : url
+      if (path === '/api/levels') {
+        return { data: ref({ levels: levelsCatalog }), error: ref(null), pending: ref(false) }
+      }
+      return {
+        data: path.endsWith('/30')
+          ? ref({
+              organization: { id: 30, subscriptionsEnabled: true },
+              myMember: { organizationId: 30, role: 'player', status: 'active' },
+            })
+          : data,
+        error: path.endsWith('/30') ? ref(null) : eventError,
+        pending: ref(false),
+        refresh,
+      }
+    },
   }).forEach(([name, value]) => vi.stubGlobal(name, value))
 })
 afterEach(() => {
@@ -343,5 +354,30 @@ describe('booking rejected because the event is gone (19.3.1)', () => {
     )
     expect(wrapper.text()).not.toContain('Не удалось записаться')
     expect(wrapper.find('a[href="/m/orgs/30/events"]').exists()).toBe(true)
+  })
+})
+
+describe('roster player level chip (20.4.10)', () => {
+  const rosterRow = (id: number, name: string, level: string | null) => ({
+    user: { id, name, telegramUsername: null, image: null },
+    paid: false,
+    level,
+  })
+  const rosterSection = () =>
+    wrapper!.find('#event-roster-title').element.closest('section')!.textContent ?? ''
+
+  it('shows the scale title next to a roster player who has a level', async () => {
+    data.value.roster = [rosterRow(1, 'Синтетический Игрок', 'v2')]
+    wrapper = await render()
+    expect(rosterSection()).toContain('Синтетический Игрок')
+    expect(rosterSection()).toContain('В2')
+  })
+
+  it('shows no chip for a roster player without a level and no A/B/C', async () => {
+    data.value.roster = [rosterRow(2, 'Синтетический Без Уровня', null)]
+    wrapper = await render()
+    expect(rosterSection()).toContain('Синтетический Без Уровня')
+    expect(rosterSection()).not.toMatch(/\b[ABC]\b/)
+    expect(rosterSection()).not.toContain('В')
   })
 })

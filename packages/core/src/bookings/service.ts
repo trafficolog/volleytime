@@ -505,7 +505,15 @@ export const bookingService = {
    * Публичный состав события для участников (Task 5.13.18): имена/аватары занявших место,
    * без приватных полей и без листа ожидания поимённо. `seats` — для «+N» (20.1.2).
    */
-  async publicRoster(ctx: ServiceContext, orgId: number, eventId: number) {
+  async publicRoster(
+    ctx: ServiceContext,
+    orgId: number,
+    eventId: number,
+    options: {
+      /** Только для участников группы: уровень игрока из членства в этой группе (20.4.10). */
+      includeLevel?: boolean
+    } = {},
+  ) {
     const rows = await getDb(ctx)
       .select({
         userId: users.id,
@@ -533,11 +541,33 @@ export const bookingService = {
       )
       .orderBy(asc(bookings.bookedAt))
       .limit(100)
+    // Уровень читается только при includeLevel и только из членства в этой группе;
+    // без опции ключа `level` нет вовсе (публичный состав его не содержит).
+    const levelByUser =
+      options.includeLevel && rows.length > 0
+        ? new Map(
+            (
+              await getDb(ctx)
+                .select({ userId: organizationMembers.userId, level: organizationMembers.level })
+                .from(organizationMembers)
+                .where(
+                  and(
+                    eq(organizationMembers.organizationId, orgId),
+                    inArray(
+                      organizationMembers.userId,
+                      rows.map((r) => r.userId),
+                    ),
+                  ),
+                )
+            ).map((m) => [m.userId, m.level] as const),
+          )
+        : null
     return rows.map((r) => ({
       user: { id: r.userId, name: r.name, telegramUsername: r.telegramUsername, image: r.image },
       seats: r.seats,
       paid:
         r.priceMode === 'split' ? r.paymentStatus === 'succeeded' : r.status !== 'pending_payment',
+      ...(levelByUser ? { level: levelByUser.get(r.userId) ?? null } : {}),
     }))
   },
 
