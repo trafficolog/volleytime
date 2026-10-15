@@ -61,7 +61,12 @@ const fixture = () => ({
     paymentId: number | null
   },
 })
-let data = ref({ event: fixture(), roster: [] })
+type RosterFixture = {
+  user: { id: number; name: string | null; telegramUsername: string | null; image: string | null }
+  paid: boolean
+  level?: string | null
+}
+let data = ref({ event: fixture(), roster: [] as RosterFixture[] })
 let eventError = ref<unknown>(null)
 const refresh = vi.fn(async () => undefined)
 const refreshOther = vi.fn(async () => undefined)
@@ -120,7 +125,7 @@ const settleLatest = () => {
   data.value.event.status = 'closed'
 }
 beforeEach(() => {
-  data = ref({ event: fixture(), roster: [] })
+  data = ref({ event: fixture(), roster: [] as RosterFixture[] })
   eventError = ref(null)
   route.params = { orgId: '30', eventId: '71' }
   route.fullPath = path
