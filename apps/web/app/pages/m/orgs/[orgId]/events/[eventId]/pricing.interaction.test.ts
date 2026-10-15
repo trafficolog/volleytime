@@ -91,12 +91,17 @@ for (const [name, value] of Object.entries({
   apiErrorMessage: (_e: unknown, fallback: string) => fallback,
 }))
   vi.stubGlobal(name, value)
-vi.stubGlobal('useFetch', (url: () => string) => ({
-  data: url().endsWith('/30') ? org : data,
-  error: url().endsWith('/30') ? ref(null) : error,
-  pending: ref(false),
-  refresh,
-}))
+vi.stubGlobal('useFetch', (url: string | (() => string)) => {
+  const path = typeof url === 'function' ? url() : url
+  if (path === '/api/levels')
+    return { data: ref({ levels: [] }), error: ref(null), pending: ref(false) }
+  return {
+    data: path.endsWith('/30') ? org : data,
+    error: path.endsWith('/30') ? ref(null) : error,
+    pending: ref(false),
+    refresh,
+  }
+})
 
 async function renderPage() {
   const wrapper = mount(
