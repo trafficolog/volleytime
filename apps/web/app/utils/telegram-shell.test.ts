@@ -4,7 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TelegramWebApp } from '../composables/useTelegram'
 
 import { registerBackOverlay } from './miniapp-back'
-import { createBackController, createMainButton, initTelegramWebApp } from './telegram-shell'
+import {
+  createBackController,
+  createMainButton,
+  initTelegramWebApp,
+  startMiniAppShell,
+} from './telegram-shell'
 
 type Handler = () => void
 
@@ -219,6 +224,8 @@ describe('createBackController', () => {
       none.sync()
       none.stop()
     }).not.toThrow()
+    const { tg: noVersion } = mockWebApp({ isVersionAtLeast: undefined })
+    expect(createBackController(noVersion, deps()).available).toBe(false)
     const { tg } = mockWebApp({ isVersionAtLeast: vi.fn(() => false) })
     const old = createBackController(tg, deps())
     old.sync()
@@ -263,5 +270,108 @@ describe('createMainButton', () => {
       btn.update({ text: 'x' })
       btn.destroy()
     }).not.toThrow()
+  })
+})
+
+/** Минимальный роутер: стек записей, `history.state.back` как у vue-router. */
+function fakeRouter(start: string) {
+  const stack = [start]
+  let index = 0
+  const guards: Array<() => void> = []
+  const fire = () => guards.forEach((g) => g())
+  const router = {
+    currentRoute: {
+      get value() {
+        return { fullPath: stack[index]! }
+      },
+    },
+    push: (path: string) => {
+      stack.splice(index + 1, Infinity, path)
+      index++
+      fire()
+    },
+    replace: (path: string) => {
+      stack[index] = path
+      fire()
+    },
+    back: () => {
+      index--
+      fire()
+    },
+    afterEach: (guard: () => void) => {
+      guards.push(guard)
+      return () => void guards.splice(guards.indexOf(guard), 1)
+    },
+  }
+  const state = () => ({ back: index > 0 ? stack[index - 1] : null })
+  return { router, state, path: () => stack[index]! }
+}
+
+describe('startMiniAppShell (plugin wiring)', () => {
+  it('does nothing outside Telegram or without BackButton support', () => {
+    const { router, state } = fakeRouter('/m/orgs/7/bookings')
+    expect(startMiniAppShell(undefined, router, state)).toBeNull()
+    expect(startMiniAppShell(mockWebApp({ initData: '' }).tg, router, state)).toBeNull()
+    expect(
+      startMiniAppShell(mockWebApp({ isVersionAtLeast: () => false }).tg, router, state),
+    ).toBeNull()
+  })
+
+  it('shows/hides Back across navigation and hides it on every tab root', () => {
+    const m = mockWebApp()
+    const nav = fakeRouter('/m/orgs/7')
+    startMiniAppShell(m.tg, nav.router, nav.state)
+    expect(m.back.isVisible).toBe(false)
+    for (const root of ['/m/orgs/7/subscriptions', '/m/orgs/7/profile', '/m/orgs/7/members']) {
+      nav.router.push('/m/orgs/7/bookings')
+      expect(m.back.isVisible).toBe(true)
+      nav.router.push(root)
+      expect(m.back.isVisible).toBe(false)
+    }
+  })
+
+  it('returns to the same place via history.state.back', () => {
+    const m = mockWebApp()
+    const nav = fakeRouter('/m/orgs/7')
+    startMiniAppShell(m.tg, nav.router, nav.state)
+    nav.router.push('/m/orgs/7/events')
+    nav.router.push('/m/orgs/7/events/42')
+    expect(nav.state().back).toBe('/m/orgs/7/events')
+    m.pressBack()
+    expect(nav.path()).toBe('/m/orgs/7/events')
+    m.pressBack()
+    expect(nav.path()).toBe('/m/orgs/7')
+    expect(m.back.isVisible).toBe(false)
+  })
+
+  it('walks up parents on a deep link without looping and never re-enters a form', () => {
+    const m = mockWebApp()
+    const deep = fakeRouter('/m/orgs/7/events/42/manage')
+    startMiniAppShell(m.tg, deep.router, deep.state)
+    expect(m.back.isVisible).toBe(true)
+    m.pressBack()
+    expect(deep.path()).toBe('/m/orgs/7/events/42')
+    m.pressBack()
+    expect(deep.path()).toBe('/m/orgs/7/events')
+    m.pressBack()
+    expect(deep.path()).toBe('/m/orgs/7')
+    expect(m.back.isVisible).toBe(false)
+
+    const form = fakeRouter('/m/orgs/7/events/new')
+    const m2 = mockWebApp()
+    startMiniAppShell(m2.tg, form.router, form.state)
+    form.router.push('/m/orgs/7/events/42')
+    m2.pressBack()
+    expect(form.path()).toBe('/m/orgs/7/events')
+  })
+
+  it('stop() unbinds everything', () => {
+    const m = mockWebApp()
+    const nav = fakeRouter('/m/orgs/7/bookings')
+    const shell = startMiniAppShell(m.tg, nav.router, nav.state)!
+    expect(m.back.isVisible).toBe(true)
+    shell.stop()
+    expect(m.back.isVisible).toBe(false)
+    expect(m.back.handlers.size).toBe(0)
   })
 })

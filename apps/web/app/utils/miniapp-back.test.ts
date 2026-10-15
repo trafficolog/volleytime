@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
@@ -18,12 +19,16 @@ describe('miniAppBackTarget (20.4.1)', () => {
     ['/', null],
     ['/cabinet/orgs/1', null],
     ['/m/orgs/create', '/m/orgs'],
-    ['/m/orgs/7', '/m/orgs'],
-    ['/m/orgs/7/', '/m/orgs'],
+    ['/m/orgs/7', null],
+    ['/m/orgs/7/', null],
+    ['/m/orgs/7/subscriptions', null],
+    ['/m/orgs/7/profile', null],
+    ['/m/orgs/7/members', null],
+    ['/m/orgs/7/cashbox', null],
+    ['/m/orgs/7/payments', null],
     ['/m/orgs/7/bookings', '/m/orgs/7'],
-    ['/m/orgs/7/subscriptions', '/m/orgs/7'],
-    ['/m/orgs/7/profile', '/m/orgs/7'],
-    ['/m/orgs/7/cashbox', '/m/orgs/7'],
+    ['/m/orgs/7/plans', '/m/orgs/7'],
+    ['/m/orgs/7/settings', '/m/orgs/7'],
     ['/m/orgs/7/events', '/m/orgs/7'],
     ['/m/orgs/7/events/new', '/m/orgs/7/events'],
     ['/m/orgs/7/events/42', '/m/orgs/7/events'],

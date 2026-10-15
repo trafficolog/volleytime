@@ -45,6 +45,8 @@ tags: [reference-v3]
 - **Настройки группы** — Кабинет задаёт поведение Mini App. С этим связаны: [P-02 → 19.2.2](19-2-2-group-settings.md), [W-11 → 20.5.7](20-5-7-settings.md), [W-09 → 21.2.6](21-2-6-subscriptions.md), [M-02 → 20.4.2](20-4-2-tab-bar.md), [M-06 → 20.4.5](20-4-5-event-booking.md), [M-09 → 20.4.8](20-4-8-cancel-booking.md). [Подробнее](../design/reference-v3/specs/links.md#settings)
 - **Разминка в событии** — Организатор включает разминку в событие, игрок видит и пропускает её. С этим связаны: [M-23 → 21.1.2](21-1-2-org-event-create.md), [M-16 → 25.1.1](25-1-1-warmup.md), [M-03 → 23.2.1](23-2-1-home-feed.md). [Подробнее](../design/reference-v3/specs/links.md#warmup)
 
+- **Решение владельца 2026-10-15 (ревью 20.4.1):** MainButton через `createMainButton` ([20.4.1](20-4-1-telegram-shell.md)), кнопка формы скрыта только в Telegram.
+
 ## Что должно быть сделано
 
 1. Тип, дата, время, зал

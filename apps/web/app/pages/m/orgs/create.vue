@@ -8,6 +8,7 @@ const submitting = ref(false)
 const error = ref('')
 
 async function onSubmit() {
+  if (submitting.value) return
   if (name.value.trim().length < 2) {
     error.value = 'Название — минимум 2 символа'
     haptic('error')

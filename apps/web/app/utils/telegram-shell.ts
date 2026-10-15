@@ -113,7 +113,8 @@ export interface BackNavigation {
  * Порядок «назад»: закрыть наложение → вернуться по истории на то же место → родитель.
  */
 export function createBackController(tg: TelegramWebApp | undefined, nav: BackNavigation) {
-  const available = !!tg?.BackButton && (tg.isVersionAtLeast ? tg.isVersionAtLeast('6.1') : true)
+  // Единое правило с `nativeBack` в useTelegram: нет isVersionAtLeast — считаем неподдерживаемым.
+  const available = !!tg?.BackButton && !!tg.isVersionAtLeast?.('6.1')
   if (!tg || !available) return { available: false, sync() {}, stop() {} }
 
   let shown = false
@@ -149,6 +150,45 @@ export function createBackController(tg: TelegramWebApp | undefined, nav: BackNa
       tg.BackButton.offClick(handler)
       if (shown) tg.BackButton.hide()
       shown = false
+    },
+  }
+}
+
+export interface ShellRouter {
+  currentRoute: { value: { fullPath: string } }
+  replace: (path: string) => unknown
+  back: () => void
+  afterEach: (guard: () => void) => () => void
+}
+
+/**
+ * Запускает оболочку Mini App в Telegram: init + BackButton, синхронизируемая с роутером.
+ * `null` — не Telegram (нет initData) или BackButton не поддерживается.
+ */
+export function startMiniAppShell(
+  tg: TelegramWebApp | undefined,
+  router: ShellRouter,
+  historyState: () => unknown,
+): { stop: () => void; sync: () => void } | null {
+  if (!tg?.initData) return null
+  initTelegramWebApp(tg)
+  const back = createBackController(tg, {
+    currentPath: () => router.currentRoute.value.fullPath,
+    previousPath: () => {
+      const previous = (historyState() as { back?: unknown } | null)?.back
+      return typeof previous === 'string' ? previous : null
+    },
+    navigate: (path) => void router.replace(path),
+    historyBack: () => router.back(),
+  })
+  if (!back.available) return null
+  const off = router.afterEach(() => back.sync())
+  back.sync()
+  return {
+    sync: back.sync,
+    stop() {
+      off()
+      back.stop()
     },
   }
 }

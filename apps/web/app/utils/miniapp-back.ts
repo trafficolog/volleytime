@@ -16,6 +16,10 @@ export function miniAppBackTarget(raw: string): string | null {
   if (!path.startsWith('/m/')) return null
   // Вход по приглашению — отдельная точка входа, «назад» = закрыть Mini App.
   if (path.startsWith('/m/invite/')) return null
+  // Корни вкладок (игрок: Главная/Абонементы/Профиль; организатор: События/Игроки/Касса/Оплаты):
+  // как в tab-приложениях Telegram, «назад» нет; в другую группу — через переключатель в шапке.
+  if (/^\/m\/orgs\/\d+(\/(subscriptions|profile|members|cashbox|payments))?$/.test(path))
+    return null
   if (/^\/m\/orgs\/\d+\/events\/[^/]+\/edit$/.test(path)) return path.replace(/\/edit$/, '/manage')
   return path.slice(0, path.lastIndexOf('/'))
 }
@@ -43,6 +47,7 @@ function notify() {
 
 /** Открытое наложение перехватывает «назад» первым; возвращает функцию снятия. */
 export function registerBackOverlay(close: () => void): () => void {
+  if (typeof window === 'undefined') return () => {}
   const overlay: Overlay = { close }
   overlays.push(overlay)
   notify()
