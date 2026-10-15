@@ -62,8 +62,7 @@ describe('Bento Bold MVP atoms', () => {
     expect(tabBar).toContain('<nav class="vt-tabbar"')
     expect(tabBar).toContain('<NuxtLink')
     expect(tabBar).toContain(':aria-current="isActive(t) ? \'page\' : undefined"')
-    expect(header).toContain('useBackButton')
-    expect(header).toContain('v-if="back && !useNativeBack"')
+    expect(header).toContain('v-if="back && !nativeBack"')
   })
 
   it('marks the active Mini App tab with a shape, not color alone', () => {
@@ -80,7 +79,7 @@ describe('Bento Bold MVP atoms', () => {
     const zoomRules = css.slice(css.indexOf('@media (max-width: 200px)'))
     expect(zoomRules).toContain('grid-template-columns: repeat(3, minmax(0, 1fr))')
     expect(zoomRules).toContain('min-height: 44px')
-    expect(zoomRules).toContain('padding-bottom: calc(110px + env(safe-area-inset-bottom))')
+    expect(zoomRules).toContain('padding-bottom: calc(110px + var(--vt-safe-bottom))')
   })
 
   it('keeps empty and loading states accessible and theme-ready', () => {

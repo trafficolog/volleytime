@@ -2,11 +2,11 @@
 id: '20.4.1'
 phase: '20'
 epic: '20.4'
-status: todo
+status: in_progress
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-10-15
+status_note: 'Реализовано, ревью ожидается: плагин telegram-shell (тема, safe area, BackButton с историей и закрытием листа), MainButton на создании группы, haptics; полноэкранный режим не включается (решение владельца 2026-10-15: expand + insets), Back скрыта на корнях вкладок, проверка на реальном устройстве Telegram не выполнена — см. docs/operations/qa/2026-10-15-20-4-1-telegram-shell.md.'
 ref_id: 'M-01'
 complexity: M
 impl_model: claude-sonnet-5-5
@@ -39,6 +39,10 @@ tags: [reference-v3]
 **Общий функционал с другими интерфейсами:**
 
 - **Доступ и аудит** — Права и журнал для всех интерфейсов. С этим связаны: [P-11 → 19.3.1](19-3-1-auth-roles.md), [W-16 → 20.5.1](20-5-1-auth.md), [R-05 → 22.3.1](22-3-1-platform-settings.md), [R-07 → 22.1.2](22-1-2-audit-log.md), [R-03 → 22.2.2](22-2-2-grant-balance.md). [Подробнее](../design/reference-v3/specs/links.md#auth)
+
+- **Решения владельца и координатора 2026-10-15 (ревью PR #144):** полноэкранный режим не включается — только `expand` и учёт inset-ов (слушатель `fullscreenChanged` остаётся). MainButton на создании/редактировании события — в карточках [21.1.2](21-1-2-org-event-create.md) и [20.5.5](20-5-5-event-create.md). Системная Back скрыта на корнях вкладок (игрок: Главная, Абонементы, Профиль; организатор: События, Игроки, Касса, Оплаты); в другую группу — через переключатель в шапке.
+- **Проверка на устройстве:** safe area на iOS/Android и реальная рамка Telegram вне Telegram недоступны. Это шаг владельца после merge, до закрытия карточки (если критерий приёмки требует подтверждения на устройстве); см. [QA-чеклист](../operations/qa/telegram-miniapp-checklist.md).
+- **Follow-up (вне scope):** унифицировать `createMainButton` и `useMainButton`; диалог приглашения на `/m/orgs` не входит в стек «назад».
 
 ## Что должно быть сделано
 

@@ -108,7 +108,7 @@ onUnmounted(() => dockObserver?.disconnect())
     :class="!isManager ? 'vt-player' : undefined"
     :style="{
       '--player-dock-height': `${dockHeight}px`,
-      paddingBottom: `calc(${dockHeight}px + 28px + env(safe-area-inset-bottom))`,
+      paddingBottom: `calc(${dockHeight}px + 28px + var(--vt-safe-bottom))`,
     }"
   >
     <OfflineBanner />

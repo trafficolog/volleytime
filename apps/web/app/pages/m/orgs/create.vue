@@ -1,27 +1,46 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'miniapp', middleware: ['auth'] })
 const { create } = useOrganizations()
+const { haptic, isTelegram, webApp } = useTelegram()
 const name = ref('')
 const city = ref('')
 const submitting = ref(false)
 const error = ref('')
 
 async function onSubmit() {
+  if (submitting.value) return
   if (name.value.trim().length < 2) {
     error.value = 'Название — минимум 2 символа'
+    haptic('error')
     return
   }
   submitting.value = true
   error.value = ''
   try {
     const org = await create({ name: name.value.trim(), city: city.value.trim() || undefined })
+    haptic('success')
     await navigateTo(`/m/orgs/${org.id}`)
   } catch (e) {
+    haptic('error')
     error.value = apiErrorMessage(e, 'Не удалось создать группу')
   } finally {
     submitting.value = false
   }
 }
+
+// В Telegram основное действие — системная MainButton, кнопка формы скрыта (Task 20.4.1)
+const mainButton = createMainButton(isTelegram.value ? webApp : undefined, () => {
+  void onSubmit()
+})
+onMounted(() => {
+  watchEffect(() =>
+    mainButton.update({
+      text: submitting.value ? 'Создаём…' : 'Создать группу',
+      loading: submitting.value,
+    }),
+  )
+})
+onUnmounted(mainButton.destroy)
 </script>
 
 <template>
@@ -56,6 +75,7 @@ async function onSubmit() {
         </div>
         <p v-if="error" class="text-sm text-vt-rose-ink" role="alert">{{ error }}</p>
         <button
+          v-if="!isTelegram"
           type="submit"
           class="vt-btn vt-btn--primary vt-btn--lg vt-btn--full"
           :disabled="submitting"

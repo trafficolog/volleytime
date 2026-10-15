@@ -42,6 +42,8 @@ tags: [reference-v3]
 - **Режим записи и приглашения** — Настройка группы по умолчанию → событие → Mini App и бот. С этим связаны: [P-07 → 20.1.3](20-1-3-join-mode-invites.md), [W-11 → 20.5.7](20-5-7-settings.md), [W-04 → 20.5.5](20-5-5-event-create.md), [M-08 → 20.4.7](20-4-7-invite-booking.md), [P-16 → 20.3.3](20-3-3-telegram-bot.md), [W-14 → 24.1.2](24-1-2-group-page-render.md). [Подробнее](../design/reference-v3/specs/links.md#invite)
 - **Разминка в событии** — Организатор включает разминку в событие, игрок видит и пропускает её. С этим связаны: [W-04 → 20.5.5](20-5-5-event-create.md), [M-16 → 25.1.1](25-1-1-warmup.md), [M-03 → 23.2.1](23-2-1-home-feed.md). [Подробнее](../design/reference-v3/specs/links.md#warmup)
 
+- **Решение владельца 2026-10-15 (ревью 20.4.1):** MainButton через `createMainButton` ([20.4.1](20-4-1-telegram-shell.md)), кнопка формы скрыта только в Telegram.
+
 ## Что должно быть сделано
 
 1. Тип оплаты

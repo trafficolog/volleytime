@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { confirmWithFallback, themeVariables } from './useTelegram'
+import { themeVariables } from '../utils/telegram-shell'
+
+import { confirmWithFallback } from './useTelegram'
 
 describe('Telegram theme mapping (8.8.4)', () => {
   it('maps themeParams to design tokens and keeps --tg-* aliases', () => {
