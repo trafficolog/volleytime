@@ -12,6 +12,8 @@ import { seedDemo } from './seed-demo'
 
 const TAG = '0027_event_series'
 const TAG26 = '0026_event_join_mode_invites'
+/** Дата серии через 3 недели от текущего дня: тест не зависит от календаря (ревью PR #145). */
+const SERIES_DATE = new Date(Date.now() + 21 * 86_400_000).toISOString().slice(0, 10)
 const BASE_URL = process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL ?? ''
 
 /**
@@ -99,7 +101,7 @@ describe('migration 0027 event series (integration)', { timeout: 60_000 }, () =>
         INSERT INTO events (organization_id, created_by_user_id, title, starts_at, ends_at, capacity)
         VALUES (${o}, ${u}, 'Old', now() + interval '3 day', now() + interval '4 day', 5)`
 
-      const rule = { freq: 'weekly', weekdays: [3], startDate: '2027-01-06', count: 2 }
+      const rule = { freq: 'weekly', weekdays: [3], startDate: SERIES_DATE, count: 2 }
       const [series] = await sql<{ id: number; status: string; exceptions: string[] }[]>`
         INSERT INTO event_series (organization_id, created_by_user_id, rule, template, timezone, idempotency_key)
         VALUES (${o}, ${u}, ${sql.json(rule)}, ${sql.json({ title: 'S' })}, 'Europe/Minsk', 'key-0001')
@@ -112,9 +114,9 @@ describe('migration 0027 event series (integration)', { timeout: 60_000 }, () =>
         INSERT INTO events (organization_id, created_by_user_id, title, starts_at, ends_at, capacity, status, series_id, series_date)
         VALUES (${o}, ${u}, 'S', ${`${date}T16:00:00Z`}, ${`${date}T18:00:00Z`}, 10, 'draft', ${s}, ${date})
         RETURNING id`
-      await dated('2027-01-06')
+      await dated(SERIES_DATE)
       // одна дата серии — одно событие
-      await expect(dated('2027-01-06')).rejects.toThrow(/events_series_date_uniq/)
+      await expect(dated(SERIES_DATE)).rejects.toThrow(/events_series_date_uniq/)
       // событие серии обязано иметь дату
       await expect(
         sql`INSERT INTO events (organization_id, created_by_user_id, title, starts_at, ends_at, capacity, series_id)

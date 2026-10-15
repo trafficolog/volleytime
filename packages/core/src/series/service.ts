@@ -17,7 +17,12 @@ import {
   type Event,
   type EventSeries,
 } from '@volley-time/db'
-import { expandSeriesRule, RecurrenceError, seriesOccurrence } from '@volley-time/shared'
+import {
+  dateToZonedInput,
+  expandSeriesRule,
+  RecurrenceError,
+  seriesOccurrence,
+} from '@volley-time/shared'
 
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
@@ -35,6 +40,7 @@ import {
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
 
 import {
+  SeriesFromInPastError,
   SeriesIdempotencyConflictError,
   SeriesInvalidRuleError,
   SeriesNotFoundError,
@@ -43,8 +49,11 @@ import {
 import {
   CancelSeriesInput,
   CreateSeriesInput,
+  PreviewSeriesInput,
+  SeriesTemplateInput,
   UpdateSeriesInput,
   UpdateSeriesQuery,
+  type PreviewSeriesInput as PreviewInput,
   type SeriesTemplate,
   type CancelSeriesInput as CancelInput,
   type CreateSeriesInput as CreateInput,
@@ -153,7 +162,7 @@ export function planSeriesDates(
   })
 }
 
-type ParsedCreate = ReturnType<typeof CreateSeriesInput.parse>
+type ParsedCreate = ReturnType<typeof PreviewSeriesInput.parse>
 
 /** Развернуть правило в даты и моменты начала в часовом поясе группы. */
 function expand(
@@ -302,14 +311,48 @@ async function lockEventsInOrder(ctx: ServiceContext, rows: readonly { id: numbe
   }
 }
 
+/** Дату серии ещё можно отменить или изменить: не отменена, не завершена и не началась. */
+const cancellable = () =>
+  and(notInArray(events.status, ['cancelled', 'finished']), gt(events.startsAt, sql`now()`))
+
+/** Сегодняшняя календарная дата в часовом поясе серии. */
+const todayIn = (timezone: string) => dateToZonedInput(new Date(), timezone).slice(0, 10)
+
+/** Поля, которые шаблон хранит отсутствием ключа: схема шаблона не принимает для них null. */
+const NULLABLE_BY_ABSENCE = ['venueId', 'description', 'locationText'] as const
+
+/**
+ * Шаблон после правки «это и последующие»: та же схема, что при создании, зал — только своей
+ * группы, согласованность цены и режимов — схемой события.
+ */
+async function mergeTemplate(
+  ctx: ServiceContext,
+  orgId: number,
+  template: SeriesTemplate,
+  changes: ReturnType<typeof UpdateSeriesInput.parse>,
+): Promise<SeriesTemplate> {
+  const merged: Record<string, unknown> = { ...template, ...changes }
+  for (const key of NULLABLE_BY_ABSENCE) if (merged[key] === null) delete merged[key]
+  const next = SeriesTemplateInput.parse(merged)
+  if (next.venueId !== undefined) await assertVenueInOrg(getDb(ctx), next.venueId, orgId)
+  eventInputFor(next, {
+    date: '2000-01-01',
+    startsAt: new Date(0),
+    endsAt: new Date(60_000),
+    status: 'draft',
+    draftReason: null,
+  })
+  return next
+}
+
 /**
  * Серии событий (20.2.2, ADR v3 «Серии и черновики», D-04). Каждая дата — обычное событие:
  * создание идёт общим путём `insertEvent` (списание — только `eventBalanceService.spendOnPublish`),
  * отмена — `eventService.cancel` (возврат по D-09/D-13, платежи по R0.7/20.1.2).
  */
 export const seriesService = {
-  async preview(ctx: ServiceContext, orgId: number, input: CreateInput): Promise<SeriesPreview> {
-    const data = CreateSeriesInput.parse(input)
+  async preview(ctx: ServiceContext, orgId: number, input: PreviewInput): Promise<SeriesPreview> {
+    const data = PreviewSeriesInput.parse(input)
     const db = getDb(ctx)
     const org = await readOrgEventDefaults(ctx, orgId)
     const { occurrences, excluded } = expand(data, org.defaultTimezone)
@@ -358,37 +401,35 @@ export const seriesService = {
       const org = await readOrgEventDefaults(tx, orgId)
       const balanceBefore = await lockEventBalance(db, orgId)
 
-      if (data.idempotencyKey) {
-        const [existing] = await db
-          .select()
-          .from(eventSeries)
-          .where(
-            and(
-              eq(eventSeries.organizationId, orgId),
-              eq(eventSeries.idempotencyKey, data.idempotencyKey),
-            ),
-          )
-        if (existing) {
-          const same =
-            stable({ rule: data.rule, exceptions, template: data.template }) ===
-            stable({
-              rule: existing.rule,
-              exceptions: existing.exceptions,
-              template: existing.template,
-            })
-          if (!same) throw new SeriesIdempotencyConflictError()
-          const rows = await eventsOf(tx, existing.id)
-          const published = rows.filter((e) => e.status !== 'draft').length
-          return {
-            series: seriesView(existing),
-            events: rows,
-            total: rows.length,
-            published,
-            drafts: rows.length - published,
-            venueConflicts: null,
-            balanceAfter: balanceBefore,
-            replayed: true,
-          }
+      const [existing] = await db
+        .select()
+        .from(eventSeries)
+        .where(
+          and(
+            eq(eventSeries.organizationId, orgId),
+            eq(eventSeries.idempotencyKey, data.idempotencyKey),
+          ),
+        )
+      if (existing) {
+        const same =
+          stable({ rule: data.rule, exceptions, template: data.template }) ===
+          stable({
+            rule: existing.rule,
+            exceptions: existing.exceptions,
+            template: existing.template,
+          })
+        if (!same) throw new SeriesIdempotencyConflictError()
+        const rows = await eventsOf(tx, existing.id)
+        const published = rows.filter((e) => e.status !== 'draft').length
+        return {
+          series: seriesView(existing),
+          events: rows,
+          total: rows.length,
+          published,
+          drafts: rows.length - published,
+          venueConflicts: null,
+          balanceAfter: balanceBefore,
+          replayed: true,
         }
       }
 
@@ -403,7 +444,7 @@ export const seriesService = {
           exceptions,
           template: data.template,
           timezone: org.defaultTimezone,
-          idempotencyKey: data.idempotencyKey ?? null,
+          idempotencyKey: data.idempotencyKey,
         })
         .returning()
       for (const d of result.dates) {
@@ -473,6 +514,11 @@ export const seriesService = {
     return inTransaction(ctx, async (tx) => {
       const db = getDb(tx)
       const series = await lockSeries(tx, orgId, seriesId)
+      const template = series.template as SeriesTemplate
+      // новый шаблон проверяется всегда, даже если будущих дат уже нет: в серию не попадёт ни чужой
+      // зал, ни значение, которое схема шаблона не примет при следующем чтении
+      const nextTemplate =
+        q.scope === 'following' ? await mergeTemplate(tx, orgId, template, changes) : null
       const targets = await db
         .select({ id: events.id, seriesDate: events.seriesDate })
         .from(events)
@@ -490,7 +536,6 @@ export const seriesService = {
       if (q.scope === 'single' && targets.length === 0) throw new EventNotFoundError(0)
       await lockEventsInOrder(tx, targets)
 
-      const template = series.template as SeriesTemplate
       const { startTime, durationMinutes, ...eventFields } = changes
       for (const target of targets) {
         const patch: UpdateEventInput = { ...eventFields }
@@ -506,10 +551,10 @@ export const seriesService = {
         }
         await eventService.update(tx, target.id, patch)
       }
-      if (q.scope === 'following') {
+      if (nextTemplate) {
         await db
           .update(eventSeries)
-          .set({ template: { ...template, ...changes }, updatedAt: new Date() })
+          .set({ template: nextTemplate, updatedAt: new Date() })
           .where(eq(eventSeries.id, series.id))
       }
       await auditService.record(tx, {
@@ -540,18 +585,32 @@ export const seriesService = {
     return inTransaction(ctx, async (tx) => {
       const db = getDb(tx)
       const series = await lockSeries(tx, orgId, seriesId)
-      const targets = await db
+      // прошедшие даты не отменяются никогда: `from` раньше сегодняшнего дня группы — ошибка, а
+      // начавшиеся сегодня события отсекает фильтр `starts_at > now()`
+      if (from < todayIn(series.timezone)) throw new SeriesFromInPastError()
+      const candidates = await db
         .select({ id: events.id })
         .from(events)
-        .where(
-          and(
-            eq(events.seriesId, series.id),
-            gte(events.seriesDate, from),
-            notInArray(events.status, ['cancelled', 'finished']),
-          ),
-        )
+        .where(and(eq(events.seriesId, series.id), gte(events.seriesDate, from), cancellable()))
         .orderBy(asc(events.seriesDate), asc(events.id))
-      await lockEventsInOrder(tx, targets)
+      await lockEventsInOrder(tx, candidates)
+      // после блокировок состояние могло измениться (параллельная отмена, завершение): фильтр заново
+      const targets =
+        candidates.length === 0
+          ? []
+          : await db
+              .select({ id: events.id })
+              .from(events)
+              .where(
+                and(
+                  inArray(
+                    events.id,
+                    candidates.map((c) => c.id),
+                  ),
+                  cancellable(),
+                ),
+              )
+              .orderBy(asc(events.seriesDate), asc(events.id))
 
       const refunds = async () =>
         targets.length === 0
@@ -577,9 +636,8 @@ export const seriesService = {
       const [active] = await db
         .select({ id: events.id })
         .from(events)
-        .where(
-          and(eq(events.seriesId, series.id), notInArray(events.status, ['cancelled', 'finished'])),
-        )
+        // тот же предикат, что у отмены: серия завершена, когда отменять больше нечего
+        .where(and(eq(events.seriesId, series.id), cancellable()))
         .limit(1)
       if (!active && series.status !== 'ended') {
         await db

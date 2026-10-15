@@ -41,21 +41,31 @@ export const SeriesTemplateInput = z
   .strict()
 export type SeriesTemplate = z.output<typeof SeriesTemplateInput>
 
-/** POST …/series и POST …/series/preview — одно тело; предпросмотр ключ игнорирует. */
-export const CreateSeriesInput = z
+const IdempotencyKey = z
+  .string()
+  .min(8)
+  .max(64)
+  .regex(/^[A-Za-z0-9_-]+$/)
+
+/**
+ * POST …/series/preview — то же тело, что создание; ключ необязателен и игнорируется, чтобы клиент
+ * мог отправить один и тот же объект в предпросмотр и в создание.
+ */
+export const PreviewSeriesInput = z
   .object({
     rule: SeriesRuleInput,
     exceptions: z.array(IsoDay).max(SERIES_MAX_DATES).default([]),
     template: SeriesTemplateInput,
-    /** Повтор запроса с тем же ключом возвращает уже созданную серию (retry-safe). */
-    idempotencyKey: z
-      .string()
-      .min(8)
-      .max(64)
-      .regex(/^[A-Za-z0-9_-]+$/)
-      .optional(),
+    idempotencyKey: IdempotencyKey.optional(),
   })
   .strict()
+export type PreviewSeriesInput = z.input<typeof PreviewSeriesInput>
+
+/**
+ * POST …/series. `idempotencyKey` обязателен (решение координатора 2026-10-15): клиент генерирует его
+ * один раз на попытку создания; повтор с тем же ключом возвращает уже созданную серию.
+ */
+export const CreateSeriesInput = PreviewSeriesInput.extend({ idempotencyKey: IdempotencyKey })
 export type CreateSeriesInput = z.input<typeof CreateSeriesInput>
 
 /** PATCH …/series/{id}?scope=single|following&from=YYYY-MM-DD */

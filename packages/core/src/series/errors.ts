@@ -35,3 +35,10 @@ export class SeriesIdempotencyConflictError extends SeriesError {
     )
   }
 }
+
+/** Отмена «это и последующие» с даты раньше сегодняшней: прошедшие даты не отменяются. */
+export class SeriesFromInPastError extends SeriesError {
+  constructor() {
+    super('series.from_in_past', 'Series dates before today cannot be cancelled')
+  }
+}

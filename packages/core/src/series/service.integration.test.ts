@@ -18,6 +18,8 @@ import {
 } from '@volley-time/db'
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { behindEventLock } from '../__tests__/event-lock-barrier'
+import { addDays, futureMonday, nextBerlinSpringShift, today } from '../__tests__/series-dates'
 import { auditService } from '../audit/service'
 import { bookingService } from '../bookings/service'
 import { eventService } from '../events/service'
@@ -33,7 +35,16 @@ let orgId: number
 let venueId: number
 const previousFlag = process.env.EVENT_BALANCE_ENFORCED
 
+/** Понедельник через 3+ недели; серии по средам — от него (даты не «протухают»). */
+const BASE = futureMonday(3)
+/** i-я среда серии `weekly(…)`. */
+const wed = (i: number) => addDays(BASE, 2 + 7 * i)
+/** 19:00 по Минску = 16:00 UTC. */
+const at = (date: string, hhmm = '16:00') => `${date}T${hhmm}:00.000Z`
+
 const owner = () => ({ userId: ownerId })
+let keySeq = 0
+const key = () => `test-key-${Date.now()}-${keySeq++}`
 
 async function balance() {
   const [row] = await db
@@ -93,14 +104,19 @@ const template = (extra: Record<string, unknown> = {}) => ({
   ...extra,
 })
 
+/** Серия по средам от BASE; ключ идемпотентности обязателен для создания. */
 const weekly = (count: number, extra: Record<string, unknown> = {}) => ({
-  rule: { freq: 'weekly' as const, weekdays: [3], startDate: '2027-01-04', count },
+  rule: { freq: 'weekly' as const, weekdays: [3], startDate: BASE, count },
   template: template(),
+  idempotencyKey: key(),
   ...extra,
 })
 
-const codeOf = (r: PromiseSettledResult<unknown>) =>
-  r.status === 'rejected' ? ((r.reason as { code?: string }).code ?? String(r.reason)) : 'ok'
+const codeOf = (r: PromiseSettledResult<unknown>) => {
+  if (r.status === 'fulfilled') return 'ok'
+  const reason = r.reason as { code?: string; name?: string }
+  return reason.code ?? (reason.name === 'ZodError' ? 'ZodError' : String(r.reason))
+}
 
 async function codeOfCall(p: Promise<unknown>) {
   return codeOf((await Promise.allSettled([p]))[0]!)
@@ -143,15 +159,10 @@ describe('event series (integration, 20.2.2)', () => {
       const before = await db.select().from(auditLog)
       const preview = await seriesService.preview(owner(), orgId, {
         ...weekly(5),
-        exceptions: ['2027-01-13'],
+        exceptions: [wed(1)],
       })
-      expect(preview.dates.map((d) => d.date)).toEqual([
-        '2027-01-06',
-        '2027-01-20',
-        '2027-01-27',
-        '2027-02-03',
-      ])
-      expect(preview.excluded).toEqual(['2027-01-13'])
+      expect(preview.dates.map((d) => d.date)).toEqual([wed(0), wed(2), wed(3), wed(4)])
+      expect(preview.excluded).toEqual([wed(1)])
       expect(preview).toMatchObject({
         timezone: 'Europe/Minsk',
         total: 4,
@@ -169,14 +180,19 @@ describe('event series (integration, 20.2.2)', () => {
         'draft',
       ])
       expect(preview.dates[3]!.draftReason).toBe('balance')
-      // 19:00 по Минску = 16:00 UTC
-      expect(preview.dates[0]!.startsAt).toBe('2027-01-06T16:00:00.000Z')
-      expect(preview.dates[0]!.endsAt).toBe('2027-01-06T18:00:00.000Z')
+      expect(preview.dates[0]!.startsAt).toBe(at(wed(0)))
+      expect(preview.dates[0]!.endsAt).toBe(at(wed(0), '18:00'))
 
       expect(await db.select().from(eventSeries)).toHaveLength(0)
       expect(await db.select().from(events)).toHaveLength(0)
       expect(await balance()).toBe(3)
       expect(await db.select().from(auditLog)).toHaveLength(before.length)
+    })
+
+    it('does not need an idempotency key', async () => {
+      const input: Record<string, unknown> = { ...weekly(2) }
+      delete input.idempotencyKey
+      expect((await seriesService.preview(owner(), orgId, input as never)).total).toBe(2)
     })
 
     it('with balance enforcement off publishes every date and keeps the balance', async () => {
@@ -194,10 +210,20 @@ describe('event series (integration, 20.2.2)', () => {
   })
 
   describe('create (D-04)', () => {
+    it('requires an idempotency key', async () => {
+      const input: Record<string, unknown> = { ...weekly(2) }
+      delete input.idempotencyKey
+      expect(await codeOfCall(seriesService.create(owner(), orgId, input as never))).toBe(
+        'ZodError',
+      )
+      expect(await db.select().from(eventSeries)).toHaveLength(0)
+    })
+
     it('creates a 52-date series in one operation; preview matches the result', async () => {
       await setBalance(60)
-      const preview = await seriesService.preview(owner(), orgId, weekly(52))
-      const result = await seriesService.create(owner(), orgId, weekly(52))
+      const input = weekly(52)
+      const preview = await seriesService.preview(owner(), orgId, input)
+      const result = await seriesService.create(owner(), orgId, input)
       expect(result).toMatchObject({
         total: 52,
         published: 52,
@@ -213,7 +239,7 @@ describe('event series (integration, 20.2.2)', () => {
       const rows = await seriesEvents(result.series.id)
       expect(rows).toHaveLength(52)
       expect(rows.every((e) => e.status === 'published' && e.organizationId === orgId)).toBe(true)
-      expect(rows[0]!.seriesDate).toBe('2027-01-06')
+      expect(rows[0]!.seriesDate).toBe(wed(0))
       expect(rows.map((e) => e.startsAt.toISOString())).toEqual(
         preview.dates.map((d) => d.startsAt),
       )
@@ -230,8 +256,9 @@ describe('event series (integration, 20.2.2)', () => {
 
     it('short balance: the first N dates are published, the rest are drafts', async () => {
       await setBalance(3)
-      const preview = await seriesService.preview(owner(), orgId, weekly(5))
-      const result = await seriesService.create(owner(), orgId, weekly(5))
+      const input = weekly(5)
+      const preview = await seriesService.preview(owner(), orgId, input)
+      const result = await seriesService.create(owner(), orgId, input)
       expect(result).toMatchObject({ total: 5, published: 3, drafts: 2, balanceAfter: 0 })
       expect({ p: preview.published, d: preview.drafts, b: preview.balanceAfter }).toEqual({
         p: 3,
@@ -283,37 +310,37 @@ describe('event series (integration, 20.2.2)', () => {
 
     it('venue conflict makes a date a draft regardless of the balance', async () => {
       await setBalance(10)
-      // занято событием группы в том же зале, пересекается с 13.01 19:00–21:00 Минск
+      // занято событием группы в том же зале, пересекается со 2-й средой 19:00–21:00 Минск
       await eventService.create(owner(), orgId, {
         title: 'Чужая игра',
         venueId,
-        startsAt: new Date('2027-01-13T17:30:00Z'),
-        endsAt: new Date('2027-01-13T19:00:00Z'),
+        startsAt: new Date(at(wed(1), '17:30')),
+        endsAt: new Date(at(wed(1), '19:00')),
         capacity: 8,
       })
       // отменённое и стык по границе не конфликтуют
       const cancelled = await eventService.create(owner(), orgId, {
         title: 'Отменено',
         venueId,
-        startsAt: new Date('2027-01-20T16:00:00Z'),
-        endsAt: new Date('2027-01-20T18:00:00Z'),
+        startsAt: new Date(at(wed(2))),
+        endsAt: new Date(at(wed(2), '18:00')),
         capacity: 8,
       })
       await eventService.cancel(owner(), cancelled.id)
       await eventService.create(owner(), orgId, {
         title: 'Стык',
         venueId,
-        startsAt: new Date('2027-01-06T18:00:00Z'),
-        endsAt: new Date('2027-01-06T19:00:00Z'),
+        startsAt: new Date(at(wed(0), '18:00')),
+        endsAt: new Date(at(wed(0), '19:00')),
         capacity: 8,
       })
       const before = await balance()
       const input = weekly(3, { template: template({ venueId }) })
       const preview = await seriesService.preview(owner(), orgId, input)
       expect(preview.dates.map((d) => [d.date, d.status, d.draftReason])).toEqual([
-        ['2027-01-06', 'published', null],
-        ['2027-01-13', 'draft', 'venue_conflict'],
-        ['2027-01-20', 'published', null],
+        [wed(0), 'published', null],
+        [wed(1), 'draft', 'venue_conflict'],
+        [wed(2), 'published', null],
       ])
       expect(preview).toMatchObject({ published: 2, drafts: 1, venueConflicts: 1 })
       const result = await seriesService.create(owner(), orgId, input)
@@ -328,22 +355,22 @@ describe('event series (integration, 20.2.2)', () => {
     it('adjacent dates of the same series do not conflict with each other', async () => {
       await setBalance(10)
       const preview = await seriesService.preview(owner(), orgId, {
-        rule: { freq: 'weekly', weekdays: [1, 2], startDate: '2027-01-04', count: 2 },
+        rule: { freq: 'weekly', weekdays: [1, 2], startDate: BASE, count: 2 },
         template: template({ venueId, startTime: '00:00', durationMinutes: 1440 }),
       })
       expect(preview.dates.map((d) => d.status)).toEqual(['published', 'published'])
     })
 
     it('planner: a date overlapping an earlier date of the same series becomes a draft', () => {
-      const at = (h: number) => new Date(Date.UTC(2027, 0, 4, h))
+      const h = (n: number) => new Date(Date.UTC(2030, 0, 7, n))
       const plan = planSeriesDates(
         [
-          { date: '2027-01-04', startsAt: at(10), endsAt: at(14) },
-          { date: '2027-01-05', startsAt: at(12), endsAt: at(16) },
-          { date: '2027-01-06', startsAt: at(20), endsAt: at(22) },
-          { date: '2027-01-07', startsAt: at(23), endsAt: at(24) },
+          { date: '2030-01-07', startsAt: h(10), endsAt: h(14) },
+          { date: '2030-01-08', startsAt: h(12), endsAt: h(16) },
+          { date: '2030-01-09', startsAt: h(20), endsAt: h(22) },
+          { date: '2030-01-10', startsAt: h(23), endsAt: h(24) },
         ],
-        { venueId: 1, busy: [{ startsAt: at(21), endsAt: at(23) }] },
+        { venueId: 1, busy: [{ startsAt: h(21), endsAt: h(23) }] },
         { enforced: true, balance: 1 },
       )
       expect(plan.map((d) => [d.status, d.draftReason])).toEqual([
@@ -360,65 +387,55 @@ describe('event series (integration, 20.2.2)', () => {
         .set({ defaultTimezone: 'Europe/Berlin' })
         .where(eq(organizations.id, orgId))
       await setBalance(10)
+      const { monday, sunday } = nextBerlinSpringShift()
       const result = await seriesService.create(owner(), orgId, {
-        rule: { freq: 'weekly', weekdays: [3], startDate: '2027-03-22', count: 2 },
+        rule: { freq: 'weekly', weekdays: [3], startDate: monday, count: 2 },
         template: template(),
+        idempotencyKey: key(),
       })
       const rows = await seriesEvents(result.series.id)
-      // 24.03 — UTC+1, 31.03 — UTC+2 (переход 28.03.2027)
+      // среда до перехода — UTC+1, после — UTC+2
       expect(rows.map((e) => e.startsAt.toISOString())).toEqual([
-        '2027-03-24T18:00:00.000Z',
-        '2027-03-31T17:00:00.000Z',
+        at(addDays(monday, 2), '18:00'),
+        at(addDays(sunday, 3), '17:00'),
       ])
       expect(result.series.timezone).toBe('Europe/Berlin')
     })
 
+    it('366 dates fit the limit; more is series.too_many_dates', async () => {
+      const daily = { freq: 'weekly' as const, weekdays: [1, 2, 3, 4, 5, 6, 7], startDate: BASE }
+      const ok = await seriesService.create(owner(), orgId, {
+        rule: { ...daily, count: 366 },
+        template: template(),
+        idempotencyKey: key(),
+      })
+      expect(ok.total).toBe(366)
+      const tooMany = { rule: { ...daily, until: addDays(BASE, 366) }, template: template() }
+      expect(await codeOfCall(seriesService.preview(owner(), orgId, tooMany))).toBe(
+        'series.too_many_dates',
+      )
+      expect(
+        await codeOfCall(
+          seriesService.create(owner(), orgId, { ...tooMany, idempotencyKey: key() }),
+        ),
+      ).toBe('series.too_many_dates')
+    })
+
     it.each([
       [
-        'series.too_many_dates',
-        {
-          rule: {
-            freq: 'weekly',
-            weekdays: [1, 2, 3, 4, 5, 6, 7],
-            startDate: '2027-01-01',
-            count: 366,
-          },
-          exceptions: [],
-          template: template(),
-          // 366 повторений ровно в лимите — превышение даёт until
-        },
-      ],
-      [
         'series.invalid_rule',
-        {
-          rule: { freq: 'weekly', weekdays: [], startDate: '2027-01-01', count: 3 },
-          template: template(),
-        },
+        { rule: { freq: 'weekly', weekdays: [], startDate: BASE, count: 3 }, template: template() },
       ],
       [
         'event.starts_in_past',
         { rule: { freq: 'once', weekdays: [], startDate: '2020-01-01' }, template: template() },
       ],
     ])('rejects %s', async (code, input) => {
-      const run = (i: unknown) => seriesService.create(owner(), orgId, i as never)
-      if (code === 'series.too_many_dates') {
-        expect(await codeOfCall(run(input))).toBe('ok')
-        expect(
-          await codeOfCall(
-            seriesService.preview(owner(), orgId, {
-              rule: {
-                freq: 'weekly',
-                weekdays: [1, 2, 3, 4, 5, 6, 7],
-                startDate: '2027-01-01',
-                until: '2028-01-02',
-              },
-              template: template(),
-            }),
-          ),
-        ).toBe(code)
-        return
-      }
-      expect(await codeOfCall(run(input))).toBe(code)
+      expect(
+        await codeOfCall(
+          seriesService.create(owner(), orgId, { ...input, idempotencyKey: key() } as never),
+        ),
+      ).toBe(code)
       expect(await codeOfCall(seriesService.preview(owner(), orgId, input as never))).toBe(code)
     })
 
@@ -446,7 +463,7 @@ describe('event series (integration, 20.2.2)', () => {
   describe('idempotency and races', () => {
     it('a retry with the same key returns the same series without charging again', async () => {
       await setBalance(10)
-      const input = weekly(4, { idempotencyKey: 'create-series-0001' })
+      const input = weekly(4)
       const first = await seriesService.create(owner(), orgId, input)
       const retry = await seriesService.create(owner(), orgId, input)
       expect(retry.replayed).toBe(true)
@@ -472,7 +489,7 @@ describe('event series (integration, 20.2.2)', () => {
 
     it('parallel retries with the same key create one series', async () => {
       await setBalance(10)
-      const input = weekly(3, { idempotencyKey: 'create-series-0003' })
+      const input = weekly(3)
       const results = await Promise.all(
         Array.from({ length: 5 }, () => seriesService.create(owner(), orgId, input)),
       )
@@ -488,8 +505,9 @@ describe('event series (integration, 20.2.2)', () => {
       const results = await Promise.all(
         Array.from({ length: 4 }, (_, i) =>
           seriesService.create(owner(), orgId, {
-            rule: { freq: 'weekly', weekdays: [i + 1], startDate: '2027-01-04', count: 4 },
+            rule: { freq: 'weekly', weekdays: [i + 1], startDate: BASE, count: 4 },
             template: template(),
+            idempotencyKey: key(),
           }),
         ),
       )
@@ -521,7 +539,7 @@ describe('event series (integration, 20.2.2)', () => {
       const { series } = await seriesService.create(owner(), orgId, weekly(2))
       const view = await seriesService.get(owner(), orgId, series.id)
       expect(view.series.id).toBe(series.id)
-      expect(view.events.map((e) => e.seriesDate)).toEqual(['2027-01-06', '2027-01-13'])
+      expect(view.events.map((e) => e.seriesDate)).toEqual([wed(0), wed(1)])
       const [other] = await db
         .insert(users)
         .values({ email: `other-${Math.random()}@t.by` })
@@ -543,17 +561,17 @@ describe('event series (integration, 20.2.2)', () => {
         owner(),
         orgId,
         series.id,
-        { scope: 'following', from: '2027-01-13' },
+        { scope: 'following', from: wed(1) },
         { startTime: '20:30', durationMinutes: 90, capacity: 14, title: 'Новое время' },
       )
       expect(result.updated).toBe(2)
       const after = await seriesEvents(series.id)
       expect(after[0]).toMatchObject({ title: 'Тренировка по средам', capacity: 12 })
-      expect(after[0]!.startsAt.toISOString()).toBe('2027-01-06T16:00:00.000Z')
+      expect(after[0]!.startsAt.toISOString()).toBe(at(wed(0)))
       expect(after[1]).toMatchObject({ title: 'Новое время', capacity: 14 })
-      expect(after[1]!.startsAt.toISOString()).toBe('2027-01-13T17:30:00.000Z')
-      expect(after[1]!.endsAt.toISOString()).toBe('2027-01-13T19:00:00.000Z')
-      expect(after[2]!.startsAt.toISOString()).toBe('2027-01-20T17:30:00.000Z')
+      expect(after[1]!.startsAt.toISOString()).toBe(at(wed(1), '17:30'))
+      expect(after[1]!.endsAt.toISOString()).toBe(at(wed(1), '19:00'))
+      expect(after[2]!.startsAt.toISOString()).toBe(at(wed(2), '17:30'))
       expect(after[3]).toMatchObject({ status: 'cancelled', title: 'Тренировка по средам' })
       const [stored] = await db.select().from(eventSeries).where(eq(eventSeries.id, series.id))
       expect(stored!.template).toMatchObject({ startTime: '20:30', durationMinutes: 90 })
@@ -567,7 +585,7 @@ describe('event series (integration, 20.2.2)', () => {
         owner(),
         orgId,
         series.id,
-        { scope: 'single', from: '2027-01-13' },
+        { scope: 'single', from: wed(1) },
         { capacity: 20 },
       )
       expect(result.updated).toBe(1)
@@ -580,10 +598,8 @@ describe('event series (integration, 20.2.2)', () => {
             owner(),
             orgId,
             series.id,
-            { scope: 'single', from: '2027-02-24' },
-            {
-              capacity: 20,
-            },
+            { scope: 'single', from: wed(10) },
+            { capacity: 20 },
           ),
         ),
       ).toBe('event.not_found')
@@ -602,14 +618,87 @@ describe('event series (integration, 20.2.2)', () => {
             owner(),
             orgId,
             series.id,
-            { scope: 'following', from: '2027-01-06' },
-            {
-              capacity: 1,
-            },
+            { scope: 'following', from: wed(0) },
+            { capacity: 1 },
           ),
         ),
       ).toBe('event.capacity_below_taken')
       expect((await seriesEvents(series.id)).map((e) => e.capacity)).toEqual([12, 12, 2])
+    })
+
+    it('following validates the new template even when no dates are left to change', async () => {
+      const { series } = await seriesService.create(owner(), orgId, weekly(2))
+      const [other] = await db
+        .insert(users)
+        .values({ email: `other-${Math.random()}@t.by` })
+        .returning()
+      const otherOrg = await organizationService.create({ userId: other!.id }, { name: 'Other' })
+      const foreignVenue = await venueService.create(
+        { userId: other!.id },
+        { organizationId: otherOrg.id, name: 'Чужой зал' },
+      )
+      const [original] = await db.select().from(eventSeries).where(eq(eventSeries.id, series.id))
+      const late = { scope: 'following' as const, from: wed(20) }
+      expect(
+        await codeOfCall(
+          seriesService.update(owner(), orgId, series.id, late, { venueId: foreignVenue.id }),
+        ),
+      ).toBe('event.venue_not_in_org')
+      // режим split без цели не сохраняется в шаблон
+      expect(
+        await codeOfCall(
+          seriesService.update(owner(), orgId, series.id, late, { priceMode: 'split', price: 0 }),
+        ),
+      ).toBe('ZodError')
+      const [stored] = await db.select().from(eventSeries).where(eq(eventSeries.id, series.id))
+      expect(stored!.template).toEqual(original!.template)
+    })
+
+    it('following stores «no venue» as an absent key, not null', async () => {
+      const { series } = await seriesService.create(
+        owner(),
+        orgId,
+        weekly(2, { template: template({ venueId }) }),
+      )
+      const result = await seriesService.update(
+        owner(),
+        orgId,
+        series.id,
+        { scope: 'following', from: wed(0) },
+        { venueId: null, description: null },
+      )
+      expect(result.updated).toBe(2)
+      const [stored] = await db.select().from(eventSeries).where(eq(eventSeries.id, series.id))
+      expect(stored!.template).not.toHaveProperty('venueId')
+      expect(stored!.template).not.toHaveProperty('description')
+      expect((await seriesEvents(series.id)).map((e) => e.venueId)).toEqual([null, null])
+    })
+
+    it('PATCH of a series event may change its time but not its calendar day', async () => {
+      const { series } = await seriesService.create(owner(), orgId, weekly(2))
+      const [first] = await seriesEvents(series.id)
+      const moved = await eventService.update(owner(), first!.id, {
+        startsAt: new Date(at(wed(0), '18:00')),
+        endsAt: new Date(at(wed(0), '20:00')),
+      })
+      expect(moved.startsAt.toISOString()).toBe(at(wed(0), '18:00'))
+      expect(
+        await codeOfCall(
+          eventService.update(owner(), first!.id, {
+            startsAt: new Date(at(addDays(wed(0), 1))),
+            endsAt: new Date(at(addDays(wed(0), 1), '18:00')),
+          }),
+        ),
+      ).toBe('event.series_date_locked')
+      // 01:00 по Минску следующего дня — тоже другой календарный день, хотя в UTC тот же
+      expect(
+        await codeOfCall(
+          eventService.update(owner(), first!.id, {
+            startsAt: new Date(at(wed(0), '22:00')),
+            endsAt: new Date(at(wed(0), '23:00')),
+          }),
+        ),
+      ).toBe('event.series_date_locked')
     })
   })
 
@@ -622,7 +711,7 @@ describe('event series (integration, 20.2.2)', () => {
       const booking = await bookingService.book({ userId: playerId }, orgId, rows[2]!.id, {
         method: 'cash',
       })
-      const result = await seriesService.cancel(owner(), orgId, series.id, { from: '2027-01-13' })
+      const result = await seriesService.cancel(owner(), orgId, series.id, { from: wed(1) })
       expect(result).toMatchObject({ cancelled: 4, balanceRefunds: 1 })
       const after = await seriesEvents(series.id)
       expect(after.map((e) => e.status)).toEqual([
@@ -656,6 +745,34 @@ describe('event series (integration, 20.2.2)', () => {
       expect((await drift()).length).toBe(0)
     })
 
+    it('never touches dates that already started; from before today is rejected', async () => {
+      await setBalance(10)
+      const { series } = await seriesService.create(owner(), orgId, weekly(3))
+      const rows = await seriesEvents(series.id)
+      // 1-я дата «сегодня» и уже идёт (сыграна или идёт сейчас)
+      await db
+        .update(events)
+        .set({
+          seriesDate: today(),
+          startsAt: new Date(Date.now() - 3600_000),
+          endsAt: new Date(Date.now() + 3600_000),
+        })
+        .where(eq(events.id, rows[0]!.id))
+      expect(
+        await codeOfCall(
+          seriesService.cancel(owner(), orgId, series.id, { from: addDays(today(), -1) }),
+        ),
+      ).toBe('series.from_in_past')
+      const result = await seriesService.cancel(owner(), orgId, series.id, { from: today() })
+      expect(result).toMatchObject({ cancelled: 2, balanceRefunds: 2 })
+      const [played] = await db.select().from(events).where(eq(events.id, rows[0]!.id))
+      expect(played!.status).toBe('published')
+      expect((await entries('refund')).map((r) => r.eventId)).not.toContain(rows[0]!.id)
+      // отменять больше нечего — серия завершена тем же предикатом
+      const [stored] = await db.select().from(eventSeries).where(eq(eventSeries.id, series.id))
+      expect(stored!.status).toBe('ended')
+    })
+
     it('collects one cancellation notice per cancelled booking for dispatch after commit', async () => {
       await setBalance(10)
       const { series } = await seriesService.create(owner(), orgId, weekly(2))
@@ -666,7 +783,7 @@ describe('event series (integration, 20.2.2)', () => {
         { ...owner(), notifications: notifications as never },
         orgId,
         series.id,
-        { from: '2027-01-06' },
+        { from: wed(0) },
       )
       expect(notifications).toHaveLength(1)
       expect(notifications[0]).toMatchObject({ userId: playerId, type: 'event_cancelled' })
@@ -675,9 +792,9 @@ describe('event series (integration, 20.2.2)', () => {
     it('is idempotent and ends the series when nothing is left', async () => {
       await setBalance(10)
       const { series } = await seriesService.create(owner(), orgId, weekly(3))
-      const first = await seriesService.cancel(owner(), orgId, series.id, { from: '2027-01-06' })
+      const first = await seriesService.cancel(owner(), orgId, series.id, { from: wed(0) })
       expect(first).toMatchObject({ cancelled: 3, balanceRefunds: 3 })
-      const again = await seriesService.cancel(owner(), orgId, series.id, { from: '2027-01-06' })
+      const again = await seriesService.cancel(owner(), orgId, series.id, { from: wed(0) })
       expect(again).toMatchObject({ cancelled: 0, balanceRefunds: 0 })
       const [stored] = await db.select().from(eventSeries).where(eq(eventSeries.id, series.id))
       expect(stored!.status).toBe('ended')
@@ -690,7 +807,7 @@ describe('event series (integration, 20.2.2)', () => {
       const { series } = await seriesService.create(owner(), orgId, weekly(4))
       const results = await Promise.all(
         Array.from({ length: 3 }, () =>
-          seriesService.cancel(owner(), orgId, series.id, { from: '2027-01-06' }),
+          seriesService.cancel(owner(), orgId, series.id, { from: wed(0) }),
         ),
       )
       expect(results.reduce((n, r) => n + r.cancelled, 0)).toBe(4)
@@ -699,35 +816,91 @@ describe('event series (integration, 20.2.2)', () => {
       expect((await drift()).length).toBe(0)
     })
 
-    it('parallel cancel and booking on a later date stay consistent', async () => {
-      for (let round = 0; round < 4; round++) {
-        await setBalance(10)
-        const { series } = await seriesService.create(owner(), orgId, {
-          ...weekly(3),
-          rule: { freq: 'weekly', weekdays: [round + 1], startDate: '2027-01-04', count: 3 },
-        })
-        const rows = await seriesEvents(series.id)
-        const [cancel, book] = await Promise.allSettled([
-          seriesService.cancel(owner(), orgId, series.id, { from: rows[0]!.seriesDate! }),
-          bookingService.book({ userId: playerId }, orgId, rows[2]!.id, { method: 'cash' }),
-        ])
-        expect(codeOf(cancel)).toBe('ok')
-        expect(['ok', 'booking.event_not_bookable']).toContain(codeOf(book))
-        const after = await seriesEvents(series.id)
-        expect(after.every((e) => e.status === 'cancelled')).toBe(true)
-        // ни одной активной записи на отменённых событиях
-        const active = await db
-          .select()
-          .from(bookings)
-          .where(and(eq(bookings.eventId, rows[2]!.id), sql`${bookings.status} <> 'cancelled'`))
-        expect(active).toHaveLength(0)
-        // возврат за 3-ю дату — только если запись не успела (D-13)
-        const refunds = (await entries('refund')).filter((r) =>
-          rows.some((e) => e.id === r.eventId),
-        )
-        expect(refunds).toHaveLength(codeOf(book) === 'ok' ? 2 : 3)
-        expect((await drift()).length).toBe(0)
-      }
+    // Гонки упорядочены реальным advisory-lock 3-й даты (behindEventLock): операции ждут в очереди
+    // в заданном порядке и запускаются вместе.
+    async function threeDates() {
+      await setBalance(10)
+      const { series } = await seriesService.create(owner(), orgId, weekly(3))
+      return { series, rows: await seriesEvents(series.id) }
+    }
+    const refundsFor = async (ids: number[]) =>
+      (await entries('refund')).filter((r) => ids.includes(r.eventId!))
+
+    it('series cancel queued before a booking on a later date: the booking is refused', async () => {
+      const { series, rows } = await threeDates()
+      const [cancel, book] = await behindEventLock(rows[2]!.id, [
+        () => seriesService.cancel(owner(), orgId, series.id, { from: wed(0) }),
+        () => bookingService.book({ userId: playerId }, orgId, rows[2]!.id, { method: 'cash' }),
+      ])
+      expect(codeOf(cancel!)).toBe('ok')
+      expect(codeOf(book!)).toBe('booking.event_not_bookable')
+      expect(await refundsFor(rows.map((r) => r.id))).toHaveLength(3)
+      expect((await drift()).length).toBe(0)
     })
+
+    it('booking queued before a series cancel: the booking is cancelled and blocks the refund', async () => {
+      const { series, rows } = await threeDates()
+      const [book, cancel] = await behindEventLock(rows[2]!.id, [
+        () => bookingService.book({ userId: playerId }, orgId, rows[2]!.id, { method: 'cash' }),
+        () => seriesService.cancel(owner(), orgId, series.id, { from: wed(0) }),
+      ])
+      expect(codeOf(book!)).toBe('ok')
+      expect(codeOf(cancel!)).toBe('ok')
+      const active = await db
+        .select()
+        .from(bookings)
+        .where(and(eq(bookings.eventId, rows[2]!.id), sql`${bookings.status} <> 'cancelled'`))
+      expect(active).toHaveLength(0)
+      const refunds = await refundsFor(rows.map((r) => r.id))
+      expect(refunds.map((r) => r.eventId).sort()).toEqual([rows[0]!.id, rows[1]!.id].sort())
+      expect((await drift()).length).toBe(0)
+    })
+
+    it.each([
+      ['single cancel first', true],
+      ['series cancel first', false],
+    ])(
+      'series cancel vs a concurrent single-event cancel (%s): no deadlock, one refund per date',
+      async (_label, singleFirst) => {
+        const { series, rows } = await threeDates()
+        const single = () => eventService.cancel(owner(), rows[2]!.id)
+        const whole = () => seriesService.cancel(owner(), orgId, series.id, { from: wed(0) })
+        const results = await behindEventLock(
+          rows[2]!.id,
+          singleFirst ? [single, whole] : [whole, single],
+        )
+        expect(results.map(codeOf)).toEqual(['ok', 'ok'])
+        expect((await seriesEvents(series.id)).every((e) => e.status === 'cancelled')).toBe(true)
+        expect(await refundsFor(rows.map((r) => r.id))).toHaveLength(3)
+        expect(await balance()).toBe(10)
+        expect((await drift()).length).toBe(0)
+      },
+    )
+
+    it.each([
+      ['publish first', true],
+      ['series cancel first', false],
+    ])(
+      'series cancel vs publishing a draft date (%s) keeps the balance exact',
+      async (_l, publishFirst) => {
+        await setBalance(1)
+        const { series } = await seriesService.create(owner(), orgId, weekly(3)) // 1 опубликована
+        const rows = await seriesEvents(series.id)
+        await setBalance(5)
+        const publish = () => eventService.update(owner(), rows[2]!.id, { status: 'published' })
+        const whole = () => seriesService.cancel(owner(), orgId, series.id, { from: wed(0) })
+        const results = await behindEventLock(
+          rows[2]!.id,
+          publishFirst ? [publish, whole] : [whole, publish],
+        )
+        const [first, second] = results.map(codeOf)
+        expect(first).toBe('ok')
+        expect(second).toBe(publishFirst ? 'ok' : 'event.not_editable')
+        expect((await seriesEvents(series.id)).every((e) => e.status === 'cancelled')).toBe(true)
+        // опубликованное без записей возвращается: 5 − (списание публикации) + возвраты
+        expect(await balance()).toBe(6)
+        expect((await drift()).length).toBe(0)
+      },
+    )
   })
 })

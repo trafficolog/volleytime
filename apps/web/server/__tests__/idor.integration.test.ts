@@ -51,6 +51,9 @@ import {
  * Таблица = минимальная роль из docs/architecture/permissions-v3.md. Новый роут в
  * server/api/organizations/[orgId]/** без строки здесь роняет первый тест.
  */
+/** Даты серий — от текущего дня (через 3+ недели), чтобы фикстура не «протухала» (ревью PR #145). */
+const SERIES_START = new Date(Date.now() + 21 * 86_400_000).toISOString().slice(0, 10)
+
 const ROUTES: OrgRouteTable = {
   'GET /api/organizations/:orgId': { access: 'tenant' },
   'PATCH /api/organizations/:orgId': { access: 'owner', body: () => ({ name: 'Renamed' }) },
@@ -176,16 +179,20 @@ const ROUTES: OrgRouteTable = {
   },
   // 20.2.2: серии событий — manager (черновики и списание баланса)
   'POST /api/organizations/:orgId/series/preview': { access: 'manager', body: () => seriesBody() },
-  'POST /api/organizations/:orgId/series': { access: 'manager', body: () => seriesBody() },
+  // ключ идемпотентности обязателен для создания (решение координатора 2026-10-15)
+  'POST /api/organizations/:orgId/series': {
+    access: 'manager',
+    body: () => ({ ...seriesBody(), idempotencyKey: 'idor-series-0001' }),
+  },
   'GET /api/organizations/:orgId/series/:seriesId': { access: 'manager' },
   'PATCH /api/organizations/:orgId/series/:seriesId': {
     access: 'manager',
-    query: '?scope=following&from=2027-01-01',
+    query: `?scope=following&from=${SERIES_START}`,
     body: () => ({ capacity: 11 }),
   },
   'POST /api/organizations/:orgId/series/:seriesId/cancel': {
     access: 'manager',
-    body: () => ({ from: '2027-01-01' }),
+    body: () => ({ from: SERIES_START }),
   },
   'GET /api/organizations/:orgId/settings': { access: 'manager' },
   'PATCH /api/organizations/:orgId/settings': {
@@ -203,7 +210,7 @@ const ROUTES: OrgRouteTable = {
 
 function seriesBody(extra: Record<string, unknown> = {}) {
   return {
-    rule: { freq: 'weekly', weekdays: [3], startDate: '2027-01-04', count: 2 },
+    rule: { freq: 'weekly', weekdays: [3], startDate: SERIES_START, count: 2 },
     template: { title: 'Серия', startTime: '19:00', durationMinutes: 90, capacity: 10, ...extra },
   }
 }
@@ -280,6 +287,7 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
     const { series } = await seriesService.create({ userId: owner }, org.id, {
       ...seriesBody({ venueId: venue.id }),
       template: { ...seriesBody().template, title: `Серия ${marker}`, venueId: venue.id },
+      idempotencyKey: `idor-fixture-${label}`,
     })
     return {
       ids: {
@@ -448,7 +456,10 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
       'series.post with venue of another group',
       'POST',
       '/series',
-      (b: OrgFixtureIds) => seriesBody({ venueId: b.venueId }),
+      (b: OrgFixtureIds) => ({
+        ...seriesBody({ venueId: b.venueId }),
+        idempotencyKey: 'idor-foreign-0001',
+      }),
     ],
     [
       'attendance with booking of another group',

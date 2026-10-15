@@ -5,6 +5,7 @@ import {
   desc,
   eq,
   events,
+  eventSeries,
   gte,
   inArray,
   isNotNull,
@@ -18,7 +19,7 @@ import {
   venues,
   type Event,
 } from '@volley-time/db'
-import { DEFAULT_TIMEZONE, zonedInputToDate } from '@volley-time/shared'
+import { DEFAULT_TIMEZONE, dateToZonedInput, zonedInputToDate } from '@volley-time/shared'
 
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
@@ -403,6 +404,21 @@ export const eventService = {
         throw new EventNotEditableError()
       }
       if (data.startsAt && data.startsAt <= new Date()) throw new EventStartsInPastError()
+      // дата серии (20.2.2): время события меняется свободно, календарный день — только правкой
+      // серии, иначе `series_date` разошёлся бы с фактическим днём события
+      if (existing.seriesId !== null && data.startsAt !== undefined) {
+        const [series] = await db
+          .select({ timezone: eventSeries.timezone })
+          .from(eventSeries)
+          .where(eq(eventSeries.id, existing.seriesId))
+        const tz = series?.timezone ?? DEFAULT_TIMEZONE
+        if (dateToZonedInput(data.startsAt, tz).slice(0, 10) !== existing.seriesDate) {
+          throw new EventError(
+            'event.series_date_locked',
+            'The calendar day of a series event changes only through the series',
+          )
+        }
+      }
 
       // вместимость не ниже занятых мест — SUM(seats) (5.13.11, 20.1.2)
       if (data.capacity !== undefined) {

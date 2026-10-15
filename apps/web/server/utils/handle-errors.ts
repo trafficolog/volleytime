@@ -91,6 +91,8 @@ const CODE_STATUS: Record<string, number> = {
   'series.invalid_rule': 422,
   'series.too_many_dates': 422,
   'series.idempotency_conflict': 409,
+  'series.from_in_past': 422,
+  'event.series_date_locked': 409,
   // forbidden
   'forbidden.manage_content': 403,
   'forbidden.manage_members': 403,
