@@ -136,6 +136,8 @@ describe('split settlement and pricing HTTP projections', () => {
         user: { id: playerId, name: null, telegramUsername: null, image: null },
         seats: 1,
         paid: false,
+        // Маршрут участников отдаёт уровень из членства группы (20.4.10); у игрока его нет.
+        level: null,
       },
     ])
     expect(
