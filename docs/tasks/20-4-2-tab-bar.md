@@ -2,11 +2,11 @@
 id: '20.4.2'
 phase: '20'
 epic: '20.4'
-status: todo
+status: in_progress
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-10-15
+status_note: 'Реализовано по решению владельца 2026-10-14 (вариант A): игрок — Главная / Абонементы (при subsOn = false скрыта) / Профиль, «Записи» убраны; организатор без изменений. Сборы и Календарь вынесены в 21.1.5/21.1.6 и 23.1.1. Тесты взаимодействия (RED→GREEN), визуальная сверка QA-note docs/operations/qa/2026-10-15-20-4-2-tab-bar-visual.md. Ревью: review pending (claude-sonnet-5-5, standard). Расхождение с handoff README по доживанию абонементов отмечено в карточке.'
 ref_id: 'M-02'
 complexity: S
 impl_model: claude-haiku-5-5
