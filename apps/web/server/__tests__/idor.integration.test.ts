@@ -7,6 +7,7 @@ import {
   memberService,
   organizationService,
   planService,
+  seriesService,
   venueService,
 } from '@volley-time/core'
 import {
@@ -20,6 +21,7 @@ import {
   eventBalancePurchaseRequests,
   eventInviteRequests,
   events,
+  eventSeries,
   inviteLinks,
   ledgerEntries,
   organizationEventBalances,
@@ -49,6 +51,9 @@ import {
  * Таблица = минимальная роль из docs/architecture/permissions-v3.md. Новый роут в
  * server/api/organizations/[orgId]/** без строки здесь роняет первый тест.
  */
+/** Даты серий — от текущего дня (через 3+ недели), чтобы фикстура не «протухала» (ревью PR #145). */
+const SERIES_START = new Date(Date.now() + 21 * 86_400_000).toISOString().slice(0, 10)
+
 const ROUTES: OrgRouteTable = {
   'GET /api/organizations/:orgId': { access: 'tenant' },
   'PATCH /api/organizations/:orgId': { access: 'owner', body: () => ({ name: 'Renamed' }) },
@@ -172,6 +177,23 @@ const ROUTES: OrgRouteTable = {
     access: 'manager',
     body: () => ({ name: 'P-4', totalSessions: 4, price: 4000 }),
   },
+  // 20.2.2: серии событий — manager (черновики и списание баланса)
+  'POST /api/organizations/:orgId/series/preview': { access: 'manager', body: () => seriesBody() },
+  // ключ идемпотентности обязателен для создания (решение координатора 2026-10-15)
+  'POST /api/organizations/:orgId/series': {
+    access: 'manager',
+    body: () => ({ ...seriesBody(), idempotencyKey: 'idor-series-0001' }),
+  },
+  'GET /api/organizations/:orgId/series/:seriesId': { access: 'manager' },
+  'PATCH /api/organizations/:orgId/series/:seriesId': {
+    access: 'manager',
+    query: `?scope=following&from=${SERIES_START}`,
+    body: () => ({ capacity: 11 }),
+  },
+  'POST /api/organizations/:orgId/series/:seriesId/cancel': {
+    access: 'manager',
+    body: () => ({ from: SERIES_START }),
+  },
   'GET /api/organizations/:orgId/settings': { access: 'manager' },
   'PATCH /api/organizations/:orgId/settings': {
     access: 'owner',
@@ -184,6 +206,13 @@ const ROUTES: OrgRouteTable = {
   'GET /api/organizations/:orgId/subscriptions/my': { access: 'member' },
   'GET /api/organizations/:orgId/venues': { access: 'member' },
   'POST /api/organizations/:orgId/venues': { access: 'manager', body: () => ({ name: 'Зал 2' }) },
+}
+
+function seriesBody(extra: Record<string, unknown> = {}) {
+  return {
+    rule: { freq: 'weekly', weekdays: [3], startDate: SERIES_START, count: 2 },
+    template: { title: 'Серия', startTime: '19:00', durationMinutes: 90, capacity: 10, ...extra },
+  }
 }
 
 interface OrgFixture {
@@ -255,6 +284,11 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
       { organizationId: org.id, name: `План ${marker}`, totalSessions: 8, price: 8000 },
     )
     const invite = await inviteService.create({ userId: owner }, { organizationId: org.id })
+    const { series } = await seriesService.create({ userId: owner }, org.id, {
+      ...seriesBody({ venueId: venue.id }),
+      template: { ...seriesBody().template, title: `Серия ${marker}`, venueId: venue.id },
+      idempotencyKey: `idor-fixture-${label}`,
+    })
     return {
       ids: {
         orgId: org.id,
@@ -266,6 +300,7 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
         planId: plan.id,
         inviteId: invite.id,
         requestId: request.id,
+        seriesId: series.id,
       },
       owner,
       organizer,
@@ -286,6 +321,7 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
       db.select().from(organizationMembers).where(eq(organizationMembers.organizationId, orgId)),
       db.select().from(venues).where(eq(venues.organizationId, orgId)),
       db.select().from(events).where(eq(events.organizationId, orgId)),
+      db.select().from(eventSeries).where(eq(eventSeries.organizationId, orgId)),
       db.select().from(bookings).where(eq(bookings.organizationId, orgId)),
       db.select().from(payments).where(eq(payments.organizationId, orgId)),
       db.select().from(subscriptionPlans).where(eq(subscriptionPlans.organizationId, orgId)),
@@ -329,7 +365,7 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
       const { method, route } = splitRouteKey(key)
       const before = await snapshot(A.ids.orgId)
       for (const user of [B.owner, B.organizer, B.player, root]) {
-        const res = await request(method, buildPath(route, A.ids), {
+        const res = await request(method, buildPath(route, A.ids) + (spec.query ?? ''), {
           user,
           body: spec.body?.(A.ids),
         })
@@ -347,7 +383,7 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
       const { method, route } = splitRouteKey(key)
       const before = await snapshot(B.ids.orgId)
       // owner — максимальная роль в своей группе: если он не достаёт чужой ресурс, не достанет никто
-      const res = await request(method, buildPath(route, A.ids, B.ids), {
+      const res = await request(method, buildPath(route, A.ids, B.ids) + (spec.query ?? ''), {
         user: A.owner,
         body: spec.body?.(B.ids),
       })
@@ -368,7 +404,7 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
             : [A.applicant, A.player, A.assistant, A.organizer]
       const before = await snapshot(A.ids.orgId)
       for (const user of below) {
-        const res = await request(method, buildPath(route, A.ids), {
+        const res = await request(method, buildPath(route, A.ids) + (spec.query ?? ''), {
           user,
           body: spec.body?.(A.ids),
         })
@@ -411,6 +447,21 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
       (b: OrgFixtureIds) => ({ category: 'donation', amount: 1000, eventId: b.eventId }),
     ],
     [
+      'series.preview with venue of another group',
+      'POST',
+      '/series/preview',
+      (b: OrgFixtureIds) => seriesBody({ venueId: b.venueId }),
+    ],
+    [
+      'series.post with venue of another group',
+      'POST',
+      '/series',
+      (b: OrgFixtureIds) => ({
+        ...seriesBody({ venueId: b.venueId }),
+        idempotencyKey: 'idor-foreign-0001',
+      }),
+    ],
+    [
       'attendance with booking of another group',
       'POST',
       '/events/:eventId/attendance',
@@ -447,7 +498,10 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
         manager: C.organizer,
         owner: C.owner,
       }[spec.access]
-      const res = await request(method, buildPath(route, C.ids), { user, body: spec.body?.(C.ids) })
+      const res = await request(method, buildPath(route, C.ids) + (spec.query ?? ''), {
+        user,
+        body: spec.body?.(C.ids),
+      })
       expect(
         [401, 403, 404],
         `${key} as ${spec.access} → ${res.status} ${res.text.slice(0, 200)}`,

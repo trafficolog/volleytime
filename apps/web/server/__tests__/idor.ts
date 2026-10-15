@@ -33,12 +33,16 @@ export interface OrgFixtureIds {
   inviteId: number
   /** Ожидающий запрос приглашения на событие фикстуры (20.1.3). */
   requestId: number
+  /** Серия событий группы (20.2.2). */
+  seriesId: number
 }
 
 export interface OrgRouteCase {
   access: OrgAccess
   /** Валидное тело для своей группы: так 403/404 не маскируются ответом 422 валидации. */
   body?: (ids: OrgFixtureIds) => unknown
+  /** Обязательная строка запроса (например, `?scope=following&from=…` у PATCH серии, 20.2.2). */
+  query?: string
 }
 
 /** Ключ — `METHOD /api/organizations/:orgId/...` как его строит харнесс. */

@@ -5,6 +5,7 @@ import {
   desc,
   eq,
   events,
+  eventSeries,
   gte,
   inArray,
   isNotNull,
@@ -18,7 +19,7 @@ import {
   venues,
   type Event,
 } from '@volley-time/db'
-import { DEFAULT_TIMEZONE, zonedInputToDate } from '@volley-time/shared'
+import { DEFAULT_TIMEZONE, dateToZonedInput, zonedInputToDate } from '@volley-time/shared'
 
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
@@ -65,7 +66,7 @@ function requireSplitCapability(): void {
   }
 }
 
-async function assertVenueInOrg(
+export async function assertVenueInOrg(
   db: ReturnType<typeof getDb>,
   venueId: number,
   orgId: number,
@@ -95,89 +96,134 @@ export interface EventStats {
   venue: { name: string; address: string | null } | null
 }
 
+/** Снимок настроек группы для создания события (читается под FOR SHARE, D-02, 19.2.2). */
+export interface OrgEventDefaults {
+  defaultCurrency: string
+  defaultPriceMode: Event['priceMode']
+  defaultJoinMode: Event['joinMode']
+  defaultTimezone: string
+  cancellationAllowed: boolean
+  cancellationDeadlineHours: number | null
+}
+
+/**
+ * Настройки группы под FOR SHARE: параллельное изменение настроек (FOR UPDATE) не вклинится между
+ * снимком и вставкой события (D-02, 19.2.2). Вызывать в транзакции.
+ */
+export async function readOrgEventDefaults(
+  ctx: ServiceContext,
+  orgId: number,
+): Promise<OrgEventDefaults> {
+  const [org] = await getDb(ctx)
+    .select({
+      defaultCurrency: organizations.defaultCurrency,
+      defaultPriceMode: organizations.defaultPriceMode,
+      defaultJoinMode: organizations.defaultJoinMode,
+      defaultTimezone: organizations.defaultTimezone,
+      cancellationAllowed: organizations.cancellationAllowed,
+      cancellationDeadlineHours: organizations.cancellationDeadlineHours,
+    })
+    .from(organizations)
+    .where(eq(organizations.id, orgId))
+    .for('share')
+  if (!org) throw new OrganizationNotFoundError(orgId)
+  return org
+}
+
+/** Итоговые режимы события по умолчаниям группы; проверка выключателей возможностей. */
+export function resolveEventModes(
+  data: ReturnType<typeof CreateEventInput.parse>,
+  org: OrgEventDefaults,
+) {
+  if (data.currency && data.currency.toUpperCase() !== org.defaultCurrency) {
+    throw new CurrencyMismatchError(org.defaultCurrency, data.currency)
+  }
+  // режим оплаты — значение по умолчанию группы, которое событие может переопределить
+  const pricing = EventPricingInput.parse({
+    priceMode: data.priceMode ?? org.defaultPriceMode,
+    price: data.price,
+    targetAmount: data.targetAmount,
+  })
+  if (pricing.priceMode === 'split') requireSplitCapability()
+  // режим записи — снимок умолчания группы, событие может переопределить (20.1.3)
+  const joinMode = data.joinMode ?? org.defaultJoinMode
+  if (joinMode === 'invite') requireInviteModeCapability()
+  return { pricing, joinMode }
+}
+
+/**
+ * Вставить событие, списать баланс при публикации и записать audit — в транзакции вызывающего.
+ * Общий путь одиночного создания и дат серии (20.2.2): `series` связывает событие с датой серии.
+ */
+export async function insertEvent(
+  ctx: ServiceContext,
+  orgId: number,
+  data: ReturnType<typeof CreateEventInput.parse>,
+  org: OrgEventDefaults,
+  series: { id: number; date: string } | null = null,
+): Promise<Event> {
+  const db = getDb(ctx)
+  if (data.startsAt <= new Date()) throw new EventStartsInPastError() // 5.13.11
+  if (data.venueId) await assertVenueInOrg(db, data.venueId, orgId)
+  const { pricing, joinMode } = resolveEventModes(data, org)
+
+  const [event] = await db
+    .insert(events)
+    .values({
+      organizationId: orgId,
+      createdByUserId: ctx.userId,
+      venueId: data.venueId ?? null,
+      type: data.type,
+      title: data.title,
+      description: data.description ?? null,
+      locationText: data.locationText ?? null,
+      startsAt: data.startsAt,
+      endsAt: data.endsAt,
+      capacity: data.capacity,
+      price: pricing.price,
+      priceMode: pricing.priceMode,
+      targetAmount: pricing.targetAmount,
+      currency: org.defaultCurrency,
+      // политика отмены — снимок группы; из входа не берётся (D-02)
+      cancellationAllowed: org.cancellationAllowed,
+      cancellationDeadlineHours: org.cancellationDeadlineHours,
+      level: data.level ?? null,
+      joinMode,
+      status: data.status,
+      seriesId: series?.id ?? null,
+      seriesDate: series?.date ?? null,
+    })
+    .returning()
+  // публикация списывает 1 событие баланса; нехватка откатывает создание (20.2.1, D-04)
+  const spend =
+    event!.status === 'published' ? await eventBalanceService.spendOnPublish(ctx, event!) : null
+  await auditService.record(ctx, {
+    organizationId: orgId,
+    action: AUDIT_ACTIONS.EVENT_CREATED,
+    entityType: 'event',
+    entityId: event!.id,
+    newValue: {
+      title: event!.title,
+      startsAt: event!.startsAt,
+      capacity: event!.capacity,
+      price: event!.price,
+      ...(series ? { seriesId: series.id, seriesDate: series.date } : {}),
+      ...(spend ? { eventBalance: { delta: spend.delta, balanceAfter: spend.balanceAfter } } : {}),
+    },
+  })
+  return event!
+}
+
 export const eventService = {
   async create(ctx: ServiceContext, orgId: number, input: CreateInput): Promise<Event> {
     const data = CreateEventInput.parse(input)
     if (data.priceMode === 'split') requireSplitCapability()
     // мутация и audit атомарны (5.13.12)
     return inTransaction(ctx, async (ctx) => {
-      const db = getDb(ctx)
       if (data.startsAt <= new Date()) throw new EventStartsInPastError() // 5.13.11
-      if (data.venueId) await assertVenueInOrg(db, data.venueId, orgId)
-
-      // Настройки группы читаются под FOR SHARE: параллельное изменение настроек
-      // (FOR UPDATE) не вклинится между снимком и вставкой события (D-02, 19.2.2).
-      const [org] = await db
-        .select({
-          defaultCurrency: organizations.defaultCurrency,
-          defaultPriceMode: organizations.defaultPriceMode,
-          defaultJoinMode: organizations.defaultJoinMode,
-          cancellationAllowed: organizations.cancellationAllowed,
-          cancellationDeadlineHours: organizations.cancellationDeadlineHours,
-        })
-        .from(organizations)
-        .where(eq(organizations.id, orgId))
-        .for('share')
-      if (!org) throw new OrganizationNotFoundError(orgId)
-      if (data.currency && data.currency.toUpperCase() !== org.defaultCurrency) {
-        throw new CurrencyMismatchError(org.defaultCurrency, data.currency)
-      }
-
-      // режим оплаты — значение по умолчанию группы, которое событие может переопределить
-      const pricing = EventPricingInput.parse({
-        priceMode: data.priceMode ?? org.defaultPriceMode,
-        price: data.price,
-        targetAmount: data.targetAmount,
-      })
-      if (pricing.priceMode === 'split') requireSplitCapability()
-      // режим записи — снимок умолчания группы, событие может переопределить (20.1.3)
-      const joinMode = data.joinMode ?? org.defaultJoinMode
-      if (joinMode === 'invite') requireInviteModeCapability()
-
-      const [event] = await db
-        .insert(events)
-        .values({
-          organizationId: orgId,
-          createdByUserId: ctx.userId,
-          venueId: data.venueId ?? null,
-          type: data.type,
-          title: data.title,
-          description: data.description ?? null,
-          locationText: data.locationText ?? null,
-          startsAt: data.startsAt,
-          endsAt: data.endsAt,
-          capacity: data.capacity,
-          price: pricing.price,
-          priceMode: pricing.priceMode,
-          targetAmount: pricing.targetAmount,
-          currency: org.defaultCurrency,
-          // политика отмены — снимок группы; из входа не берётся (D-02)
-          cancellationAllowed: org.cancellationAllowed,
-          cancellationDeadlineHours: org.cancellationDeadlineHours,
-          level: data.level ?? null,
-          joinMode,
-          status: data.status,
-        })
-        .returning()
-      // публикация списывает 1 событие баланса; нехватка откатывает создание (20.2.1, D-04)
-      const spend =
-        event!.status === 'published' ? await eventBalanceService.spendOnPublish(ctx, event!) : null
-      await auditService.record(ctx, {
-        organizationId: orgId,
-        action: AUDIT_ACTIONS.EVENT_CREATED,
-        entityType: 'event',
-        entityId: event!.id,
-        newValue: {
-          title: event!.title,
-          startsAt: event!.startsAt,
-          capacity: event!.capacity,
-          price: event!.price,
-          ...(spend
-            ? { eventBalance: { delta: spend.delta, balanceAfter: spend.balanceAfter } }
-            : {}),
-        },
-      })
-      return event!
+      if (data.venueId) await assertVenueInOrg(getDb(ctx), data.venueId, orgId)
+      const org = await readOrgEventDefaults(ctx, orgId)
+      return insertEvent(ctx, orgId, data, org)
     })
   },
 
@@ -358,6 +404,21 @@ export const eventService = {
         throw new EventNotEditableError()
       }
       if (data.startsAt && data.startsAt <= new Date()) throw new EventStartsInPastError()
+      // дата серии (20.2.2): время события меняется свободно, календарный день — только правкой
+      // серии, иначе `series_date` разошёлся бы с фактическим днём события
+      if (existing.seriesId !== null && data.startsAt !== undefined) {
+        const [series] = await db
+          .select({ timezone: eventSeries.timezone })
+          .from(eventSeries)
+          .where(eq(eventSeries.id, existing.seriesId))
+        const tz = series?.timezone ?? DEFAULT_TIMEZONE
+        if (dateToZonedInput(data.startsAt, tz).slice(0, 10) !== existing.seriesDate) {
+          throw new EventError(
+            'event.series_date_locked',
+            'The calendar day of a series event changes only through the series',
+          )
+        }
+      }
 
       // вместимость не ниже занятых мест — SUM(seats) (5.13.11, 20.1.2)
       if (data.capacity !== undefined) {
