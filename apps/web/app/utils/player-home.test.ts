@@ -3,8 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { EventListItem } from '../components/EventCard.vue'
 
 import {
-  HOME_BOOKINGS_LIMIT,
-  bookingsTile,
+  awaitingPaymentLabel,
   playerAccessFromApiError,
   playerGreeting,
   playerHomeAccess,
@@ -131,9 +130,10 @@ describe('player home bento tiles (20.4.4)', () => {
     expect(sessionsTile(false, null)).toBeNull()
   })
 
-  it('marks a truncated bookings count with a plus', () => {
-    expect(bookingsTile(0)).toBe('0')
-    expect(bookingsTile(HOME_BOOKINGS_LIMIT - 1)).toBe(String(HOME_BOOKINGS_LIMIT - 1))
-    expect(bookingsTile(HOME_BOOKINGS_LIMIT)).toBe(`${HOME_BOOKINGS_LIMIT}+`)
+  it('words the awaiting-payment marker with agreement and hides it at zero', () => {
+    expect(awaitingPaymentLabel(0)).toBeNull()
+    expect(awaitingPaymentLabel(1)).toBe('1 ждёт оплаты')
+    expect(awaitingPaymentLabel(2)).toBe('2 ждут оплаты')
+    expect(awaitingPaymentLabel(21)).toBe('21 ждёт оплаты')
   })
 })

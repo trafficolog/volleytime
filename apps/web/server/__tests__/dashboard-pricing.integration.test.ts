@@ -58,6 +58,28 @@ describe('dashboard pricing projection', () => {
     await closeDb()
   })
 
+  it('returns exact own booking counters beyond the preview limit and never another player count', async () => {
+    const mk = (i: number, price: number) =>
+      eventService.create({ userId: ownerId }, orgId, {
+        title: `Fixed ${i}`,
+        startsAt: new Date(Date.now() + (100 + i) * 3600_000),
+        endsAt: new Date(Date.now() + (102 + i) * 3600_000),
+        capacity: 5,
+        price,
+      })
+    for (let i = 0; i < 5; i++) {
+      const event = await mk(i, i === 0 ? 1500 : 0)
+      await bookingService.book({ userId: playerId }, orgId, event.id, {
+        method: i === 0 ? 'cash' : 'free',
+      })
+    }
+    const mine = await request('GET', dashboard(), { user: playerId })
+    expect(mine.body).toMatchObject({ bookingsCount: 5, bookingsAwaitingPayment: 1 })
+    expect((mine.body as { myBookings: unknown[] }).myBookings).toHaveLength(3)
+    const other = await request('GET', dashboard(), { user: otherId })
+    expect(other.body).toMatchObject({ bookingsCount: 0, bookingsAwaitingPayment: 0 })
+  })
+
   it('projects forecast and actual currency to Home; never exposes another player allocation', async () => {
     await bookingService.book({ userId: playerId }, orgId, eventId, { method: 'transfer' })
     const before = await request('GET', dashboard(), { user: playerId })

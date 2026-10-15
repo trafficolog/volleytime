@@ -14,7 +14,7 @@ import {
   type OrganizerBalance,
 } from '~/utils/organizer-miniapp'
 import {
-  bookingsTile,
+  awaitingPaymentLabel,
   playerGreeting,
   playerHomeAccess,
   projectPlayerHome,
@@ -26,6 +26,9 @@ definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
 interface Dashboard {
   isManager: boolean
+  /** Точные счётчики своих предстоящих записей (20.4.4). */
+  bookingsCount: number
+  bookingsAwaitingPayment: number
   myBookings: {
     id: number
     status: string
@@ -98,7 +101,7 @@ const greeting = computed(() => playerGreeting(user.value?.name))
 const sessions = computed(() =>
   sessionsTile(org.value?.subscriptionsEnabled === true, dash.value?.subscription ?? null),
 )
-const bookingsCount = computed(() => bookingsTile(dash.value?.myBookings.length ?? 0))
+const awaitingLabel = computed(() => awaitingPaymentLabel(dash.value?.bookingsAwaitingPayment ?? 0))
 const home = computed(() => projectOrganizerHome(orgId.value, org.value, me.value, dash.value))
 const roleMismatch = computed(() => !!dash.value && dash.value.isManager !== activeManager.value)
 
@@ -366,7 +369,8 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
               :tz="tz"
               :hero="playerHome.hero"
               :sessions="sessions"
-              :bookings-count="bookingsCount"
+              :bookings-count="dash.bookingsCount"
+              :awaiting-payment="dash.bookingsAwaitingPayment"
             />
             <template v-else>
               <EmptyState
@@ -397,9 +401,12 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
                   <VtIcon name="calendar" :size="18" class="text-vt-ink-3" aria-hidden="true" />
                   <span class="text-xs text-vt-ink-3">
                     <span class="vt-mono text-[34px] font-bold leading-none text-vt-ink">{{
-                      bookingsCount
+                      dash.bookingsCount
                     }}</span>
                     мои записи
+                    <VtChip v-if="awaitingLabel" tone="amber" class="ml-1">{{
+                      awaitingLabel
+                    }}</VtChip>
                   </span>
                 </NuxtLink>
               </div>

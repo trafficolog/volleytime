@@ -3,7 +3,7 @@ import { formatDay, formatTime } from '@volley-time/shared'
 
 import type { EventListItem } from '~/components/EventCard.vue'
 import { eventPricingLabel } from '~/utils/event-pricing-label'
-import type { sessionsTile } from '~/utils/player-home'
+import { awaitingPaymentLabel, type sessionsTile } from '~/utils/player-home'
 import { eventStateOf, meterTintOnDark, seatsOf } from '~/utils/status-model'
 
 /** Бенто главной игрока v3 (20.4.4, M-03): hero ближайшей игры + плитки абонемента и записей. */
@@ -13,7 +13,9 @@ const props = defineProps<{
   hero: EventListItem
   /** `null` — плитки нет (абонементы выключены и остатка нет). */
   sessions: ReturnType<typeof sessionsTile>
-  bookingsCount: string
+  bookingsCount: number
+  /** Сколько моих записей ждут оплаты (точный счётчик дашборда). */
+  awaitingPayment: number
 }>()
 
 const state = computed(() => eventStateOf(props.hero))
@@ -23,6 +25,7 @@ const seats = computed(() =>
 const pricing = computed(() =>
   props.hero.pricing ? eventPricingLabel(props.hero.pricing, props.hero.currency) : null,
 )
+const awaiting = computed(() => awaitingPaymentLabel(props.awaitingPayment))
 const place = computed(() => props.hero.venue?.name ?? props.hero.locationText)
 </script>
 
@@ -125,6 +128,9 @@ const place = computed(() => props.hero.venue?.name ?? props.hero.locationText)
       <span>
         <span class="vt-mono block text-[34px] font-bold leading-none">{{ bookingsCount }}</span>
         <span class="mt-1 block text-xs text-vt-ink-3">мои записи</span>
+        <VtChip v-if="awaiting" tone="amber" data-awaiting-payment class="mt-1.5">{{
+          awaiting
+        }}</VtChip>
       </span>
     </NuxtLink>
   </div>

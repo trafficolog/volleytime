@@ -272,6 +272,43 @@ describe('bookingService.book (integration)', () => {
     expect(dashboardList.map((booking) => booking.event.title)).toEqual(['Тренировка 3'])
   })
 
+  it('countMyUpcoming counts own upcoming active bookings exactly and those awaiting payment (20.4.4)', async () => {
+    const pid = await newPlayer()
+    const other = await newPlayer()
+    const make = (i: number, price: number, capacity = 3) =>
+      eventService.create({ userId: ownerId }, orgId, {
+        title: `Игра ${i}`,
+        startsAt: future(24 + i),
+        endsAt: futureEnd(26 + i),
+        capacity,
+        price,
+      })
+    const free = await make(0, 0)
+    const paid = await make(1, 1500)
+    const cancelled = await make(2, 0)
+    const full = await make(3, 0, 1)
+    const past = await make(4, 0)
+    await bookingService.book({ userId: pid }, orgId, free.id, { method: 'free' })
+    await bookingService.book({ userId: pid }, orgId, paid.id, { method: 'cash' })
+    const c = await bookingService.book({ userId: pid }, orgId, cancelled.id, { method: 'free' })
+    await bookingService.cancel({ userId: pid }, c.id)
+    await bookingService.book({ userId: other }, orgId, full.id, { method: 'free' })
+    const waiting = await bookingService.book({ userId: pid }, orgId, full.id, { method: 'free' })
+    expect(waiting.status).toBe('waitlisted')
+    await bookingService.book({ userId: pid }, orgId, past.id, { method: 'free' })
+    await startEvent(past.id)
+    await bookingService.book({ userId: other }, orgId, paid.id, { method: 'cash' })
+
+    expect(await bookingService.countMyUpcoming({ userId: pid }, orgId)).toEqual({
+      total: 3,
+      awaitingPayment: 1,
+    })
+    expect(await bookingService.countMyUpcoming({ userId: ownerId }, orgId)).toEqual({
+      total: 0,
+      awaitingPayment: 0,
+    })
+  })
+
   it('markAttendance sets attended/no_show', async () => {
     const ev = await makeEvent()
     const pid = await newPlayer()

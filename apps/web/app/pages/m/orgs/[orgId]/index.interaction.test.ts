@@ -502,7 +502,13 @@ describe('player Home bento v3 (20.4.4)', () => {
     locationText: null,
   })
   async function mountPlayer(
-    dash: { upcoming: unknown[]; subscription?: unknown; myBookings?: unknown[] },
+    dash: {
+      upcoming: unknown[]
+      subscription?: unknown
+      myBookings?: unknown[]
+      bookingsCount?: number
+      bookingsAwaitingPayment?: number
+    },
     subscriptionsEnabled = true,
   ) {
     orgData.value.myMember.role = 'player'
@@ -511,6 +517,8 @@ describe('player Home bento v3 (20.4.4)', () => {
       isManager: false,
       manager: null,
       myBookings: [],
+      bookingsCount: 0,
+      bookingsAwaitingPayment: 0,
       subscription: null,
       ...dash,
     }))
@@ -538,12 +546,15 @@ describe('player Home bento v3 (20.4.4)', () => {
     const w = await mountPlayer({
       upcoming: [game(1, 28, { id: 9, status: 'confirmed' }), game(2, 30)],
       subscription: { id: 1, left: 5, total: 8, expiresAt: null },
-      myBookings: [{ id: 9 }, { id: 10 }],
+      myBookings: [{ id: 9 }],
+      bookingsCount: 7,
+      bookingsAwaitingPayment: 2,
     })
     expect(w.text()).toContain('Привет, Артём')
     expect(w.get('a[href="/m/orgs/30/events/1"]').classes()).toContain('vt-card--hero')
     expect(w.get('a[href="/m/orgs/30/subscriptions"]').text()).toContain('сессий осталось')
-    expect(w.get('a[href="/m/orgs/30/bookings"]').text()).toContain('2')
+    expect(w.get('a[href="/m/orgs/30/bookings"]').text()).toContain('7')
+    expect(w.get('a[href="/m/orgs/30/bookings"]').text()).toContain('2 ждут оплаты')
     expect(w.get('a[href="/m/orgs/30/events"]').text()).toContain('Смотреть все')
     expect(w.text()).not.toContain('Мои ближайшие записи')
     w.unmount()

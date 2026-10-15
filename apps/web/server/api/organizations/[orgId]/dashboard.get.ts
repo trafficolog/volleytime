@@ -16,8 +16,9 @@ export default defineApiHandler(async (event) => {
   const orgId = event.context.organization!.id
   const isManager = canManageContent(event.context.member ?? null)
 
-  const [myBookings, mySubs, upcoming] = await Promise.all([
+  const [myBookings, myCounts, mySubs, upcoming] = await Promise.all([
     bookingService.listMyBookings(ctx, orgId, 'upcoming', { limit: 3, excludeCancelled: true }),
+    bookingService.countMyUpcoming(ctx, orgId),
     subscriptionService.listMine(ctx, orgId),
     eventService.list(
       ctx,
@@ -53,6 +54,9 @@ export default defineApiHandler(async (event) => {
 
   return {
     isManager,
+    // точные счётчики только своих записей для плитки «Мои записи» (20.4.4)
+    bookingsCount: myCounts.total,
+    bookingsAwaitingPayment: myCounts.awaitingPayment,
     myBookings: await Promise.all(
       myBookings.map(async (b) => ({
         id: b.id,
