@@ -183,6 +183,13 @@
       "when": 1791975474150,
       "tag": "0025_multi_seat_booking",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792043105538,
+      "tag": "0026_event_join_mode_invites",
+      "breakpoints": true
     }
   ]
 }

@@ -11,6 +11,7 @@ export { formatMoney, toMajor, toMinor } from './money/money'
 export { slugify, uniqueSlug } from './slug/slug'
 export {
   buildBotDeeplink,
+  buildEventInviteStartParam,
   buildInviteDeeplink,
   buildShareUrl,
   buildStartParam,

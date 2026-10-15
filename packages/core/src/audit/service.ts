@@ -1,4 +1,4 @@
-import { and, auditLog, eq, type AuditLogEntry } from '@volley-time/db'
+import { and, auditLog, desc, eq, type AuditLogEntry } from '@volley-time/db'
 
 import { getDb, type ServiceContext } from '../shared/context'
 
@@ -43,6 +43,28 @@ export const auditService = {
       })
       .returning()
     return entry!
+  },
+
+  /** Последняя запись действия `action` по сущности (например, кто отменил запись, 20.1.3). */
+  async latest(
+    ctx: ServiceContext,
+    entityType: AuditEntityType,
+    entityId: number,
+    action: AuditAction,
+  ): Promise<AuditLogEntry | null> {
+    const [entry] = await getDb(ctx)
+      .select()
+      .from(auditLog)
+      .where(
+        and(
+          eq(auditLog.entityType, entityType),
+          eq(auditLog.entityId, entityId),
+          eq(auditLog.action, action),
+        ),
+      )
+      .orderBy(desc(auditLog.id))
+      .limit(1)
+    return entry ?? null
   },
 
   /** Best-effort запись вне транзакции (не бросает). Для мутаций использовать record. */

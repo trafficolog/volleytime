@@ -12,7 +12,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core'
 
-import { eventPriceModeEnum } from './event-enums'
+import { eventJoinModeEnum, eventPriceModeEnum } from './event-enums'
 import { playerLevelEnum } from './level-enums'
 import { organizations } from './organizations'
 import { playerLevels } from './player-levels'
@@ -61,6 +61,9 @@ export const events = pgTable(
     // снимок политики группы при создании (D-02, 19.2.2); у существующих событий true
     cancellationAllowed: boolean('cancellation_allowed').notNull().default(true),
     // требуемый уровень события (19.2.3); NULL — для любого
+    // режим записи (20.1.3): снимок `organizations.default_join_mode` при создании; `invite` —
+    // запись только по приглашению (проверка в сервисе записи под lock события)
+    joinMode: eventJoinModeEnum('join_mode').notNull().default('open'),
     level: playerLevelEnum('level').references(() => playerLevels.code, { onDelete: 'restrict' }),
     status: eventStatusEnum('status').notNull().default('published'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

@@ -1,5 +1,7 @@
 import {
   bookingService,
+  eventInviteRequestService,
+  eventInviteService,
   eventService,
   inviteService,
   memberService,
@@ -16,6 +18,7 @@ import {
   eq,
   eventBalanceEntries,
   eventBalancePurchaseRequests,
+  eventInviteRequests,
   events,
   inviteLinks,
   ledgerEntries,
@@ -28,7 +31,7 @@ import {
   users,
   venues,
 } from '@volley-time/db'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { createTestApi } from './harness'
 import {
@@ -78,6 +81,21 @@ const ROUTES: OrgRouteTable = {
     body: () => ({ method: 'cash' }),
   },
   'POST /api/organizations/:orgId/events/:eventId/cancel': { access: 'manager', body: () => ({}) },
+  // 20.1.3: приглашения на событие — manager; запрос приглашения — member (свой)
+  'POST /api/organizations/:orgId/events/:eventId/invites': { access: 'manager', body: () => ({}) },
+  'GET /api/organizations/:orgId/events/:eventId/invite-requests': { access: 'manager' },
+  'POST /api/organizations/:orgId/events/:eventId/invite-requests': {
+    access: 'member',
+    body: () => ({ message: 'Можно?' }),
+  },
+  'POST /api/organizations/:orgId/events/:eventId/invite-requests/:requestId/approve': {
+    access: 'manager',
+    body: () => ({}),
+  },
+  'POST /api/organizations/:orgId/events/:eventId/invite-requests/:requestId/decline': {
+    access: 'manager',
+    body: () => ({}),
+  },
   'GET /api/organizations/:orgId/events/:eventId': { access: 'member' },
   'PATCH /api/organizations/:orgId/events/:eventId': {
     access: 'manager',
@@ -219,10 +237,19 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
       endsAt: new Date(Date.now() + 26 * 3600_000),
       capacity: 10,
       price: 1500,
+      // событие «по приглашению» (20.1.3): у фикстуры есть приглашение и ожидающий запрос
+      joinMode: 'invite',
     })
+    const { invite: eventInvite } = await eventInviteService.create(
+      { userId: owner },
+      org.id,
+      ev.id,
+    )
     const booking = await bookingService.book({ userId: player }, org.id, ev.id, {
       method: 'cash',
+      inviteToken: eventInvite.token,
     })
+    const request = await eventInviteRequestService.request({ userId: assistant }, org.id, ev.id)
     const plan = await planService.create(
       { userId: owner },
       { organizationId: org.id, name: `План ${marker}`, totalSessions: 8, price: 8000 },
@@ -238,6 +265,7 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
         paymentId: booking.paymentId!,
         planId: plan.id,
         inviteId: invite.id,
+        requestId: request.id,
       },
       owner,
       organizer,
@@ -263,6 +291,7 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
       db.select().from(subscriptionPlans).where(eq(subscriptionPlans.organizationId, orgId)),
       db.select().from(subscriptions).where(eq(subscriptions.organizationId, orgId)),
       db.select().from(inviteLinks).where(eq(inviteLinks.organizationId, orgId)),
+      db.select().from(eventInviteRequests).where(eq(eventInviteRequests.organizationId, orgId)),
       db.select().from(ledgerEntries).where(eq(ledgerEntries.organizationId, orgId)),
       db
         .select()
@@ -281,6 +310,7 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
 
   // Фикстуры общие для файла: каждый тест доказывает снимком, что отказ ничего не изменил.
   beforeAll(async () => {
+    vi.stubEnv('EVENT_INVITE_MODE_ENABLED', 'true')
     request = await createTestApi()
     await db.delete(organizations)
     await db.delete(users)
@@ -428,6 +458,7 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
   )
 
   afterAll(async () => {
+    vi.unstubAllEnvs()
     await db.delete(organizations)
     await db.delete(users)
     await closeDb()

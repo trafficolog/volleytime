@@ -66,6 +66,12 @@ export class BookingNotEnoughSeatsError extends BookingError {
     this.freeSeats = freeSeats
   }
 }
+/** Событие `invite`: нет валидного приглашения (20.1.3). Причина не раскрывается. */
+export class BookingInviteRequiredError extends BookingError {
+  constructor() {
+    super('booking.invite_required', 'This event requires a valid invite')
+  }
+}
 export class MultiSeatDisabledError extends BookingError {
   constructor() {
     super('booking.multi_seat_disabled', 'Booking several seats is not enabled')

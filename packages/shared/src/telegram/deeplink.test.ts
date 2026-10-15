@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  buildEventInviteStartParam,
   buildInviteDeeplink,
   buildShareUrl,
   buildStartParam,
@@ -32,6 +33,23 @@ describe('telegram deeplinks (4.9.2)', () => {
     expect(resolveStartParam('event_42')).toEqual({ kind: 'event', eventId: 42 })
     expect(resolveStartParam('event_abc')).toEqual({ kind: 'none' })
     expect(resolveStartParam(null)).toEqual({ kind: 'none' })
+  })
+
+  it('event invite start_param carries event id and token (20.1.3)', () => {
+    const token = 'Ab_c-1234567890XYZabcdeF'
+    const param = buildEventInviteStartParam(42, token)
+    expect(param).toBe(`event_42_${token}`)
+    expect(param.length).toBeLessThanOrEqual(64)
+    expect(resolveStartParam(param)).toEqual({ kind: 'event', eventId: 42, inviteToken: token })
+    // токен из одних цифр не путается с id события
+    expect(resolveStartParam('event_7_1234567890123456')).toEqual({
+      kind: 'event',
+      eventId: 7,
+      inviteToken: '1234567890123456',
+    })
+    expect(resolveStartParam('event_42_short')).toEqual({ kind: 'none' })
+    expect(() => buildEventInviteStartParam(0, token)).toThrow()
+    expect(() => buildEventInviteStartParam(1, 'bad token!')).toThrow()
   })
 
   it('parses invite input variants (4.9.18)', () => {

@@ -10,6 +10,7 @@ import { rollbackLastMigration } from './rollback'
 import * as schema from './schema'
 import { seedDemo } from './seed-demo'
 
+const TAG26 = '0026_event_join_mode_invites'
 const TAG = '0025_multi_seat_booking'
 const TAG24 = '0024_event_balance'
 const BASE_URL = process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL ?? ''
@@ -75,6 +76,7 @@ describe('migration 0025 multi-seat booking (integration)', { timeout: 60_000 },
         'payments_fill_booking_incarnation',
       ])
 
+      expect(await rollbackLastMigration(url)).toBe(TAG26) // 20.1.3: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await columns(sql)).toBe(0)
       expect(await triggers(sql)).toEqual([])
@@ -93,6 +95,7 @@ describe('migration 0025 multi-seat booking (integration)', { timeout: 60_000 },
     const { url, sql } = await scratchDb()
     try {
       await runMigrations(url)
+      expect(await rollbackLastMigration(url)).toBe(TAG26) // 20.1.3: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG) // теперь БД на 0024
       const [user] = await sql<{ id: number }[]>`
         INSERT INTO users (email) VALUES ('r07@example.com') RETURNING id`
@@ -222,6 +225,7 @@ describe('migration 0025 multi-seat booking (integration)', { timeout: 60_000 },
 
       // очередная часть мест тоже блокирует откат
       await sql`UPDATE bookings SET seats = 2, waitlist_seats = 1 WHERE id = ${a}`
+      expect(await rollbackLastMigration(url)).toBe(TAG26) // 20.1.3: новая миграция откатывается первой
       await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0025 refused/)
       await sql`UPDATE bookings SET seats = 1, waitlist_seats = 0 WHERE id = ${a}`
 
@@ -274,6 +278,7 @@ describe('migration 0025 multi-seat booking (integration)', { timeout: 60_000 },
 
       // откат отказывает, пока есть данные нескольких мест (прежний runtime считает count(*)),
       // и ничего не меняет: транзакция отката откатывается целиком
+      expect(await rollbackLastMigration(url)).toBe(TAG26) // 20.1.3: новая миграция откатывается первой
       await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0025 refused/)
       expect(await columns(sql)).toBe(NEW_COLUMNS.length)
       await sql`UPDATE bookings SET seats = 1, waitlist_seats = 0 WHERE seats > 1`

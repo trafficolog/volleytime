@@ -11,6 +11,7 @@ import {
 } from 'drizzle-orm/pg-core'
 
 import { events } from './events'
+import { inviteLinks } from './invite-links'
 import { organizations } from './organizations'
 import { subscriptions } from './subscriptions'
 import { users } from './users'
@@ -59,6 +60,8 @@ export const bookings = pgTable(
     seats: integer('seats').notNull().default(1),
     waitlistSeats: integer('waitlist_seats').notNull().default(0),
     incarnation: integer('incarnation').notNull().default(1),
+    // приглашение, по которому создана запись (20.1.3); у записей на событие `open` — NULL
+    inviteId: integer('invite_id').references(() => inviteLinks.id, { onDelete: 'set null' }),
     bookedAt: timestamp('booked_at', { withTimezone: true }).notNull().defaultNow(),
     confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
     cancelledAt: timestamp('cancelled_at', { withTimezone: true }),

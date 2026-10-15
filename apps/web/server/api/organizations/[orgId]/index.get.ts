@@ -1,4 +1,4 @@
-import { isSplitPricingEnabled } from '@volley-time/core'
+import { isInviteModeEnabled, isSplitPricingEnabled } from '@volley-time/core'
 
 export default defineApiHandler((event) => {
   // tenant middleware (4.5.1) уже проверил доступ и наполнил context
@@ -7,6 +7,8 @@ export default defineApiHandler((event) => {
     myMember: event.context.member,
     capabilities: {
       eventSplitPricing: isSplitPricingEnabled(process.env.EVENT_SPLIT_PRICING_ENABLED),
+      // запись «по приглашению» (20.1.3): форма события и настройки скрывают режим, пока выключен
+      eventInviteMode: isInviteModeEnabled(process.env.EVENT_INVITE_MODE_ENABLED),
     },
   }
 })

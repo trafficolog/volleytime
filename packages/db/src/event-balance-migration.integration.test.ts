@@ -13,6 +13,7 @@ import { rollbackLastMigration } from './rollback'
 import * as schema from './schema'
 import { seedDemo } from './seed-demo'
 
+const TAG26 = '0026_event_join_mode_invites'
 const TAG = '0024_event_balance'
 const TAG23 = '0023_player_levels'
 const TAG25 = '0025_multi_seat_booking'
@@ -103,6 +104,7 @@ describe('migration 0024 event balance (integration)', { timeout: 60_000 }, () =
       for (const t of NEW_TYPES) expect(await exists(sql, 'type', t), t).toBe(true)
       expect(await sql`SELECT 1 FROM event_balance_entries`).toHaveLength(0)
 
+      expect(await rollbackLastMigration(url)).toBe(TAG26) // 20.1.3: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG25)
 
       expect(await rollbackLastMigration(url)).toBe(TAG)
@@ -120,6 +122,7 @@ describe('migration 0024 event balance (integration)', { timeout: 60_000 }, () =
     const { url, sql } = await scratchDb()
     try {
       await runMigrations(url)
+      expect(await rollbackLastMigration(url)).toBe(TAG26) // 20.1.3: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG25)
       expect(await rollbackLastMigration(url)).toBe(TAG) // теперь БД на 0023
       const r07 = await seedR07(sql)
@@ -171,6 +174,7 @@ describe('migration 0024 event balance (integration)', { timeout: 60_000 }, () =
         VALUES (${r07.orgIds[0]!}, ${r07.userId}, 'Old 2', now() + interval '1 day', now() + interval '2 day', 10, 'published')`
 
       // откат возвращает 0023 и не трогает данные R0.7
+      expect(await rollbackLastMigration(url)).toBe(TAG26) // 20.1.3: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG25)
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await sql`SELECT 1 FROM organizations`).toHaveLength(3)
@@ -332,6 +336,7 @@ describe('migration 0024 event balance (integration)', { timeout: 60_000 }, () =
 
       // откат 0025 требует отсутствия данных нескольких мест (precondition rollback-скрипта)
       await sql`UPDATE bookings SET seats = 1, waitlist_seats = 0 WHERE seats > 1 OR waitlist_seats > 0`
+      expect(await rollbackLastMigration(url)).toBe(TAG26) // 20.1.3: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG25)
 
       expect(await rollbackLastMigration(url)).toBe(TAG)

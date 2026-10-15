@@ -11,6 +11,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core'
 
+import { events } from './events'
 import { memberRoleEnum } from './member-enums'
 import { memberStatusDefaultEnum, organizations } from './organizations'
 import { users } from './users'
@@ -30,7 +31,8 @@ export const inviteLinks = pgTable(
     organizationId: integer('organization_id')
       .notNull()
       .references(() => organizations.id, { onDelete: 'cascade' }),
-    eventId: integer('event_id'), // FK → events добавится в Phase 5
+    // приглашение на событие (20.1.3): только у type = 'event_join'; удаляется вместе с событием
+    eventId: integer('event_id').references(() => events.id, { onDelete: 'cascade' }),
     type: inviteTypeEnum('type').notNull().default('organization_join'),
     createdByUserId: integer('created_by_user_id')
       .notNull()
@@ -51,6 +53,11 @@ export const inviteLinks = pgTable(
     index('invite_links_active_idx').on(t.isRevoked),
     check('invite_links_role_not_owner', sql`${t.roleToAssign} <> 'owner'`),
     check('invite_links_uses_non_negative', sql`${t.usesCount} >= 0`),
+    index('invite_links_event_idx').on(t.eventId),
+    check(
+      'invite_links_event_join_event',
+      sql`(${t.type} = 'event_join') = (${t.eventId} IS NOT NULL)`,
+    ),
   ],
 )
 

@@ -3,6 +3,7 @@ import { z } from 'zod'
 
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
+import { isInviteModeEnabled } from '../events/join-mode-capability'
 import { isSplitPricingEnabled } from '../events/pricing-capability'
 import { GroupLevelsInput } from '../levels/schemas'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
@@ -123,6 +124,13 @@ export const organizationSettingsService = {
       !isSplitPricingEnabled(process.env.EVENT_SPLIT_PRICING_ENABLED)
     ) {
       throw new OrganizationInvalidSettingsError('Split pricing is not enabled')
+    }
+    // то же для записи по приглашению (EVENT_INVITE_MODE_ENABLED, 20.1.3)
+    if (
+      data.defaultJoinMode === 'invite' &&
+      !isInviteModeEnabled(process.env.EVENT_INVITE_MODE_ENABLED)
+    ) {
+      throw new OrganizationInvalidSettingsError('Invite-only booking is not enabled')
     }
     return inTransaction(ctx, async (tx) => {
       // FOR UPDATE: события, создаваемые параллельно, читают группу FOR SHARE — снимок согласован
