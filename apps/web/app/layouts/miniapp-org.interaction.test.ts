@@ -29,6 +29,7 @@ let memberRole: 'owner' | 'player' = 'owner'
 let subscriptionsEnabled = true
 let organizationResponseId = 7
 let organizationStatus = 'active'
+let subscriptionBalances: unknown[] = []
 
 vi.stubGlobal('useRoute', () => route)
 vi.stubGlobal('computed', computed)
@@ -51,7 +52,7 @@ vi.stubGlobal('useFetch', (url: () => string) => {
   return {
     data: ref(
       path.endsWith('/subscriptions/my')
-        ? { subscriptions: [] }
+        ? { subscriptions: subscriptionBalances }
         : {
             organization: {
               id: organizationResponseId,
@@ -109,6 +110,7 @@ afterEach(() => {
   document.body.innerHTML = ''
   organizationResponseId = 7
   organizationStatus = 'active'
+  subscriptionBalances = []
 })
 
 describe('Mini App layout navigation interaction', () => {
@@ -138,11 +140,41 @@ describe('Mini App layout navigation interaction', () => {
     wrapper.unmount()
   })
 
-  it('keeps Главная and Профиль when subscriptions are disabled', async () => {
+  it('shows Абонементы with an active unspent balance even when subscriptions are off', async () => {
+    subscriptionBalances = [
+      {
+        organizationId: 7,
+        status: 'active',
+        usedSessions: 2,
+        totalSessions: 8,
+        expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+      },
+    ]
     const { wrapper } = await renderLayout('player', false)
-    expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(2)
+    expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(3)
+    expect(wrapper.find('a[href="/m/orgs/7/subscriptions"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('hides Абонементы when subscriptions are off and no balance remains', async () => {
+    subscriptionBalances = [
+      {
+        organizationId: 7,
+        status: 'active',
+        usedSessions: 8,
+        totalSessions: 8,
+        expiresAt: null,
+      },
+    ]
+    const { wrapper } = await renderLayout('player', false)
     expect(wrapper.find('a[href="/m/orgs/7/subscriptions"]').exists()).toBe(false)
-    expect(wrapper.find('button[aria-controls="organizer-menu-dialog"]').exists()).toBe(false)
+    expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(2)
+    wrapper.unmount()
+  })
+
+  it('shows Абонементы when subscriptions are on regardless of balance', async () => {
+    const { wrapper } = await renderLayout('player', true)
+    expect(wrapper.find('a[href="/m/orgs/7/subscriptions"]').exists()).toBe(true)
     wrapper.unmount()
   })
 

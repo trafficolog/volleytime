@@ -2,6 +2,7 @@
 import type { TabItem } from '~/components/vt/TabBar.vue'
 import { organizerMenuLinks, organizerTabItems } from '~/utils/organizer-miniapp'
 import { playerTabs } from '~/utils/player-navigation'
+import { subscriptionUiState, type SubscriptionBalance } from '~/utils/subscription-availability'
 
 /** Layout экранов группы: контент + таб-бар по роли (Task 8.8.12). */
 useHead({ htmlAttrs: { class: 'vt-miniapp-page' } })
@@ -17,10 +18,16 @@ const {
   organization: { id: number; status: string; subscriptionsEnabled: boolean }
   myMember: { role: string; status: string }
 }>(() => `/api/organizations/${orgId.value}`, { key: () => `org-nav-${orgId.value}` })
+const { data: balanceData, refresh: refreshBalances } = await useFetch<{
+  subscriptions: SubscriptionBalance[]
+}>(() => `/api/organizations/${orgId.value}/subscriptions/my`, {
+  key: () => `org-nav-balances-${orgId.value}`,
+})
 watch(
   () => route.fullPath,
   () => {
     void refreshOrg()
+    void refreshBalances()
   },
 )
 watch(orgId, () => {
@@ -33,9 +40,12 @@ const currentOrg = computed(
     !orgError.value &&
     data.value?.organization?.id === orgId.value,
 )
-// Вкладка «Абонементы» видна только при включённом subsOn (решение владельца 2026-10-14).
-const subscriptionsOn = computed(
-  () => currentOrg.value && data.value?.organization.subscriptionsEnabled === true,
+const availability = computed(() =>
+  subscriptionUiState(
+    !currentOrg.value ? null : data.value!.organization.subscriptionsEnabled,
+    orgId.value,
+    balanceData.value?.subscriptions ?? [],
+  ),
 )
 const isManager = computed(() => {
   if (!currentOrg.value || data.value?.organization.status !== 'active') return false
@@ -63,7 +73,7 @@ const tabs = computed<TabItem[]>(() =>
     ? []
     : isManager.value
       ? organizerTabItems(base.value)
-      : playerTabs(base.value, { showMenu: subscriptionsOn.value }),
+      : playerTabs(base.value, availability.value),
 )
 function onTabAction(id: 'menu') {
   if (id === 'menu' && isManager.value) menuOpen.value = true
