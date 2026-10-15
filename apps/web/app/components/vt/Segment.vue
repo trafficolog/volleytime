@@ -14,6 +14,8 @@ const props = withDefaults(
     options: VtSegmentOption[]
     label: string
     variant?: 'segment' | 'chips'
+    /** Только чтение: пункты в фокусе и озвучиваются, значение не меняется. */
+    readonly?: boolean
   }>(),
   { variant: 'segment' },
 )
@@ -34,6 +36,7 @@ function tabbable(i: number): boolean {
 function onKeydown(event: KeyboardEvent, from: number) {
   const n = props.options.length
   const { key } = event
+  if (props.readonly) return
   let i: number
   if (key === 'Home') i = props.options.findIndex((o) => !o.disabled)
   else if (key === 'End') i = props.options.findLastIndex((o) => !o.disabled)
@@ -65,6 +68,7 @@ function onKeydown(event: KeyboardEvent, from: number) {
     :class="`vt-seg--${variant}`"
     role="radiogroup"
     :aria-label="label"
+    :aria-readonly="readonly || undefined"
   >
     <button
       v-for="(o, i) in options"
@@ -75,7 +79,8 @@ function onKeydown(event: KeyboardEvent, from: number) {
       :aria-checked="o.value === model"
       :tabindex="tabbable(i) ? 0 : -1"
       :disabled="o.disabled"
-      @click="model = o.value"
+      :aria-disabled="readonly || undefined"
+      @click="!readonly && (model = o.value)"
       @keydown="onKeydown($event, i)"
     >
       {{ o.label }}
