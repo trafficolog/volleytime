@@ -26,6 +26,7 @@ import {
   bookings,
   eventBalanceEntries,
   eventBalancePurchaseRequests,
+  eventSeries,
   events,
   ledgerEntries,
   organizationMembers,
@@ -87,6 +88,21 @@ interface DemoOrganization {
   subscriptions: { user: string; plan: string; status: 'active' | 'pending' }[]
   expenses: { category: 'rent' | 'equipment'; amount: number; day: number; description: string }[]
   events: DemoEvent[]
+  /** Серия (20.2.2, D-04): первые `published` дат опубликованы, остальные — черновики. */
+  series?: DemoSeries
+}
+
+interface DemoSeries {
+  title: string
+  venue: string
+  /** Первая дата — день относительно даты создания группы; далее раз в неделю. */
+  day: number
+  count: number
+  published: number
+  from: string
+  to: string
+  capacity: number
+  price: number
 }
 
 /** Латинский ключ → имя из макета (handoff atoms.jsx `PEOPLE`). */
@@ -210,6 +226,17 @@ export const DEMO_ORGANIZATIONS: DemoOrganization[] = [
       { category: 'rent', amount: 12000, day: -3, description: 'Аренда зала · Школа №24' },
       { category: 'equipment', amount: 8000, day: -10, description: 'Мячи / инвентарь' },
     ],
+    series: {
+      title: 'Тренировка по средам (серия)',
+      venue: 'Школа №24',
+      day: 21,
+      count: 4,
+      published: 2,
+      from: '19:00',
+      to: '21:00',
+      capacity: 16,
+      price: 1500,
+    },
     events: [
       {
         level: 'v3',
@@ -874,7 +901,81 @@ async function seedOrganization(tx: Transaction, spec: DemoOrganization): Promis
   }
 
   for (const event of spec.events) await ensureEvent(ctx, event, venueIds, subscriptionIds)
+  if (spec.series) await ensureSeries(ctx, spec.series, venueIds)
   await ensureEventBalance(ctx)
+}
+
+const DEMO_SERIES_KEY = 'seed:demo'
+
+/**
+ * Серия событий (20.2.2): даты — обычные события с `series_id`/`series_date`; первые `published`
+ * опубликованы (списание — в ensureEventBalance), остальные — черновики «сверх баланса» (D-04).
+ * Идемпотентно по ключу серии группы.
+ */
+async function ensureSeries(
+  ctx: Ctx,
+  spec: DemoSeries,
+  venueIds: Map<string, number>,
+): Promise<void> {
+  const [found] = await ctx.tx
+    .select({ id: eventSeries.id })
+    .from(eventSeries)
+    .where(
+      and(
+        eq(eventSeries.organizationId, ctx.org.id),
+        eq(eventSeries.idempotencyKey, DEMO_SERIES_KEY),
+      ),
+    )
+  if (found) return
+  const date = (day: number) => new Date(ctx.anchor + day * 24 * HOUR).toISOString().slice(0, 10)
+  const startDate = date(spec.day)
+  const [h1, m1] = spec.from.split(':').map(Number) as [number, number]
+  const [h2, m2] = spec.to.split(':').map(Number) as [number, number]
+  const [series] = await ctx.tx
+    .insert(eventSeries)
+    .values({
+      organizationId: ctx.org.id,
+      createdByUserId: ctx.owner.id,
+      rule: {
+        freq: 'weekly',
+        weekdays: [((new Date(`${startDate}T00:00:00Z`).getUTCDay() + 6) % 7) + 1],
+        startDate,
+        count: spec.count,
+      },
+      template: {
+        type: 'training',
+        title: spec.title,
+        venueId: venueIds.get(spec.venue) ?? null,
+        startTime: spec.from,
+        durationMinutes: h2 * 60 + m2 - (h1 * 60 + m1),
+        capacity: spec.capacity,
+        priceMode: 'fixed',
+        price: spec.price,
+        targetAmount: null,
+      },
+      timezone: ctx.org.defaultTimezone,
+      idempotencyKey: DEMO_SERIES_KEY,
+    })
+    .returning()
+  for (let i = 0; i < spec.count; i++) {
+    const day = spec.day + i * 7
+    await ctx.tx.insert(events).values({
+      organizationId: ctx.org.id,
+      venueId: venueIds.get(spec.venue) ?? null,
+      createdByUserId: ctx.owner.id,
+      title: spec.title,
+      startsAt: minskTime(ctx.anchor, day, spec.from),
+      endsAt: minskTime(ctx.anchor, day, spec.to),
+      capacity: spec.capacity,
+      price: spec.price,
+      cancellationDeadlineHours: ctx.org.cancellationDeadlineHours,
+      cancellationAllowed: ctx.org.cancellationAllowed,
+      joinMode: ctx.org.defaultJoinMode,
+      status: i < spec.published ? 'published' : 'draft',
+      seriesId: series!.id,
+      seriesDate: date(day),
+    })
+  }
 }
 
 const DEMO_BALANCE_TOP_UP = 40

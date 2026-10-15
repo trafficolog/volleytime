@@ -35,6 +35,7 @@ tags: [reference-v3]
 - **Как есть (main `e68acf2`):** Создание одного события с fixed/split (5.16.2).
 - **Дельта до референса:** Тот же контракт API, что 20.5.5: места на игрока, режим записи, серия.
 - Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` (ревью Opus); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
+- **Перенесено из 20.2.2 ([решение владельца 2026-10-15, D-04 (A)](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-04)):** визуальная сверка серии в Mini App (повтор, предпросмотр, число публикуемых и черновиков) по `3-miniapp-organizer/05-screen.png`; контракт серий — тот же, что у 20.5.5.
 
 **Общий функционал с другими интерфейсами:**
 
@@ -54,6 +55,7 @@ tags: [reference-v3]
 ## Критерии приёмки
 
 - ✅ Тот же контракт API, что у W-04
+- ✅ Визуальная сверка включает серию по `3-miniapp-organizer/05-screen.png` (перенесено из 20.2.2)
 - ✅ Отчёт визуальной сверки по экранам из `reference.screens` без открытых расхождений Critical/Important
 - ✅ Пять gates CODING_STANDARDS на tested revision; ревью `claude-opus-5-5` без Critical/Important
 

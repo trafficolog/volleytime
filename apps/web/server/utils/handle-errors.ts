@@ -12,6 +12,7 @@ import {
   TenantError,
   CurrencyMismatchError,
   EventBalanceError,
+  SeriesError,
 } from '@volley-time/core'
 
 /** HTTP-статусы для доменных error-кодов. */
@@ -85,6 +86,11 @@ const CODE_STATUS: Record<string, number> = {
   'payment.not_succeeded': 409,
   // баланс событий (20.2.1)
   'event_balance.insufficient': 409,
+  // серии событий (20.2.2)
+  'series.not_found': 404,
+  'series.invalid_rule': 422,
+  'series.too_many_dates': 422,
+  'series.idempotency_conflict': 409,
   // forbidden
   'forbidden.manage_content': 403,
   'forbidden.manage_members': 403,
@@ -113,7 +119,8 @@ export function handleServiceError(e: unknown): never {
     e instanceof PaymentError ||
     e instanceof ForbiddenError ||
     e instanceof CurrencyMismatchError ||
-    e instanceof EventBalanceError
+    e instanceof EventBalanceError ||
+    e instanceof SeriesError
   ) {
     const status = CODE_STATUS[e.code] ?? 400
     throw createError({ statusCode: status, statusMessage: e.message, data: { code: e.code } })

@@ -24,6 +24,10 @@ export const AUDIT_ACTIONS = {
   EVENT_UPDATED: 'event.updated',
   EVENT_CANCELLED: 'event.cancelled',
   EVENT_PRICING_SETTLED: 'event.pricing_settled',
+  // серии событий (20.2.2)
+  SERIES_CREATED: 'event_series.created',
+  SERIES_UPDATED: 'event_series.updated',
+  SERIES_CANCELLED: 'event_series.cancelled',
   BOOKING_CREATED: 'booking.created',
   BOOKING_CANCELLED: 'booking.cancelled',
   BOOKING_PROMOTED: 'booking.promoted',
@@ -57,3 +61,4 @@ export type AuditEntityType =
   | 'ledger_entry'
   | 'event_balance_purchase_request'
   | 'event_invite_request'
+  | 'event_series'

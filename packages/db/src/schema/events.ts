@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm'
 import {
   boolean,
   check,
+  date,
   index,
   integer,
   pgEnum,
@@ -9,10 +10,12 @@ import {
   serial,
   text,
   timestamp,
+  uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core'
 
 import { eventJoinModeEnum, eventPriceModeEnum } from './event-enums'
+import { eventSeries } from './event-series'
 import { playerLevelEnum } from './level-enums'
 import { organizations } from './organizations'
 import { playerLevels } from './player-levels'
@@ -66,6 +69,9 @@ export const events = pgTable(
     joinMode: eventJoinModeEnum('join_mode').notNull().default('open'),
     level: playerLevelEnum('level').references(() => playerLevels.code, { onDelete: 'restrict' }),
     status: eventStatusEnum('status').notNull().default('published'),
+    // дата серии (20.2.2): календарная дата в зоне группы; удаление серии оставляет событие
+    seriesId: integer('series_id').references(() => eventSeries.id, { onDelete: 'set null' }),
+    seriesDate: date('series_date', { mode: 'string' }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -84,6 +90,9 @@ export const events = pgTable(
       sql`(${t.pricingSettledAt} IS NULL AND ${t.pricingParticipantCount} IS NULL) OR (${t.pricingSettledAt} IS NOT NULL AND ${t.pricingParticipantCount} IS NOT NULL AND ${t.pricingParticipantCount} > 0)`,
     ),
     check('events_ends_after_start', sql`${t.endsAt} > ${t.startsAt}`),
+    // одна дата серии — одно событие; событие серии всегда с датой
+    uniqueIndex('events_series_date_uniq').on(t.seriesId, t.seriesDate),
+    check('events_series_date_required', sql`${t.seriesId} IS NULL OR ${t.seriesDate} IS NOT NULL`),
   ],
 )
 

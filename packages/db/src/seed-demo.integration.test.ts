@@ -17,6 +17,7 @@ const TABLES = [
   'subscriptions',
   'payments',
   'ledger_entries',
+  'event_series',
 ] as const
 
 async function counts(): Promise<Record<string, number>> {

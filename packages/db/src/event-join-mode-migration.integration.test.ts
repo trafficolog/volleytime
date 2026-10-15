@@ -12,6 +12,7 @@ import { seedDemo } from './seed-demo'
 
 const TAG = '0026_event_join_mode_invites'
 const TAG25 = '0025_multi_seat_booking'
+const TAG27 = '0027_event_series'
 const BASE_URL = process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL ?? ''
 
 /**
@@ -64,6 +65,7 @@ describe('migration 0026 event join mode and invites (integration)', { timeout: 
     try {
       await runMigrations(url)
       expect(await objects(sql)).toBe(ALL)
+      expect(await rollbackLastMigration(url)).toBe(TAG27) // 20.2.2: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await objects(sql)).toBe(0)
       await runMigrations(url)
@@ -77,6 +79,7 @@ describe('migration 0026 event join mode and invites (integration)', { timeout: 
     const { url, sql } = await scratchDb()
     try {
       await runMigrations(url)
+      expect(await rollbackLastMigration(url)).toBe(TAG27) // 20.2.2: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG) // теперь БД на 0025
       const [user] = await sql<{ id: number }[]>`
         INSERT INTO users (email) VALUES ('v025@example.com') RETURNING id`
@@ -145,6 +148,7 @@ describe('migration 0026 event join mode and invites (integration)', { timeout: 
         INSERT INTO event_invite_requests (organization_id, event_id, user_id) VALUES (${o}, ${e}, ${u})`
 
       // откат запрещён, пока есть действующее событие «по приглашению»; транзакция не меняет ничего
+      expect(await rollbackLastMigration(url)).toBe(TAG27) // 20.2.2: новая миграция откатывается первой
       await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0026 refused/)
       expect(await objects(sql)).toBe(ALL)
       await sql`UPDATE events SET status = 'cancelled' WHERE id = ${e}`
@@ -173,6 +177,7 @@ describe('migration 0026 event join mode and invites (integration)', { timeout: 
 
       await runMigrations(url)
       expect(await objects(sql)).toBe(ALL)
+      expect(await rollbackLastMigration(url)).toBe(TAG27) // 20.2.2: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await rollbackLastMigration(url)).toBe(TAG25)
     } finally {
@@ -195,6 +200,8 @@ describe('migration 0026 event join mode and invites (integration)', { timeout: 
         invites: await count('invite_links'),
       })
       const before = await snapshot()
+      await sql`DELETE FROM event_series` // 20.2.2: откат 0027 требует отсутствия серий
+      expect(await rollbackLastMigration(url)).toBe(TAG27) // 20.2.2: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await snapshot()).toEqual(before)
       await runMigrations(url)
