@@ -6,7 +6,7 @@ status: done
 release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-15
-status_note: 'PR #134 merged as cdebe65, standard review merge after owner decisions of 2026-10-14/15 (player tabs Главная/Абонементы*/Профиль, «Записи» removed, Абонементы shown while subsOn or an active balance remains; «Сборы» → 21.1.5/21.1.6, «Календарь» → 23.1.1 on by default), CI green on 8d06c01.'
+status_note: 'PR #134 merged as cdebe65, standard review merge after owner decisions of 2026-10-14/15 (player tabs Главная/Абонементы*/Профиль, «Записи» removed, Абонементы shown while subsOn or the player has an active subscription (not used up, not expired); «Сборы» → 21.1.5/21.1.6, «Календарь» → 23.1.1 on by default), CI green on 8d06c01.'
 ref_id: 'M-02'
 complexity: S
 impl_model: claude-haiku-5-5
