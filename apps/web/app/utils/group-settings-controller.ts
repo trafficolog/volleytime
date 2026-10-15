@@ -38,6 +38,19 @@ interface Options {
  * существующие PATCH. Сервер остаётся источником истины: ответ заменяет локальное значение,
  * ошибка возвращает прежнее.
  */
+const FIELD_NAMES: Record<string, string> = {
+  name: 'название',
+  description: 'описание',
+  city: 'город',
+  district: 'район',
+}
+const names = (patch: object) => Object.keys(patch).map((k) => FIELD_NAMES[k] ?? k)
+
+/** «Сохранено: название. Не сохранено: город» — только реально отправленные поля. */
+function partialMessage(saved: object, failed: object): string {
+  return `Сохранено: ${names(saved).join(', ')}. Не сохранено: ${names(failed).join(', ')}`
+}
+
 export function createSettingsController(options: Options) {
   const { orgId, request, settings, org, toast, errorMessage, isCurrent } = options
   const pending = ref<string[]>([])
@@ -135,7 +148,7 @@ export function createSettingsController(options: Options) {
     if (!settingsResult.ok && Object.keys(orgPatch).length > 0) {
       return {
         ok: false,
-        message: `Название и описание сохранены, город и район нет: ${settingsResult.message ?? 'ошибка'}`,
+        message: `${partialMessage(orgPatch, settingsPatch)}: ${settingsResult.message ?? 'ошибка'}`,
       }
     }
     if (isCurrent() && settingsResult.ok) toast('Профиль группы сохранён', 'ok')
