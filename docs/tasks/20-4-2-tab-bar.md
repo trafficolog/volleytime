@@ -2,11 +2,11 @@
 id: '20.4.2'
 phase: '20'
 epic: '20.4'
-status: in_progress
+status: done
 release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-15
-status_note: 'Реализовано по решению владельца 2026-10-14 (вариант A): игрок — Главная / Абонементы (видна при subsOn или при активном абонементе в группе; покупка при subsOn = false недоступна) / Профиль, «Записи» убраны; организатор без изменений. Сборы и Календарь вынесены в 21.1.5/21.1.6 и 23.1.1. Тесты взаимодействия (RED→GREEN), визуальная сверка QA-note docs/operations/qa/2026-10-15-20-4-2-tab-bar-visual.md. Ревью: review pending (claude-sonnet-5-5, standard). Расхождение с handoff README по доживанию абонементов отмечено в карточке.'
+status_note: 'PR #134 merged as cdebe65, standard review merge after owner decisions of 2026-10-14/15 (player tabs Главная/Абонементы*/Профиль, «Записи» removed, Абонементы shown while subsOn or the player has an active subscription (not used up, not expired); «Сборы» → 21.1.5/21.1.6, «Календарь» → 23.1.1 on by default), CI green on 8d06c01.'
 ref_id: 'M-02'
 complexity: S
 impl_model: claude-haiku-5-5
