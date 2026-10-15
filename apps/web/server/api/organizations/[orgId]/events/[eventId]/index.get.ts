@@ -1,6 +1,7 @@
 import {
   bookingService,
   canManageContent,
+  eventInviteRequestService,
   eventService,
   readEventPricing,
   readPricingFinancials,
@@ -28,5 +29,11 @@ export default defineApiHandler(async (event) => {
         pricingPermissions: await readPricingPermissions(ctx, ev.id),
       }
     : {}
-  return { event: { ...ev, ...stats, pricing, ...managerPricing }, roster }
+  // событие «по приглашению» (20.1.3): статус своего запроса для состояний Mini App (20.4.7)
+  const myInviteRequest =
+    ev.joinMode === 'invite' ? await eventInviteRequestService.mine(ctx, ev.id) : null
+  return {
+    event: { ...ev, ...stats, pricing, ...managerPricing, myInviteRequest },
+    roster,
+  }
 })

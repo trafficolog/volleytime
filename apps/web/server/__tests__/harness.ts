@@ -79,6 +79,7 @@ export async function createTestApi() {
     'config',
     'deeplink',
     'member-action',
+    'path-id',
     'tenant-path',
     'internal-auth',
     'root-admin',

@@ -27,6 +27,11 @@ defineRouteMeta({
               subscriptionId: { type: 'integer' },
               seats: { type: 'integer', minimum: 1, maximum: 10, default: 1 },
               allowWaitlist: { type: 'boolean', default: false },
+              inviteToken: {
+                type: 'string',
+                description:
+                  'Токен личного приглашения (startapp event_<eventId>_<token>) для события joinMode=invite',
+              },
             },
           },
         },
@@ -35,7 +40,10 @@ defineRouteMeta({
     responses: {
       200: { description: 'Созданная или реактивированная запись: { booking }' },
       401: { description: 'Нет сессии' },
-      403: { description: 'Не участник группы' },
+      403: {
+        description:
+          'Не участник группы; событие «по приглашению» без валидного приглашения (booking.invite_required)',
+      },
       404: { description: 'Событие не найдено в этой группе (event.not_found)' },
       409: {
         description:
@@ -44,6 +52,7 @@ defineRouteMeta({
           '(subscription.no_active, subscription.not_enough_sessions) или несколько мест выключены ' +
           '(booking.multi_seat_disabled)',
       },
+      410: { description: 'Личная ссылка-приглашение на это событие просрочена (invite.expired)' },
       422: {
         description:
           'Больше лимита группы или вместимости (booking.seats_over_limit), запись закрыта ' +

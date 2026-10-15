@@ -16,6 +16,10 @@ export const AUDIT_ACTIONS = {
   INVITE_CREATED: 'invite.created',
   INVITE_REDEEMED: 'invite.redeemed',
   INVITE_REVOKED: 'invite.revoked',
+  // приглашения на событие (20.1.3)
+  EVENT_INVITE_REQUEST_CREATED: 'event_invite_request.created',
+  EVENT_INVITE_REQUEST_APPROVED: 'event_invite_request.approved',
+  EVENT_INVITE_REQUEST_DECLINED: 'event_invite_request.declined',
   EVENT_CREATED: 'event.created',
   EVENT_UPDATED: 'event.updated',
   EVENT_CANCELLED: 'event.cancelled',
@@ -52,3 +56,4 @@ export type AuditEntityType =
   | 'payment'
   | 'ledger_entry'
   | 'event_balance_purchase_request'
+  | 'event_invite_request'

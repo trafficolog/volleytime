@@ -38,6 +38,13 @@ const CODE_STATUS: Record<string, number> = {
   'invite.revoked': 410,
   'invite.expired': 410,
   'invite.uses_exhausted': 409,
+  // приглашения на событие (20.1.3)
+  'invite_request.not_found': 404,
+  'invite_request.already_pending': 409,
+  'invite_request.not_pending': 409,
+  'event.invite_mode_disabled': 409,
+  'event.join_mode_open': 409,
+  'booking.invite_required': 403,
   'venue.not_found': 404,
   'event.not_found': 404,
   'event.not_editable': 409,

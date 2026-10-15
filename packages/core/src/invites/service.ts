@@ -4,6 +4,7 @@ import {
   gt,
   inviteLinks,
   isNull,
+  ne,
   or,
   sql,
   organizationMembers,
@@ -97,7 +98,7 @@ export const inviteService = {
   /** Получить инвайт по токену с проверкой валидности (revoked/expired/exhausted). */
   async getValidByToken(ctx: ServiceContext, token: string): Promise<InviteLink> {
     const inv = await getDb(ctx).query.inviteLinks.findFirst({
-      where: eq(inviteLinks.token, token),
+      where: and(eq(inviteLinks.token, token), ne(inviteLinks.type, 'event_join')),
     })
     if (!inv) throw new InviteNotFoundError(token)
     if (inv.isRevoked) throw new InviteRevokedError()
@@ -121,6 +122,8 @@ export const inviteService = {
         .where(
           and(
             eq(inviteLinks.token, token),
+            // приглашение на событие не даёт членства в группе (20.1.3)
+            ne(inviteLinks.type, 'event_join'),
             eq(inviteLinks.isRevoked, false),
             or(isNull(inviteLinks.expiresAt), gt(inviteLinks.expiresAt, new Date())),
             sql`(${inviteLinks.maxUses} IS NULL OR ${inviteLinks.usesCount} < ${inviteLinks.maxUses})`,
@@ -207,7 +210,9 @@ export const inviteService = {
    */
   async preview(ctx: ServiceContext, token: string): Promise<InvitePreview> {
     const db = getDb(ctx)
-    const inv = await db.query.inviteLinks.findFirst({ where: eq(inviteLinks.token, token) })
+    const inv = await db.query.inviteLinks.findFirst({
+      where: and(eq(inviteLinks.token, token), ne(inviteLinks.type, 'event_join')),
+    })
     if (!inv) return { status: 'not_found' }
     const org = await db.query.organizations.findFirst({
       where: eq(organizations.id, inv.organizationId),
@@ -290,7 +295,8 @@ export const inviteService = {
   /** Список инвайтов организации (для управляющих). */
   async listByOrg(ctx: ServiceContext, orgId: number): Promise<InviteLink[]> {
     return getDb(ctx).query.inviteLinks.findMany({
-      where: eq(inviteLinks.organizationId, orgId),
+      // приглашения на событие живут у события (20.1.3), а не в списке приглашений в группу
+      where: and(eq(inviteLinks.organizationId, orgId), ne(inviteLinks.type, 'event_join')),
       orderBy: (i, { desc }) => [desc(i.createdAt)],
     })
   },

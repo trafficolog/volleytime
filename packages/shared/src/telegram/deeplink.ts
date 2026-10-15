@@ -15,6 +15,15 @@ export function buildStartParam(kind: StartParamKind, value: string | number): s
   return param
 }
 
+/**
+ * startapp личного приглашения на событие (20.1.3): `event_<eventId>_<token>`. Mini App сразу
+ * открывает событие по id и передаёт токен в запись; `event_<id>` без токена работает как раньше.
+ */
+export function buildEventInviteStartParam(eventId: number, token: string): string {
+  if (!Number.isInteger(eventId) || eventId <= 0) throw new Error(`Invalid eventId: ${eventId}`)
+  return buildStartParam('event', `${eventId}_${token}`)
+}
+
 /** https://t.me/<bot>?start=<param>; пустое/некорректное имя бота — ошибка, а не битая ссылка. */
 export function buildBotDeeplink(botUsername: string, startParam: string): string {
   const username = (botUsername ?? '').trim().replace(/^@/, '')
@@ -53,7 +62,9 @@ export function parseInviteInput(input: string): string | null {
 }
 
 export type StartTarget =
-  { kind: 'invite'; token: string } | { kind: 'event'; eventId: number } | { kind: 'none' }
+  | { kind: 'invite'; token: string }
+  | { kind: 'event'; eventId: number; inviteToken?: string }
+  | { kind: 'none' }
 
 /** Разбор start_param Mini App (Task 8.8.3). */
 export function resolveStartParam(param: string | null | undefined): StartTarget {
@@ -63,5 +74,7 @@ export function resolveStartParam(param: string | null | undefined): StartTarget
   if (org) return { kind: 'invite', token: org[1]! }
   const event = raw.match(/^event_(\d{1,12})$/)
   if (event) return { kind: 'event', eventId: Number(event[1]) }
+  const invited = raw.match(/^event_(\d{1,12})_([A-Za-z0-9_-]{16,40})$/)
+  if (invited) return { kind: 'event', eventId: Number(invited[1]), inviteToken: invited[2]! }
   return { kind: 'none' }
 }

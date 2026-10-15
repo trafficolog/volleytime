@@ -2,11 +2,11 @@
 id: '20.1.3'
 phase: '20'
 epic: '20.1'
-status: todo
+status: in_progress
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-10-15
+status_note: 'Реализовано, ревью Opus ожидается: миграция 0026, events.join_mode со снимком группы, личная однократная ссылка (startapp event_<id>_<token>), запросы приглашения и ответ организатора, запрет записи без приглашения в сервисе под lock события; запись invite за EVENT_INVITE_MODE_ENABLED. Проведение флага в production env и расширение quiescent-guard — решение владельца (предложено в 20.7.1, как для 20.1.2).'
 ref_id: 'P-07'
 complexity: M
 impl_model: claude-sonnet-5-5

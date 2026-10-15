@@ -35,11 +35,13 @@ import { subscriptionService } from '../subscriptions/service'
 import {
   EventError,
   EventCapacityBelowTakenError,
+  EventInviteModeDisabledError,
   EventNotEditableError,
   EventNotFoundError,
   EventStartsInPastError,
   VenueNotInOrgError,
 } from './errors'
+import { isInviteModeEnabled } from './join-mode-capability'
 import { isSplitPricingEnabled } from './pricing-capability'
 import {
   CreateEventInput,
@@ -50,6 +52,12 @@ import {
   type CreateEventInput as CreateInput,
   type UpdateEventInput as UpdateInput,
 } from './schemas'
+
+function requireInviteModeCapability(): void {
+  if (!isInviteModeEnabled(process.env.EVENT_INVITE_MODE_ENABLED)) {
+    throw new EventInviteModeDisabledError()
+  }
+}
 
 function requireSplitCapability(): void {
   if (!isSplitPricingEnabled(process.env.EVENT_SPLIT_PRICING_ENABLED)) {
@@ -103,6 +111,7 @@ export const eventService = {
         .select({
           defaultCurrency: organizations.defaultCurrency,
           defaultPriceMode: organizations.defaultPriceMode,
+          defaultJoinMode: organizations.defaultJoinMode,
           cancellationAllowed: organizations.cancellationAllowed,
           cancellationDeadlineHours: organizations.cancellationDeadlineHours,
         })
@@ -121,6 +130,9 @@ export const eventService = {
         targetAmount: data.targetAmount,
       })
       if (pricing.priceMode === 'split') requireSplitCapability()
+      // режим записи — снимок умолчания группы, событие может переопределить (20.1.3)
+      const joinMode = data.joinMode ?? org.defaultJoinMode
+      if (joinMode === 'invite') requireInviteModeCapability()
 
       const [event] = await db
         .insert(events)
@@ -143,6 +155,7 @@ export const eventService = {
           cancellationAllowed: org.cancellationAllowed,
           cancellationDeadlineHours: org.cancellationDeadlineHours,
           level: data.level ?? null,
+          joinMode,
           status: data.status,
         })
         .returning()
@@ -333,6 +346,10 @@ export const eventService = {
         }
       }
       if (data.venueId) await assertVenueInOrg(db, data.venueId, existing.organizationId)
+      // переключение в invite — под тем же lock события, что и запись (20.1.3)
+      if (data.joinMode === 'invite' && existing.joinMode !== 'invite') {
+        requireInviteModeCapability()
+      }
 
       // валидация времени если оба переданы или один
       const startsAt = data.startsAt ?? existing.startsAt

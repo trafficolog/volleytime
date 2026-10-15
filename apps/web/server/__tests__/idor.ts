@@ -31,6 +31,8 @@ export interface OrgFixtureIds {
   paymentId: number
   planId: number
   inviteId: number
+  /** Ожидающий запрос приглашения на событие фикстуры (20.1.3). */
+  requestId: number
 }
 
 export interface OrgRouteCase {

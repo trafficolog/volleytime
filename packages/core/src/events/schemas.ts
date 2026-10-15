@@ -44,6 +44,8 @@ export const CreateEventInput = z
     cancellationDeadlineHours: z.number().int().min(0).max(720).nullable().optional(),
     // требуемый уровень события (19.2.3); не указан — для любого
     level: LevelCode.nullable().optional(),
+    // без joinMode сервис подставляет defaultJoinMode группы (20.1.3); событие может переопределить
+    joinMode: z.enum(['open', 'invite']).optional(),
     status: z.enum(['draft', 'published']).default('published'),
   })
   .strict()
@@ -73,6 +75,7 @@ export const UpdateEventInput = z
     // игнорируется: политика отмены редактируется только в настройках группы (D-02)
     cancellationDeadlineHours: z.number().int().min(0).max(720).nullable().optional(),
     level: LevelCode.nullable().optional(),
+    joinMode: z.enum(['open', 'invite']).optional(),
     status: z.enum(['draft', 'published', 'closed', 'finished']).optional(),
   })
   .strict()

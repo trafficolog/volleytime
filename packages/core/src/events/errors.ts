@@ -16,6 +16,18 @@ export class EventNotEditableError extends EventError {
     super('event.not_editable', 'Cancelled or finished events cannot be edited')
   }
 }
+/** Режим `invite` выключен до выкладки полного релиза (EVENT_INVITE_MODE_ENABLED, 20.1.3). */
+export class EventInviteModeDisabledError extends EventError {
+  constructor() {
+    super('event.invite_mode_disabled', 'Invite-only booking is not enabled')
+  }
+}
+/** Приглашения и запросы приглашения имеют смысл только у события `invite` (20.1.3). */
+export class EventJoinModeOpenError extends EventError {
+  constructor() {
+    super('event.join_mode_open', 'Event is open for booking without an invite')
+  }
+}
 export class VenueNotInOrgError extends EventError {
   constructor() {
     super('event.venue_not_in_org', 'Venue does not belong to this organization')

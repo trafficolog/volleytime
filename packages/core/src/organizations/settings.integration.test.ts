@@ -41,10 +41,13 @@ describe('organizationSettingsService (integration)', () => {
     ownerId = u!.id
     orgId = (await organizationService.create(ctx(), { name: 'Settings Org', city: 'Минск' })).id
     delete process.env.EVENT_SPLIT_PRICING_ENABLED
+    // умолчание invite пишется только при включённой записи по приглашению (20.1.3)
+    process.env.EVENT_INVITE_MODE_ENABLED = 'true'
   })
 
   afterEach(() => {
     delete process.env.EVENT_SPLIT_PRICING_ENABLED
+    delete process.env.EVENT_INVITE_MODE_ENABLED
   })
 
   afterAll(async () => {

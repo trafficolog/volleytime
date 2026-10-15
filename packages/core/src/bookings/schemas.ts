@@ -7,6 +7,8 @@ export const BookInput = z.object({
   seats: z.number().int().min(1).max(10).default(1),
   /** Явное согласие игрока: места сверх свободных — в очередь («часть в основу, часть в очередь»). */
   allowWaitlist: z.boolean().default(false),
+  /** Токен личного приглашения на событие `invite` (20.1.3, startapp `event_<id>_<token>`). */
+  inviteToken: z.string().min(1).max(64).optional(),
 })
 export type BookInput = z.input<typeof BookInput>
 
