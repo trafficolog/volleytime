@@ -2,11 +2,11 @@
 id: '20.4.4'
 phase: '20'
 epic: '20.4'
-status: todo
+status: in_progress
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-10-15
+status_note: 'Реализовано, ревью ожидается (PR). Колокольчик уведомлений отложен до 20.4.9; счётчик «мои записи» ограничен лимитом дашборда (3+). Отчёт: docs/operations/qa/2026-10-15-20-4-4-player-home-visual.md'
 ref_id: ''
 complexity: L
 impl_model: claude-sonnet-5-5

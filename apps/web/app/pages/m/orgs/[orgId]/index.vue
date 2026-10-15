@@ -4,7 +4,7 @@ import { formatDay, formatShortDate, formatTime, type EventPricingView } from '@
 
 import type { EventListItem } from '~/components/EventCard.vue'
 import GroupSwitcher from '~/components/GroupSwitcher.vue'
-import { eventPricingLabel, splitBookingPaymentLabel } from '~/utils/event-pricing-label'
+import PlayerHomeBento from '~/components/PlayerHomeBento.vue'
 import { groupEntryState, visibleGroup } from '~/utils/group-entry-state'
 import { groupMonogram } from '~/utils/group-monogram'
 import { formatMoneyRu } from '~/utils/labels'
@@ -13,8 +13,13 @@ import {
   projectOrganizerHome,
   type OrganizerBalance,
 } from '~/utils/organizer-miniapp'
-import { bookingPaymentChip } from '~/utils/player-event'
-import { playerHomeAccess, projectPlayerHome } from '~/utils/player-home'
+import {
+  bookingsTile,
+  playerGreeting,
+  playerHomeAccess,
+  projectPlayerHome,
+  sessionsTile,
+} from '~/utils/player-home'
 import { createPlayerRequestGuard } from '~/utils/player-request-guard'
 
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
@@ -88,6 +93,12 @@ const dash = computed(() =>
     : null,
 )
 const playerHome = computed(() => projectPlayerHome(dash.value?.upcoming ?? [], new Date()))
+const { user } = useAuth()
+const greeting = computed(() => playerGreeting(user.value?.name))
+const sessions = computed(() =>
+  sessionsTile(org.value?.subscriptionsEnabled === true, dash.value?.subscription ?? null),
+)
+const bookingsCount = computed(() => bookingsTile(dash.value?.myBookings.length ?? 0))
 const home = computed(() => projectOrganizerHome(orgId.value, org.value, me.value, dash.value))
 const roleMismatch = computed(() => !!dash.value && dash.value.isManager !== activeManager.value)
 
@@ -345,145 +356,54 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
           </template>
 
           <section v-if="!roleMismatch && !dash.isManager" class="space-y-3">
-            <h2 class="text-[30px] leading-none">Ближайшая игра</h2>
-            <div v-if="playerHome.hero" class="grid grid-cols-[1.3fr_1fr] grid-rows-2 gap-3">
-              <NuxtLink
-                :to="`${base}/events/${playerHome.hero.id}`"
-                class="vt-card vt-card--hero row-span-2 p-[18px] min-h-48 flex flex-col"
-              >
-                <div class="vt-cap !text-white/75">
-                  {{ formatDay(playerHome.hero.startsAt, tz) }}
-                </div>
-                <div class="vt-mono text-[52px] font-bold leading-[0.9] mt-3">
-                  {{ formatTime(playerHome.hero.startsAt, tz) }}
-                </div>
-                <div class="font-semibold text-sm mt-2">
-                  {{ playerHome.hero.title }}
-                </div>
-                <div v-if="playerHome.hero.pricing" class="text-xs text-white/90 mt-2">
-                  {{ eventPricingLabel(playerHome.hero.pricing, playerHome.hero.currency).text }}
-                </div>
-                <p
-                  v-if="
-                    playerHome.hero.pricing?.mode === 'split' &&
-                    playerHome.hero.pricing.basis !== 'settled'
-                  "
-                  class="text-[11px] text-white/75 mt-1"
-                >
-                  {{
-                    eventPricingLabel(playerHome.hero.pricing, playerHome.hero.currency).description
-                  }}
-                </p>
-                <div
-                  v-if="playerHome.hero.venue || playerHome.hero.locationText"
-                  class="text-xs text-white/75 mt-1"
-                >
-                  {{ playerHome.hero.venue?.name ?? playerHome.hero.locationText }}
-                </div>
-                <div class="mt-auto flex flex-col items-start gap-2 pt-4">
-                  <VtMyChip :booking="playerHome.hero.myBooking" on-dark />
-                  <VtSeatsMini
-                    :taken="playerHome.hero.taken"
-                    :capacity="playerHome.hero.capacity"
-                    :event="playerHome.hero"
-                    :width="96"
-                    on-dark
-                  />
-                </div>
-              </NuxtLink>
-              <NuxtLink
-                v-if="dash.subscription"
-                :to="`${base}/subscriptions`"
-                class="vt-card vt-card--warm p-4 flex flex-col justify-between"
-              >
-                <VtIcon name="ticket" :size="18" class="text-[#a33c08]" />
-                <div class="vt-mono text-[32px] font-bold leading-none mt-1">
-                  {{ dash.subscription.left }}/{{ dash.subscription.total }}
-                </div>
-                <div class="text-xs text-vt-mute-2">занятий осталось</div>
-              </NuxtLink>
-              <NuxtLink
-                :to="`${base}/bookings`"
-                class="vt-card p-4 flex flex-col justify-between"
-                :class="dash.subscription ? '' : 'row-span-2'"
-              >
-                <VtIcon name="ticket" :size="20" />
-                <div class="font-semibold">Мои записи</div>
-                <div class="text-xs text-vt-mute-2">Предстоящие и прошедшие</div>
-              </NuxtLink>
+            <div>
+              <p v-if="greeting" class="text-sm text-vt-mute-2">{{ greeting }}</p>
+              <h2 class="mt-1 text-[30px] leading-none">Ближайшая игра</h2>
             </div>
-            <EmptyState
-              v-else
-              icon="calendar"
-              title="Тренировок пока нет"
-              description="Организатор ещё не опубликовал расписание"
+            <PlayerHomeBento
+              v-if="playerHome.hero"
+              :base="base"
+              :tz="tz"
+              :hero="playerHome.hero"
+              :sessions="sessions"
+              :bookings-count="bookingsCount"
             />
-          </section>
-
-          <!-- игроку: мои ближайшие записи и абонемент -->
-          <section v-if="!roleMismatch && !dash.isManager">
-            <h2 class="vt-cap mb-2">Мои ближайшие записи</h2>
-            <ul v-if="dash.myBookings.length" class="space-y-2">
-              <li v-for="b in dash.myBookings" :key="b.id">
+            <template v-else>
+              <EmptyState
+                icon="calendar"
+                title="Тренировок пока нет"
+                description="Организатор ещё не опубликовал расписание. Как только появится событие, пришлём уведомление в бот."
+              />
+              <div class="grid grid-cols-2 gap-3">
                 <NuxtLink
-                  :to="`${base}/events/${b.event.id}`"
-                  class="vt-card p-3.5 flex items-center gap-3"
+                  v-if="sessions"
+                  :to="`${base}/subscriptions`"
+                  class="vt-card vt-card--warm flex min-h-24 flex-col justify-between p-4"
                 >
-                  <div class="w-14 text-center shrink-0">
-                    <div class="vt-cap !text-[10px]">
-                      {{ formatDay(b.event.startsAt, tz).split(',')[0] }}
-                    </div>
-                    <div class="vt-mono font-bold">{{ formatTime(b.event.startsAt, tz) }}</div>
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <div class="font-semibold truncate">{{ b.event.title }}</div>
-                    <div class="text-xs text-vt-mute-2 truncate">
-                      {{ formatDay(b.event.startsAt, tz) }}
-                      <template v-if="b.event.venue"> · {{ b.event.venue.name }}</template>
-                    </div>
-                    <div v-if="b.pricing && b.event.currency" class="vt-mono text-xs mt-1">
-                      {{ eventPricingLabel(b.pricing, b.event.currency).text }}
-                    </div>
-                    <p
-                      v-if="
-                        b.pricing?.mode === 'split' &&
-                        b.pricing.basis !== 'settled' &&
-                        b.event.currency
-                      "
-                      class="text-xs text-vt-mute-2 mt-1"
-                    >
-                      {{ eventPricingLabel(b.pricing, b.event.currency).description }}
-                    </p>
-                    <p
-                      v-if="b.status === 'waitlisted' && b.pricing?.mode === 'split'"
-                      class="text-xs text-vt-mute-2 mt-1"
-                    >
-                      {{ splitBookingPaymentLabel(b.pricing, b.status)?.description }}
-                    </p>
-                  </div>
-                  <div class="flex shrink-0 flex-col items-end gap-1">
-                    <VtMyChip :booking="b" />
-                    <VtChip
-                      v-if="bookingPaymentChip(b.status, b.pricing)"
-                      :tone="bookingPaymentChip(b.status, b.pricing)!.tone"
-                      >{{ bookingPaymentChip(b.status, b.pricing)!.text }}</VtChip
-                    >
-                  </div>
+                  <VtIcon name="ticket" :size="18" class="text-vt-orange-ink" aria-hidden="true" />
+                  <span v-if="sessions.kind === 'balance'" class="text-xs text-vt-ink-3">
+                    <span class="vt-mono text-[34px] font-bold leading-none text-vt-ink">{{
+                      sessions.left
+                    }}</span>
+                    из {{ sessions.total }} сессий осталось
+                  </span>
+                  <span v-else class="font-bold">Нет абонемента</span>
                 </NuxtLink>
-              </li>
-            </ul>
-            <EmptyState
-              v-else
-              icon="calendar"
-              title="Вы ещё не записаны"
-              description="Выберите ближайшую тренировку"
-            >
-              <template #action>
-                <NuxtLink :to="`${base}/events`" class="vt-btn vt-btn--primary"
-                  >К событиям</NuxtLink
+                <NuxtLink
+                  :to="`${base}/bookings`"
+                  class="vt-card flex min-h-24 flex-col justify-between p-4"
+                  :class="sessions ? '' : 'col-span-2'"
                 >
-              </template>
-            </EmptyState>
+                  <VtIcon name="calendar" :size="18" class="text-vt-ink-3" aria-hidden="true" />
+                  <span class="text-xs text-vt-ink-3">
+                    <span class="vt-mono text-[34px] font-bold leading-none text-vt-ink">{{
+                      bookingsCount
+                    }}</span>
+                    мои записи
+                  </span>
+                </NuxtLink>
+              </div>
+            </template>
           </section>
 
           <NuxtLink
@@ -514,16 +434,22 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
             />
           </NuxtLink>
 
-          <section v-if="!roleMismatch && (!dash.isManager || home)">
+          <section
+            v-if="
+              !roleMismatch &&
+              (home || (!dash.isManager && (playerHome.hero || dash.upcoming.length > 0)))
+            "
+          >
             <div class="organizer-events-heading flex items-center justify-between mb-2">
               <h2 :class="home ? 'vt-cap' : 'font-display font-bold text-xl uppercase'">
                 {{ home ? 'Ближайшие события' : 'Расписание' }}
               </h2>
               <NuxtLink
                 :to="`${base}/events`"
-                class="organizer-all-link vt-hit-44 inline-flex items-center text-sm font-semibold text-vt-link"
-                >{{ home ? 'Все' : 'Все события' }}</NuxtLink
-              >
+                class="organizer-all-link vt-hit-44 inline-flex items-center gap-1 text-sm font-semibold text-vt-link"
+                >{{ home ? 'Все' : 'Смотреть все' }}
+                <VtIcon v-if="!home" name="chevron-r" :size="14" aria-hidden="true"
+              /></NuxtLink>
             </div>
             <EmptyState v-if="dash.upcoming.length === 0" icon="calendar" title="Событий пока нет">
               <template v-if="home" #action>

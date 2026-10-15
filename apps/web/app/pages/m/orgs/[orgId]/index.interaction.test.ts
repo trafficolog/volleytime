@@ -63,6 +63,8 @@ const selectGroup = vi.fn()
 
 vi.stubGlobal('definePageMeta', () => undefined)
 vi.stubGlobal('useRoute', () => route)
+const authUser = ref<{ name: string | null } | null>({ name: 'Артём Иванов' })
+vi.stubGlobal('useAuth', () => ({ user: authUser }))
 vi.stubGlobal('useOrgTimezone', () => ({ tz: ref('Europe/Minsk') }))
 vi.stubGlobal('useFetch', (url: () => string) =>
   url().endsWith('/dashboard')
@@ -96,7 +98,7 @@ afterEach(() => {
 })
 
 describe('organizer Home', () => {
-  it('shows the server split forecast on hero/schedule and personal settlement on bookings', async () => {
+  it('shows the server split forecast on hero/schedule and no longer lists bookings on home', async () => {
     orgData.value.myMember.role = 'player'
     const pricing = {
       mode: 'split',
@@ -195,15 +197,7 @@ describe('organizer Home', () => {
     expect(wrapper.get('a[href="/m/orgs/30/events/71"]').text()).toContain('При полном составе')
     expect(wrapper.get('a[href="/m/orgs/30/events/72"]').text()).toContain('≈ 33,33–33,34 BYN')
     expect(wrapper.get('a[href="/m/orgs/30/events/72"]').text()).toContain('Прогноз')
-    expect(wrapper.get('a[href="/m/orgs/30/events/73"]').text()).toContain('33,34 BYN')
-    expect(wrapper.get('a[href="/m/orgs/30/events/73"]').text()).toContain('Возвращено')
-    expect(wrapper.get('a[href="/m/orgs/30/events/74"]').text()).toContain('Прогноз')
-    expect(wrapper.get('a[href="/m/orgs/30/events/75"]').text()).toContain('Начисления нет')
-    expect(wrapper.get('a[href="/m/orgs/30/events/75"]').text()).toContain('Доля появится')
-    expect(wrapper.get('a[href="/m/orgs/30/events/76"]').text()).toContain(
-      'переход из листа ожидания в состав недоступен',
-    )
-    expect(wrapper.get('a[href="/m/orgs/30/events/76"]').text()).not.toContain('Доля появится')
+    expect(wrapper.find('a[href="/m/orgs/30/events/73"]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('Бесплатно')
     wrapper.unmount()
   })
@@ -484,5 +478,101 @@ describe('organizer Home', () => {
     await wrapper.get('[role="alert"] button').trigger('click')
     expect(fetchDashboard).toHaveBeenCalledTimes(2)
     wrapper.unmount()
+  })
+})
+
+describe('player Home bento v3 (20.4.4)', () => {
+  const game = (
+    id: number,
+    day: number,
+    myBooking: { id: number; status: string } | null = null,
+  ) => ({
+    id,
+    title: `Игра ${id}`,
+    status: 'published',
+    startsAt: `2027-09-${day}T16:00:00Z`,
+    endsAt: `2027-09-${day}T18:00:00Z`,
+    capacity: 14,
+    taken: 12,
+    price: 10,
+    currency: 'BYN',
+    waitlist: 0,
+    myBooking,
+    venue: { name: 'Зал' },
+    locationText: null,
+  })
+  async function mountPlayer(
+    dash: { upcoming: unknown[]; subscription?: unknown; myBookings?: unknown[] },
+    subscriptionsEnabled = true,
+  ) {
+    orgData.value.myMember.role = 'player'
+    orgData.value.organization.subscriptionsEnabled = subscriptionsEnabled
+    fetchDashboard.mockImplementationOnce(async () => ({
+      isManager: false,
+      manager: null,
+      myBookings: [],
+      subscription: null,
+      ...dash,
+    }))
+    const wrapper = mount(HomeHost, {
+      global: {
+        components: { EventCard },
+        stubs: {
+          NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
+          VtMiniHeader: true,
+          VtSheet: { template: '<div />' },
+          VtIcon: true,
+          VtChip: { template: '<span><slot /></span>' },
+          VtMyChip: MyChip,
+          VtStateChip: StateChip,
+          VtSeatsMini: SeatsMini,
+          EmptyState: { props: ['title'], template: '<p>{{ title }}</p>' },
+        },
+      },
+    })
+    await flushPromises()
+    return wrapper
+  }
+
+  it('greets the player and shows hero, sessions and bookings tiles with the schedule link', async () => {
+    const w = await mountPlayer({
+      upcoming: [game(1, 28, { id: 9, status: 'confirmed' }), game(2, 30)],
+      subscription: { id: 1, left: 5, total: 8, expiresAt: null },
+      myBookings: [{ id: 9 }, { id: 10 }],
+    })
+    expect(w.text()).toContain('Привет, Артём')
+    expect(w.get('a[href="/m/orgs/30/events/1"]').classes()).toContain('vt-card--hero')
+    expect(w.get('a[href="/m/orgs/30/subscriptions"]').text()).toContain('сессий осталось')
+    expect(w.get('a[href="/m/orgs/30/bookings"]').text()).toContain('2')
+    expect(w.get('a[href="/m/orgs/30/events"]').text()).toContain('Смотреть все')
+    expect(w.text()).not.toContain('Мои ближайшие записи')
+    w.unmount()
+  })
+
+  it('shows «Нет абонемента» when subscriptions are on, hides the tile when they are off', async () => {
+    const on = await mountPlayer({ upcoming: [game(1, 28)] })
+    expect(on.get('a[href="/m/orgs/30/subscriptions"]').text()).toContain('Нет абонемента')
+    on.unmount()
+    const off = await mountPlayer({ upcoming: [game(1, 28)] }, false)
+    expect(off.find('a[href="/m/orgs/30/subscriptions"]').exists()).toBe(false)
+    expect(off.find('a[href="/m/orgs/30/bookings"]').exists()).toBe(true)
+    off.unmount()
+  })
+
+  it('keeps the bookings entry when there is no upcoming game', async () => {
+    const w = await mountPlayer({ upcoming: [] })
+    expect(w.text()).toContain('Тренировок пока нет')
+    expect(w.find('.vt-card--hero').exists()).toBe(false)
+    expect(w.find('a[href="/m/orgs/30/bookings"]').exists()).toBe(true)
+    expect(w.text()).not.toContain('Смотреть все')
+    w.unmount()
+  })
+
+  it('omits the greeting when the user has no name', async () => {
+    authUser.value = { name: null }
+    const w = await mountPlayer({ upcoming: [game(1, 28)] })
+    expect(w.text()).not.toContain('Привет')
+    authUser.value = { name: 'Артём Иванов' }
+    w.unmount()
   })
 })

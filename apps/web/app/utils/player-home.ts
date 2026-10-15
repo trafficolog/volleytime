@@ -1,5 +1,7 @@
 import type { EventListItem } from '../components/EventCard.vue'
 
+import { participationOf } from './status-model'
+
 const DENIED_ORG_ERRORS = new Set([
   'permission.blocked',
   'permission.not_member',
@@ -36,5 +38,33 @@ export function projectPlayerHome(upcoming: readonly EventListItem[], now: Date)
     .filter((event) => event.status === 'published' && new Date(event.startsAt) > now)
     .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
 
-  return { hero: events[0] ?? null, schedule: events.slice(1) }
+  // Референс: hero — ближайшая игра, на которую игрок идёт; иначе ближайшая опубликованная.
+  const hero =
+    events.find((event) => participationOf(event.myBooking)?.key === 'going') ?? events[0] ?? null
+
+  return { hero, schedule: events.filter((event) => event !== hero) }
 }
+
+/** Сколько записей отдаёт дашборд (`dashboard.get.ts`, limit); при достижении лимита счётчик «N+». */
+export const HOME_BOOKINGS_LIMIT = 3
+
+export function playerGreeting(name: string | null | undefined) {
+  const first = name?.trim().split(/\s+/)[0]
+  return first ? `Привет, ${first}` : null
+}
+
+/**
+ * Плитка «Сессий осталось»: видна при включённых абонементах или активном остатке
+ * (решение владельца 2026-10-15); без абонемента — состояние «нет абонемента».
+ */
+export function sessionsTile(
+  subscriptionsEnabled: boolean,
+  subscription: { left: number; total: number } | null,
+) {
+  if (subscription)
+    return { kind: 'balance' as const, left: subscription.left, total: subscription.total }
+  return subscriptionsEnabled ? { kind: 'none' as const } : null
+}
+
+export const bookingsTile = (count: number) =>
+  count >= HOME_BOOKINGS_LIMIT ? `${HOME_BOOKINGS_LIMIT}+` : String(count)

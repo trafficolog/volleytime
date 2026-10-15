@@ -2,7 +2,15 @@ import { describe, expect, it } from 'vitest'
 
 import type { EventListItem } from '../components/EventCard.vue'
 
-import { playerAccessFromApiError, playerHomeAccess, projectPlayerHome } from './player-home'
+import {
+  HOME_BOOKINGS_LIMIT,
+  bookingsTile,
+  playerAccessFromApiError,
+  playerGreeting,
+  playerHomeAccess,
+  projectPlayerHome,
+  sessionsTile,
+} from './player-home'
 
 const now = new Date('2026-09-24T10:00:00Z')
 
@@ -25,6 +33,17 @@ function event(id: number, startsAt: string, status = 'published'): EventListIte
 }
 
 describe('player home event projection', () => {
+  it('prefers the nearest game the player is going to as hero (reference M-03)', () => {
+    const going = { ...event(3, '2026-09-27T18:00:00Z'), myBooking: { id: 1, status: 'confirmed' } }
+    const waiting = {
+      ...event(1, '2026-09-25T18:00:00Z'),
+      myBooking: { id: 2, status: 'waitlisted' },
+    }
+    const view = projectPlayerHome([going, event(2, '2026-09-26T18:00:00Z'), waiting], now)
+    expect(view.hero?.id).toBe(3)
+    expect(view.schedule.map((item) => item.id)).toEqual([1, 2])
+  })
+
   it('uses the nearest published future event as hero and sorts the rest', () => {
     const later = event(3, '2026-09-27T18:00:00Z')
     const nearer = event(2, '2026-09-25T18:00:00Z')
@@ -88,4 +107,33 @@ describe('player home membership gate', () => {
       expect(playerHomeAccess(3, null, null, code)).toBe('denied')
     },
   )
+})
+
+describe('player home bento tiles (20.4.4)', () => {
+  it('greets by first name and omits the greeting without a name', () => {
+    expect(playerGreeting('Артём Иванов')).toBe('Привет, Артём')
+    expect(playerGreeting('  ')).toBeNull()
+    expect(playerGreeting(null)).toBeNull()
+  })
+
+  it('shows the sessions tile when subscriptions are on or an active balance remains', () => {
+    expect(sessionsTile(true, { left: 5, total: 8 })).toEqual({
+      kind: 'balance',
+      left: 5,
+      total: 8,
+    })
+    expect(sessionsTile(true, null)).toEqual({ kind: 'none' })
+    expect(sessionsTile(false, { left: 2, total: 8 })).toEqual({
+      kind: 'balance',
+      left: 2,
+      total: 8,
+    })
+    expect(sessionsTile(false, null)).toBeNull()
+  })
+
+  it('marks a truncated bookings count with a plus', () => {
+    expect(bookingsTile(0)).toBe('0')
+    expect(bookingsTile(HOME_BOOKINGS_LIMIT - 1)).toBe(String(HOME_BOOKINGS_LIMIT - 1))
+    expect(bookingsTile(HOME_BOOKINGS_LIMIT)).toBe(`${HOME_BOOKINGS_LIMIT}+`)
+  })
 })
