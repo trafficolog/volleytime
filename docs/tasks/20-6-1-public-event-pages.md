@@ -56,9 +56,12 @@ tags: [reference-v3]
 - ✅ Отчёт визуальной сверки по экранам из `reference.screens` без открытых расхождений Critical/Important
 - ✅ Цена и прогноз берутся из `quoteEventPrice` (тот же расчёт, что `GET …/events/{id}/price`, 20.1.1; публичный эндпоинт без авторизации вызывает функцию напрямую), а не из `readEventPricing`/`previewSplitAmount`; тест доказывает совпадение показанной цены с ответом эндпоинта для тех же мест (перенесено из 20.1.1, [решение владельца 2026-10-14](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-01))
 - ✅ Визуальная сверка включает блок цены по `5-public` (fixed, split, split-closed) (перенесено из 20.1.1)
+- ✅ Публичный маршрут получает состав без `includeLevel`: уровни игроков публичная страница не показывает (решение владельца 2026-10-14, карточка [20.4.10](20-4-10-player-level.md)). Guard-тест падает, если `includeLevel` появляется в `apps/web/server/api` вне allowlist; сейчас allowlist — только `organizations/[orgId]/events/[eventId]/index.get.ts` (участники группы)
 - ✅ Пять gates CODING_STANDARDS на tested revision; ревью `claude-sonnet-5-5` без Critical/Important
 
 ## Подсказки
+
+- Для публичного состава можно переименовать `bookingService.publicRoster` в `rosterFor` (необязательно); поведение без опции `includeLevel` не меняется.
 
 - Скриншоты: [5-public](../design/reference-v3/screenshots/5-public) (окно 924×540 — ориентир; размеры и отступы брать из исходников).
 - Исходники макета: `docs/design/reference-v3/handoff/screens-public.jsx`; токены — `handoff/styles.css`; доменные функции — `handoff/atoms.jsx`.
