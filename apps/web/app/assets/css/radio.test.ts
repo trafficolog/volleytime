@@ -9,7 +9,8 @@ import { defineComponent, reactive } from 'vue'
 const css = readFileSync('apps/web/app/assets/css/main.css', 'utf8')
 
 describe('branded native membership policy radios', () => {
-  for (const surface of ['app', 'm']) {
+  // Кабинет (`app`) с 20.5.7 использует атомы v3 (VtSegment/VtToggle); их покрывают тесты разделов.
+  for (const surface of ['m']) {
     it(`${surface} keeps the adjacent native checkbox at 20 CSS pixels independent of root font size`, () => {
       const source = readFileSync(`apps/web/app/pages/${surface}/orgs/[orgId]/settings.vue`, 'utf8')
       const checkbox = source.match(/<input\s[^>]*type="checkbox"[^>]*>/)?.[0] ?? ''

@@ -1,133 +1,126 @@
 <script setup lang="ts">
 import type { Organization, OrganizationMember } from '@volley-time/db'
 
+import SettingsBookings from '~/components/desktop/settings/SettingsBookings.vue'
+import SettingsDanger from '~/components/desktop/settings/SettingsDanger.vue'
+import SettingsIntegrations from '~/components/desktop/settings/SettingsIntegrations.vue'
+import SettingsNotifications from '~/components/desktop/settings/SettingsNotifications.vue'
+import SettingsProfile from '~/components/desktop/settings/SettingsProfile.vue'
+import SettingsTeam from '~/components/desktop/settings/SettingsTeam.vue'
+import SettingsVenues from '~/components/desktop/settings/SettingsVenues.vue'
 import { canSaveDesktopSettings } from '~/utils/desktop-settings'
-import { organizationSettingsPayload } from '~/utils/organization-settings-payload'
+import {
+  parseSection,
+  visibleSections,
+  type GroupSettings,
+  type PlayerLevelCode,
+} from '~/utils/group-settings'
+import { createSettingsController, type OrgProfile } from '~/utils/group-settings-controller'
 
-definePageMeta({ layout: 'desktop-org', middleware: ['auth'] })
+// Ключ по группе: смена группы пересоздаёт страницу, смена раздела (?section=) — нет.
+definePageMeta({
+  layout: 'desktop-org',
+  middleware: ['auth'],
+  key: (route) => `settings-${route.params.orgId}`,
+})
 
 const route = useRoute()
-const orgId = computed(() => Number(route.params.orgId))
-const path = computed(() => `/app/orgs/${orgId.value}/settings`)
+const orgId = Number(route.params.orgId)
+const base = `/app/orgs/${orgId}`
+const path = `${base}/settings`
+const config = useRuntimeConfig()
 const { fetchAll } = useOrganizations()
+const toast = useToast()
 const {
   data,
   error: orgError,
   refresh: refreshOrg,
-} = await useFetch<{
-  organization: Organization
-  myMember: OrganizationMember
-}>(() => `/api/organizations/${orgId.value}`, { key: () => `desktop-org-${orgId.value}` })
-const org = computed(() =>
-  data.value?.organization.id === orgId.value ? data.value.organization : null,
+} = await useFetch<{ organization: Organization; myMember: OrganizationMember }>(
+  `/api/organizations/${orgId}`,
+  { key: `desktop-org-${orgId}` },
 )
-const actor = computed(() => (org.value ? (data.value?.myMember ?? null) : null))
+const {
+  data: settingsData,
+  error: settingsError,
+  refresh: refreshSettings,
+} = await useFetch<{ settings: GroupSettings }>(`/api/organizations/${orgId}/settings`, {
+  key: `desktop-settings-${orgId}`,
+})
+const { data: levelsData } = useFetch<{
+  levels: { code: PlayerLevelCode; title: string; description: string }[]
+}>('/api/levels', { key: 'levels', lazy: true })
+
+const actor = computed(() => data.value?.myMember ?? null)
 const isOwner = computed(() => actor.value?.role === 'owner' && actor.value.status === 'active')
-const form = reactive({
-  name: '',
-  city: '',
-  description: '',
-  defaultMemberStatus: 'active' as 'active' | 'pending',
-  subscriptionsEnabled: true,
+const section = computed(() => parseSection(route.query.section, isOwner.value))
+const sections = computed(() => visibleSections(isOwner.value))
+
+const settings = ref<GroupSettings | null>(settingsData.value?.settings ?? null)
+const profile = ref<OrgProfile | null>(
+  data.value
+    ? {
+        name: data.value.organization.name,
+        description: data.value.organization.description,
+        defaultMemberStatus: data.value.organization.defaultMemberStatus,
+      }
+    : null,
+)
+watch(settingsData, (value) => {
+  if (value) settings.value = value.settings
 })
-const saving = ref(false)
-const archiving = ref(false)
-const saved = ref(false)
-const formError = ref('')
+
 let alive = true
-
-function syncForm(value: Organization | null) {
-  if (!value) return
-  form.name = value.name
-  form.city = value.city ?? ''
-  form.description = value.description ?? ''
-  form.defaultMemberStatus = value.defaultMemberStatus
-  form.subscriptionsEnabled = value.subscriptionsEnabled
-}
-
-watch(org, syncForm, { immediate: true })
-watch(orgId, () => {
-  saved.value = false
-  formError.value = ''
-})
 onBeforeUnmount(() => {
   alive = false
 })
+const isCurrent = () => alive && route.path === path
 
-function canMutate(targetOrgId: number, expectedPath: string) {
-  return (
-    alive &&
-    org.value?.id === targetOrgId &&
-    canSaveDesktopSettings(actor.value, route.path, expectedPath, saving.value || archiving.value)
-  )
+const controller = createSettingsController({
+  orgId,
+  request: (url, init) => $fetch(url, init) as never,
+  settings,
+  org: profile,
+  toast: toast.show,
+  errorMessage: (cause, fallback) => apiErrorMessage(cause, fallback),
+  isCurrent,
+})
+
+// Название и «Абонементы» в боковом меню кабинета живут в общих данных группы: подтянуть сразу.
+watch(
+  [profile, () => settings.value?.subscriptionsEnabled],
+  async ([value, subscriptionsEnabled], [previous]) => {
+    if (!data.value || !value) return
+    data.value = {
+      ...data.value,
+      organization: {
+        ...data.value.organization,
+        ...value,
+        ...(subscriptionsEnabled === undefined ? {} : { subscriptionsEnabled }),
+        city: settings.value?.city ?? data.value.organization.city,
+      },
+    }
+    if (previous && previous.name !== value.name) await fetchAll().catch(() => undefined)
+  },
+)
+
+async function retry() {
+  await Promise.all([refreshOrg(), refreshSettings()])
 }
 
-async function save() {
-  const targetOrgId = orgId.value
-  const expectedPath = path.value
-  const confirmedOrg = org.value
-  if (!confirmedOrg || !canMutate(targetOrgId, expectedPath)) return
-  const requestedSubscriptionsEnabled = form.subscriptionsEnabled
-  const changedSubscriptions = requestedSubscriptionsEnabled !== confirmedOrg.subscriptionsEnabled
-  saving.value = true
-  saved.value = false
-  formError.value = ''
-  try {
-    await $fetch(`/api/organizations/${targetOrgId}`, {
-      method: 'PATCH',
-      body: organizationSettingsPayload(form, confirmedOrg.subscriptionsEnabled),
-    })
-    if (!alive || orgId.value !== targetOrgId || route.path !== expectedPath) return
-    // Refresh the shared org data without switching the shell into its loading branch:
-    // that branch unmounts this page and would erase the save/error feedback.
-    const confirmed = await $fetch<{ organization: Organization; myMember: OrganizationMember }>(
-      `/api/organizations/${targetOrgId}`,
-    )
-    if (
-      confirmed.organization.id !== targetOrgId ||
-      (changedSubscriptions &&
-        confirmed.organization.subscriptionsEnabled !== requestedSubscriptionsEnabled)
-    ) {
-      throw new Error('Organization settings could not be confirmed')
-    }
-    if (!alive || orgId.value !== targetOrgId || route.path !== expectedPath) return
-    data.value = confirmed
-    // The exact GET above confirms the mutation; a failed secondary list refresh
-    // must not turn a successful save into a false failure.
-    await fetchAll().catch(() => undefined)
-    if (alive && orgId.value === targetOrgId && route.path === expectedPath) saved.value = true
-  } catch (cause) {
-    if (alive && orgId.value === targetOrgId && route.path === expectedPath) {
-      form.subscriptionsEnabled =
-        org.value?.subscriptionsEnabled ?? confirmedOrg.subscriptionsEnabled
-      formError.value = apiErrorMessage(cause, 'Не удалось сохранить настройки')
-    }
-  } finally {
-    saving.value = false
-  }
-}
-
+const archiving = ref(false)
+const archiveError = ref('')
 async function archive() {
-  const targetOrgId = orgId.value
-  const expectedPath = path.value
-  if (!canMutate(targetOrgId, expectedPath)) return
-  if (
-    !window.confirm('Архивировать группу? Она исчезнет из активного списка, но данные сохранятся.')
-  )
+  if (!isCurrent() || !canSaveDesktopSettings(actor.value, route.path, path, archiving.value))
     return
-  if (!canMutate(targetOrgId, expectedPath)) return
   archiving.value = true
-  formError.value = ''
+  archiveError.value = ''
   try {
-    await $fetch(`/api/organizations/${targetOrgId}/archive`, { method: 'POST' })
-    if (!alive || orgId.value !== targetOrgId || route.path !== expectedPath) return
+    await $fetch(`/api/organizations/${orgId}/archive`, { method: 'POST' })
+    if (!isCurrent()) return
     await fetchAll().catch(() => undefined)
-    if (!alive || orgId.value !== targetOrgId || route.path !== expectedPath) return
-    await navigateTo('/app?choose=1')
+    if (isCurrent()) await navigateTo('/app?choose=1')
   } catch (cause) {
-    if (alive && orgId.value === targetOrgId && route.path === expectedPath) {
-      formError.value = apiErrorMessage(cause, 'Не удалось архивировать группу')
-    }
+    if (isCurrent()) archiveError.value = apiErrorMessage(cause, 'Не удалось архивировать группу')
   } finally {
     archiving.value = false
   }
@@ -135,133 +128,79 @@ async function archive() {
 </script>
 
 <template>
-  <section class="vt-desktop-form-page space-y-5">
+  <section class="vt-settings">
     <header class="vt-desktop-dashboard__heading">
       <div>
         <p class="vt-cap">Управление группой</p>
         <h1 tabindex="-1">Настройки</h1>
-        <p class="text-vt-mute-2">Параметры организации и доступ к абонементам.</p>
+        <p class="text-vt-mute-2">Профиль, записи и оплата, залы, команда и интеграции.</p>
       </div>
     </header>
-    <ErrorState v-if="orgError" message="Не удалось открыть настройки" @retry="refreshOrg()" />
-    <SkeletonList v-else-if="!org" :count="2" />
-    <div v-else-if="!isOwner" class="vt-card vt-desktop-form-page__card space-y-3">
-      <p>Изменять настройки может только владелец группы.</p>
-      <dl class="space-y-2">
-        <div>
-          <dt class="vt-cap">Название</dt>
-          <dd>{{ org.name }}</dd>
-        </div>
-        <div>
-          <dt class="vt-cap">Город</dt>
-          <dd>{{ org.city || 'Не указан' }}</dd>
-        </div>
-        <div>
-          <dt class="vt-cap">Абонементы</dt>
-          <dd>{{ org.subscriptionsEnabled ? 'Включены' : 'Выключены' }}</dd>
-        </div>
-      </dl>
+
+    <ErrorState
+      v-if="orgError || settingsError"
+      message="Не удалось открыть настройки"
+      @retry="retry"
+    />
+    <SkeletonList v-else-if="!data || !settings || !profile" :count="2" />
+    <div v-else class="vt-settings__layout">
+      <nav class="vt-settings__menu" aria-label="Разделы настроек">
+        <NuxtLink
+          v-for="item in sections"
+          :key="item.key"
+          :to="{ path, query: { section: item.key } }"
+          class="vt-settings__menu-link"
+          :class="{ 'vt-settings__menu-link--danger': item.key === 'danger' }"
+          :aria-current="section === item.key ? 'page' : undefined"
+        >
+          {{ item.label }}
+        </NuxtLink>
+      </nav>
+      <div class="vt-settings__content">
+        <p v-if="!isOwner" class="vt-settings-note" role="note">
+          Изменять настройки может только владелец группы. Вы видите текущие значения.
+        </p>
+        <SettingsProfile
+          v-if="section === 'profile'"
+          :org="profile"
+          :settings="settings"
+          :can-edit="isOwner"
+          :controller="controller"
+        />
+        <SettingsBookings
+          v-else-if="section === 'bookings'"
+          :settings="settings"
+          :level-options="levelsData?.levels ?? []"
+          :can-edit="isOwner"
+          :controller="controller"
+        />
+        <SettingsVenues
+          v-else-if="section === 'venues'"
+          :org-id="orgId"
+          :can-manage="true"
+          @toast="toast.show"
+        />
+        <SettingsTeam
+          v-else-if="section === 'team'"
+          :org="profile"
+          :base="base"
+          :can-edit="isOwner"
+          :controller="controller"
+        />
+        <SettingsNotifications v-else-if="section === 'notifications'" />
+        <SettingsIntegrations
+          v-else-if="section === 'integrations'"
+          :bot-username="config.public.telegramBotUsername"
+          :base="base"
+        />
+        <SettingsDanger
+          v-else-if="section === 'danger' && isOwner"
+          :busy="archiving"
+          :error="archiveError"
+          @archive="archive"
+        />
+      </div>
     </div>
-    <template v-else>
-      <form class="vt-card vt-desktop-form-page__card space-y-4" @submit.prevent="save">
-        <div>
-          <label class="vt-label" for="desktop-settings-name">Название</label>
-          <input
-            id="desktop-settings-name"
-            v-model="form.name"
-            class="vt-field"
-            required
-            minlength="2"
-            maxlength="200"
-            :disabled="saving || archiving"
-          />
-        </div>
-        <div>
-          <label class="vt-label" for="desktop-settings-city">Город</label>
-          <input
-            id="desktop-settings-city"
-            v-model="form.city"
-            class="vt-field"
-            maxlength="120"
-            :disabled="saving || archiving"
-          />
-        </div>
-        <div>
-          <label class="vt-label" for="desktop-settings-description">Описание</label>
-          <textarea
-            id="desktop-settings-description"
-            v-model="form.description"
-            class="vt-field min-h-24 resize-y"
-            maxlength="2000"
-            :disabled="saving || archiving"
-          />
-        </div>
-        <fieldset>
-          <legend class="vt-label">Новые участники</legend>
-          <div class="space-y-2">
-            <label class="flex min-h-[44px] items-center gap-2"
-              ><input
-                v-model="form.defaultMemberStatus"
-                type="radio"
-                name="desktop-settings-member-status"
-                class="vt-radio"
-                value="active"
-                :disabled="saving || archiving"
-              />
-              Сразу в составе</label
-            >
-            <label class="flex min-h-[44px] items-center gap-2"
-              ><input
-                v-model="form.defaultMemberStatus"
-                type="radio"
-                name="desktop-settings-member-status"
-                class="vt-radio"
-                value="pending"
-                :disabled="saving || archiving"
-              />
-              После одобрения организатором</label
-            >
-          </div>
-        </fieldset>
-        <div class="border-t border-vt-stroke pt-4">
-          <label class="flex items-start gap-3" for="desktop-settings-subscriptions">
-            <input
-              id="desktop-settings-subscriptions"
-              v-model="form.subscriptionsEnabled"
-              type="checkbox"
-              class="mt-1 h-[20px] w-[20px] shrink-0 accent-vt-flame"
-              :disabled="saving || archiving"
-              aria-describedby="desktop-settings-subscriptions-hint"
-            />
-            <span class="font-semibold">Использовать абонементы</span>
-          </label>
-          <p id="desktop-settings-subscriptions-hint" class="text-vt-mute-2 mt-2">
-            При отключении новые покупки и записи по абонементу недоступны. Купленные остатки и
-            история сохранятся после включения.
-          </p>
-        </div>
-        <p v-if="formError" role="alert" class="text-vt-rose-ink">{{ formError }}</p>
-        <p v-if="saved" role="status" class="text-vt-grass-ink">Настройки сохранены</p>
-        <button
-          type="submit"
-          class="vt-btn vt-btn--primary"
-          :disabled="saving || archiving || form.name.trim().length < 2"
-        >
-          {{ saving ? 'Сохраняем…' : 'Сохранить настройки' }}
-        </button>
-      </form>
-      <section class="vt-card vt-desktop-form-page__card space-y-3 border border-vt-rose">
-        <h2 class="text-vt-rose-ink">Архивировать группу</h2>
-        <p class="text-vt-mute-2">Группа перестанет быть активной. Данные и история сохранятся.</p>
-        <button
-          type="button"
-          class="vt-btn vt-btn--danger"
-          :disabled="saving || archiving"
-          @click="archive"
-        >
-          {{ archiving ? 'Архивируем…' : 'Архивировать группу' }}
-        </button>
-      </section>
-    </template>
+    <VtToast />
   </section>
 </template>

@@ -636,6 +636,7 @@
 }
 
 .vt-desktop-form-page h1,
+.vt-settings h1,
 .vt-desktop-event-detail h1 {
   font-family: var(--f-display);
   font-size: clamp(2rem, 3vw, 2.75rem);
@@ -832,6 +833,218 @@
   .vt-desktop-cashbox__stats,
   .vt-desktop-cashbox__fields,
   .vt-desktop-cashbox__journal li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Настройки группы (W-11, 20.5.7) */
+.vt-settings {
+  display: grid;
+  gap: 1.25rem;
+  max-width: 68rem;
+}
+.vt-settings h1 {
+  margin-top: 0.375rem;
+}
+.vt-settings__layout {
+  display: grid;
+  grid-template-columns: 12.5rem minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+.vt-settings__menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.vt-settings__menu-link {
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  color: var(--vt-ink-3);
+  font-weight: 500;
+}
+.vt-settings__menu-link:hover {
+  background: var(--vt-bone);
+}
+.vt-settings__menu-link[aria-current='page'] {
+  background: var(--vt-bone-2);
+  color: var(--vt-ink);
+  font-weight: 600;
+}
+.vt-settings__menu-link--danger {
+  color: var(--vt-rose-ink);
+}
+.vt-settings__content,
+.vt-settings-stack {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.vt-settings-card {
+  display: grid;
+  gap: 1rem;
+  padding: clamp(1rem, 2vw, 1.5rem);
+}
+.vt-settings-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.vt-settings-card__title {
+  font-size: var(--fs-md);
+  font-weight: 700;
+}
+.vt-settings-card__title--danger {
+  color: var(--vt-rose-ink);
+}
+.vt-settings-card--danger {
+  border: 1px solid color-mix(in oklab, var(--vt-rose) 30%, transparent);
+}
+.vt-settings-card--danger .vt-btn--danger {
+  border: 1px solid var(--vt-rose);
+}
+.vt-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+.vt-settings-grid__wide {
+  grid-column: 1 / -1;
+}
+.vt-settings-field {
+  display: grid;
+  gap: 0.375rem;
+  align-content: start;
+}
+.vt-settings-field .vt-label {
+  margin-bottom: 0;
+}
+.vt-settings-field > .vt-seg {
+  justify-self: start;
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+.vt-settings-textarea {
+  min-height: 5.5rem;
+  resize: vertical;
+}
+.vt-settings-hint {
+  margin: 0;
+  color: var(--vt-mute-2);
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+}
+.vt-settings-error {
+  margin: 0;
+  color: var(--vt-rose-ink);
+  font-size: var(--fs-xs);
+}
+.vt-settings-error:empty {
+  display: none;
+}
+.vt-settings-error--form {
+  font-size: var(--fs-sm);
+}
+.vt-settings-note {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--r-chip);
+  background: var(--vt-amber-soft);
+  color: var(--vt-ink-3);
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+}
+.vt-settings-row {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 14px;
+  border-radius: var(--r-chip);
+  background: var(--vt-bone-2);
+}
+.vt-settings-row__text {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+.vt-settings-row__title {
+  font-size: var(--fs-base);
+  font-weight: 600;
+}
+.vt-settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+.vt-settings-actions--start {
+  justify-content: flex-start;
+}
+.vt-settings-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+.vt-settings-stepper .vt-settings-stepper__input {
+  flex: none;
+  width: 4.5rem;
+  text-align: center;
+  font-weight: 700;
+  appearance: textfield;
+}
+.vt-settings-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.vt-settings-list__item {
+  display: grid;
+  gap: 2px;
+  padding: 12px 0;
+}
+.vt-settings-list__item + .vt-settings-list__item {
+  border-top: 1px solid var(--vt-stroke);
+}
+.vt-settings-venue-form {
+  display: grid;
+  gap: 0.875rem;
+}
+.vt-settings-load-error {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+}
+.vt-settings-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem 1rem;
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+.vt-settings-facts dt {
+  color: var(--vt-mute-2);
+}
+.vt-settings-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.vt-settings-link {
+  color: var(--vt-flame-ink);
+  font-weight: 600;
+}
+@media (max-width: 55rem) {
+  .vt-settings__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .vt-settings__menu {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 45rem) {
+  .vt-settings-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 }

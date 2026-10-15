@@ -238,6 +238,76 @@
       "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
     },
     {
+      "id": "cabinet-settings-bookings",
+      "title": "Кабинет: настройки · записи и оплата",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/settings?section=bookings",
+      "references": ["4-cabinet/19-screen.png", "4-cabinet/18-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
+      "id": "cabinet-settings-bookings-readonly",
+      "title": "Кабинет: настройки · записи и оплата (организатор, только чтение)",
+      "viewport": "cabinet",
+      "role": "organizer",
+      "org": "vt",
+      "path": "/app/orgs/{org}/settings?section=bookings",
+      "references": ["4-cabinet/19-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
+      "id": "cabinet-settings-venues",
+      "title": "Кабинет: настройки · залы",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/settings?section=venues",
+      "references": ["4-cabinet/20-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
+      "id": "cabinet-settings-team",
+      "title": "Кабинет: настройки · команда",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/settings?section=team",
+      "references": ["4-cabinet/17-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
+      "id": "cabinet-settings-notifications",
+      "title": "Кабинет: настройки · уведомления",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/settings?section=notifications",
+      "references": ["4-cabinet/22-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
+      "id": "cabinet-settings-integrations",
+      "title": "Кабинет: настройки · интеграции",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/settings?section=integrations",
+      "references": ["4-cabinet/23-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
+      "id": "cabinet-settings-danger",
+      "title": "Кабинет: настройки · опасная зона",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/settings?section=danger",
+      "references": ["4-cabinet/24-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
       "id": "auth-login",
       "title": "Вход (без сессии)",
       "viewport": "cabinet",
