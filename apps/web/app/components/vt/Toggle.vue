@@ -4,7 +4,13 @@
  * Доступное имя обязательно: `label` или `labelledby` (id видимой подписи).
  */
 const model = defineModel<boolean>({ default: false })
-const props = defineProps<{ label?: string; labelledby?: string; disabled?: boolean }>()
+const props = defineProps<{
+  label?: string
+  labelledby?: string
+  disabled?: boolean
+  /** Только чтение: остаётся в фокусе и озвучивается, но не меняется. */
+  readonly?: boolean
+}>()
 if (import.meta.dev && !props.label && !props.labelledby) {
   console.warn('[VtToggle] нужен label или labelledby: у переключателя нет доступного имени')
 }
@@ -19,7 +25,8 @@ if (import.meta.dev && !props.label && !props.labelledby) {
     :aria-label="labelledby ? undefined : label"
     :aria-labelledby="labelledby"
     :disabled="disabled"
-    @click="model = !model"
+    :aria-disabled="readonly || undefined"
+    @click="!readonly && (model = !model)"
   >
     <span class="vt-toggle__thumb" aria-hidden="true" />
   </button>

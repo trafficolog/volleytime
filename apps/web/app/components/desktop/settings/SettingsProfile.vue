@@ -6,6 +6,7 @@ import SettingsRow from './SettingsRow.vue'
 
 import {
   SETTING_IMPACT,
+  TEXT_LIMITS,
   textOrNull,
   validateProfile,
   type GroupSettings,
@@ -93,7 +94,8 @@ async function submit() {
             data-settings-field="name"
             :aria-describedby="describedby"
             :aria-invalid="invalid"
-            :disabled="!canEdit || saving"
+            :readonly="!canEdit"
+            :disabled="saving"
           />
         </SettingsField>
         <SettingsField
@@ -109,7 +111,8 @@ async function submit() {
             data-settings-field="city"
             :aria-describedby="describedby"
             :aria-invalid="invalid"
-            :disabled="!canEdit || saving"
+            :readonly="!canEdit"
+            :disabled="saving"
           />
         </SettingsField>
         <SettingsField
@@ -125,7 +128,8 @@ async function submit() {
             data-settings-field="district"
             :aria-describedby="describedby"
             :aria-invalid="invalid"
-            :disabled="!canEdit || saving"
+            :readonly="!canEdit"
+            :disabled="saving"
           />
         </SettingsField>
         <div class="vt-settings-grid__wide">
@@ -140,11 +144,16 @@ async function submit() {
               v-model="draft.description"
               class="vt-field vt-settings-textarea"
               rows="3"
+              :maxlength="TEXT_LIMITS.description"
               data-settings-field="description"
               :aria-describedby="describedby"
               :aria-invalid="invalid"
-              :disabled="!canEdit || saving"
+              :readonly="!canEdit"
+              :disabled="saving"
             />
+            <p class="vt-settings-hint vt-settings-counter" aria-hidden="true">
+              {{ draft.description.length }} / {{ TEXT_LIMITS.description }}
+            </p>
           </SettingsField>
         </div>
       </div>
@@ -171,7 +180,8 @@ async function submit() {
         label="Показывать страницу группы в поиске"
         :hint="SETTING_IMPACT.seoIndex"
         :model-value="settings.seoIndex"
-        :disabled="!canEdit || controller.isPending('seoIndex')"
+        :disabled="controller.isPending('seoIndex')"
+        :readonly="!canEdit"
         @update:model-value="controller.toggle('seoIndex', $event)"
       />
     </section>

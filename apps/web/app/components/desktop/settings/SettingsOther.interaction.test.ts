@@ -58,7 +58,7 @@ describe('SettingsTeam', () => {
   it('is read-only for a non-owner and links to players and invites', () => {
     const { wrapper } = mountTeam(false)
     for (const radio of wrapper.findAll('[role="radio"]')) {
-      expect(radio.attributes('disabled')).toBeDefined()
+      expect(radio.attributes('aria-disabled')).toBe('true')
     }
     expect(wrapper.findAll('a').map((a) => a.attributes('href'))).toEqual([
       '/app/orgs/7/members',

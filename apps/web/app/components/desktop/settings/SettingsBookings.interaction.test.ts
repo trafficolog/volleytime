@@ -208,11 +208,27 @@ describe('SettingsBookings', () => {
     expect(save(wrapper).attributes('disabled')).toBeDefined()
   })
 
-  it('is read-only for a non-owner', () => {
-    const { wrapper } = mountBookings(false)
-    for (const control of wrapper.findAll('input, button, [role="switch"]')) {
-      expect(control.attributes('disabled')).toBeDefined()
+  it('is read-only for a non-owner: values stay readable and focusable but cannot change', async () => {
+    const { wrapper, request } = mountBookings(false)
+    expect(seats(wrapper).attributes('readonly')).toBeDefined()
+    expect(seats(wrapper).attributes('disabled')).toBeUndefined()
+    for (const control of wrapper.findAll(
+      '[role="switch"], [role="radio"], [role="checkbox"], [role="combobox"]',
+    )) {
+      expect(control.attributes('aria-disabled')).toBe('true')
+      expect(control.attributes('disabled')).toBeUndefined()
     }
+    await wrapper
+      .findAll('[role="radio"]')
+      .find((r) => r.text() === 'Делим общую сумму')!
+      .trigger('click')
+    await wrapper.findAll('[role="checkbox"]')[0]!.trigger('click')
+    await wrapper.findAll('[role="switch"]')[0]!.trigger('click')
+    await wrapper.find('[role="combobox"]').trigger('click')
+    expect(wrapper.findAll('[role="radio"]')[1]!.attributes('aria-checked')).toBe('false')
+    expect(wrapper.findAll('[role="checkbox"]')[0]!.attributes('aria-checked')).toBe('false')
+    expect(wrapper.find('[role="combobox"]').attributes('aria-expanded')).toBe('false')
+    expect(request).not.toHaveBeenCalled()
     expect(wrapper.find('form button[type="submit"]').exists()).toBe(false)
   })
 })

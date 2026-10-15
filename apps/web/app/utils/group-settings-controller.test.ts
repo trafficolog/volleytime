@@ -51,7 +51,8 @@ describe('settings controller', () => {
 
     resolve({ settings: { ...initial, subscriptionsEnabled: false, seoIndex: true } })
     expect(await done).toEqual({ ok: true })
-    expect(settings.value!.seoIndex).toBe(true)
+    expect(settings.value!.seoIndex).toBe(false) // чужое поле из ответа не применяется
+    expect(settings.value!.subscriptionsEnabled).toBe(false)
     expect(controller.isPending('subscriptionsEnabled')).toBe(false)
     expect(toast).toHaveBeenCalledWith('Абонементы выключены', 'ok')
   })
@@ -137,12 +138,84 @@ describe('settings controller', () => {
   })
 
   it('drops the result once the user left the group page', async () => {
-    const request = vi.fn().mockResolvedValue({ settings: { ...initial, seoIndex: true } })
+    // ответ отличается от оптимистичного значения: если бы он применился, seoIndex стал бы false
+    const request = vi.fn().mockResolvedValue({ settings: { ...initial, seoIndex: false } })
     const { controller, settings, toast, leave } = setup(request)
     const done = controller.toggle('seoIndex', true)
     leave()
     await done
     expect(settings.value!.seoIndex).toBe(true)
     expect(toast).not.toHaveBeenCalled()
+  })
+
+  it('keeps both values when overlapping toggles resolve in reverse order', async () => {
+    const resolvers: Record<string, (v: unknown) => void> = {}
+    const request = vi.fn(
+      (_url: string, init: { body: Record<string, unknown> }) =>
+        new Promise((resolve) => {
+          resolvers[Object.keys(init.body)[0]!] = resolve
+        }),
+    )
+    const { controller, settings } = setup(request)
+    const a = controller.toggle('seoIndex', true)
+    const b = controller.toggle('subscriptionsEnabled', false)
+    // ответ на вторую правку приходит первым и содержит seoIndex в прежнем состоянии
+    resolvers.subscriptionsEnabled!({
+      settings: { ...initial, subscriptionsEnabled: false, seoIndex: false },
+    })
+    await b
+    resolvers.seoIndex!({ settings: { ...initial, subscriptionsEnabled: true, seoIndex: true } })
+    await a
+    expect(settings.value!.seoIndex).toBe(true)
+    expect(settings.value!.subscriptionsEnabled).toBe(false)
+  })
+
+  it('does not let a stale settings response undo an unrelated draft baseline', async () => {
+    const resolvers: Record<string, (v: unknown) => void> = {}
+    const request = vi.fn(
+      (url: string, init: { body: Record<string, unknown> }) =>
+        new Promise((resolve) => {
+          resolvers[url.endsWith('/settings') ? 'settings' : 'org'] = resolve
+          void init
+        }),
+    )
+    const { controller, settings, profile } = setup(request)
+    const save = controller.saveProfile({ name: 'Новая' }, {})
+    const toggle = controller.toggle('seoIndex', true)
+    resolvers.settings!({ settings: { ...initial, seoIndex: true, maxSeatsPerBooking: 3 } })
+    await toggle
+    resolvers.org!({
+      organization: { name: 'Новая', description: null, defaultMemberStatus: 'active' },
+    })
+    await save
+    expect(settings.value!.seoIndex).toBe(true)
+    expect(profile.value!.name).toBe('Новая')
+  })
+
+  it('applies only the patched keys of an org response', async () => {
+    const request = vi.fn().mockResolvedValue({
+      organization: { name: 'Чужое имя', description: 'x', defaultMemberStatus: 'pending' },
+    })
+    const { controller, profile } = setup(request)
+    await controller.saveProfile({ description: 'x' }, {})
+    expect(profile.value).toEqual({
+      name: 'Группа',
+      description: 'x',
+      defaultMemberStatus: 'active',
+    })
+  })
+
+  it('reports what was saved when the second half of a profile save fails', async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce({
+        organization: { name: 'Новая', description: null, defaultMemberStatus: 'active' },
+      })
+      .mockRejectedValueOnce(new Error('Нет прав'))
+    const { controller } = setup(request)
+    const result = await controller.saveProfile({ name: 'Новая' }, { city: 'Брест' })
+    expect(result.ok).toBe(false)
+    expect((result as { message?: string }).message).toContain('Название и описание сохранены')
+    expect((result as { message?: string }).message).toContain('Нет прав')
   })
 })

@@ -12,6 +12,7 @@ const props = defineProps<{
 }>()
 
 function choose(value: string) {
+  if (!props.canEdit) return
   if (value === props.org.defaultMemberStatus) return
   void props.controller.setMemberStatus(value as OrgProfile['defaultMemberStatus'])
 }
@@ -24,17 +25,18 @@ function choose(value: string) {
       <div class="vt-settings-field">
         <VtSegment
           :model-value="org.defaultMemberStatus"
+          :readonly="!canEdit"
           label="Новые участники"
           :options="[
             {
               value: 'active',
               label: 'Сразу в составе',
-              disabled: !canEdit || controller.isPending('defaultMemberStatus'),
+              disabled: controller.isPending('defaultMemberStatus'),
             },
             {
               value: 'pending',
               label: 'После одобрения',
-              disabled: !canEdit || controller.isPending('defaultMemberStatus'),
+              disabled: controller.isPending('defaultMemberStatus'),
             },
           ]"
           @update:model-value="choose"

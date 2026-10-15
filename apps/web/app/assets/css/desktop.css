@@ -925,6 +925,9 @@
   max-width: 100%;
   flex-wrap: wrap;
 }
+.vt-settings-counter {
+  text-align: end;
+}
 .vt-settings-textarea {
   min-height: 5.5rem;
   resize: vertical;

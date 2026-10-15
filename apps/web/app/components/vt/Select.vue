@@ -17,6 +17,8 @@ const props = defineProps<{
   labelledby?: string
   placeholder?: string
   disabled?: boolean
+  /** Только чтение: кнопка в фокусе и озвучивается, список не открывается. */
+  readonly?: boolean
 }>()
 
 if (import.meta.dev && !props.label && !props.labelledby) {
@@ -47,7 +49,7 @@ function enabledFrom(start: number, step: 1 | -1): number {
 }
 
 function openList() {
-  if (props.disabled) return
+  if (props.disabled || props.readonly) return
   open.value = true
   const idx = props.options.findIndex((o) => o.value === model.value && !o.disabled)
   active.value = idx >= 0 ? idx : enabledFrom(0, 1)
@@ -89,7 +91,7 @@ function isPrintable(event: KeyboardEvent): boolean {
 }
 
 function onKeydown(event: KeyboardEvent) {
-  if (props.disabled) return
+  if (props.disabled || props.readonly) return
   viaKeyboard = true
   const { key } = event
   if (!open.value) {
@@ -186,6 +188,7 @@ watch(active, async () => {
       :aria-label="labelledby ? undefined : label"
       :aria-labelledby="labelledby"
       :disabled="disabled"
+      :aria-disabled="readonly || undefined"
       @click="onButtonClick"
       @keydown="onKeydown"
     >

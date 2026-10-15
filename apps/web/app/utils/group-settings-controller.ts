@@ -61,7 +61,11 @@ export function createSettingsController(options: Options) {
         method: 'PATCH',
         body: patch,
       })
-      if (isCurrent()) settings.value = response.settings
+      // только отправленные поля: поздний ответ не должен откатывать соседние, более новые правки
+      if (isCurrent() && settings.value) {
+        const confirmed = Object.fromEntries(keys.map((k) => [k, response.settings[k]]))
+        settings.value = { ...settings.value, ...confirmed }
+      }
       return { ok: true }
     } catch (cause) {
       if (isCurrent() && settings.value) settings.value = { ...settings.value, ...previous }
@@ -81,12 +85,9 @@ export function createSettingsController(options: Options) {
         method: 'PATCH',
         body: patch,
       })
-      if (isCurrent()) {
-        org.value = {
-          name: response.organization.name,
-          description: response.organization.description,
-          defaultMemberStatus: response.organization.defaultMemberStatus,
-        }
+      if (isCurrent() && org.value) {
+        const confirmed = Object.fromEntries(keys.map((k) => [k, response.organization[k]]))
+        org.value = { ...org.value, ...confirmed }
       }
       return { ok: true }
     } catch (cause) {
@@ -131,6 +132,12 @@ export function createSettingsController(options: Options) {
     const orgResult = await patchOrg(orgPatch)
     if (!orgResult.ok) return orgResult
     const settingsResult = await patchSettings(settingsPatch)
+    if (!settingsResult.ok && Object.keys(orgPatch).length > 0) {
+      return {
+        ok: false,
+        message: `Название и описание сохранены, город и район нет: ${settingsResult.message ?? 'ошибка'}`,
+      }
+    }
     if (isCurrent() && settingsResult.ok) toast('Профиль группы сохранён', 'ok')
     return settingsResult
   }

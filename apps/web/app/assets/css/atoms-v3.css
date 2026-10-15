@@ -125,7 +125,10 @@
 .vt-toggle[aria-checked='true'] .vt-toggle__thumb {
   left: 18px;
 }
-.vt-toggle:disabled {
+.vt-toggle:disabled,
+.vt-toggle[aria-disabled='true'],
+.vt-seg__item[aria-disabled='true'],
+.vt-select__button[aria-disabled='true'] {
   opacity: 0.4;
   cursor: not-allowed;
 }

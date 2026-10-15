@@ -4,7 +4,7 @@ import { useId } from 'vue'
 import VtToggle from '~/components/vt/Toggle.vue'
 
 /** Строка-переключатель: название, подсказка влияния и VtToggle (сохраняется сразу). */
-defineProps<{ label: string; hint: string; disabled?: boolean }>()
+defineProps<{ label: string; hint: string; disabled?: boolean; readonly?: boolean }>()
 const model = defineModel<boolean>({ required: true })
 const id = useId()
 </script>
@@ -20,6 +20,7 @@ const id = useId()
       :labelledby="`${id}-label`"
       :aria-describedby="`${id}-hint`"
       :disabled="disabled"
+      :readonly="readonly"
     />
   </div>
 </template>

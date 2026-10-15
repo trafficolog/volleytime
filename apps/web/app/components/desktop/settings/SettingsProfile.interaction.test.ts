@@ -121,12 +121,24 @@ describe('SettingsProfile', () => {
     expect(toast).toHaveBeenCalledWith('Нет прав', 'danger')
   })
 
-  it('is read-only for a non-owner: disabled controls and no save buttons', () => {
-    const { wrapper } = mountProfile(false)
+  it('is read-only for a non-owner: focusable readonly fields, inert switch, no save buttons', async () => {
+    const { wrapper, request } = mountProfile(false)
     for (const input of wrapper.findAll('input, textarea')) {
-      expect(input.attributes('disabled')).toBeDefined()
+      expect(input.attributes('readonly')).toBeDefined()
+      expect(input.attributes('disabled')).toBeUndefined()
     }
-    expect(wrapper.find('[role="switch"]').attributes('disabled')).toBeDefined()
+    const toggle = wrapper.find('[role="switch"]')
+    expect(toggle.attributes('aria-disabled')).toBe('true')
+    expect(toggle.attributes('disabled')).toBeUndefined()
+    await toggle.trigger('click')
+    expect(toggle.attributes('aria-checked')).toBe('false')
+    expect(request).not.toHaveBeenCalled()
     expect(wrapper.find('button[type="submit"]').exists()).toBe(false)
+  })
+
+  it('limits the description and shows a counter', () => {
+    const { wrapper } = mountProfile()
+    expect(wrapper.find('textarea').attributes('maxlength')).toBe('500')
+    expect(wrapper.text()).toContain(`${baseOrg.description!.length} / 500`)
   })
 })

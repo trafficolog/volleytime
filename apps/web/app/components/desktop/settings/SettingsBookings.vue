@@ -132,7 +132,8 @@ async function submit() {
         label="Включить абонементы в группе"
         :hint="SETTING_IMPACT.subscriptionsEnabled"
         :model-value="settings.subscriptionsEnabled"
-        :disabled="!canEdit || controller.isPending('subscriptionsEnabled')"
+        :disabled="controller.isPending('subscriptionsEnabled')"
+        :readonly="!canEdit"
         @update:model-value="controller.toggle('subscriptionsEnabled', $event)"
       />
     </section>
@@ -147,7 +148,8 @@ async function submit() {
         label="Разрешить игрокам отменять запись"
         :hint="SETTING_IMPACT.cancellationAllowed"
         :model-value="settings.cancellationAllowed"
-        :disabled="!canEdit || controller.isPending('cancellationAllowed')"
+        :disabled="controller.isPending('cancellationAllowed')"
+        :readonly="!canEdit"
         @update:model-value="controller.toggle('cancellationAllowed', $event)"
       />
     </section>
@@ -163,7 +165,8 @@ async function submit() {
           v-model="deadlineValue"
           :labelledby="`${uid}-deadline`"
           :options="options"
-          :disabled="locked || !settings.cancellationAllowed"
+          :disabled="saving || !settings.cancellationAllowed"
+          :readonly="!canEdit"
         />
         <p class="vt-settings-hint">
           {{ cancellationHint(settings.cancellationAllowed, draft.cancellationDeadlineHours) }}
@@ -195,7 +198,8 @@ async function submit() {
             :max="MAX_SEATS_LIMITS.max"
             :aria-describedby="`${uid}-seats-hint ${uid}-seats-err`"
             :aria-invalid="!seatsValid"
-            :disabled="locked"
+            :readonly="!canEdit"
+            :disabled="saving"
           />
           <button
             type="button"
@@ -219,10 +223,11 @@ async function submit() {
         <span class="vt-label" aria-hidden="true">Оплата по умолчанию</span>
         <VtSegment
           v-model="draft.defaultPriceMode"
+          :readonly="!canEdit"
           label="Оплата по умолчанию"
           :options="[
-            { value: 'fixed', label: 'Фиксированная цена', disabled: locked },
-            { value: 'split', label: 'Делим общую сумму', disabled: locked },
+            { value: 'fixed', label: 'Фиксированная цена', disabled: saving },
+            { value: 'split', label: 'Делим общую сумму', disabled: saving },
           ]"
         />
         <p class="vt-settings-hint">
@@ -243,10 +248,11 @@ async function submit() {
         <span class="vt-label" aria-hidden="true">Режим записи по умолчанию</span>
         <VtSegment
           v-model="draft.defaultJoinMode"
+          :readonly="!canEdit"
           label="Режим записи по умолчанию"
           :options="[
-            { value: 'open', label: 'Свободная запись', disabled: locked },
-            { value: 'invite', label: 'По приглашению', disabled: locked },
+            { value: 'open', label: 'Свободная запись', disabled: saving },
+            { value: 'invite', label: 'По приглашению', disabled: saving },
           ]"
         />
         <p class="vt-settings-hint">{{ SETTING_IMPACT.defaultJoinMode }}</p>
@@ -268,7 +274,8 @@ async function submit() {
             role="checkbox"
             :aria-checked="draft.levels.includes(level.code)"
             :title="level.description"
-            :disabled="locked"
+            :disabled="saving"
+            :aria-disabled="!canEdit || undefined"
             @click="toggleLevel(level.code)"
           >
             {{ level.title }}

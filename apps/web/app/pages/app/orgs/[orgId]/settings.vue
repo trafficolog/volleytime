@@ -157,7 +157,7 @@ async function archive() {
         </NuxtLink>
       </nav>
       <div class="vt-settings__content">
-        <p v-if="!isOwner" class="vt-settings-note" role="note">
+        <p v-if="!isOwner && section !== 'venues'" class="vt-settings-note" role="note">
           Изменять настройки может только владелец группы. Вы видите текущие значения.
         </p>
         <SettingsProfile
