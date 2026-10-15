@@ -10,8 +10,8 @@ status_note: ''
 ref_id: 'W-11'
 complexity: M
 impl_model: claude-sonnet-5-5
-review_model: claude-sonnet-5-5
-review_gate: standard
+review_model: claude-opus-5-5
+review_gate: opus
 roles: [BE, FE]
 depends_on: ['20.2.2', '20.5.5', '20.5.7']
 supersedes: []
@@ -35,7 +35,7 @@ tags: [reference-v3]
 - Спецификация референса: [W-11 · Настройки](../design/reference-v3/specs/03-organizer-web/W-11-settings.md); макет: 4 Кабинет организатора → Настройки → Расписание по умолчанию, `4-cabinet/18-screen.png`; исходник — `WebSettings` в `handoff/screens-web.jsx`.
 - **Как есть (main `35a43fd`):** Шаблонов расписания нет: каждое событие и серия создаются вручную (серии — [20.2.2](20-2-2-event-series.md), форма — [20.5.5](20-5-5-event-create.md)).
 - **Дельта до референса:** Список слотов с добавлением, изменением и удалением; слот подставляется в форму создания события и серии. Решение карточки: шаблоны только заполняют форму создания, события автоматически не появляются — автосоздание впрок списывает баланс событий (D-04) и вынесено в backlog.
-- Модель: реализация `claude-sonnet-5-5`, ревью `claude-sonnet-5-5` (независимое ревью); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
+- Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` (ревью Opus: tenant safety настроек группы); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
 
 ## Что должно быть сделано
 
@@ -51,7 +51,7 @@ tags: [reference-v3]
 - ✅ Tenant safety: слоты видны и меняются только в своей группе; тест на чужую группу
 - ✅ Тесты: CRUD слотов, граничные значения времени и мест, компонентные на список и подстановку
 - ✅ Отчёт визуальной сверки по экранам из `reference.screens` без открытых расхождений Critical/Important
-- ✅ Пять gates CODING_STANDARDS на tested revision; ревью `claude-sonnet-5-5` без Critical/Important
+- ✅ Пять gates CODING_STANDARDS на tested revision; ревью `claude-opus-5-5` без Critical/Important
 
 ## Подсказки
 

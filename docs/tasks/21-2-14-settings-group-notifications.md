@@ -10,8 +10,8 @@ status_note: ''
 ref_id: 'W-11'
 complexity: M
 impl_model: claude-sonnet-5-5
-review_model: claude-sonnet-5-5
-review_gate: standard
+review_model: claude-opus-5-5
+review_gate: opus
 roles: [BE, FE]
 depends_on: ['20.3.2', '20.3.3', '20.5.7']
 supersedes: []
@@ -35,7 +35,7 @@ tags: [reference-v3]
 - Спецификация референса: [W-11 · Настройки](../design/reference-v3/specs/03-organizer-web/W-11-settings.md); макет: 4 Кабинет организатора → Настройки → Уведомления, `4-cabinet/22-screen.png`; исходник — `WebSettings` в `handoff/screens-web.jsx`.
 - **Как есть (main `35a43fd`):** Уведомления и бот — [20.3.2](20-3-2-bot-notifications.md), [20.3.3](20-3-3-telegram-bot.md); настроек уведомлений на уровне группы нет, переключатели в кабинете ни с чем не связаны.
 - **Дельта до референса:** Шесть переключателей: напоминание за 24 часа, за 2 часа, «Освободилось место», подтверждение оплаты, итог тренировки, еженедельный отчёт. Решение карточки: уведомления, без которых ломается процесс (предложение места из листа ожидания D-03, подтверждение оплаты), показываются включёнными без возможности выключить и с подсказкой; остальные переключаются.
-- Модель: реализация `claude-sonnet-5-5`, ревью `claude-sonnet-5-5` (независимое ревью); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
+- Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` (ревью Opus: tenant safety настроек группы); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
 
 ## Что должно быть сделано
 
@@ -51,7 +51,7 @@ tags: [reference-v3]
 - ✅ Tenant safety: настройка меняется только в своей группе; тест на чужую группу
 - ✅ Тесты: отправитель с включённым и выключенным типом, значения по умолчанию, компонентные на переключатели
 - ✅ Отчёт визуальной сверки по экранам из `reference.screens` без открытых расхождений Critical/Important
-- ✅ Пять gates CODING_STANDARDS на tested revision; ревью `claude-sonnet-5-5` без Critical/Important
+- ✅ Пять gates CODING_STANDARDS на tested revision; ревью `claude-opus-5-5` без Critical/Important
 
 ## Подсказки
 

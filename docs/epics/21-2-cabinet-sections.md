@@ -53,9 +53,9 @@ depends_on:
 | [21.2.9](../tasks/21-2-9-notifications.md)                    | Уведомления кабинета                         | W-15     | S      | `claude-haiku-5-5`  | `claude-sonnet-5-5` |
 | [21.2.10](../tasks/21-2-10-events-search-export.md)           | Поиск, фильтры, экспорт и пагинация событий  | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
 | [21.2.11](../tasks/21-2-11-settings-payment-methods.md)       | Способы оплаты группы: реквизиты             | W-11     | L      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
-| [21.2.12](../tasks/21-2-12-settings-schedule-templates.md)    | Расписание по умолчанию: шаблоны слотов      | W-11     | M      | `claude-sonnet-5-5` | `claude-sonnet-5-5` |
+| [21.2.12](../tasks/21-2-12-settings-schedule-templates.md)    | Расписание по умолчанию: шаблоны слотов      | W-11     | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
 | [21.2.13](../tasks/21-2-13-settings-venues-edit-archive.md)   | Залы и площадки: правка и архивирование      | W-11     | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
-| [21.2.14](../tasks/21-2-14-settings-group-notifications.md)   | Переключатели уведомлений группы             | W-11     | M      | `claude-sonnet-5-5` | `claude-sonnet-5-5` |
+| [21.2.14](../tasks/21-2-14-settings-group-notifications.md)   | Переключатели уведомлений группы             | W-11     | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
 | [21.2.15](../tasks/21-2-15-settings-bot-status.md)            | Статус бота, тест-сообщение, переподключение | W-11     | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
 | [21.2.16](../tasks/21-2-16-settings-logo-short-link.md)       | Логотип и короткая ссылка группы             | W-11     | L      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
 | [21.2.17](../tasks/21-2-17-settings-transfer-delete-group.md) | Передача владения и удаление группы          | W-11     | XL     | `claude-opus-5-5`   | `claude-opus-5-5`   |
