@@ -34,14 +34,22 @@ export const CLOSE_RETRY_LIMIT = 5
 /** Счётчик временных сбоев закрытия события в журнале; возвращает число сбоев с этим. */
 async function countCloseRetry(eventId: number, now: Date, e: unknown): Promise<number> {
   const message = (e instanceof Error ? e.message : String(e)).slice(0, 500)
-  const [row] = await defaultDb.execute(sql`
+  // счётчик не записан (нет соединения) — считается обычным повтором, проход продолжается
+  const [row] = await defaultDb
+    .execute(
+      sql`
     INSERT INTO ${scheduledJobs} (kind, dedup_key, event_id, status, attempts, run_at, completed_at, last_error)
     VALUES ('event.close_retry', ${`event.close_retry:event:${eventId}`}, ${eventId}, 'skipped', 1,
       ${now.toISOString()}::timestamptz, ${now.toISOString()}::timestamptz, ${message})
     ON CONFLICT (dedup_key) DO UPDATE
       SET attempts = ${scheduledJobs}.attempts + 1, last_error = EXCLUDED.last_error,
         completed_at = EXCLUDED.completed_at
-    RETURNING attempts`)
+    RETURNING attempts`,
+    )
+    .catch((countError: unknown) => {
+      console.warn('[scheduler] auto-close retry not counted', { eventId, error: countError })
+      return [{ attempts: 0 }]
+    })
   return Number(row!.attempts)
 }
 
@@ -155,7 +163,8 @@ export async function closeDueEvents(now: Date, limit = 100): Promise<CloseSumma
         console.warn('[scheduler] auto-close deferred to the next tick', { eventId: id, error: e })
         continue
       }
-      // метка — отдельной строкой после отката транзакции события; повтор не вставит вторую
+      // метка — отдельной строкой после отката транзакции события; повтор не вставит вторую.
+      // Сбой записи метки (нет соединения) не прерывает проход: событие пробуется следующим проходом
       const marked = await defaultDb
         .insert(scheduledJobs)
         .values({
@@ -169,6 +178,10 @@ export async function closeDueEvents(now: Date, limit = 100): Promise<CloseSumma
         })
         .onConflictDoNothing({ target: scheduledJobs.dedupKey })
         .returning({ id: scheduledJobs.id })
+        .catch((markError: unknown) => {
+          console.warn('[scheduler] auto-close mark not written', { eventId: id, error: markError })
+          return []
+        })
       if (marked.length > 0)
         console.error('[scheduler] auto-close failed; organizer must close the event', {
           eventId: id,
