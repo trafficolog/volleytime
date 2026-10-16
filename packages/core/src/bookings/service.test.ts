@@ -1,10 +1,12 @@
-import { closeDb, db, eq, events, organizations, users } from '@volley-time/db'
-import { afterAll, beforeEach, describe, expect, it } from 'vitest'
+import { bookings, closeDb, db, eq, events, organizations, users } from '@volley-time/db'
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { EventNotFoundError } from '../events/errors'
+import { eventPricingService } from '../events/pricing-service'
 import { eventService } from '../events/service'
 import { memberService } from '../members/service'
 import { organizationService } from '../organizations/service'
+import { paymentService } from '../payments/service'
 import { planService } from '../subscription-plans/service'
 import { subscriptionService } from '../subscriptions/service'
 
@@ -306,6 +308,96 @@ describe('bookingService.book (integration)', () => {
     expect(await bookingService.countMyUpcoming({ userId: ownerId }, orgId)).toEqual({
       total: 0,
       awaitingPayment: 0,
+    })
+  })
+
+  describe('countMyUpcoming awaiting payment edge cases (20.4.4)', () => {
+    beforeEach(() => {
+      vi.stubEnv('EVENT_SPLIT_PRICING_ENABLED', 'true')
+      vi.stubEnv('EVENT_MULTI_SEAT_ENABLED', 'true')
+    })
+    afterEach(() => vi.unstubAllEnvs())
+
+    const splitEvent = (hours: number) =>
+      eventService.create({ userId: ownerId }, orgId, {
+        title: 'Сбор',
+        startsAt: future(hours),
+        endsAt: futureEnd(hours + 2),
+        capacity: 4,
+        priceMode: 'split',
+        targetAmount: 10000,
+      })
+
+    it('does not count a split booking before settlement, counts it once the share is pending', async () => {
+      const pid = await newPlayer()
+      const ev = await splitEvent(30)
+      await bookingService.book({ userId: pid }, orgId, ev.id, { method: 'transfer' })
+      expect(await bookingService.countMyUpcoming({ userId: pid }, orgId)).toEqual({
+        total: 1,
+        awaitingPayment: 0,
+      })
+      await eventPricingService.settle({ userId: ownerId }, orgId, ev.id)
+      expect(await bookingService.countMyUpcoming({ userId: pid }, orgId)).toEqual({
+        total: 1,
+        awaitingPayment: 1,
+      })
+    })
+
+    it('counts a confirmed fixed booking that has an unpaid added seat', async () => {
+      await db
+        .update(organizations)
+        .set({ maxSeatsPerBooking: 3 })
+        .where(eq(organizations.id, orgId))
+      const pid = await newPlayer()
+      const ev = await eventService.create({ userId: ownerId }, orgId, {
+        title: 'Места',
+        startsAt: future(40),
+        endsAt: futureEnd(42),
+        capacity: 5,
+        price: 1500,
+      })
+      const b = await bookingService.book({ userId: pid }, orgId, ev.id, {
+        method: 'cash',
+        seats: 2,
+      })
+      await paymentService.confirm({ userId: ownerId }, b.paymentId!, { orgId })
+      expect(await bookingService.countMyUpcoming({ userId: pid }, orgId)).toMatchObject({
+        awaitingPayment: 0,
+      })
+      await bookingService.changeSeats({ userId: pid }, b.id, { seats: 3 })
+      // статус брони не должен влиять: неоплаченное место — само по себе «ждёт оплаты»
+      await db.update(bookings).set({ status: 'confirmed' }).where(eq(bookings.id, b.id))
+      expect(await bookingService.countMyUpcoming({ userId: pid }, orgId)).toEqual({
+        total: 1,
+        awaitingPayment: 1,
+      })
+    })
+
+    it("never counts bookings of another group or another player's", async () => {
+      const pid = await newPlayer()
+      const other = await newPlayer()
+      const otherOrg = (await organizationService.create({ userId: ownerId }, { name: 'Другая' }))
+        .id
+      await memberService.add({ userId: ownerId }, { organizationId: otherOrg, userId: pid })
+      const mine = await makeEvent({ price: 0 })
+      const foreign = await eventService.create({ userId: ownerId }, otherOrg, {
+        title: 'Чужая группа',
+        startsAt: future(),
+        endsAt: futureEnd(),
+        capacity: 2,
+        price: 0,
+      })
+      await bookingService.book({ userId: pid }, orgId, mine.id, { method: 'free' })
+      await bookingService.book({ userId: pid }, otherOrg, foreign.id, { method: 'free' })
+      await bookingService.book({ userId: other }, orgId, mine.id, { method: 'free' })
+      expect(await bookingService.countMyUpcoming({ userId: pid }, orgId)).toEqual({
+        total: 1,
+        awaitingPayment: 0,
+      })
+      expect(await bookingService.countMyUpcoming({ userId: other }, orgId)).toEqual({
+        total: 1,
+        awaitingPayment: 0,
+      })
     })
   })
 

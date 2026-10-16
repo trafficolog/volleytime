@@ -5,6 +5,7 @@ import { formatDay, formatShortDate, formatTime, type EventPricingView } from '@
 import type { EventListItem } from '~/components/EventCard.vue'
 import GroupSwitcher from '~/components/GroupSwitcher.vue'
 import PlayerHomeBento from '~/components/PlayerHomeBento.vue'
+import PlayerHomeTiles from '~/components/PlayerHomeTiles.vue'
 import { groupEntryState, visibleGroup } from '~/utils/group-entry-state'
 import { groupMonogram } from '~/utils/group-monogram'
 import { formatMoneyRu } from '~/utils/labels'
@@ -14,7 +15,6 @@ import {
   type OrganizerBalance,
 } from '~/utils/organizer-miniapp'
 import {
-  awaitingPaymentLabel,
   playerGreeting,
   playerHomeAccess,
   projectPlayerHome,
@@ -27,6 +27,7 @@ definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 interface Dashboard {
   isManager: boolean
   /** Точные счётчики своих предстоящих записей (20.4.4). */
+  hero: EventListItem | null
   bookingsCount: number
   bookingsAwaitingPayment: number
   myBookings: {
@@ -95,13 +96,14 @@ const dash = computed(() =>
     ? dashboard.value
     : null,
 )
-const playerHome = computed(() => projectPlayerHome(dash.value?.upcoming ?? [], new Date()))
+const playerHome = computed(() =>
+  projectPlayerHome(dash.value?.upcoming ?? [], new Date(), dash.value?.hero ?? null),
+)
 const { user } = useAuth()
 const greeting = computed(() => playerGreeting(user.value?.name))
 const sessions = computed(() =>
   sessionsTile(org.value?.subscriptionsEnabled === true, dash.value?.subscription ?? null),
 )
-const awaitingLabel = computed(() => awaitingPaymentLabel(dash.value?.bookingsAwaitingPayment ?? 0))
 const home = computed(() => projectOrganizerHome(orgId.value, org.value, me.value, dash.value))
 const roleMismatch = computed(() => !!dash.value && dash.value.isManager !== activeManager.value)
 
@@ -375,40 +377,23 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
             <template v-else>
               <EmptyState
                 icon="calendar"
-                title="Тренировок пока нет"
-                description="Организатор ещё не опубликовал расписание. Как только появится событие, пришлём уведомление в бот."
+                :title="
+                  dash.bookingsCount > 0 ? 'Нет игры, на которую вы идёте' : 'Тренировок пока нет'
+                "
+                :description="
+                  dash.bookingsCount > 0
+                    ? 'Ваши записи — в плитке ниже.'
+                    : 'Организатор ещё не опубликовал расписание. Как только появится событие, пришлём уведомление в бот.'
+                "
               />
               <div class="grid grid-cols-2 gap-3">
-                <NuxtLink
-                  v-if="sessions"
-                  :to="`${base}/subscriptions`"
-                  class="vt-card vt-card--warm flex min-h-24 flex-col justify-between p-4"
-                >
-                  <VtIcon name="ticket" :size="18" class="text-vt-orange-ink" aria-hidden="true" />
-                  <span v-if="sessions.kind === 'balance'" class="text-xs text-vt-ink-3">
-                    <span class="vt-mono text-[34px] font-bold leading-none text-vt-ink">{{
-                      sessions.left
-                    }}</span>
-                    из {{ sessions.total }} сессий осталось
-                  </span>
-                  <span v-else class="font-bold">Нет абонемента</span>
-                </NuxtLink>
-                <NuxtLink
-                  :to="`${base}/bookings`"
-                  class="vt-card flex min-h-24 flex-col justify-between p-4"
-                  :class="sessions ? '' : 'col-span-2'"
-                >
-                  <VtIcon name="calendar" :size="18" class="text-vt-ink-3" aria-hidden="true" />
-                  <span class="text-xs text-vt-ink-3">
-                    <span class="vt-mono text-[34px] font-bold leading-none text-vt-ink">{{
-                      dash.bookingsCount
-                    }}</span>
-                    мои записи
-                    <VtChip v-if="awaitingLabel" tone="amber" class="ml-1">{{
-                      awaitingLabel
-                    }}</VtChip>
-                  </span>
-                </NuxtLink>
+                <PlayerHomeTiles
+                  :base="base"
+                  :sessions="sessions"
+                  :bookings-count="dash.bookingsCount"
+                  :awaiting-payment="dash.bookingsAwaitingPayment"
+                  variant="row"
+                />
               </div>
             </template>
           </section>

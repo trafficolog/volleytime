@@ -32,6 +32,19 @@ function event(id: number, startsAt: string, status = 'published'): EventListIte
 }
 
 describe('player home event projection', () => {
+  it('takes the server-chosen hero even when it is outside the schedule list, and keeps it out of the schedule', () => {
+    const closed = {
+      ...event(9, '2026-10-30T18:00:00Z', 'closed'),
+      myBooking: { id: 5, status: 'confirmed' },
+    }
+    const view = projectPlayerHome([event(1, '2026-09-25T18:00:00Z')], now, closed)
+    expect(view.hero?.id).toBe(9)
+    expect(view.schedule.map((item) => item.id)).toEqual([1])
+    const inList = event(1, '2026-09-25T18:00:00Z')
+    const same = projectPlayerHome([inList, event(2, '2026-09-26T18:00:00Z')], now, inList)
+    expect(same.schedule.map((item) => item.id)).toEqual([2])
+  })
+
   it('prefers the nearest game the player is going to as hero (reference M-03)', () => {
     const going = { ...event(3, '2026-09-27T18:00:00Z'), myBooking: { id: 1, status: 'confirmed' } }
     const waiting = {

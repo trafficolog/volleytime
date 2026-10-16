@@ -570,6 +570,24 @@ describe('player Home bento v3 (20.4.4)', () => {
     off.unmount()
   })
 
+  it('uses the server hero outside the schedule list and keeps the marker in the no-hero state', async () => {
+    const hero = game(9, 29, { id: 3, status: 'confirmed' })
+    const w = await mountPlayer({ upcoming: [game(1, 28)], hero } as never)
+    expect(w.get('a[href="/m/orgs/30/events/9"]').classes()).toContain('vt-card--hero')
+    expect(w.get('a[href="/m/orgs/30/events/1"]').classes()).not.toContain('vt-card--hero')
+    w.unmount()
+    const waiting = await mountPlayer({
+      upcoming: [],
+      bookingsCount: 2,
+      bookingsAwaitingPayment: 1,
+    })
+    expect(waiting.text()).toContain('Нет игры, на которую вы идёте')
+    expect(waiting.get('a[href="/m/orgs/30/bookings"] [data-awaiting-payment]').text()).toBe(
+      '1 ждёт оплаты',
+    )
+    waiting.unmount()
+  })
+
   it('keeps the bookings entry when there is no upcoming game', async () => {
     const w = await mountPlayer({ upcoming: [] })
     expect(w.text()).toContain('Тренировок пока нет')

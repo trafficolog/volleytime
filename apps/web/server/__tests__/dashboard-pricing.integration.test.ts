@@ -80,6 +80,53 @@ describe('dashboard pricing projection', () => {
     expect(other.body).toMatchObject({ bookingsCount: 0, bookingsAwaitingPayment: 0 })
   })
 
+  it('picks the nearest non-waitlisted booked game as hero even outside the first five published', async () => {
+    const mk = (i: number, capacity = 5) =>
+      eventService.create({ userId: ownerId }, orgId, {
+        title: `Hero ${i}`,
+        startsAt: new Date(Date.now() + (100 + i) * 3600_000),
+        endsAt: new Date(Date.now() + (102 + i) * 3600_000),
+        capacity,
+        price: 0,
+      })
+    const full = await mk(0, 1)
+    await bookingService.book({ userId: otherId }, orgId, full.id, { method: 'free' })
+    const waitlisted = await bookingService.book({ userId: playerId }, orgId, full.id, {
+      method: 'free',
+    })
+    expect(waitlisted.status).toBe('waitlisted')
+    const rest = []
+    for (let i = 1; i <= 6; i++) rest.push(await mk(i))
+    const booked = rest[5]!
+    await bookingService.book({ userId: playerId }, orgId, booked.id, { method: 'free' })
+
+    const res = await request('GET', dashboard(), { user: playerId })
+    const body = res.body as { hero: { id: number; myBooking: unknown; taken: number } | null }
+    expect(
+      (body as unknown as { upcoming: { id: number }[] }).upcoming.map((e) => e.id),
+    ).not.toContain(booked.id)
+    expect(body.hero).toMatchObject({ id: booked.id, taken: 1, myBooking: { status: 'confirmed' } })
+    const none = await request('GET', dashboard(), { user: ownerId })
+    expect((none.body as { hero: unknown }).hero).toBeNull()
+  })
+
+  it('keeps a settled split game awaiting payment as hero after registration closed', async () => {
+    await bookingService.book({ userId: playerId }, orgId, eventId, { method: 'transfer' })
+    await bookingService.book({ userId: otherId }, orgId, eventId, { method: 'cash' })
+    await request('POST', `/api/organizations/${orgId}/events/${eventId}/settle`, { user: ownerId })
+    const res = await request('GET', dashboard(), { user: playerId })
+    const body = res.body as {
+      hero: { id: number; status: string; pricing: { basis: string; myPaymentStatus: string } }
+      bookingsAwaitingPayment: number
+    }
+    expect(body.hero).toMatchObject({
+      id: eventId,
+      pricing: { basis: 'settled', myPaymentStatus: 'pending' },
+    })
+    expect(body.hero.status).not.toBe('published')
+    expect(body.bookingsAwaitingPayment).toBe(1)
+  })
+
   it('projects forecast and actual currency to Home; never exposes another player allocation', async () => {
     await bookingService.book({ userId: playerId }, orgId, eventId, { method: 'transfer' })
     const before = await request('GET', dashboard(), { user: playerId })

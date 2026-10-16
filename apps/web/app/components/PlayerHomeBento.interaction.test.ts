@@ -55,9 +55,9 @@ describe('PlayerHomeBento (20.4.4)', () => {
     expect(link.text()).toContain('Школа №24')
     expect(link.text()).toContain('Иду')
     expect(link.text()).toContain('12/14')
-    const meter = link.get('[role="meter"]')
-    expect(meter.attributes('aria-valuenow')).toBe('12')
-    expect(meter.attributes('aria-valuemax')).toBe('14')
+    // шкала декоративна: занятость читается из цифры, дубля role=meter внутри ссылки нет
+    expect(link.get('[data-seats-meter]').attributes('aria-hidden')).toBe('true')
+    expect(link.find('[role="meter"]').exists()).toBe(false)
   })
 
   it('says «мест нет» on a full hero and the event state when registration is closed', () => {

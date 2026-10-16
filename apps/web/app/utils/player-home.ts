@@ -33,16 +33,24 @@ export function playerHomeAccess(
   return member?.status === 'active' ? 'active' : 'denied'
 }
 
-export function projectPlayerHome(upcoming: readonly EventListItem[], now: Date) {
+export function projectPlayerHome(
+  upcoming: readonly EventListItem[],
+  now: Date,
+  /** Hero, выбранный сервером (ближайшая игра, на которую иду; может быть вне списка). */
+  serverHero: EventListItem | null = null,
+) {
   const events = upcoming
     .filter((event) => event.status === 'published' && new Date(event.startsAt) > now)
     .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
 
   // Референс: hero — ближайшая игра, на которую игрок идёт; иначе ближайшая опубликованная.
   const hero =
-    events.find((event) => participationOf(event.myBooking)?.key === 'going') ?? events[0] ?? null
+    serverHero ??
+    events.find((event) => participationOf(event.myBooking)?.key === 'going') ??
+    events[0] ??
+    null
 
-  return { hero, schedule: events.filter((event) => event !== hero) }
+  return { hero, schedule: events.filter((event) => event.id !== hero?.id) }
 }
 
 export function playerGreeting(name: string | null | undefined) {

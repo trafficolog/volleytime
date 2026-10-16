@@ -2,8 +2,9 @@
 import { formatDay, formatTime } from '@volley-time/shared'
 
 import type { EventListItem } from '~/components/EventCard.vue'
+import PlayerHomeTiles from '~/components/PlayerHomeTiles.vue'
 import { eventPricingLabel } from '~/utils/event-pricing-label'
-import { awaitingPaymentLabel, type sessionsTile } from '~/utils/player-home'
+import type { sessionsTile } from '~/utils/player-home'
 import { eventStateOf, meterTintOnDark, seatsOf } from '~/utils/status-model'
 
 /** Бенто главной игрока v3 (20.4.4, M-03): hero ближайшей игры + плитки абонемента и записей. */
@@ -25,7 +26,6 @@ const seats = computed(() =>
 const pricing = computed(() =>
   props.hero.pricing ? eventPricingLabel(props.hero.pricing, props.hero.currency) : null,
 )
-const awaiting = computed(() => awaitingPaymentLabel(props.awaitingPayment))
 const place = computed(() => props.hero.venue?.name ?? props.hero.locationText)
 </script>
 
@@ -59,12 +59,14 @@ const place = computed(() => props.hero.venue?.name ?? props.hero.locationText)
         {{ place }}
       </div>
       <div class="mt-auto pt-4">
+        <!--
+          Не VtMeter: у него нет варианта для синей поверхности (светлые тона шкалы на hero,
+          `meterTintOnDark`) и нет строки «подпись + цифра» под шкалой. Шкала декоративна
+          (aria-hidden): занятость читается из видимой цифры «12/14» в той же ссылке.
+        -->
         <div
-          role="meter"
-          :aria-valuenow="seats.taken"
-          aria-valuemin="0"
-          :aria-valuemax="seats.capacity"
-          :aria-label="`Занято ${seats.taken} из ${seats.capacity}`"
+          data-seats-meter
+          aria-hidden="true"
           class="h-1.5 overflow-hidden rounded-full bg-[var(--vt-on-hero-line)]"
         >
           <i
@@ -82,56 +84,11 @@ const place = computed(() => props.hero.venue?.name ?? props.hero.locationText)
       </div>
     </NuxtLink>
 
-    <NuxtLink
-      v-if="sessions"
-      :to="`${base}/subscriptions`"
-      class="vt-card vt-card--warm flex min-w-0 flex-col justify-between p-4"
-    >
-      <span class="flex items-center justify-between">
-        <VtIcon name="ticket" :size="18" class="text-vt-orange-ink" aria-hidden="true" />
-        <VtIcon
-          name="chevron-r"
-          :size="16"
-          :stroke-width="2.2"
-          class="text-vt-orange-ink"
-          aria-hidden="true"
-        />
-      </span>
-      <span v-if="sessions.kind === 'balance'">
-        <span class="flex items-baseline gap-1.5">
-          <span class="vt-mono text-[34px] font-bold leading-none">{{ sessions.left }}</span>
-          <span class="text-sm text-vt-ink-3">из {{ sessions.total }}</span>
-        </span>
-        <span class="mt-1 block text-xs text-vt-ink-3">сессий осталось</span>
-      </span>
-      <span v-else>
-        <span class="block text-base font-bold leading-tight">Нет абонемента</span>
-        <span class="mt-1 block text-xs text-vt-ink-3">Посмотреть тарифы</span>
-      </span>
-    </NuxtLink>
-
-    <NuxtLink
-      :to="`${base}/bookings`"
-      class="vt-card flex min-w-0 flex-col justify-between p-4"
-      :class="sessions ? '' : 'row-span-2'"
-    >
-      <span class="flex items-center justify-between">
-        <VtIcon name="calendar" :size="18" class="text-vt-ink-3" aria-hidden="true" />
-        <VtIcon
-          name="chevron-r"
-          :size="16"
-          :stroke-width="2.2"
-          class="text-vt-mute-2"
-          aria-hidden="true"
-        />
-      </span>
-      <span>
-        <span class="vt-mono block text-[34px] font-bold leading-none">{{ bookingsCount }}</span>
-        <span class="mt-1 block text-xs text-vt-ink-3">мои записи</span>
-        <VtChip v-if="awaiting" tone="amber" data-awaiting-payment class="mt-1.5">{{
-          awaiting
-        }}</VtChip>
-      </span>
-    </NuxtLink>
+    <PlayerHomeTiles
+      :base="base"
+      :sessions="sessions"
+      :bookings-count="bookingsCount"
+      :awaiting-payment="awaitingPayment"
+    />
   </div>
 </template>
