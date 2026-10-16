@@ -87,7 +87,7 @@ function restoreDate(date: string) {
 <template>
   <div class="space-y-4" data-testid="series-block">
     <div>
-      <span :id="`${uid}-freq`" class="vt-label">Повторять</span>
+      <span class="vt-label">Повторять</span>
       <VtSegment v-model="freq" :options="freqOptions" label="Повторять" />
     </div>
 
@@ -99,7 +99,7 @@ function restoreDate(date: string) {
             v-for="d in WEEKDAYS"
             :key="d.value"
             type="button"
-            class="vt-weekday"
+            class="vt-weekday min-h-11"
             :aria-pressed="weekdays.includes(d.value)"
             :aria-label="d.name"
             @click="toggleDay(d.value)"
@@ -183,7 +183,7 @@ function restoreDate(date: string) {
           </button>
         </div>
         <p v-else class="text-sm text-vt-mute-2">
-          Заполните название, дату и цену — покажем даты серии.
+          Укажите дату начала и число мест — покажем даты серии.
         </p>
 
         <div v-if="exceptions.length" class="flex flex-wrap items-center gap-1.5">

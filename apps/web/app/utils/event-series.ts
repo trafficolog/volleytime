@@ -151,9 +151,17 @@ export function seriesBalanceNote(preview: SeriesPreviewView): BalanceNote {
   }
   const short = balanceDraftCount(preview)
   if (short > 0) {
+    if (preview.published === 0) {
+      return {
+        tone: 'warning',
+        text: `На балансе событий ${preview.balanceBefore}: все ${preview.total} ${eventsWord(preview.total)} будут созданы черновиками до пополнения.`,
+      }
+    }
+    // «нужно» — даты, которые можно опубликовать; даты с занятым залом баланс не требуют (D-04)
+    const needed = preview.published + short
     return {
       tone: 'warning',
-      text: `Нужно ${preview.total} ${eventsWord(preview.total)}, на балансе событий ${preview.balanceBefore}. Опубликуем первые ${preview.published}, остальные ${short} станут черновиками до пополнения.`,
+      text: `Нужно ${needed} ${eventsWord(needed)}, на балансе событий ${preview.balanceBefore}. Опубликуем первые ${preview.published}, остальные ${short} станут черновиками до пополнения.`,
     }
   }
   return {

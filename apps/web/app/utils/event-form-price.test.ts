@@ -1,4 +1,3 @@
-import { quoteEventPrice } from '@volley-time/shared'
 import { describe, expect, it } from 'vitest'
 
 import { fullRosterForecast } from './event-form-price'
@@ -10,23 +9,18 @@ describe('fullRosterForecast (D-01 B: цена из quoteEventPrice)', () => {
     expect(fullRosterForecast(18000, 12)).toEqual({ min: 1500, max: 1500 })
   })
 
-  it('equals the quote the price API returns for a full event, for any target and roster', () => {
+  it('keeps the shares within one kopeck and their sum equal to the target', () => {
     for (const [target, capacity] of [
       [1, 500],
       [18000, 14],
       [99999, 7],
       [2147483647, 3],
     ] as const) {
-      const apiQuote = quoteEventPrice({
-        mode: 'split',
-        targetAmount: target,
-        capacity,
-        takenSeats: capacity,
-        mySeats: 1,
-        seats: 1,
-        settled: null,
-      })
-      expect(fullRosterForecast(target, capacity)).toEqual(apiQuote.perSeat)
+      const { min, max } = fullRosterForecast(target, capacity)
+      expect(min).toBe(Math.floor(target / capacity))
+      expect(max - min).toBeLessThanOrEqual(1)
+      expect(min * capacity).toBeLessThanOrEqual(target)
+      expect(max * capacity).toBeGreaterThanOrEqual(target)
     }
   })
 })

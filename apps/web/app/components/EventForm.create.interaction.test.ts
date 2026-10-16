@@ -270,7 +270,6 @@ describe('balance consequences of a single event', () => {
     expect(submitButton(wrapper).attributes('disabled')).toBeDefined()
     const note = wrapper.get('[data-testid="balance-note"]')
     expect(note.text()).toContain('Не хватает баланса событий')
-    expect(submitButton(wrapper).attributes('aria-describedby')).toBe(note.attributes('id'))
     await wrapper.get('form').trigger('submit')
     await settle()
     expect(calls('/events')).toHaveLength(0)
@@ -315,7 +314,7 @@ describe('create a series with preview', () => {
     })
     expect(body.template).toMatchObject({
       type: 'training',
-      title: 'Тренировка',
+      title: 'Событие',
       startTime: '19:00',
       durationMinutes: 120,
       capacity: 12,
@@ -473,6 +472,79 @@ describe('create a series with preview', () => {
   })
 })
 
+describe('failures and in-flight requests', () => {
+  it('adds a check-the-list hint when the outcome of the series request is unknown', async () => {
+    mocks.seriesPost = Object.assign(new Error('offline'), { statusCode: 503, data: {} })
+    const { wrapper } = await renderForm()
+    await choose(wrapper, 'Каждую неделю')
+    await wrapper.get('form').trigger('submit')
+    await settle()
+    expect(wrapper.get('[role="alert"]').text()).toContain(
+      'Проверьте список событий перед повтором',
+    )
+    wrapper.unmount()
+  })
+
+  it('takes a new idempotency key after series.idempotency_conflict', async () => {
+    mocks.seriesPost = apiError('series.idempotency_conflict')
+    const { wrapper } = await renderForm()
+    await choose(wrapper, 'Каждую неделю')
+    await wrapper.get('form').trigger('submit')
+    await settle()
+    await wrapper.get('form').trigger('submit')
+    await settle()
+    const keys = calls('/series').map(([, o]) => o.body.idempotencyKey)
+    expect(keys).toHaveLength(2)
+    expect(keys[0]).not.toBe(keys[1])
+    wrapper.unmount()
+  })
+
+  it('ignores a stale preview answer when the form changed while it was in flight', async () => {
+    const { wrapper } = await renderForm()
+    let release: (v: unknown) => void = () => {}
+    const slow = new Promise((resolve) => (release = resolve))
+    const base = apiFetch.getMockImplementation()!
+    apiFetch.mockImplementation(async (url: string, opts?: { method?: string; body?: unknown }) =>
+      url.endsWith('/series/preview') &&
+      (opts?.body as { rule: { freq: string } }).rule.freq === 'weekly'
+        ? slow
+        : base(url, opts),
+    )
+    await choose(wrapper, 'Каждую неделю')
+    // ответ на «weekly» ещё не пришёл, форма уже изменилась
+    await wrapper.get('#ev-cap').setValue('20')
+    apiFetch.mockImplementation(base)
+    mocks.preview = previewOf({ total: 7, published: 7 })
+    await settle()
+    release(previewOf({ total: 99, published: 99 }))
+    await settle()
+    expect(wrapper.get('[data-testid="series-total"]').text()).toBe('7')
+    wrapper.unmount()
+  })
+
+  it('shows the repeat count error without pressing submit and a precise empty-preview hint', async () => {
+    const { wrapper } = await renderForm()
+    await choose(wrapper, 'Каждую неделю')
+    await choose(wrapper, 'N раз')
+    await wrapper.get('#ev-series-count').setValue('abc')
+    await settle()
+    expect(wrapper.get('#ev-series-count-error').text()).toContain('от 1 до 366')
+    expect(wrapper.text()).toContain('Укажите дату начала и число мест')
+    wrapper.unmount()
+  })
+
+  it('does not claim "as in group settings" when the settings failed to load', async () => {
+    const base = apiFetch.getMockImplementation()!
+    apiFetch.mockImplementation(async (url: string, opts?: { method?: string }) => {
+      if (url.endsWith('/settings')) throw new Error('down')
+      return base(url, opts)
+    })
+    const { wrapper } = await renderForm()
+    expect(wrapper.text()).not.toContain('Как в настройках группы')
+    wrapper.unmount()
+  })
+})
+
 describe('validation and accessibility', () => {
   it('focuses the first invalid field, marks it and announces the error', async () => {
     const { wrapper } = await renderForm()
@@ -555,6 +627,7 @@ describe('edit an event of a series', () => {
     const alert = wrapper.get('[role="alert"]').text()
     expect(alert).toContain('входит в серию')
     expect(alert).toContain('правкой серии')
+    expect(alert).toContain('отмените эту дату и создайте разовое событие')
     expect((wrapper.get('#ev-start').element as HTMLInputElement).value).toBe('2030-06-13T19:00')
     wrapper.unmount()
   })

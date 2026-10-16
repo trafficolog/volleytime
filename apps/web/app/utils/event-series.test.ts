@@ -149,6 +149,56 @@ describe('seriesBalanceNote', () => {
     )
   })
 
+  it('uses a dedicated sentence when the balance is zero', () => {
+    const dates = Array.from({ length: 3 }, (_, i) => ({
+      date: `2026-06-${String(6 + i).padStart(2, '0')}`,
+      startsAt: '',
+      endsAt: '',
+      status: 'draft' as const,
+      draftReason: 'balance' as const,
+    }))
+    const note = seriesBalanceNote(
+      preview({ total: 3, published: 0, drafts: 3, balanceBefore: 0, balanceAfter: 0, dates }),
+    )
+    expect(note.tone).toBe('warning')
+    expect(note.text).toBe(
+      'На балансе событий 0: все 3 события будут созданы черновиками до пополнения.',
+    )
+  })
+
+  it('counts needed events as published plus balance drafts, without venue conflicts', () => {
+    const mk = (
+      date: string,
+      status: 'published' | 'draft',
+      draftReason: 'balance' | 'venue_conflict' | null,
+    ) => ({
+      date,
+      startsAt: '',
+      endsAt: '',
+      status,
+      draftReason,
+    })
+    const note = seriesBalanceNote(
+      preview({
+        total: 4,
+        published: 1,
+        drafts: 3,
+        venueConflicts: 1,
+        balanceBefore: 1,
+        balanceAfter: 0,
+        dates: [
+          mk('2026-06-06', 'published', null),
+          mk('2026-06-13', 'draft', 'venue_conflict'),
+          mk('2026-06-20', 'draft', 'balance'),
+          mk('2026-06-27', 'draft', 'balance'),
+        ],
+      }),
+    )
+    expect(note.text).toBe(
+      'Нужно 3 события, на балансе событий 1. Опубликуем первые 1, остальные 2 станут черновиками до пополнения.',
+    )
+  })
+
   it('does not blame the balance for drafts caused only by a venue conflict', () => {
     const dates = [
       { date: '2026-06-06', startsAt: '', endsAt: '', status: 'published', draftReason: null },

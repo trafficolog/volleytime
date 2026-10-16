@@ -16,6 +16,7 @@ import VtIcon from '~/components/vt/Icon.vue'
 import VtSegment from '~/components/vt/Segment.vue'
 import VtSelect from '~/components/vt/Select.vue'
 import VtToggle from '~/components/vt/Toggle.vue'
+import { apiErrorCode, apiErrorStatus } from '~/utils/api-error'
 import { fullRosterForecast } from '~/utils/event-form-price'
 import {
   buildSeriesRule,
@@ -278,7 +279,8 @@ const previewBody = computed(() => {
     exceptions: isSeries.value ? recurrence.exceptions : [],
     template: {
       type: form.type,
-      title: form.title.trim().length >= 2 ? form.title.trim() : 'Событие',
+      // название не влияет на даты и баланс: в предпросмотр не отправляем введённый текст
+      title: 'Событие',
       startTime: startTime.value,
       durationMinutes: Number(form.durationMin),
       capacity: Number(form.capacity),
@@ -430,7 +432,7 @@ function validate(split: boolean): number | null {
     else fieldErrors.price = message
   }
   if (isSeries.value && recurrence.endMode === 'count' && !countValid.value) {
-    fieldErrors.count = 'Число повторений: целое от 1 до 366'
+    fieldErrors.count = COUNT_MESSAGE
   }
   const first = FIELD_ORDER.find((key) => fieldErrors[key])
   if (first) {
@@ -439,6 +441,13 @@ function validate(split: boolean): number | null {
   }
   return amount
 }
+
+const COUNT_MESSAGE = 'Число повторений: целое от 1 до 366'
+const countError = computed(
+  () =>
+    fieldErrors.count ??
+    (isSeries.value && recurrence.endMode === 'count' && !countValid.value ? COUNT_MESSAGE : ''),
+)
 
 const errorId = (key: FieldKey) => `ev-${key}-error`
 const invalid = (key: FieldKey) => (fieldErrors[key] ? 'true' : undefined)
@@ -548,10 +557,16 @@ async function submit() {
         })
     if (!props.canSubmit || props.canSubmit()) emit('saved', res.event)
   } catch (e) {
-    error.value = apiErrorMessage(
+    const code = apiErrorCode(e)
+    // тот же ключ с другим запросом: следующая отправка должна получить новый ключ
+    if (code === 'series.idempotency_conflict') attempt = null
+    const message = apiErrorMessage(
       e,
       i ? 'Не удалось сохранить событие' : 'Не удалось создать событие',
     )
+    // исход неизвестен (сеть, 5xx): запрос мог дойти до сервера
+    const ambiguous = !code && !(apiErrorStatus(e) && (apiErrorStatus(e) as number) < 500)
+    error.value = !i && ambiguous ? `${message}. Проверьте список событий перед повтором.` : message
   } finally {
     saving.value = false
   }
@@ -592,7 +607,7 @@ const seatsText = computed(() => {
         </div>
 
         <div v-if="!initial">
-          <span :id="`${uid}-type`" class="vt-label">Тип события</span>
+          <span class="vt-label">Тип события</span>
           <VtSegment v-model="form.type" :options="typeOptions" label="Тип события" />
         </div>
 
@@ -681,7 +696,7 @@ const seatsText = computed(() => {
           :preview="previewCurrent ? preview : null"
           :loading="previewLoading"
           :error="previewError"
-          :count-error="fieldErrors.count ?? ''"
+          :count-error="countError"
           @update:weekdays="markWeekdaysTouched"
           @retry="retryPreview"
         />
@@ -830,7 +845,7 @@ const seatsText = computed(() => {
                   Вернуть как в группе
                 </button>
               </template>
-              <template v-else>
+              <template v-else-if="groupSettings">
                 Как в настройках группы:
                 {{ groupJoinMode === 'invite' ? 'по приглашению' : 'свободная запись' }}.
               </template>
@@ -838,7 +853,7 @@ const seatsText = computed(() => {
           </div>
 
           <div v-if="levelOptions.length > 1">
-            <span :id="`${uid}-level`" class="vt-label">Уровень игроков</span>
+            <span class="vt-label">Уровень игроков</span>
             <VtSelect v-model="form.level" :options="levelOptions" label="Уровень игроков" />
           </div>
 
@@ -880,11 +895,6 @@ const seatsText = computed(() => {
       type="submit"
       class="vt-btn vt-btn--primary vt-btn--lg vt-btn--full"
       :disabled="submitDisabled"
-      :aria-describedby="
-        balanceNote && (publishBlocked || (isSeries && !previewCurrent))
-          ? `${uid}-balance`
-          : undefined
-      "
     >
       {{ submitText }}
     </button>
