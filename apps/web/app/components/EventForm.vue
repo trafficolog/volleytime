@@ -191,6 +191,12 @@ const closeBeforeOptions = [
   { value: '360', label: 'за 6 ч' },
   { value: '1440', label: 'за 24 ч' },
 ]
+// правка опубликованного события: момент закрытия уже прошёл — сервер оставит запись на ручное закрытие
+const closeMomentPassed = computed(() => {
+  if (!i || !form.publish || !isDate(form.startsAt)) return false
+  const start = zonedInputToDate(form.startsAt, props.tz).getTime()
+  return start - Number(form.closeBefore) * 60_000 < Date.now()
+})
 const joinOverridden = computed(() => form.joinMode !== groupJoinMode)
 const durationOptions = computed(() => {
   const base = [60, 90, 120, 150, 180]
@@ -876,9 +882,18 @@ const seatsText = computed(() => {
               :options="closeBeforeOptions"
               label="Запись закрывается"
               variant="chips"
+              :aria-describedby="`${uid}-close-hint`"
             />
-            <p class="mt-1 text-xs text-vt-mute-2">
+            <p :id="`${uid}-close-hint`" class="mt-1 text-xs text-vt-mute-2">
               Автоматически, за выбранное время до начала события.
+            </p>
+            <p
+              v-if="closeMomentPassed"
+              class="mt-1 text-xs font-semibold text-vt-ink"
+              role="status"
+              data-testid="close-passed-note"
+            >
+              Момент закрытия уже прошёл — запись закроете вручную
             </p>
           </div>
 

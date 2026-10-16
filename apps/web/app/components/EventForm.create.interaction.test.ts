@@ -485,6 +485,14 @@ describe('booking close selector (closeBeforeMinutes)', () => {
     wrapper.unmount()
   })
 
+  it('links the hint to the selector with aria-describedby', async () => {
+    const { wrapper } = await renderForm()
+    const group = wrapper.get('[role="radiogroup"][aria-label="Запись закрывается"]')
+    const hint = wrapper.get(`#${group.attributes('aria-describedby')}`)
+    expect(hint.text()).toContain('за выбранное время')
+    wrapper.unmount()
+  })
+
   it('sends the value in the series template and the contract accepts it', async () => {
     const { wrapper } = await renderForm()
     await choose(wrapper, 'Каждую неделю')
@@ -530,6 +538,54 @@ describe('booking close selector (closeBeforeMinutes)', () => {
     await wrapper.get('form').trigger('submit')
     await settle()
     expect(calls('/events/71', 'PATCH')[1]![1].body.closeBeforeMinutes).toBe(60)
+    wrapper.unmount()
+  })
+
+  it('notes on edit that the close moment has passed, without blocking the save', async () => {
+    const soon = new Date(Date.now() + 30 * 60_000)
+    const initial = {
+      id: 71,
+      organizationId: 30,
+      title: 'Скоро',
+      type: 'training',
+      startsAt: soon,
+      endsAt: new Date(soon.getTime() + 2 * 3600_000),
+      capacity: 12,
+      price: 0,
+      priceMode: 'fixed',
+      targetAmount: null,
+      currency: 'BYN',
+      status: 'published',
+      venueId: null,
+      locationText: null,
+      description: null,
+      cancellationDeadlineHours: 6,
+      cancellationAllowed: true,
+      joinMode: 'open',
+      level: null,
+      closeBeforeMinutes: 120,
+      seriesId: null,
+      seriesDate: null,
+    } as unknown as Event
+    const { wrapper } = await renderForm({ submitLabel: 'Сохранить событие' }, initial)
+    await wrapper.get('#ev-start').setValue(
+      new Intl.DateTimeFormat('sv-SE', {
+        timeZone: 'Europe/Minsk',
+        dateStyle: 'short',
+        timeStyle: 'short',
+      })
+        .format(soon)
+        .replace(' ', 'T'),
+    )
+    await settle()
+    expect(wrapper.get('[data-testid="close-passed-note"]').text()).toContain(
+      'Момент закрытия уже прошёл — запись закроете вручную',
+    )
+    await choose(wrapper, 'за 1 ч')
+    expect(wrapper.find('[data-testid="close-passed-note"]').exists()).toBe(true)
+    await wrapper.get('form').trigger('submit')
+    await settle()
+    expect(calls('/events/71', 'PATCH')).toHaveLength(1)
     wrapper.unmount()
   })
 

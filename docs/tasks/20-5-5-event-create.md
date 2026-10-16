@@ -6,7 +6,7 @@ status: done
 release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-16
-status_note: 'PR #149 merged as f3a635e + this follow-up (селектор «Запись закрывается», closeBeforeMinutes 60/120/360/1440, по умолчанию 120).'
+status_note: 'PR #149 merged as f3a635e + this follow-up (селектор «Запись закрывается», closeBeforeMinutes 60/120/360/1440, по умолчанию 120). П. 5 (разминка) остаётся за 25.1.1 по «Не делать»; MainButton для создания и правки отдан 21.1.2.'
 ref_id: 'W-04'
 complexity: L
 impl_model: claude-sonnet-5-5
