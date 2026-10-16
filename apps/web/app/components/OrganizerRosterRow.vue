@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { BOOKING_METHOD_LABELS, displayName, formatMoneyRu } from '~/utils/labels'
 import {
+  offerTextOf,
+  ORGANIZER_ROSTER_LABELS,
   rosterRowOf,
   type RosterBooking,
   type RosterPricing,
@@ -22,6 +24,8 @@ const props = defineProps<{
   levelLabel?: string | null
   /** Порядковый номер в составе (кабинет). */
   index?: number
+  /** Часовой пояс группы: нужен для «предложено до HH:MM». */
+  tz?: string
 }>()
 
 const view = computed<RosterRowView>(() => rosterRowOf(props.booking, props.pricing))
@@ -34,8 +38,10 @@ const sub = computed(() =>
         ? `${view.value.seatsText} · ${formatMoneyRu(view.value.totalAmount, props.currency)}`
         : view.value.seatsText
       : null,
-    method.value,
+    // у абонемента способ уже назван чипом «абон.»
+    view.value.chip?.text === ORGANIZER_ROSTER_LABELS.subscription ? null : method.value,
     view.value.queuedText,
+    props.tz ? offerTextOf(props.booking.offer, props.tz) : null,
   ]
     .filter(Boolean)
     .join(' · '),

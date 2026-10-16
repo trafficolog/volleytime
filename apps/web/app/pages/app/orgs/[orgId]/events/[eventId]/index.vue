@@ -11,10 +11,17 @@ import {
 } from '@volley-time/shared'
 
 import { canSubmitDesktopEventAction } from '~/utils/desktop-event-actions'
+import { bookingWindowOf } from '~/utils/event-booking-window'
 import { cancelConsequencesOf } from '~/utils/event-cancel'
 import { priceViewOf } from '~/utils/event-price-view'
 import { displayName, formatMoneyRu } from '~/utils/labels'
-import { paymentSummaryOf, seatsWordRu } from '~/utils/organizer-roster'
+import {
+  paymentSummaryOf,
+  rejectPaymentText,
+  removeBookingText,
+  resolvablePaymentId,
+  seatsWordRu,
+} from '~/utils/organizer-roster'
 import { levelTitle, type PlayerLevelView } from '~/utils/player-level'
 import { pendingLabel } from '~/utils/status-model'
 
@@ -51,6 +58,11 @@ const { data: levelsData } = await useFetch<{ levels: PlayerLevelView[] }>('/api
   key: 'player-levels',
 })
 const levels = computed(() => levelsData.value?.levels ?? [])
+const { data: orgData } = await useFetch<{ capabilities?: { eventScheduler?: boolean } }>(
+  () => `/api/organizations/${orgId.value}`,
+  { key: () => `desktop-event-org-${orgId.value}` },
+)
+const schedulerOn = computed(() => orgData.value?.capabilities?.eventScheduler === true)
 const event = computed(() => {
   const candidate = data.value?.event
   return candidate?.id === eventId.value && candidate.organizationId === orgId.value
@@ -172,6 +184,8 @@ const cancelled = computed(() => event.value?.status === 'cancelled')
 const rosterPricing = computed(() => ({
   priceMode: event.value?.pricing?.mode === 'split' ? ('split' as const) : ('fixed' as const),
   perSeat: quote.value?.mode === 'fixed' ? quote.value.perSeat.max : null,
+  free: event.value?.pricing?.mode !== 'split' && (event.value?.price ?? 0) === 0,
+  settled: !!event.value?.pricing?.settledAt,
 }))
 const payments = computed(() =>
   rosterLoading.value || rosterError.value
@@ -194,7 +208,12 @@ const priceView = computed(() =>
     : null,
 )
 const consequences = computed(() =>
-  cancelConsequencesOf(rosterLoading.value || rosterError.value ? null : rows.value),
+  cancelConsequencesOf(rosterLoading.value || rosterError.value ? null : rows.value, {
+    bookingOpensAt: event.value?.bookingOpensAt ?? null,
+  }),
+)
+const bookingWindow = computed(() =>
+  event.value ? bookingWindowOf(event.value, tz.value, schedulerOn.value) : null,
 )
 const eventLevel = computed(() => levelTitle(event.value?.level ?? null, levels.value))
 
@@ -321,7 +340,8 @@ async function mark(booking: EventBookingRow, attended: boolean) {
 async function removeBooking(booking: EventBookingRow) {
   const target = event.value
   if (!target || !canAct(target.organizationId, target.id)) return
-  if (!window.confirm(`Снять ${displayName(booking.user)} с события?`)) return
+  if (!window.confirm(removeBookingText(displayName(booking.user), booking, rosterPricing.value)))
+    return
   if (!canAct(target.organizationId, target.id)) return
   busy.value = true
   actionError.value = ''
@@ -338,30 +358,27 @@ async function removeBooking(booking: EventBookingRow) {
   }
 }
 
-/** Оплата записи: подтвердить или отклонить платёж этой записи (`paymentId` из состава). */
+/**
+ * Оплата записи: подтвердить или отклонить ожидающий платёж записи. `booking.paymentId` — самый
+ * ранний платёж и может быть уже оплачен (после добавления мест), поэтому действуем по `pendingPaymentIds`.
+ */
 async function resolvePayment(booking: EventBookingRow, action: 'confirm' | 'reject') {
   const target = event.value
-  if (!target || !booking.paymentId || cancelled.value || !canAct(target.organizationId, target.id))
+  const paymentId = resolvablePaymentId(booking)
+  if (!target || paymentId === null || cancelled.value || !canAct(target.organizationId, target.id))
     return
   if (
     action === 'reject' &&
-    !window.confirm(
-      `Отклонить оплату ${displayName(booking.user)}? ${
-        target.pricing?.mode === 'split' && target.pricing.settledAt
-          ? 'Запись будет отменена. Лист ожидания не продвигается. Доли остальных не изменятся.'
-          : 'Запись будет отменена, место перейдёт следующему в листе ожидания.'
-      }`,
-    )
+    !window.confirm(rejectPaymentText(booking, displayName(booking.user), rosterPricing.value))
   )
     return
   if (!canAct(target.organizationId, target.id)) return
   busy.value = true
   actionError.value = ''
   try {
-    await $fetch(
-      `/api/organizations/${target.organizationId}/payments/${booking.paymentId}/${action}`,
-      { method: 'POST' },
-    )
+    await $fetch(`/api/organizations/${target.organizationId}/payments/${paymentId}/${action}`, {
+      method: 'POST',
+    })
     await afterAction(target.organizationId, target.id)
   } catch (cause) {
     if (!alive || route.path !== livePath(target.organizationId, target.id)) return
@@ -475,6 +492,7 @@ async function resolvePayment(booking: EventBookingRow, action: 'confirm' | 'rej
                   :currency="event.currency"
                   :level-label="levelOf(booking)"
                   :index="i + 1"
+                  :tz="tz"
                 >
                   <template #actions="{ view }">
                     <div class="vt-desktop-event-detail__actions">
@@ -557,6 +575,7 @@ async function resolvePayment(booking: EventBookingRow, action: 'confirm' | 'rej
                     :pricing="rosterPricing"
                     :currency="event.currency"
                     :level-label="levelOf(booking)"
+                    :tz="tz"
                   />
                 </li>
               </ol>
@@ -604,6 +623,14 @@ async function resolvePayment(booking: EventBookingRow, action: 'confirm' | 'rej
               </template>
               <dt>Состав</dt>
               <dd>{{ seatsWordRu(event.capacity) }} + лист ожидания</dd>
+              <template v-if="bookingWindow">
+                <dt>Запись</dt>
+                <dd data-booking-opens>{{ bookingWindow.opens }}</dd>
+                <template v-if="bookingWindow.closes">
+                  <dt>Закроется</dt>
+                  <dd data-booking-closes>{{ bookingWindow.closes }}</dd>
+                </template>
+              </template>
               <template v-if="eventLevel">
                 <dt>Уровень</dt>
                 <dd>{{ eventLevel }}</dd>

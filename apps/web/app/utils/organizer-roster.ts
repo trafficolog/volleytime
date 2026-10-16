@@ -5,6 +5,14 @@
  * Места — не игроки: «+N» = `seats − 1` (20.1.2), занято мест = сумма `seats`.
  */
 
+import { formatTime } from '@volley-time/shared'
+
+export interface RosterOffer {
+  id: number
+  seats: number
+  expiresAt: string | Date
+}
+
 export interface RosterBooking {
   status: string
   method: string
@@ -12,7 +20,16 @@ export interface RosterBooking {
   seats: number
   /** Ещё места в очереди у записи в основе. */
   waitlistSeats: number
+  /** Самый ранний живой платёж: может быть уже оплачен, решать по нему нельзя. */
   paymentId: number | null
+  /** Ожидающие платежи (по одному на место): только по ним подтверждают и отклоняют. */
+  pendingPaymentIds: number[]
+  /** Места, оплаченные платежами (без мест абонемента). */
+  paidSeats: number
+  /** Зафиксированная доля split. */
+  allocatedAmount: number | null
+  /** Действующее предложение места из очереди (20.3.1). */
+  offer: RosterOffer | null
 }
 
 export type RosterTone = 'default' | 'grass' | 'amber' | 'rose'
@@ -36,6 +53,10 @@ export interface RosterPricing {
   priceMode: 'fixed' | 'split'
   /** Цена места из `GET …/price` (`quoteEventPrice`): только для fixed. */
   perSeat?: number | null
+  /** Бесплатное событие: «оплачено» не показываем. */
+  free?: boolean
+  /** split: доли уже зафиксированы. */
+  settled?: boolean
 }
 
 export interface RosterRowView {
@@ -85,7 +106,7 @@ export function rosterRowOf(booking: RosterBooking, pricing: RosterPricing): Ros
       return {
         ...base,
         kind: 'confirmed',
-        paid: true,
+        paid: !pricing.free,
         chip:
           booking.method === 'subscription'
             ? { tone: 'default', text: ORGANIZER_ROSTER_LABELS.subscription }
@@ -93,7 +114,10 @@ export function rosterRowOf(booking: RosterBooking, pricing: RosterPricing): Ros
         canResolvePayment: false,
       }
     case 'pending_payment': {
-      const afterClose = pricing.priceMode === 'split' && !booking.paymentId
+      const afterClose =
+        pricing.priceMode === 'split' &&
+        booking.pendingPaymentIds.length === 0 &&
+        !booking.paymentId
       return {
         ...base,
         kind: 'pending',
@@ -101,7 +125,7 @@ export function rosterRowOf(booking: RosterBooking, pricing: RosterPricing): Ros
         chip: afterClose
           ? { tone: 'default', text: ORGANIZER_ROSTER_LABELS.afterClose }
           : { tone: 'amber', text: ORGANIZER_ROSTER_LABELS.pending },
-        canResolvePayment: !!booking.paymentId,
+        canResolvePayment: booking.pendingPaymentIds.length > 0,
       }
     }
     case 'attended':
@@ -144,7 +168,20 @@ export interface PaymentSummary {
 
 const OCCUPYING = ['confirmed', 'pending_payment', 'attended', 'no_show']
 
-/** Оплаты по местам занятых записей (лист ожидания и отменённые не входят). */
+/** Ожидающий платёж записи, по которому организатор подтверждает или отклоняет оплату. */
+export const resolvablePaymentId = (booking: Pick<RosterBooking, 'pendingPaymentIds'>) =>
+  booking.pendingPaymentIds[0] ?? null
+
+/** Места абонемента: остаток сверх живых платежей (остальные места оплачены наличными/переводом). */
+export function subscriptionSeatsOf(
+  b: Pick<RosterBooking, 'method' | 'seats' | 'paidSeats' | 'pendingPaymentIds'>,
+): number {
+  return b.method === 'subscription'
+    ? Math.max(0, b.seats - b.paidSeats - b.pendingPaymentIds.length)
+    : 0
+}
+
+/** Оплаты по местам занятых записей (лист ожидания и отменённые не входят); смешанная запись делится по местам. */
 export function paymentSummaryOf(
   bookings: readonly RosterBooking[],
   pricing: Pick<RosterPricing, 'priceMode'> = { priceMode: 'fixed' },
@@ -154,11 +191,52 @@ export function paymentSummaryOf(
     if (!OCCUPYING.includes(b.status)) continue
     const seats = Math.max(0, b.seats)
     out.total += seats
-    if (b.status === 'pending_payment') {
-      if (pricing.priceMode === 'split' && !b.paymentId) out.afterClose += seats
-      else out.pending += seats
-    } else if (b.method === 'subscription') out.subscription += seats
-    else out.paid += seats
+    const pending = b.pendingPaymentIds.length
+    const subscription = subscriptionSeatsOf(b)
+    const live = b.paidSeats + pending + subscription
+    out.pending += pending
+    out.subscription += subscription
+    out.paid += b.paidSeats
+    // места без денег: split до фиксации (доля неизвестна) либо данные без платежей (бесплатно)
+    const rest = Math.max(0, seats - live)
+    if (rest > 0) {
+      if (pricing.priceMode === 'split' && b.status === 'pending_payment') out.afterClose += rest
+      else out.paid += rest
+    }
   }
   return out
+}
+
+/** Текст подтверждения отклонения оплаты: оплаченные места остаются, уходят только неоплаченные. */
+export function rejectPaymentText(
+  booking: RosterBooking,
+  name: string,
+  pricing: Pick<RosterPricing, 'priceMode' | 'settled'>,
+): string {
+  const kept = booking.paidSeats + subscriptionSeatsOf(booking)
+  if (kept > 0)
+    return `Отклонить оплату ${name}? Оплаченные места (${kept}) останутся, неоплаченные (${booking.pendingPaymentIds.length}) освободятся и уйдут в очередь.`
+  return `Отклонить оплату ${name}? ${
+    pricing.priceMode === 'split' && pricing.settled
+      ? 'Запись будет отменена. Лист ожидания не продвигается. Доли остальных не изменятся.'
+      : 'Запись будет отменена, место перейдёт следующему в листе ожидания.'
+  }`
+}
+
+/** Текст подтверждения снятия записи: оплаченные места освобождаются без возврата (D-14). */
+export function removeBookingText(
+  name: string,
+  booking: RosterBooking,
+  _pricing?: Pick<RosterPricing, 'priceMode'>,
+): string {
+  const paid = booking.paidSeats
+  return paid > 0
+    ? `Снять ${name} с события? Оплаченные места (${paid}) освободятся без возврата денег: возврат — отдельное действие организатора.`
+    : `Снять ${name} с события?`
+}
+
+/** «предложено до 12:30 · 2 места» — предложение места из очереди с TTL (20.3.1). */
+export function offerTextOf(offer: RosterOffer | null | undefined, tz: string): string | null {
+  if (!offer) return null
+  return `предложено до ${formatTime(offer.expiresAt, tz)} · ${seatsWordRu(offer.seats)}`
 }

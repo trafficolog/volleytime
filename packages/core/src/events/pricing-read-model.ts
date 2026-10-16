@@ -81,7 +81,12 @@ export async function readEventPricing(
   }
   return {
     ...common,
-    ...previewSplitAmount(event.targetAmount!, counts?.taken ?? 0, event.capacity),
+    // занятость выше вместимости (уменьшенная вместимость, многоместные записи) не должна ронять чтение
+    ...previewSplitAmount(
+      event.targetAmount!,
+      Math.min(counts?.taken ?? 0, event.capacity),
+      event.capacity,
+    ),
   }
 }
 

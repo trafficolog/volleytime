@@ -35,6 +35,8 @@ const splitEvent = (over: Record<string, unknown> = {}) => ({
   price: 0,
   level: null,
   seriesId: null,
+  bookingOpensAt: null,
+  closeBeforeMinutes: 120,
   venue: { name: 'Школа 24' },
   // readEventPricing намеренно «врёт»: интерфейс не должен брать цену из него
   pricing: {
@@ -63,6 +65,10 @@ const booking = (over: Record<string, unknown> = {}) => ({
   confirmedAt: null,
   subscriptionId: null,
   paymentId: null,
+  pendingPaymentIds: [] as number[],
+  paidSeats: 1,
+  allocatedAmount: null,
+  offer: null as null | { id: number; seats: number; expiresAt: string },
   user: { id: 100, name: 'Артём', telegramUsername: null, image: null },
   ...over,
 })
@@ -71,6 +77,7 @@ let current = splitEvent()
 let rosterPayload: { user: { id: number }; level?: string | null }[] | undefined
 let bookingsPayload: ReturnType<typeof booking>[] = []
 let quotePayload: unknown = null
+let schedulerOn = true
 const refresh = vi.fn()
 const apiFetch = vi.fn(async (url: string, opts?: { method?: string }) => {
   if (opts?.method) return {}
@@ -90,6 +97,8 @@ Object.entries({
   useOrgTimezone: () => ({ tz: ref('Europe/Minsk') }),
   useFetch: async (url: unknown) => {
     const target = typeof url === 'function' ? (url as () => string)() : (url as string)
+    if (target === '/api/organizations/30')
+      return { data: ref({ capabilities: { eventScheduler: schedulerOn } }) }
     if (target === '/api/levels')
       return {
         data: ref({ levels: [{ code: 'v2', title: 'В2', description: '', sortOrder: 2 }] }),
@@ -141,9 +150,11 @@ beforeEach(() => {
   Object.assign(route, { params: { orgId: '30', eventId: '71' }, path, fullPath: path })
   routerRoute.value = { params: { orgId: '30', eventId: '71' }, path, fullPath: path }
   vi.stubGlobal('confirm', windowConfirm)
+  vi.stubGlobal('apiErrorCode', () => undefined)
   windowConfirm.mockReset().mockReturnValue(true)
   apiFetch.mockClear()
   refresh.mockClear()
+  schedulerOn = true
   current = splitEvent()
   rosterPayload = undefined
   bookingsPayload = []
@@ -183,6 +194,7 @@ describe('W-05: цена только из GET …/price', () => {
     expect(wrapper.get('[data-price-param]').text()).toBe(
       `≈ ${formatMoneyRu(quote.perSeat.max, 'BYN')}`,
     )
+    expect(wrapper.text()).toContain('с места при записи сейчас')
     // значения readEventPricing (1,11 / 2,22 BYN) нигде не показываются
     expect(wrapper.text()).not.toContain('1,11')
     expect(wrapper.text()).not.toContain('2,22')
@@ -252,8 +264,18 @@ describe('W-05: состав', () => {
     wrapper.unmount()
   })
 
-  it('подтверждение и отклонение оплаты идут по paymentId записи', async () => {
-    bookingsPayload = [booking({ id: 1, status: 'pending_payment', paymentId: 55, method: 'cash' })]
+  it('подтверждение и отклонение идут по ожидающему платежу, а не по booking.paymentId (оплаченному первым)', async () => {
+    bookingsPayload = [
+      booking({
+        id: 1,
+        status: 'pending_payment',
+        method: 'cash',
+        seats: 3,
+        paymentId: 54, // самый ранний платёж — уже оплачен
+        paidSeats: 2,
+        pendingPaymentIds: [55],
+      }),
+    ]
     const wrapper = await render()
     await wrapper.get('[aria-label^="Подтвердить оплату"]').trigger('click')
     await flushPromises()
@@ -261,8 +283,104 @@ describe('W-05: состав', () => {
     apiFetch.mockClear()
     await wrapper.get('[aria-label^="Отклонить оплату"]').trigger('click')
     await flushPromises()
-    expect(windowConfirm).toHaveBeenCalled()
     expect(posts().map(([url]) => url)).toEqual(['/api/organizations/30/payments/55/reject'])
+    // оплаченные места остаются, уходят только неоплаченные
+    const text = String((windowConfirm.mock.calls.at(-1) as unknown[] | undefined)?.[0])
+    expect(text).toContain('Оплаченные места (2) останутся')
+    expect(text).not.toContain('Запись будет отменена')
+    wrapper.unmount()
+  })
+
+  it('без оплаченных мест отклонение отменяет запись (прежний текст)', async () => {
+    bookingsPayload = [
+      booking({
+        id: 1,
+        status: 'pending_payment',
+        paymentId: 55,
+        paidSeats: 0,
+        pendingPaymentIds: [55],
+      }),
+    ]
+    const wrapper = await render()
+    await wrapper.get('[aria-label^="Отклонить оплату"]').trigger('click')
+    await flushPromises()
+    expect(String((windowConfirm.mock.calls.at(-1) as unknown[] | undefined)?.[0])).toContain(
+      'Запись будет отменена',
+    )
+    wrapper.unmount()
+  })
+
+  it('нет ожидающих платежей — кнопок оплаты нет, даже если paymentId задан', async () => {
+    bookingsPayload = [
+      booking({ id: 1, status: 'pending_payment', paymentId: 54, pendingPaymentIds: [] }),
+    ]
+    const wrapper = await render()
+    expect(wrapper.find('[aria-label^="Подтвердить оплату"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('снятие оплаченной записи предупреждает об освобождении мест без возврата (D-14)', async () => {
+    bookingsPayload = [booking({ id: 1, seats: 2, paidSeats: 2 })]
+    const wrapper = await render()
+    await wrapper.get('[aria-label^="Снять с события"]').trigger('click')
+    await flushPromises()
+    expect(String((windowConfirm.mock.calls.at(-1) as unknown[] | undefined)?.[0])).toContain(
+      'без возврата',
+    )
+    wrapper.unmount()
+  })
+
+  it('лист ожидания: «предложено до HH:MM» с TTL предложения', async () => {
+    bookingsPayload = [
+      booking({
+        id: 3,
+        status: 'waitlisted',
+        paidSeats: 0,
+        offer: { id: 9, seats: 2, expiresAt: '2099-10-01T09:30:00Z' },
+        seats: 2,
+      }),
+    ]
+    const wrapper = await render()
+    expect(wrapper.get('#desktop-waitlist-title').element.parentElement!.textContent).toContain(
+      'предложено до 12:30 · 2 места',
+    )
+    wrapper.unmount()
+  })
+
+  it('бесплатное событие: «оплачено» не показывается, карточка оплат скрыта', async () => {
+    current = splitEvent({ pricing: { ...splitEvent().pricing, mode: 'fixed' }, price: 0 })
+    quotePayload = quoteEventPrice({
+      mode: 'fixed',
+      price: 0,
+      seats: 1,
+      subscriptionsEnabled: false,
+    })
+    bookingsPayload = [booking({ id: 1, paidSeats: 0 })]
+    const wrapper = await render()
+    expect(wrapper.find('[aria-label="в составе, оплачено"]').exists()).toBe(false)
+    expect(wrapper.find('#event-payments-title').exists()).toBe(false)
+    wrapper.unmount()
+  })
+})
+
+describe('W-05: окно записи (20.3.1)', () => {
+  it('время открытия и «закроется за N ч» в параметрах', async () => {
+    current = splitEvent({
+      bookingOpensAt: '2020-01-01T09:00:00Z',
+      startsAt: '2099-10-01T17:00:00Z',
+      closeBeforeMinutes: 360,
+    })
+    const wrapper = await render()
+    expect(wrapper.get('[data-booking-opens]').text()).toContain('открылась')
+    expect(wrapper.get('[data-booking-closes]').text()).toBe('за 6 ч до начала (в 14:00)')
+    wrapper.unmount()
+  })
+
+  it('планировщик выключен: строки закрытия нет', async () => {
+    schedulerOn = false
+    const wrapper = await render()
+    expect(wrapper.find('[data-booking-closes]').exists()).toBe(false)
+    expect(wrapper.get('[data-booking-opens]').text()).toBe('открыта с публикации')
     wrapper.unmount()
   })
 })
@@ -281,6 +399,10 @@ describe('W-05: отмена события', () => {
     expect(text).toContain('Записи будут отменены: 2')
     expect(text).toContain('уведомление')
     expect(text).toContain('Баланс событий не возвращается')
+    expect(dialog.getAttribute('aria-describedby')).toBeTruthy()
+    expect(
+      document.getElementById(dialog.getAttribute('aria-describedby')!)!.textContent,
+    ).toContain('Записи будут отменены')
     const confirmBtn = [...dialog.querySelectorAll('button')].find(
       (b) => b.textContent!.trim() === 'Отменить событие',
     )!

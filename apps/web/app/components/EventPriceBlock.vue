@@ -19,7 +19,7 @@ defineProps<{ view: PriceView }>()
     </div>
     <p class="vt-price-block__value">
       <span class="vt-mono" data-price-headline>{{ view.headline }}</span>
-      <small>{{ view.basis === 'settled' ? 'с места' : 'с места сейчас' }}</small>
+      <small>{{ view.basis === 'settled' ? 'с места' : 'с места при записи сейчас' }}</small>
     </p>
     <p v-if="view.divider" class="vt-price-block__meta">{{ view.divider }}</p>
     <p v-if="view.rangeText" class="vt-price-block__meta" data-price-range>{{ view.rangeText }}</p>

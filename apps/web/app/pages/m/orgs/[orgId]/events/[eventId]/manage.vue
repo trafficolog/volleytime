@@ -479,6 +479,8 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
                   :booking="b"
                   :pricing="{
                     priceMode: ev.pricing?.mode === 'split' ? 'split' : 'fixed',
+                    free: ev.pricing?.mode !== 'split' && ev.price === 0,
+                    settled: !!ev.pricing?.settledAt,
                   }"
                   :currency="ev.currency"
                 >
