@@ -16,6 +16,7 @@ import {
 import Manage from './manage.vue'
 
 import EventPricingPanel from '~/components/EventPricingPanel.vue'
+import OrganizerRosterRow from '~/components/OrganizerRosterRow.vue'
 import MyChip from '~/components/vt/MyChip.vue'
 import SeatsMini from '~/components/vt/SeatsMini.vue'
 import StateChip from '~/components/vt/StateChip.vue'
@@ -111,7 +112,7 @@ async function renderManage() {
   })
   const wrapper = mount(host, {
     global: {
-      components: { EventPricingPanel },
+      components: { EventPricingPanel, OrganizerRosterRow },
       stubs: {
         NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
         VtMiniHeader: { template: '<header><slot name="right" /></header>' },
