@@ -281,6 +281,9 @@
   border-radius: var(--r-btn);
   box-shadow: var(--vt-modal-shadow);
 }
+.vt-alert--wide {
+  width: min(92%, 480px);
+}
 .vt-alert__title {
   margin: 0;
   font-family: var(--f-display);
