@@ -2,11 +2,11 @@
 id: '20.5.5'
 phase: '20'
 epic: '20.5'
-status: todo
+status: in_progress
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-10-16
+status_note: 'PR открыт, ревью Opus ожидается. Реализовано: форма события и серии в кабинете (повтор, предпросмотр, баланс, join mode, уровень, идемпотентность), отчёт docs/operations/qa/2026-10-16-20-5-5-cabinet-event-create-visual.md. Открыто для владельца: блок «Запись закрывается» из макета не реализован (нет поля в API).'
 ref_id: 'W-04'
 complexity: L
 impl_model: claude-sonnet-5-5
