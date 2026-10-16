@@ -1,4 +1,15 @@
-import { and, bookings, db as defaultDb, eq, events, gt, inArray, lte, sql } from '@volley-time/db'
+import {
+  and,
+  bookings,
+  db as defaultDb,
+  eq,
+  events,
+  gt,
+  inArray,
+  lt,
+  scheduledJobs,
+  sql,
+} from '@volley-time/db'
 
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
@@ -7,10 +18,8 @@ import type { PendingNotification } from '../notifier/types'
 import { enqueueNotification } from '../scheduler/journal'
 import { systemContext } from '../shared/context'
 
+import { closeMomentOf, isAutoCloseEligible } from './booking-close'
 import { settleLockedEvent } from './pricing-service'
-
-/** Запись закрывается за 2 ч до начала (входная карточка 15.4.1; совпадает с напоминанием 2 ч). */
-export const CLOSE_BEFORE_START_MS = 2 * 3600_000
 
 export interface CloseSummary {
   closed: number
@@ -18,23 +27,36 @@ export interface CloseSummary {
   skipped: number
 }
 
+/** Метка журнала «split не зафиксирован автоматически»: событие больше не пробуется, тревога — одна. */
+const closeSkippedKey = (eventId: number) => `event.close_skipped:event:${eventId}`
+
 /**
- * Закрытие записи по расписанию (20.3.1): опубликованные события, до начала которых осталось не
- * больше 2 ч, переходят в `closed`; split-событие при этом фиксирует доли (тот же путь, что ручная
- * фиксация, — ручная остаётся). Начавшиеся события не трогаются: пропущенное окно (планировщик был
- * выключен) не закрывает задним числом и не создаёт платежи за прошедшие события.
- * Каждое событие — отдельная транзакция под его advisory-lock; переход условный, повтор и
- * параллельные экземпляры безопасны. Split, который нельзя зафиксировать (нет участников, цель
- * меньше числа мест), остаётся организатору.
+ * Закрытие записи по расписанию (20.3.1): в момент закрытия (начало − `close_before_minutes`,
+ * решение владельца 2026-10-16) опубликованное событие переходит в `closed`. Только события, которые
+ * были опубликованы и открыты до этого момента (`isAutoCloseEligible`, ревью PR #150, I1); созданные,
+ * перенесённые или переоткрытые позже ведёт организатор. Начавшиеся события не трогаются.
+ * Split: если к моменту закрытия в событии нет участников, оно закрывается без фиксации — без
+ * начислений и долей; с участниками доли фиксируются один раз тем же путём, что ручная фиксация
+ * (ручная остаётся). Split, который нельзя зафиксировать (цель меньше числа мест, несовместимая
+ * оплата), помечается в журнале и больше не пробуется; тревога в лог — один раз.
+ * Каждое событие — отдельная транзакция под его advisory-lock; повтор и параллельные экземпляры
+ * безопасны.
  */
 export async function closeDueEvents(now: Date, limit = 100): Promise<CloseSummary> {
   const summary: CloseSummary = { closed: 0, settled: 0, skipped: 0 }
-  const horizon = new Date(now.getTime() + CLOSE_BEFORE_START_MS)
+  const closeAt = sql`${events.startsAt} - make_interval(mins => ${events.closeBeforeMinutes})`
   const due = await defaultDb
     .select({ id: events.id })
     .from(events)
     .where(
-      and(eq(events.status, 'published'), gt(events.startsAt, now), lte(events.startsAt, horizon)),
+      and(
+        eq(events.status, 'published'),
+        gt(events.startsAt, now),
+        sql`${closeAt} <= ${now.toISOString()}::timestamptz`,
+        lt(events.updatedAt, closeAt),
+        sql`NOT EXISTS (SELECT 1 FROM ${scheduledJobs} j
+          WHERE j.dedup_key = 'event.close_skipped:event:' || ${events.id})`,
+      ),
     )
     .orderBy(events.startsAt, events.id)
     .limit(limit)
@@ -45,29 +67,32 @@ export async function closeDueEvents(now: Date, limit = 100): Promise<CloseSumma
         const [event] = await tx.select().from(events).where(eq(events.id, id)).for('update')
         if (
           !event ||
-          event.status !== 'published' ||
+          !isAutoCloseEligible(event) ||
           event.startsAt <= now ||
-          event.startsAt > horizon
+          closeMomentOf(event) > now
         )
           return 'skipped' as const
         const notifications: PendingNotification[] = []
         const ctx = { ...systemContext(tx), notifications }
+        let settled = false
         if (event.priceMode === 'split' && event.pricingSettledAt === null) {
+          // участники, записавшиеся до момента закрытия: пустой к этому моменту split не фиксируется
           const [row] = await tx
-            .select({
-              seats: sql<number>`coalesce(sum(${bookings.seats}), 0)::int`,
-            })
+            .select({ n: sql<number>`count(*)::int` })
             .from(bookings)
             .where(
               and(
                 eq(bookings.eventId, id),
                 inArray(bookings.status, ['confirmed', 'pending_payment']),
+                lt(bookings.bookedAt, closeMomentOf(event)),
               ),
             )
-          const seats = row?.seats ?? 0
-          if (seats === 0 || event.targetAmount! < seats) return 'skipped' as const
-          await settleLockedEvent(ctx, event)
-        } else {
+          if ((row?.n ?? 0) > 0) {
+            await settleLockedEvent(ctx, event) // закрывает запись и снимает предложения
+            settled = true
+          }
+        }
+        if (!settled) {
           await revokeEventOffers(tx, id, now)
           await tx
             .update(events)
@@ -79,7 +104,7 @@ export async function closeDueEvents(now: Date, limit = 100): Promise<CloseSumma
           action: AUDIT_ACTIONS.EVENT_BOOKING_CLOSED,
           entityType: 'event',
           entityId: id,
-          newValue: { status: 'closed', source: 'scheduler:event.close' },
+          newValue: { status: 'closed', settled, source: 'scheduler:event.close' },
         })
         // уведомления фиксации split — через журнал (повтор при сбое бота, без дублей)
         for (const n of notifications)
@@ -92,12 +117,30 @@ export async function closeDueEvents(now: Date, limit = 100): Promise<CloseSumma
             params: n.params,
             runAt: now,
           })
-        return event.priceMode === 'split' ? ('settled' as const) : ('closed' as const)
+        return settled ? ('settled' as const) : ('closed' as const)
       })
       summary[outcome]++
     } catch (e) {
       summary.skipped++
-      console.error('[scheduler] auto-close failed', { eventId: id, error: e })
+      // метка — отдельной строкой после отката транзакции события; повтор не вставит вторую
+      const marked = await defaultDb
+        .insert(scheduledJobs)
+        .values({
+          kind: 'event.close_skipped',
+          dedupKey: closeSkippedKey(id),
+          eventId: id,
+          status: 'skipped',
+          runAt: now,
+          completedAt: now,
+          lastError: (e instanceof Error ? e.message : String(e)).slice(0, 500),
+        })
+        .onConflictDoNothing({ target: scheduledJobs.dedupKey })
+        .returning({ id: scheduledJobs.id })
+      if (marked.length > 0)
+        console.error('[scheduler] auto-close failed; organizer must close the event', {
+          eventId: id,
+          error: e,
+        })
     }
   }
   return summary

@@ -96,7 +96,7 @@ const CODE_STATUS: Record<string, number> = {
   // фоновые задачи события (20.3.1): время открытия записи и предложения мест из очереди
   'event.scheduler_disabled': 409,
   'event.booking_opens_in_past': 422,
-  'event.booking_opens_after_start': 422,
+  'event.booking_opens_after_close': 422,
   'event.booking_already_open': 409,
   'booking.not_open_yet': 422,
   'waitlist_offer.not_found': 404,

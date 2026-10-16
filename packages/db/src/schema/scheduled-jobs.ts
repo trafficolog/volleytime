@@ -56,6 +56,9 @@ export const scheduledJobs = pgTable(
       .on(t.runAt)
       .where(sql`${t.status} IN ('pending', 'running')`),
     index('scheduled_jobs_event_idx').on(t.eventId),
+    index('scheduled_jobs_completed_idx')
+      .on(t.completedAt)
+      .where(sql`${t.status} IN ('done', 'skipped', 'failed')`),
     check('scheduled_jobs_attempts_non_negative', sql`${t.attempts} >= 0`),
   ],
 )

@@ -32,6 +32,7 @@ CREATE TABLE "scheduled_jobs" (
 );
 --> statement-breakpoint
 ALTER TABLE "events" ADD COLUMN "booking_opens_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "events" ADD COLUMN "close_before_minutes" smallint DEFAULT 120 NOT NULL;--> statement-breakpoint
 ALTER TABLE "waitlist_offers" ADD CONSTRAINT "waitlist_offers_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "waitlist_offers" ADD CONSTRAINT "waitlist_offers_event_id_events_id_fk" FOREIGN KEY ("event_id") REFERENCES "public"."events"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "waitlist_offers" ADD CONSTRAINT "waitlist_offers_booking_id_bookings_id_fk" FOREIGN KEY ("booking_id") REFERENCES "public"."bookings"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -43,4 +44,6 @@ CREATE INDEX "waitlist_offers_due_idx" ON "waitlist_offers" USING btree ("expire
 CREATE UNIQUE INDEX "scheduled_jobs_dedup_uniq" ON "scheduled_jobs" USING btree ("dedup_key");--> statement-breakpoint
 CREATE INDEX "scheduled_jobs_due_idx" ON "scheduled_jobs" USING btree ("run_at") WHERE "scheduled_jobs"."status" IN ('pending', 'running');--> statement-breakpoint
 CREATE INDEX "scheduled_jobs_event_idx" ON "scheduled_jobs" USING btree ("event_id");--> statement-breakpoint
-ALTER TABLE "events" ADD CONSTRAINT "events_booking_opens_before_start" CHECK ("events"."booking_opens_at" IS NULL OR "events"."booking_opens_at" < "events"."starts_at");
+CREATE INDEX "scheduled_jobs_completed_idx" ON "scheduled_jobs" USING btree ("completed_at") WHERE "scheduled_jobs"."status" IN ('done', 'skipped', 'failed');--> statement-breakpoint
+ALTER TABLE "events" ADD CONSTRAINT "events_booking_opens_before_start" CHECK ("events"."booking_opens_at" IS NULL OR "events"."booking_opens_at" < "events"."starts_at");--> statement-breakpoint
+ALTER TABLE "events" ADD CONSTRAINT "events_close_before_minutes_allowed" CHECK ("events"."close_before_minutes" IN (60, 120, 360, 1440));

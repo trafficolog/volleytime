@@ -1,5 +1,5 @@
 {
-  "id": "7370daca-6631-4f17-b515-fe1000d6a07e",
+  "id": "6753680e-09cc-4649-841b-391201f11883",
   "prevId": "4245ae39-6e59-4e9e-acba-08c452e4925f",
   "version": "7",
   "dialect": "postgresql",
@@ -1670,6 +1670,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "close_before_minutes": {
+          "name": "close_before_minutes",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 120
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -1857,6 +1864,10 @@
         "events_booking_opens_before_start": {
           "name": "events_booking_opens_before_start",
           "value": "\"events\".\"booking_opens_at\" IS NULL OR \"events\".\"booking_opens_at\" < \"events\".\"starts_at\""
+        },
+        "events_close_before_minutes_allowed": {
+          "name": "events_close_before_minutes_allowed",
+          "value": "\"events\".\"close_before_minutes\" IN (60, 120, 360, 1440)"
         }
       },
       "isRLSEnabled": false
@@ -3960,6 +3971,22 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "scheduled_jobs_completed_idx": {
+          "name": "scheduled_jobs_completed_idx",
+          "columns": [
+            {
+              "expression": "completed_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"scheduled_jobs\".\"status\" IN ('done', 'skipped', 'failed')",
           "concurrently": false,
           "method": "btree",
           "with": {}

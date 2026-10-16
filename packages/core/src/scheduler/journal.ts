@@ -113,6 +113,7 @@ interface ClaimedJob {
   kind: string
   payload: NotifyJobPayload
   attempts: number
+  lockedUntil: Date
 }
 
 /**
@@ -143,6 +144,7 @@ async function claimDueJobs(
     kind: String(r.kind),
     payload: r.payload as NotifyJobPayload,
     attempts: Number(r.attempts),
+    lockedUntil,
   }))
 }
 
@@ -187,40 +189,80 @@ export interface DeliverySummary {
  * работе; падение процесса между отправкой и отметкой даёт один повтор после аренды (at-least-once).
  */
 export async function processDueJobs(
-  opts: { now?: Date; limit?: number; leaseMs?: number; db?: DbOrTx } = {},
+  opts: {
+    now?: Date
+    /** Размер пачки захвата: небольшой, чтобы задачи не ждали за чужой арендой. */
+    batch?: number
+    leaseMs?: number
+    /** Бюджет времени доставки за проход: недоступный бот не задерживает переходы событий. */
+    budgetMs?: number
+    db?: DbOrTx
+  } = {},
 ): Promise<DeliverySummary> {
   const db = opts.db ?? defaultDb
-  const now = opts.now ?? new Date()
+  // часы прохода: заданный `now` плюс прошедшее реальное время (свежий момент для аренды и backoff)
+  const started = Date.now()
+  const base = opts.now?.getTime() ?? started
+  const clock = () => new Date(base + (Date.now() - started))
+  const budgetMs = opts.budgetMs ?? 10_000
+  const leaseMs = opts.leaseMs ?? LEASE_MS
   const summary: DeliverySummary = { sent: 0, skipped: 0, retried: 0, failed: 0 }
-  const claimed = await claimDueJobs(db, now, opts.limit ?? 100, opts.leaseMs ?? LEASE_MS)
-  for (const job of claimed) {
-    try {
-      const { userId, params, check } = job.payload
-      const delivered =
-        (await isActual(db, check, now)) &&
-        (await notifierService.deliver(userId, job.kind as NotificationType, params))
-      await finish(db, job, {
-        status: delivered ? 'done' : 'skipped',
-        completedAt: now,
-        lastError: null,
-      })
-      if (delivered) summary.sent++
-      else summary.skipped++
-    } catch (e) {
-      const terminal = job.attempts >= MAX_ATTEMPTS
-      await finish(db, job, {
-        status: terminal ? 'failed' : 'pending',
-        runAt: terminal ? undefined : new Date(now.getTime() + backoffMs(job.attempts)),
-        completedAt: terminal ? now : null,
-        lastError: errorText(e),
-      })
-      if (terminal) {
-        summary.failed++
-        console.error('[scheduler] notification failed permanently', { jobId: job.id })
-      } else summary.retried++
+  const overBudget = () => Date.now() - started >= budgetMs
+  while (!overBudget()) {
+    const claimed = await claimDueJobs(db, clock(), opts.batch ?? 20, leaseMs)
+    if (claimed.length === 0) break
+    for (const [i, job] of claimed.entries()) {
+      // бюджет исчерпан — оставшиеся захваченные задачи возвращаются без расхода попытки
+      if (overBudget()) {
+        await release(db, claimed.slice(i))
+        return summary
+      }
+      // аренда истекла (долгая пачка): задачу мог перехватить другой экземпляр — не отправлять
+      if (clock() >= job.lockedUntil) continue
+      try {
+        const { userId, params, check } = job.payload
+        const delivered =
+          (await isActual(db, check, clock())) &&
+          (await notifierService.deliver(userId, job.kind as NotificationType, params))
+        await finish(db, job, {
+          status: delivered ? 'done' : 'skipped',
+          completedAt: clock(),
+          lastError: null,
+        })
+        if (delivered) summary.sent++
+        else summary.skipped++
+      } catch (e) {
+        const terminal = job.attempts >= MAX_ATTEMPTS
+        const at = clock()
+        await finish(db, job, {
+          status: terminal ? 'failed' : 'pending',
+          runAt: terminal ? undefined : new Date(at.getTime() + backoffMs(job.attempts)),
+          completedAt: terminal ? at : null,
+          lastError: errorText(e),
+        })
+        if (terminal) {
+          summary.failed++
+          console.error('[scheduler] notification failed permanently', { jobId: job.id })
+        } else summary.retried++
+      }
     }
   }
   return summary
+}
+
+/** Вернуть захваченные, но не начатые задачи: `pending`, попытка не засчитывается. */
+async function release(db: DbOrTx, jobs: ClaimedJob[]): Promise<void> {
+  for (const job of jobs)
+    await db
+      .update(scheduledJobs)
+      .set({ status: 'pending', lockedUntil: null, attempts: job.attempts - 1 })
+      .where(
+        and(
+          eq(scheduledJobs.id, job.id),
+          eq(scheduledJobs.status, 'running'),
+          eq(scheduledJobs.attempts, job.attempts),
+        ),
+      )
 }
 
 /** Срок хранения завершённых задач журнала. */

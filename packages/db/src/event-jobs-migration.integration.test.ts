@@ -40,16 +40,17 @@ describe('migration 0028 event jobs (integration)', { timeout: 60_000 }, () => {
       SELECT (
         (SELECT count(*) FROM information_schema.columns
           WHERE table_schema = 'public' AND table_name = 'events'
-            AND column_name = 'booking_opens_at')
+            AND column_name IN ('booking_opens_at', 'close_before_minutes'))
         + (SELECT count(*) FROM information_schema.tables
           WHERE table_schema = 'public' AND table_name IN ('waitlist_offers', 'scheduled_jobs'))
         + (SELECT count(*) FROM pg_type
           WHERE typname IN ('waitlist_offer_status', 'scheduled_job_status'))
-        + (SELECT count(*) FROM pg_constraint WHERE conname = 'events_booking_opens_before_start')
+        + (SELECT count(*) FROM pg_constraint
+          WHERE conname IN ('events_booking_opens_before_start', 'events_close_before_minutes_allowed'))
       )::int AS n`
     return row!.n
   }
-  const ALL = 6
+  const ALL = 8
 
   beforeAll(() => {
     expect(BASE_URL).not.toBe('')
@@ -98,7 +99,14 @@ describe('migration 0028 event jobs (integration)', { timeout: 60_000 }, () => {
       await runMigrations(url)
 
       // существующие события открыты с публикации
-      expect(await sql`SELECT booking_opens_at FROM events`).toEqual([{ booking_opens_at: null }])
+      // и закрываются планировщиком за 2 ч (умолчание, решение владельца 2026-10-16)
+      expect(await sql`SELECT booking_opens_at, close_before_minutes FROM events`).toEqual([
+        { booking_opens_at: null, close_before_minutes: 120 },
+      ])
+      await expect(
+        sql`UPDATE events SET close_before_minutes = 90 WHERE id = ${e}`,
+      ).rejects.toThrow(/events_close_before_minutes_allowed/)
+      await sql`UPDATE events SET close_before_minutes = 1440 WHERE id = ${e}`
       // прежний runtime вставляет события без новых колонок
       await sql`
         INSERT INTO events (organization_id, created_by_user_id, title, starts_at, ends_at, capacity)
@@ -140,8 +148,12 @@ describe('migration 0028 event jobs (integration)', { timeout: 60_000 }, () => {
       await sql`UPDATE events SET booking_opens_at = now() + interval '1 hour' WHERE id = ${e}`
       await expect(rollbackLastMigration(url)).rejects.toThrow(/booking_opens_at/)
       expect(await objects(sql)).toBe(ALL)
-      // у завершённого/отменённого события время открытия откат не блокирует
-      await sql`UPDATE events SET status = 'cancelled' WHERE id = ${e}`
+      // прошедшее время открытия (запись уже открыта) откат не блокирует ...
+      await sql`UPDATE events SET booking_opens_at = now() - interval '1 hour' WHERE id = ${e}`
+      expect(await rollbackLastMigration(url)).toBe(TAG)
+      await runMigrations(url)
+      // ... как и будущее время у отменённого события
+      await sql`UPDATE events SET booking_opens_at = now() + interval '1 hour', status = 'cancelled' WHERE id = ${e}`
 
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await objects(sql)).toBe(0)

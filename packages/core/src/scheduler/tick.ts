@@ -4,6 +4,9 @@ import { closeDueEvents, type CloseSummary } from '../events/auto-close'
 import { enqueueBookingOpened, enqueueReminders } from './event-notifications'
 import { processDueJobs, purgeCompletedJobs, type DeliverySummary } from './journal'
 
+const PURGE_INTERVAL_MS = 3600_000
+let lastPurgeAt = 0
+
 export interface TickSummary {
   expiredOffers: number
   close: CloseSummary
@@ -54,8 +57,12 @@ export async function runSchedulerTick(
     await step('notify.deliver', async () => {
       summary.delivery = await processDueJobs({ now })
     })
-  await step('journal.purge', async () => {
-    await purgeCompletedJobs(now)
-  })
+  // очистка — не чаще раза в час на процесс (индекс по completed_at, ревью PR #150)
+  if (now.getTime() - lastPurgeAt >= PURGE_INTERVAL_MS) {
+    lastPurgeAt = now.getTime()
+    await step('journal.purge', async () => {
+      await purgeCompletedJobs(now)
+    })
+  }
   return summary
 }

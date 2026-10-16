@@ -21,6 +21,7 @@ import {
 
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
+import { isBookingClosedBySchedule } from '../events/booking-close'
 import { EventNotFoundError } from '../events/errors'
 import { consumeEventInvite } from '../invites/event-invites'
 import { collectNotification } from '../notifier/collect'
@@ -50,7 +51,14 @@ import {
   WaitlistOfferNotFoundError,
 } from './errors'
 import { isMultiSeatEnabled } from './multi-seat-capability'
-import { offerFreeSeats, reservedSeats, revokeBookingOffers } from './offers'
+import {
+  expireOffersLocked,
+  noOpenOfferSql,
+  offerFreeSeats,
+  openOfferOf,
+  reservedSeats,
+  revokeBookingOffers,
+} from './offers'
 import {
   AttendanceInput,
   BookInput,
@@ -198,6 +206,8 @@ export const bookingService = {
       // время открытия записи (20.3.1, D-09): до него запись закрыта для всех
       if (event.bookingOpensAt && event.bookingOpensAt > new Date())
         throw new BookingNotOpenYetError()
+      // момент закрытия записи наступил — запись закрыта, не дожидаясь прохода планировщика (I1)
+      if (isBookingClosedBySchedule(event)) throw new EventNotBookableError('booking closed')
       if (event.pricingSettledAt) throw new EventNotBookableError('pricing already settled')
       if (event.priceMode === 'split' && !['cash', 'transfer'].includes(parsed.method)) {
         throw new BookingMethodNotAllowedError(parsed.method)
@@ -431,6 +441,7 @@ export const bookingService = {
         if (event.status !== 'published') throw new EventNotBookableError('not open')
         if (event.bookingOpensAt && event.bookingOpensAt > new Date())
           throw new BookingNotOpenYetError()
+        if (isBookingClosedBySchedule(event)) throw new EventNotBookableError('booking closed')
         await assertSeatsAllowed(txCtx, booking.organizationId, event, target)
         const add = target - total
         const free = Math.max(0, event.capacity - (await reservedSeats(tx, event.id)))
@@ -440,13 +451,17 @@ export const bookingService = {
         updated = await addMainSeats(txCtx, event, booking, add, 0)
       } else {
         assertSelfCancellable(event)
-        // активное предложение записи снимается: места очереди меняются (20.3.1), затем
-        // освободившиеся места предлагаются заново
-        const revoked = await revokeBookingOffers(tx, booking.id)
         const remove = total - target
         const fromQueue =
           booking.status === 'waitlisted' ? 0 : Math.min(remove, booking.waitlistSeats)
         const fromMain = booking.status === 'waitlisted' ? 0 : remove - fromQueue
+        // действующее предложение записи сохраняется (без нового срока и уведомления), пока в
+        // очереди остаётся не меньше предложенных мест; иначе снимается, и места предлагаются заново
+        const offer = await openOfferOf(tx, booking.id)
+        const queuedAfter =
+          booking.status === 'waitlisted' ? target : booking.waitlistSeats - fromQueue
+        const revoked =
+          offer && queuedAfter < offer.seats ? await revokeBookingOffers(tx, booking.id) : 0
         if (fromMain > 0) {
           // порядок: неоплаченные места → места абонемента (занятия возвращаются) → оплаченные
           const live = await paymentService.listLive(txCtx, booking)
@@ -868,9 +883,13 @@ export const bookingService = {
       await db.execute(sql`SELECT pg_advisory_xact_lock(${eventId})`)
       const event = await db.query.events.findFirst({ where: eq(events.id, eventId) })
       if (!event || event.status !== 'published' || event.pricingSettledAt) return null
+      // истёкшие предложения обрабатываются лениво под lock события — и при выключенном
+      // планировщике (ревью PR #150, I2): их места больше не держатся
+      const now = new Date()
+      await expireOffersLocked(ctx, eventId, now)
       // планировщик включён (D-03): места не продвигаются сразу, а предлагаются с TTL 30 мин
       if (schedulerEnabled()) {
-        await offerFreeSeats(ctx, event)
+        await offerFreeSeats(ctx, event, now)
         return null
       }
 
@@ -882,7 +901,8 @@ export const bookingService = {
         const [next] = await db
           .select()
           .from(bookings)
-          .where(and(eq(bookings.eventId, eventId), inQueueSql))
+          // запись с действующим предложением не продвигается: её места уже удержаны (I2)
+          .where(and(eq(bookings.eventId, eventId), inQueueSql, noOpenOfferSql))
           .orderBy(asc(bookings.bookedAt), asc(bookings.id))
           .limit(1)
           .for('update', { skipLocked: true })
@@ -971,7 +991,12 @@ export const bookingService = {
             : 0
       if (queued < offer!.seats) throw new WaitlistOfferExpiredError()
       const event = (await tx.query.events.findFirst({ where: eq(events.id, offer!.eventId) }))!
-      if (event.status !== 'published' || event.pricingSettledAt || event.startsAt <= now)
+      if (
+        event.status !== 'published' ||
+        event.pricingSettledAt ||
+        event.startsAt <= now ||
+        isBookingClosedBySchedule(event, now)
+      )
         throw new EventNotBookableError('not open')
 
       let accepted: Booking

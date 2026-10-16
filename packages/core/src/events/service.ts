@@ -38,7 +38,7 @@ import { subscriptionService } from '../subscriptions/service'
 
 import {
   EventError,
-  EventBookingOpensAfterStartError,
+  EventBookingOpensAfterCloseError,
   EventBookingOpensInPastError,
   EventCapacityBelowTakenError,
   EventInviteModeDisabledError,
@@ -55,6 +55,7 @@ import {
   EventPricingInput,
   ListEventsQuery,
   UpdateEventInput,
+  DEFAULT_CLOSE_BEFORE_MINUTES,
   type ListEventsQuery as ListQuery,
   type CreateEventInput as CreateInput,
   type UpdateEventInput as UpdateInput,
@@ -70,11 +71,25 @@ function requireInviteModeCapability(): void {
  * Время открытия записи (20.3.1, D-09): задаётся только при включённом планировщике (новая семантика
  * за флагом, ADR v3 п. 4), в будущем и раньше начала события. `null` — открыть запись сейчас.
  */
-function assertBookingOpensAt(opensAt: Date | null | undefined, startsAt: Date): void {
+function assertBookingOpensAt(
+  opensAt: Date | null | undefined,
+  startsAt: Date,
+  closeBeforeMinutes: number,
+): void {
   if (opensAt === undefined || opensAt === null) return
   if (!schedulerEnabled()) throw new EventSchedulerDisabledError()
   if (opensAt <= new Date()) throw new EventBookingOpensInPastError()
-  if (opensAt >= startsAt) throw new EventBookingOpensAfterStartError()
+  assertOpensBeforeClose(opensAt, startsAt, closeBeforeMinutes)
+}
+
+/** Запись открывается не позже момента закрытия: начало − срок закрытия (ревью PR #150, I1). */
+function assertOpensBeforeClose(
+  opensAt: Date | null,
+  startsAt: Date,
+  closeBeforeMinutes: number,
+): void {
+  if (opensAt && opensAt.getTime() > startsAt.getTime() - closeBeforeMinutes * 60_000)
+    throw new EventBookingOpensAfterCloseError()
 }
 
 function requireSplitCapability(): void {
@@ -185,7 +200,8 @@ export async function insertEvent(
   if (data.startsAt <= new Date()) throw new EventStartsInPastError() // 5.13.11
   if (data.venueId) await assertVenueInOrg(db, data.venueId, orgId)
   const { pricing, joinMode } = resolveEventModes(data, org)
-  assertBookingOpensAt(data.bookingOpensAt, data.startsAt)
+  const closeBeforeMinutes = data.closeBeforeMinutes ?? DEFAULT_CLOSE_BEFORE_MINUTES
+  assertBookingOpensAt(data.bookingOpensAt, data.startsAt, closeBeforeMinutes)
 
   const [event] = await db
     .insert(events)
@@ -213,6 +229,11 @@ export async function insertEvent(
       seriesId: series?.id ?? null,
       seriesDate: series?.date ?? null,
       bookingOpensAt: data.bookingOpensAt ?? null,
+      closeBeforeMinutes,
+      // часы приложения, как у правок события: «изменено до момента закрытия» сравнивается с ними
+      // (право планировщика закрыть запись, ревью PR #150, I1)
+      createdAt: new Date(),
+      updatedAt: new Date(),
     })
     .returning()
   // публикация списывает 1 событие баланса; нехватка откатывает создание (20.2.1, D-04)
@@ -454,14 +475,14 @@ export const eventService = {
         throw new EventNotEditableError()
       }
       if (data.startsAt && data.startsAt <= new Date()) throw new EventStartsInPastError()
-      // время открытия записи (20.3.1, D-09): новое значение проверяется целиком; при сдвиге начала
-      // прежнее время открытия должно остаться раньше него
+      // время открытия записи (20.3.1, D-09): новое значение проверяется целиком
+      const closeBeforeMinutes = data.closeBeforeMinutes ?? existing.closeBeforeMinutes
       if (
         data.bookingOpensAt !== undefined &&
         data.bookingOpensAt !== null &&
         data.bookingOpensAt.getTime() !== existing.bookingOpensAt?.getTime()
       ) {
-        assertBookingOpensAt(data.bookingOpensAt, startsAt)
+        assertBookingOpensAt(data.bookingOpensAt, startsAt, closeBeforeMinutes)
         // открытую запись не «закрыть обратно»: иначе отмена события вернула бы баланс вопреки
         // записям (D-09, D-13)
         const active = await db.query.bookings.findFirst({
@@ -473,7 +494,10 @@ export const eventService = {
       }
       const opensAt =
         data.bookingOpensAt === undefined ? existing.bookingOpensAt : data.bookingOpensAt
-      if (opensAt && opensAt >= startsAt) throw new EventBookingOpensAfterStartError()
+      // ещё не наступившее открытие должно остаться не позже момента закрытия при сдвиге начала
+      // или срока закрытия; уже открытой записи это не касается
+      if (opensAt && opensAt > new Date())
+        assertOpensBeforeClose(opensAt, startsAt, closeBeforeMinutes)
       // дата серии (20.2.2): время события меняется свободно, календарный день — только правкой
       // серии, иначе `series_date` разошёлся бы с фактическим днём события
       if (existing.seriesId !== null && data.startsAt !== undefined) {

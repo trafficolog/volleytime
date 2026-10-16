@@ -50,9 +50,13 @@ export class EventBookingOpensInPastError extends EventError {
     super('event.booking_opens_in_past', 'Booking opening time must be in the future')
   }
 }
-export class EventBookingOpensAfterStartError extends EventError {
+/** Запись открывается не позже момента закрытия (начало − `close_before_minutes`). */
+export class EventBookingOpensAfterCloseError extends EventError {
   constructor() {
-    super('event.booking_opens_after_start', 'Booking must open before the event starts')
+    super(
+      'event.booking_opens_after_close',
+      'Booking must open no later than it closes before the start',
+    )
   }
 }
 export class EventCapacityBelowTakenError extends EventError {

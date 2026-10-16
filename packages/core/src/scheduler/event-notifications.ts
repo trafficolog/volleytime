@@ -113,7 +113,7 @@ export async function enqueueReminders(now: Date): Promise<number> {
 
 /**
  * «Запись открыта» (20.3.1, D-09): при наступлении `booking_opens_at` — каждому активному участнику
- * группы, один раз на событие. Опоздание больше суток (простой планировщика) не рассылается.
+ * группы, один раз на событие; события «по приглашению» не рассылаются (записаться может не каждый). Опоздание больше суток (простой планировщика) не рассылается.
  */
 export async function enqueueBookingOpened(now: Date): Promise<number> {
   const rows = await defaultDb
@@ -135,6 +135,8 @@ export async function enqueueBookingOpened(now: Date): Promise<number> {
     .where(
       and(
         eq(events.status, 'published'),
+        // событие «по приглашению» записывает только по приглашению — рассылка всей группе не нужна
+        eq(events.joinMode, 'open'),
         isNotNull(events.bookingOpensAt),
         lte(events.bookingOpensAt, now),
         gt(events.bookingOpensAt, new Date(now.getTime() - OPENED_STALE_MS)),

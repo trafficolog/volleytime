@@ -21,6 +21,7 @@ import { memberService } from '../members/service'
 import { setNotifierTransport } from '../notifier/service'
 import type { NotifyPayload } from '../notifier/types'
 import { organizationService } from '../organizations/service'
+import { seriesService } from '../series/service'
 
 import { enqueueNotification, processDueJobs, purgeCompletedJobs } from './journal'
 import { runSchedulerTick } from './tick'
@@ -139,12 +140,55 @@ describe('event jobs (20.3.1, PostgreSQL)', { timeout: 60_000 }, () => {
         makeEvent({ capacity: 4, bookingOpensAt: new Date(BASE + 10 * H) }),
       ).rejects.toMatchObject({ code: 'event.scheduler_disabled' })
       vi.stubEnv('SCHEDULER_ENABLED', 'true')
+      // открытие = начало и открытие внутри окна закрытия (начало − 2 ч) — 422 (ревью PR #150, I1)
       await expect(
         makeEvent({ capacity: 4, bookingOpensAt: new Date(BASE + 48 * H) }),
-      ).rejects.toThrow()
+      ).rejects.toMatchObject({ code: 'event.booking_opens_after_close' })
+      await expect(
+        makeEvent({ capacity: 4, bookingOpensAt: new Date(BASE + 46 * H + 1) }),
+      ).rejects.toMatchObject({ code: 'event.booking_opens_after_close' })
+      await expect(
+        makeEvent({
+          capacity: 4,
+          closeBeforeMinutes: 1440,
+          bookingOpensAt: new Date(BASE + 30 * H),
+        }),
+      ).rejects.toMatchObject({ code: 'event.booking_opens_after_close' })
+      const ok = await makeEvent({ capacity: 4, bookingOpensAt: new Date(BASE + 46 * H) })
+      expect(ok.closeBeforeMinutes).toBe(120)
       await expect(
         makeEvent({ capacity: 4, bookingOpensAt: new Date(BASE - H) }),
       ).rejects.toMatchObject({ code: 'event.booking_opens_in_past' })
+      // перенос начала раньше ещё не наступившего открытия (с учётом срока закрытия) — 422
+      const opening = await makeEvent({ capacity: 4, bookingOpensAt: new Date(BASE + 10 * H) })
+      await expect(
+        eventService.update({ userId: ownerId }, opening.id, {
+          startsAt: new Date(BASE + 11 * H),
+          endsAt: new Date(BASE + 12 * H),
+        }),
+      ).rejects.toMatchObject({ code: 'event.booking_opens_after_close' })
+      // будущее время открытия событию с записями — 409 (D-09/D-13)
+      const [p] = await players(1)
+      const open = await makeEvent({ capacity: 4, price: 0 })
+      await bookingService.book({ userId: p! }, orgId, open.id, { method: 'free' })
+      await expect(
+        eventService.update({ userId: ownerId }, open.id, {
+          bookingOpensAt: new Date(BASE + 5 * H),
+        }),
+      ).rejects.toMatchObject({ code: 'event.booking_already_open' })
+    })
+
+    it('does not announce booking opening for invite-only events', async () => {
+      vi.stubEnv('EVENT_INVITE_MODE_ENABLED', 'true')
+      await players(2)
+      await makeEvent({
+        capacity: 4,
+        joinMode: 'invite',
+        bookingOpensAt: new Date(BASE + 10 * H),
+      })
+      at(10 * H + MIN)
+      await tick()
+      expect(sent.filter((p) => p.text.includes('Запись открыта'))).toHaveLength(0)
     })
 
     it('notifies every active member once when booking opens', async () => {
@@ -355,6 +399,65 @@ describe('event jobs (20.3.1, PostgreSQL)', { timeout: 60_000 }, () => {
       ])
     })
 
+    it('an expired but unprocessed offer no longer holds its seats', async () => {
+      const { ev, ba } = await fullEvent()
+      await bookingService.cancel({ userId: ba.userId }, ba.id)
+      at(31 * MIN) // истекло, проход планировщика ещё не был
+      const [d] = await players(1)
+      const bd = await bookingService.book({ userId: d! }, orgId, ev.id, { method: 'free' })
+      expect(bd.status).toBe('confirmed')
+    })
+
+    it('reducing seats keeps an offer that still fits the queue: no new TTL, no new message', async () => {
+      vi.stubEnv('EVENT_MULTI_SEAT_ENABLED', 'true')
+      await db
+        .update(organizations)
+        .set({ maxSeatsPerBooking: 4 })
+        .where(eq(organizations.id, orgId))
+      const ev = await makeEvent({ capacity: 4, price: 0 })
+      const [a, b, c] = await players(3)
+      const ba = await bookingService.book({ userId: a! }, orgId, ev.id, { method: 'free' })
+      await bookingService.book({ userId: c! }, orgId, ev.id, { method: 'free' })
+      const bb = await bookingService.book({ userId: b! }, orgId, ev.id, {
+        method: 'free',
+        seats: 4,
+        allowWaitlist: true,
+      })
+      expect(bb).toMatchObject({ seats: 2, waitlistSeats: 2 })
+      await bookingService.cancel({ userId: a! }, ba.id)
+      const [offer] = await offersOf(ev.id)
+      expect(offer).toMatchObject({ bookingId: bb.id, seats: 1, status: 'offered' })
+      at(5 * MIN)
+      await bookingService.changeSeats({ userId: b! }, bb.id, { seats: 3 }) // очередь 2 → 1
+      expect(await offersOf(ev.id)).toEqual([offer])
+      await bookingService.changeSeats({ userId: b! }, bb.id, { seats: 2 }) // очередь 1 → 0
+      expect((await offersOf(ev.id)).map((o) => o.status)).toEqual(['revoked'])
+    })
+
+    it('flag on → offer → flag off: legacy promotion skips the offer holder, stale offers expire lazily', async () => {
+      const ev = await makeEvent({ capacity: 2, price: 0 })
+      const [a, b, c, d, e] = await players(5)
+      const ba = await bookingService.book({ userId: a! }, orgId, ev.id, { method: 'free' })
+      const bb = await bookingService.book({ userId: b! }, orgId, ev.id, { method: 'free' })
+      const bc = await bookingService.book({ userId: c! }, orgId, ev.id, { method: 'free' })
+      const bd = await bookingService.book({ userId: d! }, orgId, ev.id, { method: 'free' })
+      await bookingService.cancel({ userId: a! }, ba.id) // предложение c
+      vi.stubEnv('SCHEDULER_ENABLED', '')
+      const { promoted } = await bookingService.cancel({ userId: b! }, bb.id)
+      // c держит действующее предложение — продвигается следующий, d
+      expect(promoted?.id).toBe(bd.id)
+      expect((await bookingOf(bc.id)).status).toBe('waitlisted')
+      expect((await offersOf(ev.id)).map((o) => o.status)).toEqual(['offered'])
+      // c не ответил; после срока освобождение места лениво закрывает предложение
+      const be = await bookingService.book({ userId: e! }, orgId, ev.id, { method: 'free' })
+      expect(be.status).toBe('waitlisted')
+      at(31 * MIN)
+      await bookingService.cancel({ userId: d! }, bd.id)
+      expect((await offersOf(ev.id)).map((o) => o.status)).toEqual(['expired'])
+      expect((await bookingOf(bc.id)).status).toBe('cancelled')
+      expect((await bookingOf(be.id)).status).toBe('confirmed')
+    })
+
     it('without the scheduler the queue is auto-promoted as before (D-03)', async () => {
       vi.stubEnv('SCHEDULER_ENABLED', '')
       const { ev, ba, bb } = await fullEvent()
@@ -410,14 +513,142 @@ describe('event jobs (20.3.1, PostgreSQL)', { timeout: 60_000 }, () => {
         expect((await sentTo(id)).filter((p) => p.text.includes('закрыта'))).toHaveLength(1)
     })
 
-    it('leaves an unsettleable split event to the organizer without failing the tick', async () => {
+    it('closes an empty split without settlement and never settles a late booking', async () => {
       vi.stubEnv('EVENT_SPLIT_PRICING_ENABLED', 'true')
       const ev = await makeEvent({ capacity: 4, price: 0, priceMode: 'split', targetAmount: 1001 })
+      const [p, q] = await players(2)
+      // момент закрытия наступил, прохода ещё не было: запись уже закрыта
       at(46 * H)
-      await expect(tick()).resolves.toBeDefined()
+      await expect(
+        bookingService.book({ userId: p! }, orgId, ev.id, { method: 'cash' }),
+      ).rejects.toMatchObject({ code: 'booking.event_not_bookable' })
+      // запись, попавшая после момента закрытия (например, при выключенном флаге), не фиксируется
+      await db.insert(bookings).values({
+        eventId: ev.id,
+        userId: q!,
+        organizationId: orgId,
+        status: 'pending_payment',
+        method: 'cash',
+        bookedAt: new Date(BASE + 46 * H),
+      })
+      at(46 * H + MIN)
+      await tick()
+      const closed = (await db.query.events.findFirst({ where: eq(events.id, ev.id) }))!
+      expect(closed).toMatchObject({ status: 'closed', pricingSettledAt: null })
+      expect(
+        await db.select().from(payments).where(eq(payments.organizationId, orgId)),
+      ).toHaveLength(0)
+      expect(
+        (
+          await bookingOf(
+            (await db.select().from(bookings).where(eq(bookings.eventId, ev.id)))[0]!.id,
+          )
+        ).allocatedAmount,
+      ).toBeNull()
+    })
+
+    it('series dates take the close time from the template and its edits', async () => {
+      const startDate = new Date(BASE + 7 * 24 * H).toISOString().slice(0, 10)
+      const { series } = await seriesService.create({ userId: ownerId }, orgId, {
+        rule: {
+          freq: 'weekly',
+          weekdays: [new Date(`${startDate}T12:00:00Z`).getUTCDay() || 7],
+          startDate,
+          count: 2,
+        },
+        template: {
+          title: 'Серия',
+          startTime: '19:00',
+          durationMinutes: 90,
+          capacity: 10,
+          closeBeforeMinutes: 360,
+        },
+        idempotencyKey: 'close-before-1',
+      })
+      const dates = await db.select().from(events).where(eq(events.seriesId, series.id))
+      expect(dates.map((e) => e.closeBeforeMinutes)).toEqual([360, 360])
+      await seriesService.update(
+        { userId: ownerId },
+        orgId,
+        series.id,
+        { scope: 'following', from: startDate },
+        { closeBeforeMinutes: 60 },
+      )
+      const edited = await db.select().from(events).where(eq(events.seriesId, series.id))
+      expect(edited.map((e) => e.closeBeforeMinutes)).toEqual([60, 60])
+    })
+
+    it('uses the per-event close time', async () => {
+      const ev = await makeEvent({ capacity: 4, closeBeforeMinutes: 360 })
+      at(42 * H - MIN)
+      await tick()
       expect((await db.query.events.findFirst({ where: eq(events.id, ev.id) }))!.status).toBe(
         'published',
       )
+      at(42 * H)
+      await tick()
+      expect((await db.query.events.findFirst({ where: eq(events.id, ev.id) }))!.status).toBe(
+        'closed',
+      )
+    })
+
+    it('does not auto-close events created, moved or reopened after their close moment', async () => {
+      const [p] = await players(1)
+      at(47 * H)
+      // создано уже внутри окна закрытия (начало через 1 ч)
+      const late = await eventService.create({ userId: ownerId }, orgId, {
+        title: 'Поздно',
+        startsAt: new Date(BASE + 48 * H),
+        endsAt: new Date(BASE + 50 * H),
+        capacity: 4,
+      })
+      at(0)
+      // перенесено в окно: изменено после своего нового момента закрытия
+      const moved = await makeEvent({ capacity: 4, price: 0 })
+      // переоткрыто после закрытия
+      const reopened = await makeEvent({ capacity: 4, price: 0 })
+      at(45 * H)
+      await eventService.update({ userId: ownerId }, moved.id, {
+        startsAt: new Date(BASE + 46 * H + 30 * MIN),
+        endsAt: new Date(BASE + 49 * H),
+      })
+      at(46 * H)
+      await tick()
+      expect((await db.query.events.findFirst({ where: eq(events.id, reopened.id) }))!.status).toBe(
+        'closed',
+      )
+      at(46 * H + 10 * MIN)
+      await eventService.update({ userId: ownerId }, reopened.id, { status: 'published' })
+      at(46 * H + 20 * MIN)
+      await tick()
+      for (const id of [late.id, moved.id, reopened.id])
+        expect((await db.query.events.findFirst({ where: eq(events.id, id) }))!.status).toBe(
+          'published',
+        )
+      // организатор ведёт такие события: запись открыта
+      const b = await bookingService.book({ userId: p! }, orgId, late.id, { method: 'free' })
+      expect(b.status).toBe('confirmed')
+    })
+
+    it('marks a split that cannot be settled and alerts once instead of retrying every tick', async () => {
+      vi.stubEnv('EVENT_SPLIT_PRICING_ENABLED', 'true')
+      const ev = await makeEvent({ capacity: 4, price: 0, priceMode: 'split', targetAmount: 2 })
+      for (const id of await players(3))
+        await bookingService.book({ userId: id }, orgId, ev.id, { method: 'cash' })
+      const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+      at(46 * H)
+      await tick()
+      await tick()
+      at(46 * H + MIN)
+      await tick()
+      const alerts = errors.mock.calls.filter((c) => String(c[0]).includes('auto-close failed'))
+      errors.mockRestore()
+      expect(alerts).toHaveLength(1)
+      expect((await db.query.events.findFirst({ where: eq(events.id, ev.id) }))!.status).toBe(
+        'published',
+      )
+      const marks = await db.select().from(scheduledJobs).where(eq(scheduledJobs.eventId, ev.id))
+      expect(marks.filter((j) => j.kind === 'event.close_skipped')).toHaveLength(1)
     })
 
     it('active offers are revoked when booking closes', async () => {
@@ -566,6 +797,29 @@ describe('event jobs (20.3.1, PostgreSQL)', { timeout: 60_000 }, () => {
           params: {},
         }),
       ).toBe(false)
+    })
+
+    it('delivery stops at its time budget without spending attempts', async () => {
+      const [a] = await players(1)
+      await enqueueNotification(db, {
+        type: 'reminder_2h',
+        dedupKey: 'budget:1',
+        userId: a!,
+        params: {},
+      })
+      expect(await processDueJobs({ now: new Date(), budgetMs: 0 })).toEqual({
+        sent: 0,
+        skipped: 0,
+        retried: 0,
+        failed: 0,
+      })
+      const [job] = await db
+        .select()
+        .from(scheduledJobs)
+        .where(eq(scheduledJobs.dedupKey, 'budget:1'))
+      expect(job).toMatchObject({ status: 'pending', attempts: 0 })
+      await processDueJobs({ now: new Date() })
+      expect(sent).toHaveLength(1)
     })
 
     it('gives up after the attempt limit and purges completed jobs after 90 days', async () => {
