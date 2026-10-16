@@ -2,11 +2,11 @@
 id: '20.4.4'
 phase: '20'
 epic: '20.4'
-status: in_progress
+status: done
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-15
-status_note: 'Реализовано, исправления по ревью PR #146 внесены, повторное ревью ожидается. Колокольчик уведомлений перенесён в 20.4.9. Отчёт: docs/operations/qa/2026-10-15-20-4-4-player-home-visual.md'
+last_reviewed: 2026-10-16
+status_note: 'PR #146 merged as 95280a2, Opus review merge after two fix rounds, CI green on 74551e4; решения владельца 2026-10-15 (список записей с Главной убран, точный счётчик); колокольчик уведомлений перенесён в 20.4.9 (решение координатора).'
 ref_id: ''
 complexity: L
 impl_model: claude-sonnet-5-5

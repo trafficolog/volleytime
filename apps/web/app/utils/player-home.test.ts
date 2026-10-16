@@ -45,6 +45,16 @@ describe('player home event projection', () => {
     expect(same.schedule.map((item) => item.id)).toEqual([2])
   })
 
+  it('drops a server hero that has already started and falls back to the list', () => {
+    const started = {
+      ...event(9, '2026-09-24T09:00:00Z'),
+      myBooking: { id: 5, status: 'confirmed' },
+    }
+    const view = projectPlayerHome([event(1, '2026-09-25T18:00:00Z')], now, started)
+    expect(view.hero?.id).toBe(1)
+    expect(view.schedule).toEqual([])
+  })
+
   it('prefers the nearest game the player is going to as hero (reference M-03)', () => {
     const going = { ...event(3, '2026-09-27T18:00:00Z'), myBooking: { id: 1, status: 'confirmed' } }
     const waiting = {

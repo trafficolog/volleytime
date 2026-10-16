@@ -443,7 +443,11 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
                 <VtIcon v-if="!home" name="chevron-r" :size="14" aria-hidden="true"
               /></NuxtLink>
             </div>
-            <EmptyState v-if="dash.upcoming.length === 0" icon="calendar" title="Событий пока нет">
+            <EmptyState
+              v-if="dash.upcoming.length === 0 && (dash.isManager || !playerHome.hero)"
+              icon="calendar"
+              title="Событий пока нет"
+            >
               <template v-if="home" #action>
                 <NuxtLink :to="`${base}/events/new`" class="vt-btn vt-btn--primary"
                   >Создать событие</NuxtLink
