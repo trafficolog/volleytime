@@ -409,6 +409,31 @@
     height: 1px;
     background: var(--vt-bone-2);
   }
+  /* День недели в правиле повтора серии (W-04): переключатель-кнопка (min-h-11 в разметке), выбранный — «чернильный». */
+  .vt-weekday {
+    border-radius: var(--r-field);
+    background: var(--vt-ctl);
+    color: var(--vt-ink-3);
+    font-size: var(--fs-sm);
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .vt-weekday[aria-pressed='true'] {
+    background: var(--vt-ink);
+    color: var(--vt-paper);
+  }
+  .vt-weekday:focus-visible {
+    outline: 2px solid var(--vt-flame);
+    outline-offset: 2px;
+  }
+  /* Выпадающий список v3 в серой карточке формы события читается как соседние поля. */
+  .vt-event-form .vt-card:not(.vt-card--raised, .vt-card--cool) .vt-select__button.vt-field {
+    background: var(--vt-paper);
+    border-color: var(--vt-field-border);
+  }
+  .vt-event-form .vt-card:not(.vt-card--raised, .vt-card--cool) .vt-select__button--open.vt-field {
+    border-color: var(--vt-ink);
+  }
   .vt-meter {
     height: 6px;
     background: var(--vt-bone-2);

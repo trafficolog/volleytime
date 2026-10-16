@@ -198,6 +198,30 @@
       "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
     },
     {
+      "id": "cabinet-event-new-series",
+      "title": "Кабинет: новая серия (блок повтора, предпросмотр, баланс)",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/events/new",
+      "steps": [{ "click": "button[role='radio']:has-text('Каждую неделю')" }],
+      "fullPage": true,
+      "references": ["4-cabinet/05-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
+      "id": "cabinet-event-new-split",
+      "title": "Кабинет: новое событие, сбор суммой (прогноз цены)",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/events/new",
+      "steps": [{ "click": "button[role='radio']:has-text('Делим сумму')" }],
+      "fullPage": true,
+      "references": ["4-cabinet/05-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
       "id": "cabinet-members",
       "title": "Кабинет: игроки",
       "viewport": "cabinet",

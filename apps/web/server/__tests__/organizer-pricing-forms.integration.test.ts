@@ -22,6 +22,10 @@ import MiniNew from '../../app/pages/m/orgs/[orgId]/events/new.vue'
 
 import { createTestApi } from './harness'
 
+/** Сегмент v3 (role=radio) по подписи: тип оплаты. */
+const radio = (wrapper: ReturnType<typeof mount>, text: string) =>
+  wrapper.findAll('button[role="radio"]').find((b) => b.text() === text)!
+
 describe('real manager API through both organizer edit forms (5.16.2)', () => {
   let request: Awaited<ReturnType<typeof createTestApi>>
   let ownerId: number
@@ -148,7 +152,7 @@ describe('real manager API through both organizer edit forms (5.16.2)', () => {
         const wrapper = await render(surface, true)
         expect(wrapper.get('label[for="ev-price"]').text()).toContain('RUB')
         if (mode === 'split') {
-          await wrapper.get('input[value="split"]').setValue(true)
+          await radio(wrapper, 'Делим сумму').trigger('click')
           await wrapper.get('#ev-cap').setValue('3')
           await wrapper.get('#ev-target').setValue('100')
           expect(wrapper.get('label[for="ev-target"]').text()).toContain('RUB')
@@ -190,7 +194,7 @@ describe('real manager API through both organizer edit forms (5.16.2)', () => {
       vi.stubEnv('EVENT_SPLIT_PRICING_ENABLED', 'false')
       const wrapper = await render(surface)
       expect(wrapper.get('#ev-target').attributes('disabled')).toBeDefined()
-      expect(wrapper.get('input[value="fixed"]').attributes('disabled')).toBeDefined()
+      expect(radio(wrapper, 'Фикс. цена').attributes('disabled')).toBeDefined()
       const response = await request('GET', `/api/organizations/${orgId}/events/${eventId}`, {
         user: ownerId,
       })
@@ -233,8 +237,8 @@ describe('real manager API through both organizer edit forms (5.16.2)', () => {
           })
           vi.stubEnv('EVENT_SPLIT_PRICING_ENABLED', 'false')
           const wrapper = await render(surface)
-          expect(wrapper.get('input[value="fixed"]').attributes('disabled')).toBeDefined()
-          expect(wrapper.get('input[value="split"]').attributes('disabled')).toBeDefined()
+          expect(radio(wrapper, 'Фикс. цена').attributes('disabled')).toBeDefined()
+          expect(radio(wrapper, 'Делим сумму').attributes('disabled')).toBeDefined()
           if (mode === 'split') {
             expect(wrapper.get('#ev-target').attributes('disabled')).toBeUndefined()
             await wrapper.get('#ev-target').setValue('120')
@@ -260,7 +264,7 @@ describe('real manager API through both organizer edit forms (5.16.2)', () => {
     it(`server refuses stale unlocked GET after booking history: ${surface}`, async () => {
       await create('fixed')
       const wrapper = await render(surface)
-      expect(wrapper.get('input[value="split"]').attributes('disabled')).toBeUndefined()
+      expect(radio(wrapper, 'Делим сумму').attributes('disabled')).toBeUndefined()
       await db.insert(bookings).values({
         eventId,
         organizationId: orgId,
@@ -268,7 +272,7 @@ describe('real manager API through both organizer edit forms (5.16.2)', () => {
         status: 'cancelled',
         method: 'free',
       })
-      await wrapper.get('input[value="split"]').setValue(true)
+      await radio(wrapper, 'Делим сумму').trigger('click')
       await wrapper.get('#ev-target').setValue('100')
       await wrapper.get('form').trigger('submit')
       await flushPromises()

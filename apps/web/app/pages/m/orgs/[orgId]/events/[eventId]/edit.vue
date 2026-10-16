@@ -13,7 +13,7 @@ const {
   status: orgStatus,
 } = await useFetch<{
   organization: { id: number; defaultTimezone: string; subscriptionsEnabled: boolean }
-  capabilities: { eventSplitPricing: boolean }
+  capabilities: { eventSplitPricing: boolean; eventInviteMode?: boolean }
   myMember: { role: string; status: string }
 }>(() => `/api/organizations/${orgId.value}`, { key: () => `event-edit-org-${orgId.value}` })
 const { data, error, status } = await useFetch<{
@@ -75,6 +75,7 @@ function onSaved(event: Event) {
         :tz="org!.defaultTimezone"
         :subscriptions-enabled="org!.subscriptionsEnabled"
         :split-pricing-enabled="orgData?.capabilities?.eventSplitPricing === true"
+        :invite-mode-enabled="orgData?.capabilities?.eventInviteMode === true"
         :currency="currentEvent.currency"
         :pricing-permissions="currentEvent.pricingPermissions"
         :initial="currentEvent"

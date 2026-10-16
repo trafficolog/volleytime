@@ -10,7 +10,7 @@ const {
   status: orgStatus,
 } = await useFetch<{
   organization: Organization
-  capabilities: { eventSplitPricing: boolean }
+  capabilities: { eventSplitPricing: boolean; eventInviteMode?: boolean }
   myMember: { role: string; status: string }
 }>(() => `/api/organizations/${orgId.value}`, { key: () => `event-new-org-${orgId.value}` })
 const org = computed(() =>
@@ -54,6 +54,7 @@ function onSaved(event: { id: number; organizationId: number }) {
         :subscriptions-enabled="org!.subscriptionsEnabled"
         :currency="org!.defaultCurrency"
         :split-pricing-enabled="orgData?.capabilities?.eventSplitPricing === true"
+        :invite-mode-enabled="orgData?.capabilities?.eventInviteMode === true"
         submit-label="Создать событие"
         @saved="onSaved"
       />

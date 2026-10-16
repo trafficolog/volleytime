@@ -21,7 +21,7 @@ const {
 } = await useFetch<{
   organization: Organization
   myMember: { role: string; status: string }
-  capabilities: { eventSplitPricing: boolean }
+  capabilities: { eventSplitPricing: boolean; eventInviteMode?: boolean }
 }>(() => `/api/organizations/${orgId.value}`, {
   key: () => `desktop-event-edit-org-${orgId.value}`,
 })
@@ -70,13 +70,14 @@ async function retry() {
       message="Не удалось открыть событие"
       @retry="retry"
     />
-    <div v-else class="vt-card vt-desktop-form-page__card">
+    <div v-else>
       <EventForm
         :key="`${orgId}-${eventId}`"
         :org-id="orgId"
         :tz="tz"
         :initial="event"
         :split-pricing-enabled="orgData?.capabilities?.eventSplitPricing === true"
+        :invite-mode-enabled="orgData?.capabilities?.eventInviteMode === true"
         :currency="event.currency"
         :pricing-permissions="event.pricingPermissions"
         :subscriptions-enabled="orgData?.organization.subscriptionsEnabled"
