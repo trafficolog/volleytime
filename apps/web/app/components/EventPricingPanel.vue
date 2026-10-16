@@ -10,6 +10,8 @@ const props = defineProps<{
   tz: string
   canSettle: boolean
   pending: boolean
+  /** Кабинет (20.5.6): прогноз за место и число мест берутся из GET …/price, а не из этого вида. */
+  hidePerSeat?: boolean
 }>()
 defineEmits<{ settle: [] }>()
 const amounts = computed(() =>
@@ -47,24 +49,26 @@ const settledTime = computed(() =>
           {{ formatMoneyRu(pricing.targetAmount ?? 0, currency) }}
         </dd>
       </div>
-      <div>
-        <dt class="text-vt-mute-2">
-          {{ pricing.basis === 'capacity' ? 'Мест для прогноза' : 'Участников распределения' }}
-        </dt>
-        <dd class="font-semibold tabular-nums">{{ pricing.participantCount }}</dd>
-      </div>
-      <div class="sm:col-span-2">
-        <dt class="text-vt-mute-2">
-          {{ pricing.settledAt ? 'Сумма за место' : 'Прогноз за место' }}
-        </dt>
-        <dd class="font-semibold tabular-nums">
-          <template v-if="!pricing.settledAt">≈ </template>
-          {{ formatMoneyRu(pricing.minAmount, currency)
-          }}<template v-if="pricing.maxAmount !== pricing.minAmount">
-            – {{ formatMoneyRu(pricing.maxAmount, currency) }}</template
-          >
-        </dd>
-      </div>
+      <template v-if="!hidePerSeat">
+        <div>
+          <dt class="text-vt-mute-2">
+            {{ pricing.basis === 'capacity' ? 'Мест для прогноза' : 'Участников распределения' }}
+          </dt>
+          <dd class="font-semibold tabular-nums">{{ pricing.participantCount }}</dd>
+        </div>
+        <div class="sm:col-span-2">
+          <dt class="text-vt-mute-2">
+            {{ pricing.settledAt ? 'Сумма за место' : 'Прогноз за место' }}
+          </dt>
+          <dd class="font-semibold tabular-nums">
+            <template v-if="!pricing.settledAt">≈ </template>
+            {{ formatMoneyRu(pricing.minAmount, currency)
+            }}<template v-if="pricing.maxAmount !== pricing.minAmount">
+              – {{ formatMoneyRu(pricing.maxAmount, currency) }}</template
+            >
+          </dd>
+        </div>
+      </template>
       <div v-if="settledTime" class="sm:col-span-2">
         <dt class="text-vt-mute-2">Время распределения</dt>
         <dd>
