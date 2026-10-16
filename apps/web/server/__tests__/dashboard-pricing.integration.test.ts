@@ -110,6 +110,26 @@ describe('dashboard pricing projection', () => {
     expect((none.body as { hero: unknown }).hero).toBeNull()
   })
 
+  it('gives a player without a going booking a null hero (none, or only a waitlist spot)', async () => {
+    const full = await eventService.create({ userId: ownerId }, orgId, {
+      title: 'Full',
+      startsAt: new Date(Date.now() + 120 * 3600_000),
+      endsAt: new Date(Date.now() + 122 * 3600_000),
+      capacity: 1,
+      price: 0,
+    })
+    await bookingService.book({ userId: otherId }, orgId, full.id, { method: 'free' })
+    expect(
+      (await request('GET', dashboard(), { user: playerId })).body as { hero: unknown },
+    ).toMatchObject({ hero: null })
+    const waitlisted = await bookingService.book({ userId: playerId }, orgId, full.id, {
+      method: 'free',
+    })
+    expect(waitlisted.status).toBe('waitlisted')
+    const res = await request('GET', dashboard(), { user: playerId })
+    expect(res.body).toMatchObject({ hero: null, bookingsCount: 1, bookingsAwaitingPayment: 0 })
+  })
+
   it('keeps a settled split game awaiting payment as hero after registration closed', async () => {
     await bookingService.book({ userId: playerId }, orgId, eventId, { method: 'transfer' })
     await bookingService.book({ userId: otherId }, orgId, eventId, { method: 'cash' })

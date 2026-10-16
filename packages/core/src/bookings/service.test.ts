@@ -365,6 +365,10 @@ describe('bookingService.book (integration)', () => {
         awaitingPayment: 0,
       })
       await bookingService.changeSeats({ userId: pid }, b.id, { seats: 3 })
+      // до принудительной смены статус — реальный из потока (рост мест), а не искусственный
+      expect((await db.query.bookings.findFirst({ where: eq(bookings.id, b.id) }))!.status).toBe(
+        'pending_payment',
+      )
       // статус брони не должен влиять: неоплаченное место — само по себе «ждёт оплаты»
       await db.update(bookings).set({ status: 'confirmed' }).where(eq(bookings.id, b.id))
       expect(await bookingService.countMyUpcoming({ userId: pid }, orgId)).toEqual({

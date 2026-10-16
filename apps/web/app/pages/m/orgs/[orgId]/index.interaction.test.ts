@@ -588,6 +588,15 @@ describe('player Home bento v3 (20.4.4)', () => {
     waiting.unmount()
   })
 
+  it('says there are no other events under a server hero with an empty list', async () => {
+    const hero = game(9, 29, { id: 3, status: 'confirmed' })
+    const w = await mountPlayer({ upcoming: [], hero } as never)
+    expect(w.get('a[href="/m/orgs/30/events/9"]').classes()).toContain('vt-card--hero')
+    expect(w.text()).toContain('Других событий пока нет')
+    expect(w.text()).not.toContain('Событий пока нет')
+    w.unmount()
+  })
+
   it('keeps the bookings entry when there is no upcoming game', async () => {
     const w = await mountPlayer({ upcoming: [] })
     expect(w.text()).toContain('Тренировок пока нет')

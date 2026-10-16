@@ -45,7 +45,7 @@ export function projectPlayerHome(
 
   // Референс: hero — ближайшая игра, на которую игрок идёт; иначе ближайшая опубликованная.
   const hero =
-    serverHero ??
+    (serverHero && new Date(serverHero.startsAt) > now ? serverHero : null) ??
     events.find((event) => participationOf(event.myBooking)?.key === 'going') ??
     events[0] ??
     null
