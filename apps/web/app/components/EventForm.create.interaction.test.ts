@@ -472,6 +472,79 @@ describe('create a series with preview', () => {
   })
 })
 
+describe('booking close selector (closeBeforeMinutes)', () => {
+  it('defaults to 2 hours and sends the value with a single event', async () => {
+    const { wrapper } = await renderForm()
+    expect(radio(wrapper, 'за 2 ч').attributes('aria-checked')).toBe('true')
+    await choose(wrapper, 'за 6 ч')
+    await wrapper.get('form').trigger('submit')
+    await settle()
+    const body = calls('/events')[0]![1].body
+    expect(body.closeBeforeMinutes).toBe(360)
+    expect(() => CreateEventInput.parse(body)).not.toThrow()
+    wrapper.unmount()
+  })
+
+  it('sends the value in the series template and the contract accepts it', async () => {
+    const { wrapper } = await renderForm()
+    await choose(wrapper, 'Каждую неделю')
+    await choose(wrapper, 'за 24 ч')
+    await wrapper.get('form').trigger('submit')
+    await settle()
+    const body = calls('/series')[0]![1].body
+    expect(CreateSeriesInput.parse(body).template.closeBeforeMinutes).toBe(1440)
+    wrapper.unmount()
+  })
+
+  it('shows the saved value on edit and sends it only when changed', async () => {
+    const initial = {
+      id: 71,
+      organizationId: 30,
+      title: 'Среда',
+      type: 'training',
+      startsAt: new Date('2030-06-12T16:00:00Z'),
+      endsAt: new Date('2030-06-12T18:00:00Z'),
+      capacity: 12,
+      price: 1500,
+      priceMode: 'fixed',
+      targetAmount: null,
+      currency: 'BYN',
+      status: 'published',
+      venueId: null,
+      locationText: null,
+      description: null,
+      cancellationDeadlineHours: 6,
+      cancellationAllowed: true,
+      joinMode: 'open',
+      level: null,
+      closeBeforeMinutes: 360,
+      seriesId: null,
+      seriesDate: null,
+    } as unknown as Event
+    const { wrapper } = await renderForm({ submitLabel: 'Сохранить событие' }, initial)
+    expect(radio(wrapper, 'за 6 ч').attributes('aria-checked')).toBe('true')
+    await wrapper.get('form').trigger('submit')
+    await settle()
+    expect(calls('/events/71', 'PATCH')[0]![1].body).not.toHaveProperty('closeBeforeMinutes')
+    await choose(wrapper, 'за 1 ч')
+    await wrapper.get('form').trigger('submit')
+    await settle()
+    expect(calls('/events/71', 'PATCH')[1]![1].body.closeBeforeMinutes).toBe(60)
+    wrapper.unmount()
+  })
+
+  it('explains booking_opens_after_close in Russian', async () => {
+    mocks.eventPost = apiError('event.booking_opens_after_close', 422)
+    const { wrapper } = await renderForm()
+    await wrapper.get('form').trigger('submit')
+    await settle()
+    const text = wrapper.get('[role="alert"]').text()
+    expect(text).toContain('закрывается')
+    expect(text).toContain('открытие записи')
+    wrapper.unmount()
+  })
+})
+
 describe('failures and in-flight requests', () => {
   it('adds a check-the-list hint when the outcome of the series request is unknown', async () => {
     mocks.seriesPost = Object.assign(new Error('offline'), { statusCode: 503, data: {} })

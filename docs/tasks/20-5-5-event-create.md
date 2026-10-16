@@ -2,11 +2,11 @@
 id: '20.5.5'
 phase: '20'
 epic: '20.5'
-status: in_progress
+status: done
 release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-16
-status_note: "PR #149, ревью Opus: исправления внесены, повторное ревью ожидается. Форма события и серии в кабинете реализована; отчёт docs/operations/qa/2026-10-16-20-5-5-cabinet-event-create-visual.md. Принято владельцем 2026-10-16: отклонения формы (журнал решений, заметка «2026-10-16 · Форма W-04»); селектор «Запись закрывается» (closeBefore, по умолчанию 2 ч) добавляется после 20.3.1 follow-up'ом 20.5.5, серверное поле — PR #150."
+status_note: 'PR #149 merged as f3a635e + this follow-up (селектор «Запись закрывается», closeBeforeMinutes 60/120/360/1440, по умолчанию 120).'
 ref_id: 'W-04'
 complexity: L
 impl_model: claude-sonnet-5-5
