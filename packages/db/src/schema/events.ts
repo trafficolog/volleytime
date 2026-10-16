@@ -8,6 +8,7 @@ import {
   pgEnum,
   pgTable,
   serial,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
@@ -72,6 +73,10 @@ export const events = pgTable(
     // дата серии (20.2.2): календарная дата в зоне группы; удаление серии оставляет событие
     seriesId: integer('series_id').references(() => eventSeries.id, { onDelete: 'set null' }),
     seriesDate: date('series_date', { mode: 'string' }),
+    // время открытия записи (20.3.1, D-09): NULL — запись открыта с публикации (поведение R0.7)
+    bookingOpensAt: timestamp('booking_opens_at', { withTimezone: true }),
+    // за сколько минут до начала планировщик закрывает запись (20.3.1, решение владельца 2026-10-16)
+    closeBeforeMinutes: smallint('close_before_minutes').notNull().default(120),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -93,6 +98,14 @@ export const events = pgTable(
     // одна дата серии — одно событие; событие серии всегда с датой
     uniqueIndex('events_series_date_uniq').on(t.seriesId, t.seriesDate),
     check('events_series_date_required', sql`${t.seriesId} IS NULL OR ${t.seriesDate} IS NOT NULL`),
+    check(
+      'events_booking_opens_before_start',
+      sql`${t.bookingOpensAt} IS NULL OR ${t.bookingOpensAt} < ${t.startsAt}`,
+    ),
+    check(
+      'events_close_before_minutes_allowed',
+      sql`${t.closeBeforeMinutes} IN (60, 120, 360, 1440)`,
+    ),
   ],
 )
 

@@ -1,6 +1,6 @@
 import { and, auditLog, desc, eq, type AuditLogEntry } from '@volley-time/db'
 
-import { getDb, type ServiceContext } from '../shared/context'
+import { actorUserId, getDb, type ServiceContext } from '../shared/context'
 
 import type { AuditAction, AuditEntityType } from './actions'
 
@@ -32,7 +32,7 @@ export const auditService = {
       .insert(auditLog)
       .values({
         organizationId: params.organizationId ?? null,
-        userId: ctx.userId,
+        userId: actorUserId(ctx),
         action: params.action,
         entityType: params.entityType,
         entityId: params.entityId,
@@ -74,7 +74,7 @@ export const auditService = {
         .insert(auditLog)
         .values({
           organizationId: params.organizationId ?? null,
-          userId: ctx.userId,
+          userId: actorUserId(ctx),
           action: params.action,
           entityType: params.entityType,
           entityId: params.entityId,

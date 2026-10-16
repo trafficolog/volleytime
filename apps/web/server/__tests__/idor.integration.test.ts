@@ -32,6 +32,7 @@ import {
   subscriptions,
   users,
   venues,
+  waitlistOffers,
 } from '@volley-time/db'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
@@ -69,6 +70,11 @@ const ROUTES: OrgRouteTable = {
     body: () => ({ seats: 1 }),
   },
   'GET /api/organizations/:orgId/bookings/my': { access: 'member' },
+  // 20.3.1: принять предложение места — self (чужое предложение своей группы — 404 в сервисе)
+  'POST /api/organizations/:orgId/waitlist-offers/:offerId/accept': {
+    access: 'member',
+    body: () => ({}),
+  },
   'GET /api/organizations/:orgId/dashboard': { access: 'member' },
   'GET /api/organizations/:orgId/event-balance': { access: 'manager' },
   'GET /api/organizations/:orgId/event-balance/entries': { access: 'manager' },
@@ -289,6 +295,16 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
       template: { ...seriesBody().template, title: `Серия ${marker}`, venueId: venue.id },
       idempotencyKey: `idor-fixture-${label}`,
     })
+    const [offer] = await db
+      .insert(waitlistOffers)
+      .values({
+        organizationId: org.id,
+        eventId: ev.id,
+        bookingId: booking.id,
+        seats: 1,
+        expiresAt: new Date(Date.now() + 30 * 60_000),
+      })
+      .returning()
     return {
       ids: {
         orgId: org.id,
@@ -301,6 +317,7 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
         inviteId: invite.id,
         requestId: request.id,
         seriesId: series.id,
+        offerId: offer!.id,
       },
       owner,
       organizer,
@@ -323,6 +340,7 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
       db.select().from(events).where(eq(events.organizationId, orgId)),
       db.select().from(eventSeries).where(eq(eventSeries.organizationId, orgId)),
       db.select().from(bookings).where(eq(bookings.organizationId, orgId)),
+      db.select().from(waitlistOffers).where(eq(waitlistOffers.organizationId, orgId)),
       db.select().from(payments).where(eq(payments.organizationId, orgId)),
       db.select().from(subscriptionPlans).where(eq(subscriptionPlans.organizationId, orgId)),
       db.select().from(subscriptions).where(eq(subscriptions.organizationId, orgId)),

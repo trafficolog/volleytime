@@ -95,7 +95,7 @@ Mini App и Login Widget сходятся в одну Telegram-личность:
 | Приглашение на событие    | `POST …/events/{id}/invites` — реализовано, в IDOR-таблице                                                                                      | manager         | 20.1.3            |
 |                           | `POST …/events/{id}/invite-requests` — реализовано, в IDOR-таблице                                                                              | member          | 20.1.3            |
 |                           | `GET …/invite-requests`, `POST …/{requestId}/approve\|decline` — реализовано, в IDOR                                                            | manager         | 20.1.3            |
-| Предложение места (оффер) | принять / отказаться                                                                                                                            | self            | 20.3.1            |
+| Предложение места (оффер) | принять (`POST …/waitlist-offers/{id}/accept`); отказ — не в v0.2.0 (отменить запись в очереди)                                                 | self            | 20.3.1            |
 | Баланс событий            | `GET …/event-balance`, `GET …/event-balance/entries`                                                                                            | manager         | 20.2.1            |
 |                           | `POST …/event-balance/purchase-requests`                                                                                                        | owner           | 20.2.1, UI 21.2.8 |
 |                           | начисление, исправление, решение по заявке — операторская команда `db:event-balance`                                                            | root            | 20.2.1, UI 22.2.2 |

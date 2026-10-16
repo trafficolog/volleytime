@@ -38,6 +38,27 @@ export class EventStartsInPastError extends EventError {
     super('event.starts_in_past', 'Event must start in the future')
   }
 }
+/** Время открытия записи — новая семантика за флагом планировщика (SCHEDULER_ENABLED, 20.3.1). */
+export class EventSchedulerDisabledError extends EventError {
+  constructor() {
+    super('event.scheduler_disabled', 'Scheduled booking opening is not enabled')
+  }
+}
+/** Время открытия записи — в будущем и раньше начала события (20.3.1, D-09). */
+export class EventBookingOpensInPastError extends EventError {
+  constructor() {
+    super('event.booking_opens_in_past', 'Booking opening time must be in the future')
+  }
+}
+/** Запись открывается не позже момента закрытия (начало − `close_before_minutes`). */
+export class EventBookingOpensAfterCloseError extends EventError {
+  constructor() {
+    super(
+      'event.booking_opens_after_close',
+      'Booking must open no later than it closes before the start',
+    )
+  }
+}
 export class EventCapacityBelowTakenError extends EventError {
   constructor(taken: number) {
     super('event.capacity_below_taken', `Capacity cannot be lower than taken spots (${taken})`)

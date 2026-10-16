@@ -2,6 +2,16 @@ import { z } from 'zod'
 
 import { LevelCode } from '../levels/schemas'
 
+/** Допустимые сроки закрытия записи до начала, мин (20.3.1, решение владельца 2026-10-16). */
+export const CLOSE_BEFORE_MINUTES = [60, 120, 360, 1440] as const
+export const DEFAULT_CLOSE_BEFORE_MINUTES = 120
+export const CloseBeforeMinutes = z.union([
+  z.literal(60),
+  z.literal(120),
+  z.literal(360),
+  z.literal(1440),
+])
+
 const pricingFields = {
   priceMode: z.enum(['fixed', 'split']).default('fixed'),
   price: z.number().int().min(0).max(2147483647).default(0),
@@ -46,6 +56,10 @@ export const CreateEventInput = z
     level: LevelCode.nullable().optional(),
     // без joinMode сервис подставляет defaultJoinMode группы (20.1.3); событие может переопределить
     joinMode: z.enum(['open', 'invite']).optional(),
+    // время открытия записи (20.3.1, D-09): не указано/null — запись открыта с публикации
+    bookingOpensAt: z.coerce.date().nullable().optional(),
+    // за сколько минут до начала планировщик закрывает запись; по умолчанию 120
+    closeBeforeMinutes: CloseBeforeMinutes.optional(),
     status: z.enum(['draft', 'published']).default('published'),
   })
   .strict()
@@ -76,6 +90,8 @@ export const UpdateEventInput = z
     cancellationDeadlineHours: z.number().int().min(0).max(720).nullable().optional(),
     level: LevelCode.nullable().optional(),
     joinMode: z.enum(['open', 'invite']).optional(),
+    bookingOpensAt: z.coerce.date().nullable().optional(),
+    closeBeforeMinutes: CloseBeforeMinutes.optional(),
     status: z.enum(['draft', 'published', 'closed', 'finished']).optional(),
   })
   .strict()

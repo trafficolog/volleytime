@@ -17,28 +17,34 @@ import {
   payments,
   sql,
   venues,
+  waitlistOffers,
   type Event,
 } from '@volley-time/db'
 import { DEFAULT_TIMEZONE, dateToZonedInput, zonedInputToDate } from '@volley-time/shared'
 
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
-import { queuedSeatsSql, takenSeats, takenSeatsSql } from '../bookings/seats'
+import { reservedSeats, revokeEventOffers } from '../bookings/offers'
+import { queuedSeatsSql, takenSeatsSql } from '../bookings/seats'
 import { eventBalanceService } from '../event-balance/service'
 import { collectNotification } from '../notifier/collect'
 import { OrganizationNotFoundError } from '../organizations/errors'
 import { paymentService } from '../payments/service'
 import { requireCanManageContent } from '../permissions/policies'
+import { schedulerEnabled } from '../scheduler/capability'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
 import { CurrencyMismatchError } from '../shared/currency'
 import { subscriptionService } from '../subscriptions/service'
 
 import {
   EventError,
+  EventBookingOpensAfterCloseError,
+  EventBookingOpensInPastError,
   EventCapacityBelowTakenError,
   EventInviteModeDisabledError,
   EventNotEditableError,
   EventNotFoundError,
+  EventSchedulerDisabledError,
   EventStartsInPastError,
   VenueNotInOrgError,
 } from './errors'
@@ -49,6 +55,7 @@ import {
   EventPricingInput,
   ListEventsQuery,
   UpdateEventInput,
+  DEFAULT_CLOSE_BEFORE_MINUTES,
   type ListEventsQuery as ListQuery,
   type CreateEventInput as CreateInput,
   type UpdateEventInput as UpdateInput,
@@ -58,6 +65,31 @@ function requireInviteModeCapability(): void {
   if (!isInviteModeEnabled(process.env.EVENT_INVITE_MODE_ENABLED)) {
     throw new EventInviteModeDisabledError()
   }
+}
+
+/**
+ * Время открытия записи (20.3.1, D-09): задаётся только при включённом планировщике (новая семантика
+ * за флагом, ADR v3 п. 4), в будущем и раньше начала события. `null` — открыть запись сейчас.
+ */
+function assertBookingOpensAt(
+  opensAt: Date | null | undefined,
+  startsAt: Date,
+  closeBeforeMinutes: number,
+): void {
+  if (opensAt === undefined || opensAt === null) return
+  if (!schedulerEnabled()) throw new EventSchedulerDisabledError()
+  if (opensAt <= new Date()) throw new EventBookingOpensInPastError()
+  assertOpensBeforeClose(opensAt, startsAt, closeBeforeMinutes)
+}
+
+/** Запись открывается не позже момента закрытия: начало − срок закрытия (ревью PR #150, I1). */
+function assertOpensBeforeClose(
+  opensAt: Date | null,
+  startsAt: Date,
+  closeBeforeMinutes: number,
+): void {
+  if (opensAt && opensAt.getTime() > startsAt.getTime() - closeBeforeMinutes * 60_000)
+    throw new EventBookingOpensAfterCloseError()
 }
 
 function requireSplitCapability(): void {
@@ -92,6 +124,8 @@ export interface EventStats {
     paymentId: number | null
     seats: number
     waitlistSeats: number
+    /** Активное предложение места из очереди (20.3.1, D-03): принять — POST …/waitlist-offers/{id}/accept. */
+    offer: { id: number; seats: number; expiresAt: Date } | null
   } | null
   venue: { name: string; address: string | null } | null
 }
@@ -166,6 +200,8 @@ export async function insertEvent(
   if (data.startsAt <= new Date()) throw new EventStartsInPastError() // 5.13.11
   if (data.venueId) await assertVenueInOrg(db, data.venueId, orgId)
   const { pricing, joinMode } = resolveEventModes(data, org)
+  const closeBeforeMinutes = data.closeBeforeMinutes ?? DEFAULT_CLOSE_BEFORE_MINUTES
+  assertBookingOpensAt(data.bookingOpensAt, data.startsAt, closeBeforeMinutes)
 
   const [event] = await db
     .insert(events)
@@ -192,6 +228,12 @@ export async function insertEvent(
       status: data.status,
       seriesId: series?.id ?? null,
       seriesDate: series?.date ?? null,
+      bookingOpensAt: data.bookingOpensAt ?? null,
+      closeBeforeMinutes,
+      // часы приложения, как у правок события: «изменено до момента закрытия» сравнивается с ними
+      // (право планировщика закрыть запись, ревью PR #150, I1)
+      createdAt: new Date(),
+      updatedAt: new Date(),
     })
     .returning()
   // публикация списывает 1 событие баланса; нехватка откатывает создание (20.2.1, D-04)
@@ -298,6 +340,25 @@ export const eventService = {
       })
       .from(bookings)
       .where(and(inArray(bookings.eventId, eventIds), eq(bookings.userId, ctx.userId)))
+    const myOffers = mine.length
+      ? await db
+          .select({
+            id: waitlistOffers.id,
+            bookingId: waitlistOffers.bookingId,
+            seats: waitlistOffers.seats,
+            expiresAt: waitlistOffers.expiresAt,
+          })
+          .from(waitlistOffers)
+          .where(
+            and(
+              inArray(
+                waitlistOffers.bookingId,
+                mine.map((m) => m.id),
+              ),
+              eq(waitlistOffers.status, 'offered'),
+            ),
+          )
+      : []
     const venueRows = await db
       .select({ eventId: events.id, name: venues.name, address: venues.address })
       .from(events)
@@ -319,7 +380,17 @@ export const eventService = {
         paymentId: m.paymentId,
         seats: m.seats,
         waitlistSeats: m.waitlistSeats,
+        offer: null,
       }
+    for (const o of myOffers) {
+      const mineRow = mine.find((m) => m.id === o.bookingId)
+      if (mineRow)
+        out.get(mineRow.eventId)!.myBooking!.offer = {
+          id: o.id,
+          seats: o.seats,
+          expiresAt: o.expiresAt,
+        }
+    }
     for (const v of venueRows) out.get(v.eventId)!.venue = { name: v.name, address: v.address }
     return out
   },
@@ -404,6 +475,29 @@ export const eventService = {
         throw new EventNotEditableError()
       }
       if (data.startsAt && data.startsAt <= new Date()) throw new EventStartsInPastError()
+      // время открытия записи (20.3.1, D-09): новое значение проверяется целиком
+      const closeBeforeMinutes = data.closeBeforeMinutes ?? existing.closeBeforeMinutes
+      if (
+        data.bookingOpensAt !== undefined &&
+        data.bookingOpensAt !== null &&
+        data.bookingOpensAt.getTime() !== existing.bookingOpensAt?.getTime()
+      ) {
+        assertBookingOpensAt(data.bookingOpensAt, startsAt, closeBeforeMinutes)
+        // открытую запись не «закрыть обратно»: иначе отмена события вернула бы баланс вопреки
+        // записям (D-09, D-13)
+        const active = await db.query.bookings.findFirst({
+          where: and(eq(bookings.eventId, eventId), ne(bookings.status, 'cancelled')),
+          columns: { id: true },
+        })
+        if (active)
+          throw new EventError('event.booking_already_open', 'Booking already has participants')
+      }
+      const opensAt =
+        data.bookingOpensAt === undefined ? existing.bookingOpensAt : data.bookingOpensAt
+      // ещё не наступившее открытие должно остаться не позже момента закрытия при сдвиге начала
+      // или срока закрытия; уже открытой записи это не касается
+      if (opensAt && opensAt > new Date())
+        assertOpensBeforeClose(opensAt, startsAt, closeBeforeMinutes)
       // дата серии (20.2.2): время события меняется свободно, календарный день — только правкой
       // серии, иначе `series_date` разошёлся бы с фактическим днём события
       if (existing.seriesId !== null && data.startsAt !== undefined) {
@@ -420,9 +514,10 @@ export const eventService = {
         }
       }
 
-      // вместимость не ниже занятых мест — SUM(seats) (5.13.11, 20.1.2)
+      // вместимость не ниже занятых мест — SUM(seats) (5.13.11, 20.1.2) и мест под активными
+      // предложениями из очереди (20.3.1)
       if (data.capacity !== undefined) {
-        const taken = await takenSeats(db, eventId)
+        const taken = await reservedSeats(db, eventId)
         if (data.capacity < taken) throw new EventCapacityBelowTakenError(taken)
       }
 
@@ -431,6 +526,9 @@ export const eventService = {
         .set({ ...data, ...pricing, updatedAt: new Date() })
         .where(eq(events.id, eventId))
         .returning()
+      // запись больше не открыта (закрыта, завершена, снята в черновик): предложения мест из
+      // очереди снимаются (20.3.1)
+      if (updated!.status !== 'published') await revokeEventOffers(db, eventId)
       // списывает только переход в published (публикация черновика, D-04); черновик, сразу
       // закрытый или завершённый, не публиковался. Порядок блокировок: событие → баланс
       const spend =
@@ -554,7 +652,9 @@ export const eventService = {
         })
       }
 
-      // TODO(Phase 15): cancel scheduled jobs
+      // предложения мест снимаются; задачи журнала отменённого события пропускаются проверкой
+      // актуальности при доставке (20.3.1)
+      await revokeEventOffers(tx, eventId)
       const [cancelled] = await tx
         .update(events)
         .set({ status: 'cancelled', updatedAt: new Date() })
