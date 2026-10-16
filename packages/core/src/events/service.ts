@@ -36,6 +36,7 @@ import { getDb, inTransaction, type ServiceContext } from '../shared/context'
 import { CurrencyMismatchError } from '../shared/currency'
 import { subscriptionService } from '../subscriptions/service'
 
+import { syncManualCloseMark } from './booking-close'
 import {
   EventError,
   EventBookingOpensAfterCloseError,
@@ -236,6 +237,8 @@ export async function insertEvent(
       updatedAt: new Date(),
     })
     .returning()
+  // создано опубликованным уже в окне закрытия — запись ведёт организатор (follow-up 20.3.1)
+  await syncManualCloseMark(db, event!, { becameOpen: event!.status === 'published' })
   // публикация списывает 1 событие баланса; нехватка откатывает создание (20.2.1, D-04)
   const spend =
     event!.status === 'published' ? await eventBalanceService.spendOnPublish(ctx, event!) : null
@@ -529,6 +532,16 @@ export const eventService = {
       // запись больше не открыта (закрыта, завершена, снята в черновик): предложения мест из
       // очереди снимаются (20.3.1)
       if (updated!.status !== 'published') await revokeEventOffers(db, eventId)
+      // опубликовано или переоткрыто в окне закрытия — запись ведёт организатор; перенос, после
+      // которого момент закрытия снова в будущем, снимает метку (follow-up 20.3.1)
+      // публикация, переоткрытие, перенос начала или смена срока, после которых момент закрытия уже
+      // в прошлом, — запись ведёт организатор (метка, без отказа; решение координатора 2026-10-16)
+      await syncManualCloseMark(db, updated!, {
+        becameOpen:
+          (existing.status !== 'published' && updated!.status === 'published') ||
+          updated!.startsAt.getTime() !== existing.startsAt.getTime() ||
+          updated!.closeBeforeMinutes !== existing.closeBeforeMinutes,
+      })
       // списывает только переход в published (публикация черновика, D-04); черновик, сразу
       // закрытый или завершённый, не публиковался. Порядок блокировок: событие → баланс
       const spend =

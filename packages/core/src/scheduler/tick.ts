@@ -1,4 +1,4 @@
-import { expireDueOffers } from '../bookings/offers'
+import { expireDueOffers, offerFreeSeatsSweep } from '../bookings/offers'
 import { closeDueEvents, type CloseSummary } from '../events/auto-close'
 
 import { enqueueBookingOpened, enqueueReminders } from './event-notifications'
@@ -43,6 +43,9 @@ export async function runSchedulerTick(
   }
   await step('offers.expire', async () => {
     summary.expiredOffers = await expireDueOffers(now)
+  })
+  await step('offers.sweep', async () => {
+    await offerFreeSeatsSweep(now)
   })
   await step('events.close', async () => {
     summary.close = await closeDueEvents(now)

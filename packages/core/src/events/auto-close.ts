@@ -18,7 +18,8 @@ import type { PendingNotification } from '../notifier/types'
 import { enqueueNotification } from '../scheduler/journal'
 import { systemContext } from '../shared/context'
 
-import { closeMomentOf, isAutoCloseEligible } from './booking-close'
+import { closeMomentOf, isAutoCloseCandidate, noManualCloseSql } from './booking-close'
+import { EventError } from './errors'
 import { settleLockedEvent } from './pricing-service'
 
 export interface CloseSummary {
@@ -27,14 +28,32 @@ export interface CloseSummary {
   skipped: number
 }
 
+/** Проходов с временным сбоем закрытия, после которых событие отдаётся организатору. */
+export const CLOSE_RETRY_LIMIT = 5
+
+/** Счётчик временных сбоев закрытия события в журнале; возвращает число сбоев с этим. */
+async function countCloseRetry(eventId: number, now: Date, e: unknown): Promise<number> {
+  const message = (e instanceof Error ? e.message : String(e)).slice(0, 500)
+  const [row] = await defaultDb.execute(sql`
+    INSERT INTO ${scheduledJobs} (kind, dedup_key, event_id, status, attempts, run_at, completed_at, last_error)
+    VALUES ('event.close_retry', ${`event.close_retry:event:${eventId}`}, ${eventId}, 'skipped', 1,
+      ${now.toISOString()}::timestamptz, ${now.toISOString()}::timestamptz, ${message})
+    ON CONFLICT (dedup_key) DO UPDATE
+      SET attempts = ${scheduledJobs}.attempts + 1, last_error = EXCLUDED.last_error,
+        completed_at = EXCLUDED.completed_at
+    RETURNING attempts`)
+  return Number(row!.attempts)
+}
+
 /** Метка журнала «split не зафиксирован автоматически»: событие больше не пробуется, тревога — одна. */
 const closeSkippedKey = (eventId: number) => `event.close_skipped:event:${eventId}`
 
 /**
  * Закрытие записи по расписанию (20.3.1): в момент закрытия (начало − `close_before_minutes`,
  * решение владельца 2026-10-16) опубликованное событие переходит в `closed`. Только события, которые
- * были опубликованы и открыты до этого момента (`isAutoCloseEligible`, ревью PR #150, I1); созданные,
- * перенесённые или переоткрытые позже ведёт организатор. Начавшиеся события не трогаются.
+ * были опубликованы и открыты до этого момента: событие, ставшее открытым уже после него (создано,
+ * опубликовано или переоткрыто в окне), несёт метку ручного закрытия (`syncManualCloseMark`) и его
+ * ведёт организатор; правки после момента закрытия право планировщика не меняют. Начавшиеся события не трогаются.
  * Split: если к моменту закрытия в событии нет участников, оно закрывается без фиксации — без
  * начислений и долей; с участниками доли фиксируются один раз тем же путём, что ручная фиксация
  * (ручная остаётся). Split, который нельзя зафиксировать (цель меньше числа мест, несовместимая
@@ -53,7 +72,8 @@ export async function closeDueEvents(now: Date, limit = 100): Promise<CloseSumma
         eq(events.status, 'published'),
         gt(events.startsAt, now),
         sql`${closeAt} <= ${now.toISOString()}::timestamptz`,
-        lt(events.updatedAt, closeAt),
+        sql`(${events.bookingOpensAt} IS NULL OR ${events.bookingOpensAt} <= ${closeAt})`,
+        noManualCloseSql(events.id),
         sql`NOT EXISTS (SELECT 1 FROM ${scheduledJobs} j
           WHERE j.dedup_key = 'event.close_skipped:event:' || ${events.id})`,
       ),
@@ -67,11 +87,17 @@ export async function closeDueEvents(now: Date, limit = 100): Promise<CloseSumma
         const [event] = await tx.select().from(events).where(eq(events.id, id)).for('update')
         if (
           !event ||
-          !isAutoCloseEligible(event) ||
+          !isAutoCloseCandidate(event) ||
           event.startsAt <= now ||
           closeMomentOf(event) > now
         )
           return 'skipped' as const
+        // метка ручного закрытия могла появиться между выборкой и lock (переоткрытие в окне)
+        const [manual] = await tx
+          .select({ id: events.id })
+          .from(events)
+          .where(and(eq(events.id, id), noManualCloseSql(events.id)))
+        if (!manual) return 'skipped' as const
         const notifications: PendingNotification[] = []
         const ctx = { ...systemContext(tx), notifications }
         let settled = false
@@ -122,6 +148,13 @@ export async function closeDueEvents(now: Date, limit = 100): Promise<CloseSumma
       summary[outcome]++
     } catch (e) {
       summary.skipped++
+      // временные сбои (deadlock, таймаут, соединение) повторяются следующим проходом; метка —
+      // только для доменного отказа фиксации (цель меньше мест, несовместимая оплата)
+      // временный сбой повторяется, но не бесконечно: после CLOSE_RETRY_LIMIT проходов — метка и тревога
+      if (!(e instanceof EventError) && (await countCloseRetry(id, now, e)) < CLOSE_RETRY_LIMIT) {
+        console.warn('[scheduler] auto-close deferred to the next tick', { eventId: id, error: e })
+        continue
+      }
       // метка — отдельной строкой после отката транзакции события; повтор не вставит вторую
       const marked = await defaultDb
         .insert(scheduledJobs)

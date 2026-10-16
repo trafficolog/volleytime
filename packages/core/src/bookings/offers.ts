@@ -117,7 +117,7 @@ export async function offerFreeSeats(
 ): Promise<number> {
   const db = getDb(ctx)
   if (event.status !== 'published' || event.pricingSettledAt || event.startsAt <= now) return 0
-  if (isBookingClosedBySchedule(event, now)) return 0
+  if (await isBookingClosedBySchedule(db, event, now)) return 0
   let free = event.capacity - (await reservedSeats(db, event.id, now))
   let created = 0
   while (free > 0) {
@@ -265,4 +265,41 @@ export async function expireDueOffers(now: Date, limit = 50): Promise<number> {
     }
   }
   return expired
+}
+
+/**
+ * Дешёвый проход планировщика (follow-up 20.3.1): свободные места опубликованных событий с очередью
+ * без предложений предлагаются очереди — места, освободившиеся без триггера (увеличение вместимости,
+ * откат транзакции записи с предложением), не ждут следующей отмены. Один агрегатный запрос; каждое
+ * найденное событие — своя транзакция под его lock.
+ */
+export async function offerFreeSeatsSweep(now: Date, limit = 50): Promise<number> {
+  const at = now.toISOString()
+  const due = await defaultDb.execute(sql`
+    SELECT e.id FROM ${events} e
+    WHERE e.status = 'published' AND e.pricing_settled_at IS NULL AND e.starts_at > ${at}::timestamptz
+      AND EXISTS (SELECT 1 FROM ${bookings} b
+        WHERE b.event_id = e.id AND (b.status = 'waitlisted' OR b.waitlist_seats > 0)
+          AND NOT EXISTS (SELECT 1 FROM ${waitlistOffers} o
+            WHERE o.booking_id = b.id AND o.status = 'offered'))
+      AND e.capacity > (SELECT coalesce(sum(b.seats), 0) FROM ${bookings} b
+          WHERE b.event_id = e.id AND b.status IN ('confirmed', 'pending_payment', 'attended', 'no_show'))
+        + (SELECT coalesce(sum(o.seats), 0) FROM ${waitlistOffers} o
+          WHERE o.event_id = e.id AND o.status = 'offered' AND o.expires_at > ${at}::timestamptz)
+    ORDER BY e.starts_at, e.id
+    LIMIT ${limit}`)
+  let created = 0
+  for (const row of due) {
+    const eventId = Number(row.id)
+    try {
+      created += await defaultDb.transaction(async (tx) => {
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(${eventId})`)
+        const [event] = await tx.select().from(events).where(eq(events.id, eventId)).for('update')
+        return event ? offerFreeSeats(systemContext(tx), event, now) : 0
+      })
+    } catch (e) {
+      console.error('[scheduler] offer sweep failed', { eventId, error: e })
+    }
+  }
+  return created
 }
