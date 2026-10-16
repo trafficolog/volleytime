@@ -28,6 +28,23 @@ export interface CloseSummary {
   skipped: number
 }
 
+/** Проходов с временным сбоем закрытия, после которых событие отдаётся организатору. */
+export const CLOSE_RETRY_LIMIT = 5
+
+/** Счётчик временных сбоев закрытия события в журнале; возвращает число сбоев с этим. */
+async function countCloseRetry(eventId: number, now: Date, e: unknown): Promise<number> {
+  const message = (e instanceof Error ? e.message : String(e)).slice(0, 500)
+  const [row] = await defaultDb.execute(sql`
+    INSERT INTO ${scheduledJobs} (kind, dedup_key, event_id, status, attempts, run_at, completed_at, last_error)
+    VALUES ('event.close_retry', ${`event.close_retry:event:${eventId}`}, ${eventId}, 'skipped', 1,
+      ${now.toISOString()}::timestamptz, ${now.toISOString()}::timestamptz, ${message})
+    ON CONFLICT (dedup_key) DO UPDATE
+      SET attempts = ${scheduledJobs}.attempts + 1, last_error = EXCLUDED.last_error,
+        completed_at = EXCLUDED.completed_at
+    RETURNING attempts`)
+  return Number(row!.attempts)
+}
+
 /** Метка журнала «split не зафиксирован автоматически»: событие больше не пробуется, тревога — одна. */
 const closeSkippedKey = (eventId: number) => `event.close_skipped:event:${eventId}`
 
@@ -133,7 +150,8 @@ export async function closeDueEvents(now: Date, limit = 100): Promise<CloseSumma
       summary.skipped++
       // временные сбои (deadlock, таймаут, соединение) повторяются следующим проходом; метка —
       // только для доменного отказа фиксации (цель меньше мест, несовместимая оплата)
-      if (!(e instanceof EventError)) {
+      // временный сбой повторяется, но не бесконечно: после CLOSE_RETRY_LIMIT проходов — метка и тревога
+      if (!(e instanceof EventError) && (await countCloseRetry(id, now, e)) < CLOSE_RETRY_LIMIT) {
         console.warn('[scheduler] auto-close deferred to the next tick', { eventId: id, error: e })
         continue
       }

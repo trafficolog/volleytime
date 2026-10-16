@@ -487,6 +487,18 @@ describe('event jobs (20.3.1, PostgreSQL)', { timeout: 60_000 }, () => {
       ])
     })
 
+    it('the tick offers seats freed without a trigger to the queue', async () => {
+      const { ev, bb } = await fullEvent()
+      await eventService.update({ userId: ownerId }, ev.id, { capacity: 2 })
+      expect(await offersOf(ev.id)).toHaveLength(0)
+      await tick()
+      expect((await offersOf(ev.id)).map((o) => [o.bookingId, o.status])).toEqual([
+        [bb.id, 'offered'],
+      ])
+      await tick()
+      expect(await offersOf(ev.id)).toHaveLength(1)
+    })
+
     it('without the scheduler the queue is auto-promoted as before (D-03)', async () => {
       vi.stubEnv('SCHEDULER_ENABLED', '')
       const { ev, ba, bb } = await fullEvent()
@@ -632,28 +644,25 @@ describe('event jobs (20.3.1, PostgreSQL)', { timeout: 60_000 }, () => {
         capacity: 4,
       })
       at(0)
-      // черновик перенесён в окно и опубликован там: открыт уже после момента закрытия
+      // черновик перенесён в окно и опубликован там одним запросом: открыт после момента закрытия
       const moved = await makeEvent({ capacity: 4, price: 0, status: 'draft' })
       // переоткрыто после закрытия
       const reopened = await makeEvent({ capacity: 4, price: 0 })
-      // опубликованное событие нельзя перенести так, что момент закрытия уже прошёл
-      const open = await makeEvent({ capacity: 4, price: 0 })
+      // опубликованное событие перенесено в окно — без отказа, запись ведёт организатор
+      const shifted = await makeEvent({ capacity: 4, price: 0 })
+      // смена срока закрытия на уже прошедший момент — так же
+      const longer = await makeEvent({ capacity: 4, price: 0 })
       at(45 * H)
-      await expect(
-        eventService.update({ userId: ownerId }, open.id, {
-          startsAt: new Date(BASE + 46 * H + 30 * MIN),
-          endsAt: new Date(BASE + 49 * H),
-        }),
-      ).rejects.toMatchObject({ code: 'event.close_moment_in_past' })
-      // ... и сменить срок закрытия на уже прошедший момент
-      await expect(
-        eventService.update({ userId: ownerId }, open.id, { closeBeforeMinutes: 360 }),
-      ).rejects.toMatchObject({ code: 'event.close_moment_in_past' })
-      await eventService.update({ userId: ownerId }, moved.id, {
+      await eventService.update({ userId: ownerId }, shifted.id, {
         startsAt: new Date(BASE + 46 * H + 30 * MIN),
         endsAt: new Date(BASE + 49 * H),
       })
-      await eventService.update({ userId: ownerId }, moved.id, { status: 'published' })
+      await eventService.update({ userId: ownerId }, longer.id, { closeBeforeMinutes: 360 })
+      await eventService.update({ userId: ownerId }, moved.id, {
+        status: 'published',
+        startsAt: new Date(BASE + 46 * H + 30 * MIN),
+        endsAt: new Date(BASE + 49 * H),
+      })
       at(46 * H)
       await tick()
       expect((await db.query.events.findFirst({ where: eq(events.id, reopened.id) }))!.status).toBe(
@@ -663,13 +672,92 @@ describe('event jobs (20.3.1, PostgreSQL)', { timeout: 60_000 }, () => {
       await eventService.update({ userId: ownerId }, reopened.id, { status: 'published' })
       at(46 * H + 20 * MIN)
       await tick()
-      for (const id of [late.id, moved.id, reopened.id])
+      for (const id of [late.id, moved.id, reopened.id, shifted.id, longer.id])
         expect((await db.query.events.findFirst({ where: eq(events.id, id) }))!.status).toBe(
           'published',
         )
       // организатор ведёт такие события: запись открыта
       const b = await bookingService.book({ userId: p! }, orgId, late.id, { method: 'free' })
       expect(b.status).toBe('confirmed')
+    })
+
+    it('a marked last-minute event moved later is closed by schedule again', async () => {
+      at(47 * H)
+      const ev = await eventService.create({ userId: ownerId }, orgId, {
+        title: 'Срочно',
+        startsAt: new Date(BASE + 48 * H),
+        endsAt: new Date(BASE + 50 * H),
+        capacity: 4,
+      })
+      // перенос на следующий день: момент закрытия снова в будущем, метка снимается
+      await eventService.update({ userId: ownerId }, ev.id, {
+        startsAt: new Date(BASE + 72 * H),
+        endsAt: new Date(BASE + 74 * H),
+      })
+      at(70 * H)
+      await tick()
+      expect((await db.query.events.findFirst({ where: eq(events.id, ev.id) }))!.status).toBe(
+        'closed',
+      )
+    })
+
+    it('with the scheduler off, moving an event into the window behaves as R0.7', async () => {
+      vi.stubEnv('SCHEDULER_ENABLED', '')
+      const ev = await makeEvent({ capacity: 4, price: 0 })
+      const [p] = await players(1)
+      at(45 * H)
+      const moved = await eventService.update({ userId: ownerId }, ev.id, {
+        startsAt: new Date(BASE + 46 * H + 30 * MIN),
+        endsAt: new Date(BASE + 49 * H),
+      })
+      expect(moved.status).toBe('published')
+      const b = await bookingService.book({ userId: p! }, orgId, ev.id, { method: 'free' })
+      expect(b.status).toBe('confirmed')
+    })
+
+    it('a series edit on game day succeeds and leaves that date to the organizer', async () => {
+      const startDate = new Date(BASE + 24 * H).toISOString().slice(0, 10)
+      const weekday = new Date(`${startDate}T12:00:00Z`).getUTCDay() || 7
+      const { series } = await seriesService.create({ userId: ownerId }, orgId, {
+        rule: { freq: 'weekly', weekdays: [weekday], startDate, count: 2 },
+        template: { title: 'Серия', startTime: '23:00', durationMinutes: 60, capacity: 10 },
+        idempotencyKey: 'game-day-1',
+      })
+      const [first] = await db
+        .select()
+        .from(events)
+        .where(eq(events.seriesId, series.id))
+        .orderBy(events.startsAt)
+      // день игры: до начала меньше срока закрытия после правки «это и последующие»
+      vi.setSystemTime(new Date(first!.startsAt.getTime() - 3 * H))
+      await seriesService.update(
+        { userId: ownerId },
+        orgId,
+        series.id,
+        { scope: 'following', from: startDate },
+        { closeBeforeMinutes: 360 },
+      )
+      await tick()
+      expect((await db.query.events.findFirst({ where: eq(events.id, first!.id) }))!.status).toBe(
+        'published',
+      )
+    })
+
+    it('stops retrying a transient close failure after the retry limit and alerts once', async () => {
+      const ev = await makeEvent({ capacity: 4, price: 0 })
+      const record = vi.spyOn(auditService, 'record').mockRejectedValue(new Error('timeout'))
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+      at(46 * H)
+      for (let i = 0; i < 7; i++) await tick()
+      const alerts = errors.mock.calls.filter((c) => String(c[0]).includes('auto-close failed'))
+      record.mockRestore()
+      warn.mockRestore()
+      errors.mockRestore()
+      expect(alerts).toHaveLength(1)
+      const jobs = await db.select().from(scheduledJobs).where(eq(scheduledJobs.eventId, ev.id))
+      expect(jobs.find((j) => j.kind === 'event.close_retry')!.attempts).toBe(5)
+      expect(jobs.filter((j) => j.kind === 'event.close_skipped')).toHaveLength(1)
     })
 
     it('edits after the close moment do not stop the scheduled close', async () => {

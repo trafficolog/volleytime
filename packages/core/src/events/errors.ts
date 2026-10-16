@@ -59,12 +59,6 @@ export class EventBookingOpensAfterCloseError extends EventError {
     )
   }
 }
-/** Перенос начала или смена срока закрытия перевели бы момент закрытия записи в прошлое (20.3.1). */
-export class EventCloseMomentInPastError extends EventError {
-  constructor() {
-    super('event.close_moment_in_past', 'The booking close moment would already be in the past')
-  }
-}
 export class EventCapacityBelowTakenError extends EventError {
   constructor(taken: number) {
     super('event.capacity_below_taken', `Capacity cannot be lower than taken spots (${taken})`)

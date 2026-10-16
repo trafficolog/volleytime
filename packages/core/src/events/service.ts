@@ -42,7 +42,6 @@ import {
   EventBookingOpensAfterCloseError,
   EventBookingOpensInPastError,
   EventCapacityBelowTakenError,
-  EventCloseMomentInPastError,
   EventInviteModeDisabledError,
   EventNotEditableError,
   EventNotFoundError,
@@ -481,15 +480,6 @@ export const eventService = {
       if (data.startsAt && data.startsAt <= new Date()) throw new EventStartsInPastError()
       // время открытия записи (20.3.1, D-09): новое значение проверяется целиком
       const closeBeforeMinutes = data.closeBeforeMinutes ?? existing.closeBeforeMinutes
-      // перенос начала или смена срока не может перевести момент закрытия открытой записи в
-      // прошлое (follow-up 20.3.1): иначе запись осталась бы без закрытия по расписанию
-      if (
-        (data.status ?? existing.status) === 'published' &&
-        (startsAt.getTime() !== existing.startsAt.getTime() ||
-          closeBeforeMinutes !== existing.closeBeforeMinutes) &&
-        startsAt.getTime() - closeBeforeMinutes * 60_000 <= Date.now()
-      )
-        throw new EventCloseMomentInPastError()
       if (
         data.bookingOpensAt !== undefined &&
         data.bookingOpensAt !== null &&
@@ -544,8 +534,13 @@ export const eventService = {
       if (updated!.status !== 'published') await revokeEventOffers(db, eventId)
       // опубликовано или переоткрыто в окне закрытия — запись ведёт организатор; перенос, после
       // которого момент закрытия снова в будущем, снимает метку (follow-up 20.3.1)
+      // публикация, переоткрытие, перенос начала или смена срока, после которых момент закрытия уже
+      // в прошлом, — запись ведёт организатор (метка, без отказа; решение координатора 2026-10-16)
       await syncManualCloseMark(db, updated!, {
-        becameOpen: existing.status !== 'published' && updated!.status === 'published',
+        becameOpen:
+          (existing.status !== 'published' && updated!.status === 'published') ||
+          updated!.startsAt.getTime() !== existing.startsAt.getTime() ||
+          updated!.closeBeforeMinutes !== existing.closeBeforeMinutes,
       })
       // списывает только переход в published (публикация черновика, D-04); черновик, сразу
       // закрытый или завершённый, не публиковался. Порядок блокировок: событие → баланс
