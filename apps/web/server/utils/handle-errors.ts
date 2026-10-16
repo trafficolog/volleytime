@@ -93,6 +93,14 @@ const CODE_STATUS: Record<string, number> = {
   'series.idempotency_conflict': 409,
   'series.from_in_past': 422,
   'event.series_date_locked': 409,
+  // фоновые задачи события (20.3.1): время открытия записи и предложения мест из очереди
+  'event.scheduler_disabled': 409,
+  'event.booking_opens_in_past': 422,
+  'event.booking_opens_after_start': 422,
+  'event.booking_already_open': 409,
+  'booking.not_open_yet': 422,
+  'waitlist_offer.not_found': 404,
+  'waitlist_offer.expired': 410,
   // forbidden
   'forbidden.manage_content': 403,
   'forbidden.manage_members': 403,

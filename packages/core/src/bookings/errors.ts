@@ -77,3 +77,21 @@ export class MultiSeatDisabledError extends BookingError {
     super('booking.multi_seat_disabled', 'Booking several seats is not enabled')
   }
 }
+/** Время открытия записи ещё не наступило (20.3.1, D-09). */
+export class BookingNotOpenYetError extends BookingError {
+  constructor() {
+    super('booking.not_open_yet', 'Booking for this event is not open yet')
+  }
+}
+/** Предложения нет или оно чужое: 404 не раскрывает существование (20.3.1). */
+export class WaitlistOfferNotFoundError extends BookingError {
+  constructor() {
+    super('waitlist_offer.not_found', 'Waitlist offer not found')
+  }
+}
+/** Предложение места истекло или снято (20.3.1, D-03). */
+export class WaitlistOfferExpiredError extends BookingError {
+  constructor() {
+    super('waitlist_offer.expired', 'Waitlist offer has expired')
+  }
+}

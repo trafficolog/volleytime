@@ -197,6 +197,13 @@
       "when": 1792061901343,
       "tag": "0027_event_series",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1792128963086,
+      "tag": "0028_event_jobs",
+      "breakpoints": true
     }
   ]
 }

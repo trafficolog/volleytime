@@ -46,6 +46,8 @@ export const CreateEventInput = z
     level: LevelCode.nullable().optional(),
     // без joinMode сервис подставляет defaultJoinMode группы (20.1.3); событие может переопределить
     joinMode: z.enum(['open', 'invite']).optional(),
+    // время открытия записи (20.3.1, D-09): не указано/null — запись открыта с публикации
+    bookingOpensAt: z.coerce.date().nullable().optional(),
     status: z.enum(['draft', 'published']).default('published'),
   })
   .strict()
@@ -76,6 +78,7 @@ export const UpdateEventInput = z
     cancellationDeadlineHours: z.number().int().min(0).max(720).nullable().optional(),
     level: LevelCode.nullable().optional(),
     joinMode: z.enum(['open', 'invite']).optional(),
+    bookingOpensAt: z.coerce.date().nullable().optional(),
     status: z.enum(['draft', 'published', 'closed', 'finished']).optional(),
   })
   .strict()

@@ -59,6 +59,29 @@ export async function enrichParams(params: TemplateParams): Promise<TemplatePara
 
 export const notifierService = {
   /**
+   * Доставить уведомление с ошибкой наружу (планировщик 20.3.1 повторяет с backoff).
+   * `false` — у пользователя нет Telegram (повтор бессмыслен); сбой транспорта — исключение.
+   */
+  async deliver(
+    userId: number,
+    type: NotificationType,
+    params: TemplateParams = {},
+  ): Promise<boolean> {
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+      columns: { telegramUserId: true },
+    })
+    if (!user?.telegramUserId) return false
+    const rendered = renderMessage(type, await enrichParams(params))
+    await transport.send({
+      telegramId: String(user.telegramUserId),
+      text: rendered.text,
+      keyboard: rendered.keyboard,
+    })
+    return true
+  },
+
+  /**
    * Отправить уведомление пользователю (fire-and-forget).
    * Ошибки логируются, НЕ пробрасываются — доставка не должна ломать бизнес-операцию.
    * ВАЖНО: вызывать ПОСЛЕ коммита транзакции (collect-then-notify).

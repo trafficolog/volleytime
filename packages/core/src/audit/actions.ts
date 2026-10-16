@@ -24,6 +24,11 @@ export const AUDIT_ACTIONS = {
   EVENT_UPDATED: 'event.updated',
   EVENT_CANCELLED: 'event.cancelled',
   EVENT_PRICING_SETTLED: 'event.pricing_settled',
+  // фоновые задачи события (20.3.1): закрытие записи планировщиком, предложения мест из очереди
+  EVENT_BOOKING_CLOSED: 'event.booking_closed',
+  WAITLIST_OFFER_CREATED: 'waitlist_offer.created',
+  WAITLIST_OFFER_ACCEPTED: 'waitlist_offer.accepted',
+  WAITLIST_OFFER_EXPIRED: 'waitlist_offer.expired',
   // серии событий (20.2.2)
   SERIES_CREATED: 'event_series.created',
   SERIES_UPDATED: 'event_series.updated',
@@ -62,3 +67,4 @@ export type AuditEntityType =
   | 'event_balance_purchase_request'
   | 'event_invite_request'
   | 'event_series'
+  | 'waitlist_offer'

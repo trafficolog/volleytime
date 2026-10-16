@@ -255,11 +255,11 @@ export const eventBalanceService = {
    * Возврат при отмене (D-09, D-13): только если за событие списывали и ещё не возвращали, и в нём
    * нет ни одной неотменённой записи (лист ожидания тоже блокирует). Вызывается в транзакции
    * `events.cancel` после блокировки события и ДО цикла отмены записей.
-   * До 20.3.1 (`booking_opens_at`) действует только ветка «нет активных записей».
+   * Отмена до открытия записи (`booking_opens_at` в будущем, 20.3.1) возвращает баланс и при записях.
    */
   async refundOnCancel(
     ctx: ServiceContext,
-    event: Pick<Event, 'id' | 'organizationId'>,
+    event: Pick<Event, 'id' | 'organizationId'> & Partial<Pick<Event, 'bookingOpensAt'>>,
   ): Promise<EventBalanceEntry | null> {
     const db = getDb(ctx)
     // spend по событию пишется только под его advisory-lock, который держит вызывающий: без списания
@@ -268,11 +268,15 @@ export const eventBalanceService = {
     // остальные предусловия — под блокировкой строки проекции (ADR, шаг 3)
     await lockEventBalance(db, event.organizationId)
     if (await hasEventBalanceEntryForEvent(db, event.id, 'refund')) return null
-    const [active] = await db
-      .select({ id: bookings.id })
-      .from(bookings)
-      .where(and(eq(bookings.eventId, event.id), ne(bookings.status, 'cancelled')))
-      .limit(1)
+    // D-09: отмена до открытия записи возвращает баланс независимо от записей (20.3.1)
+    const beforeOpening = event.bookingOpensAt != null && new Date() < event.bookingOpensAt
+    const [active] = beforeOpening
+      ? []
+      : await db
+          .select({ id: bookings.id })
+          .from(bookings)
+          .where(and(eq(bookings.eventId, event.id), ne(bookings.status, 'cancelled')))
+          .limit(1)
     if (active) return null
     return append(ctx, {
       organizationId: event.organizationId,

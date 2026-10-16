@@ -12,6 +12,10 @@ export type NotificationType =
   | 'event_cancelled'
   | 'reminder_24h'
   | 'reminder_2h'
+  // фоновые задачи события (20.3.1)
+  | 'booking_opened'
+  | 'waitlist_offer'
+  | 'waitlist_offer_expired'
 
 export interface KeyboardButton {
   text: string
@@ -179,5 +183,22 @@ export function renderMessage(type: NotificationType, p: TemplateParams): Render
       return { text: `🏐 Напоминание: завтра <b>${title}</b>${when}`, keyboard: openBtn() }
     case 'reminder_2h':
       return { text: `⏰ Через 2 часа: <b>${title}</b>${when}\n\nДо встречи!`, keyboard: openBtn() }
+    case 'booking_opened':
+      return { text: `📣 Запись открыта: <b>${title}</b>${when}`, keyboard: openBtn() }
+    // предложение места из листа ожидания с TTL 30 мин (D-03)
+    case 'waitlist_offer':
+      return {
+        text:
+          `🎉 Освободилось место на <b>${title}</b>${when}${seatsNote(p)}\n\n` +
+          `Подтвердите участие в течение 30 мин — иначе место уйдёт следующему в очереди.`,
+        keyboard: openBtn(),
+      }
+    case 'waitlist_offer_expired':
+      return {
+        text:
+          `⌛ Вы не подтвердили место на <b>${title}</b>${when} за 30 мин.\n\n` +
+          `Место передано следующему, запись в листе ожидания снята.`,
+        keyboard: openBtn(),
+      }
   }
 }

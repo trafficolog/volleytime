@@ -35,6 +35,8 @@ export interface OrgFixtureIds {
   requestId: number
   /** Серия событий группы (20.2.2). */
   seriesId: number
+  /** Предложение места из листа ожидания (20.3.1). */
+  offerId: number
 }
 
 export interface OrgRouteCase {
