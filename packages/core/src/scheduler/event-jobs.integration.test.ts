@@ -156,6 +156,10 @@ describe('event jobs (20.3.1, PostgreSQL)', { timeout: 60_000 }, () => {
       ).rejects.toMatchObject({ code: 'event.booking_opens_after_close' })
       const ok = await makeEvent({ capacity: 4, bookingOpensAt: new Date(BASE + 46 * H) })
       expect(ok.closeBeforeMinutes).toBe(120)
+      // срок закрытия — только 1/2/6/24 ч (422 валидации на HTTP)
+      await expect(
+        makeEvent({ capacity: 4, closeBeforeMinutes: 90 as never }),
+      ).rejects.toMatchObject({ name: 'ZodError' })
       await expect(
         makeEvent({ capacity: 4, bookingOpensAt: new Date(BASE - H) }),
       ).rejects.toMatchObject({ code: 'event.booking_opens_in_past' })
