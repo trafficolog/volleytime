@@ -97,6 +97,7 @@ const CODE_STATUS: Record<string, number> = {
   'event.scheduler_disabled': 409,
   'event.booking_opens_in_past': 422,
   'event.booking_opens_after_close': 422,
+  'event.close_moment_in_past': 422,
   'event.booking_already_open': 409,
   'booking.not_open_yet': 422,
   'waitlist_offer.not_found': 404,

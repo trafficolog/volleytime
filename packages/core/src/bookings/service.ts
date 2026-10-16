@@ -180,6 +180,17 @@ async function addMainSeats(
   return updated!
 }
 
+/**
+ * Перед занятием свободных мест (запись, добавление мест) под lock события: истёкшие предложения
+ * закрываются, а при включённом планировщике свободные места сначала предлагаются очереди — новичок
+ * или добавленное место не обгоняют стоящих в очереди (follow-up 20.3.1).
+ */
+async function settleQueueBeforeTaking(ctx: ServiceContext, event: Event): Promise<void> {
+  const now = new Date()
+  await expireOffersLocked(ctx, event.id, now)
+  if (schedulerEnabled()) await offerFreeSeats(ctx, event, now)
+}
+
 export const bookingService = {
   /**
    * Записать пользователя (ctx.userId) на событие на `seats` мест (20.1.2).
@@ -207,7 +218,8 @@ export const bookingService = {
       if (event.bookingOpensAt && event.bookingOpensAt > new Date())
         throw new BookingNotOpenYetError()
       // момент закрытия записи наступил — запись закрыта, не дожидаясь прохода планировщика (I1)
-      if (isBookingClosedBySchedule(event)) throw new EventNotBookableError('booking closed')
+      if (await isBookingClosedBySchedule(tx, event))
+        throw new EventNotBookableError('booking closed')
       if (event.pricingSettledAt) throw new EventNotBookableError('pricing already settled')
       if (event.priceMode === 'split' && !['cash', 'transfer'].includes(parsed.method)) {
         throw new BookingMethodNotAllowedError(parsed.method)
@@ -259,6 +271,8 @@ export const bookingService = {
       // 4. места: лимит группы и вместимость, затем свободные места под lock (SUM(seats));
       // места под активными предложениями из очереди заняты (20.3.1, D-03)
       await assertSeatsAllowed(txCtx, orgId, event, parsed.seats)
+      // справедливость очереди (follow-up 20.3.1): свободное место сначала уходит голове очереди
+      await settleQueueBeforeTaking(txCtx, event)
       const free = Math.max(0, event.capacity - (await reservedSeats(tx, eventId)))
       const mainSeats = Math.min(free, parsed.seats)
       if (mainSeats > 0 && mainSeats < parsed.seats && !parsed.allowWaitlist) {
@@ -441,9 +455,11 @@ export const bookingService = {
         if (event.status !== 'published') throw new EventNotBookableError('not open')
         if (event.bookingOpensAt && event.bookingOpensAt > new Date())
           throw new BookingNotOpenYetError()
-        if (isBookingClosedBySchedule(event)) throw new EventNotBookableError('booking closed')
+        if (await isBookingClosedBySchedule(tx, event))
+          throw new EventNotBookableError('booking closed')
         await assertSeatsAllowed(txCtx, booking.organizationId, event, target)
         const add = target - total
+        await settleQueueBeforeTaking(txCtx, event)
         const free = Math.max(0, event.capacity - (await reservedSeats(tx, event.id)))
         // добавленные места не встают в очередь впереди тех, кто записался раньше
         if (booking.status === 'waitlisted' || booking.waitlistSeats > 0 || free < add)
@@ -995,7 +1011,7 @@ export const bookingService = {
         event.status !== 'published' ||
         event.pricingSettledAt ||
         event.startsAt <= now ||
-        isBookingClosedBySchedule(event, now)
+        (await isBookingClosedBySchedule(tx, event, now))
       )
         throw new EventNotBookableError('not open')
 

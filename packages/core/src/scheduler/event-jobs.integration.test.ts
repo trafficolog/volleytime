@@ -15,6 +15,7 @@ import {
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { behindEventLock } from '../__tests__/event-lock-barrier'
+import { auditService } from '../audit/service'
 import { bookingService } from '../bookings/service'
 import { eventService } from '../events/service'
 import { memberService } from '../members/service'
@@ -403,13 +404,24 @@ describe('event jobs (20.3.1, PostgreSQL)', { timeout: 60_000 }, () => {
       ])
     })
 
-    it('an expired but unprocessed offer no longer holds its seats', async () => {
-      const { ev, ba } = await fullEvent()
+    it('an expired but unprocessed offer no longer holds its seats: they go to the queue head', async () => {
+      const { ev, ba, bb, bc } = await fullEvent()
       await bookingService.cancel({ userId: ba.userId }, ba.id)
       at(31 * MIN) // истекло, проход планировщика ещё не был
       const [d] = await players(1)
       const bd = await bookingService.book({ userId: d! }, orgId, ev.id, { method: 'free' })
-      expect(bd.status).toBe('confirmed')
+      // истёкшее предложение закрыто под lock записи, место предложено следующему в очереди
+      expect(bd.status).toBe('waitlisted')
+      expect((await offersOf(ev.id)).map((o) => [o.bookingId, o.status])).toEqual([
+        [bb.id, 'expired'],
+        [bc.id, 'offered'],
+      ])
+      // очередь пуста — место свободно для новичка
+      await bookingService.cancel({ userId: bc.userId }, bc.id)
+      await bookingService.cancel({ userId: bd.userId }, bd.id)
+      const [e] = await players(1)
+      const be = await bookingService.book({ userId: e! }, orgId, ev.id, { method: 'free' })
+      expect(be.status).toBe('confirmed')
     })
 
     it('reducing seats keeps an offer that still fits the queue: no new TTL, no new message', async () => {
@@ -460,6 +472,19 @@ describe('event jobs (20.3.1, PostgreSQL)', { timeout: 60_000 }, () => {
       expect((await offersOf(ev.id)).map((o) => o.status)).toEqual(['expired'])
       expect((await bookingOf(bc.id)).status).toBe('cancelled')
       expect((await bookingOf(be.id)).status).toBe('confirmed')
+    })
+
+    it('a newcomer does not take a free seat ahead of the queue', async () => {
+      const { ev, bb } = await fullEvent()
+      // место освободилось без отмены (вместимость увеличена) — предложения ещё нет
+      await eventService.update({ userId: ownerId }, ev.id, { capacity: 2 })
+      expect(await offersOf(ev.id)).toHaveLength(0)
+      const [d] = await players(1)
+      const bd = await bookingService.book({ userId: d! }, orgId, ev.id, { method: 'free' })
+      expect(bd.status).toBe('waitlisted')
+      expect((await offersOf(ev.id)).map((o) => [o.bookingId, o.status])).toEqual([
+        [bb.id, 'offered'],
+      ])
     })
 
     it('without the scheduler the queue is auto-promoted as before (D-03)', async () => {
@@ -607,15 +632,28 @@ describe('event jobs (20.3.1, PostgreSQL)', { timeout: 60_000 }, () => {
         capacity: 4,
       })
       at(0)
-      // перенесено в окно: изменено после своего нового момента закрытия
-      const moved = await makeEvent({ capacity: 4, price: 0 })
+      // черновик перенесён в окно и опубликован там: открыт уже после момента закрытия
+      const moved = await makeEvent({ capacity: 4, price: 0, status: 'draft' })
       // переоткрыто после закрытия
       const reopened = await makeEvent({ capacity: 4, price: 0 })
+      // опубликованное событие нельзя перенести так, что момент закрытия уже прошёл
+      const open = await makeEvent({ capacity: 4, price: 0 })
       at(45 * H)
+      await expect(
+        eventService.update({ userId: ownerId }, open.id, {
+          startsAt: new Date(BASE + 46 * H + 30 * MIN),
+          endsAt: new Date(BASE + 49 * H),
+        }),
+      ).rejects.toMatchObject({ code: 'event.close_moment_in_past' })
+      // ... и сменить срок закрытия на уже прошедший момент
+      await expect(
+        eventService.update({ userId: ownerId }, open.id, { closeBeforeMinutes: 360 }),
+      ).rejects.toMatchObject({ code: 'event.close_moment_in_past' })
       await eventService.update({ userId: ownerId }, moved.id, {
         startsAt: new Date(BASE + 46 * H + 30 * MIN),
         endsAt: new Date(BASE + 49 * H),
       })
+      await eventService.update({ userId: ownerId }, moved.id, { status: 'published' })
       at(46 * H)
       await tick()
       expect((await db.query.events.findFirst({ where: eq(events.id, reopened.id) }))!.status).toBe(
@@ -632,6 +670,41 @@ describe('event jobs (20.3.1, PostgreSQL)', { timeout: 60_000 }, () => {
       // организатор ведёт такие события: запись открыта
       const b = await bookingService.book({ userId: p! }, orgId, late.id, { method: 'free' })
       expect(b.status).toBe('confirmed')
+    })
+
+    it('edits after the close moment do not stop the scheduled close', async () => {
+      const ev = await makeEvent({ capacity: 4, price: 0 })
+      at(46 * H + 1)
+      // проход ещё не был; правка названия после момента закрытия
+      await eventService.update({ userId: ownerId }, ev.id, { title: 'Переименовано' })
+      await tick()
+      expect((await db.query.events.findFirst({ where: eq(events.id, ev.id) }))!.status).toBe(
+        'closed',
+      )
+    })
+
+    it('a transient failure is retried on the next tick without a skip mark', async () => {
+      const ev = await makeEvent({ capacity: 4, price: 0 })
+      const record = vi
+        .spyOn(auditService, 'record')
+        .mockRejectedValueOnce(new Error('deadlock detected'))
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      at(46 * H)
+      await tick()
+      expect((await db.query.events.findFirst({ where: eq(events.id, ev.id) }))!.status).toBe(
+        'published',
+      )
+      expect(
+        (await db.select().from(scheduledJobs).where(eq(scheduledJobs.eventId, ev.id))).filter(
+          (j) => j.kind === 'event.close_skipped',
+        ),
+      ).toHaveLength(0)
+      record.mockRestore()
+      warn.mockRestore()
+      await tick()
+      expect((await db.query.events.findFirst({ where: eq(events.id, ev.id) }))!.status).toBe(
+        'closed',
+      )
     })
 
     it('marks a split that cannot be settled and alerts once instead of retrying every tick', async () => {

@@ -36,11 +36,13 @@ import { getDb, inTransaction, type ServiceContext } from '../shared/context'
 import { CurrencyMismatchError } from '../shared/currency'
 import { subscriptionService } from '../subscriptions/service'
 
+import { syncManualCloseMark } from './booking-close'
 import {
   EventError,
   EventBookingOpensAfterCloseError,
   EventBookingOpensInPastError,
   EventCapacityBelowTakenError,
+  EventCloseMomentInPastError,
   EventInviteModeDisabledError,
   EventNotEditableError,
   EventNotFoundError,
@@ -236,6 +238,8 @@ export async function insertEvent(
       updatedAt: new Date(),
     })
     .returning()
+  // создано опубликованным уже в окне закрытия — запись ведёт организатор (follow-up 20.3.1)
+  await syncManualCloseMark(db, event!, { becameOpen: event!.status === 'published' })
   // публикация списывает 1 событие баланса; нехватка откатывает создание (20.2.1, D-04)
   const spend =
     event!.status === 'published' ? await eventBalanceService.spendOnPublish(ctx, event!) : null
@@ -477,6 +481,15 @@ export const eventService = {
       if (data.startsAt && data.startsAt <= new Date()) throw new EventStartsInPastError()
       // время открытия записи (20.3.1, D-09): новое значение проверяется целиком
       const closeBeforeMinutes = data.closeBeforeMinutes ?? existing.closeBeforeMinutes
+      // перенос начала или смена срока не может перевести момент закрытия открытой записи в
+      // прошлое (follow-up 20.3.1): иначе запись осталась бы без закрытия по расписанию
+      if (
+        (data.status ?? existing.status) === 'published' &&
+        (startsAt.getTime() !== existing.startsAt.getTime() ||
+          closeBeforeMinutes !== existing.closeBeforeMinutes) &&
+        startsAt.getTime() - closeBeforeMinutes * 60_000 <= Date.now()
+      )
+        throw new EventCloseMomentInPastError()
       if (
         data.bookingOpensAt !== undefined &&
         data.bookingOpensAt !== null &&
@@ -529,6 +542,11 @@ export const eventService = {
       // запись больше не открыта (закрыта, завершена, снята в черновик): предложения мест из
       // очереди снимаются (20.3.1)
       if (updated!.status !== 'published') await revokeEventOffers(db, eventId)
+      // опубликовано или переоткрыто в окне закрытия — запись ведёт организатор; перенос, после
+      // которого момент закрытия снова в будущем, снимает метку (follow-up 20.3.1)
+      await syncManualCloseMark(db, updated!, {
+        becameOpen: existing.status !== 'published' && updated!.status === 'published',
+      })
       // списывает только переход в published (публикация черновика, D-04); черновик, сразу
       // закрытый или завершённый, не публиковался. Порядок блокировок: событие → баланс
       const spend =

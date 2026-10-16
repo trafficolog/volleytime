@@ -117,7 +117,7 @@ export async function offerFreeSeats(
 ): Promise<number> {
   const db = getDb(ctx)
   if (event.status !== 'published' || event.pricingSettledAt || event.startsAt <= now) return 0
-  if (isBookingClosedBySchedule(event, now)) return 0
+  if (await isBookingClosedBySchedule(db, event, now)) return 0
   let free = event.capacity - (await reservedSeats(db, event.id, now))
   let created = 0
   while (free > 0) {

@@ -4,6 +4,6 @@ export { createSchedulerRunner, DEFAULT_INTERVAL_MS, type SchedulerRunner } from
 export { processDueJobs, enqueueNotification, backoffMs, MAX_ATTEMPTS } from './journal'
 export {
   closeMomentOf,
-  isAutoCloseEligible,
+  isAutoCloseCandidate,
   isBookingClosedBySchedule,
 } from '../events/booking-close'
