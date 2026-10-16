@@ -1,5 +1,7 @@
 import type { EventListItem } from '../components/EventCard.vue'
 
+import { participationOf, pendingLabel } from './status-model'
+
 const DENIED_ORG_ERRORS = new Set([
   'permission.blocked',
   'permission.not_member',
@@ -31,10 +33,44 @@ export function playerHomeAccess(
   return member?.status === 'active' ? 'active' : 'denied'
 }
 
-export function projectPlayerHome(upcoming: readonly EventListItem[], now: Date) {
+export function projectPlayerHome(
+  upcoming: readonly EventListItem[],
+  now: Date,
+  /** Hero, выбранный сервером (ближайшая игра, на которую иду; может быть вне списка). */
+  serverHero: EventListItem | null = null,
+) {
   const events = upcoming
     .filter((event) => event.status === 'published' && new Date(event.startsAt) > now)
     .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
 
-  return { hero: events[0] ?? null, schedule: events.slice(1) }
+  // Референс: hero — ближайшая игра, на которую игрок идёт; иначе ближайшая опубликованная.
+  const hero =
+    serverHero ??
+    events.find((event) => participationOf(event.myBooking)?.key === 'going') ??
+    events[0] ??
+    null
+
+  return { hero, schedule: events.filter((event) => event.id !== hero?.id) }
 }
+
+export function playerGreeting(name: string | null | undefined) {
+  const first = name?.trim().split(/\s+/)[0]
+  return first ? `Привет, ${first}` : null
+}
+
+/**
+ * Плитка «Сессий осталось»: видна при включённых абонементах или активном остатке
+ * (решение владельца 2026-10-15); без абонемента — состояние «нет абонемента».
+ */
+export function sessionsTile(
+  subscriptionsEnabled: boolean,
+  subscription: { left: number; total: number } | null,
+) {
+  if (subscription)
+    return { kind: 'balance' as const, left: subscription.left, total: subscription.total }
+  return subscriptionsEnabled ? { kind: 'none' as const } : null
+}
+
+/** Маркер на плитке «Мои записи»: сколько записей ждут оплаты (сигнал «оплатить» с главной). */
+export const awaitingPaymentLabel = (count: number) =>
+  count > 0 ? `${pendingLabel(count)} оплаты` : null

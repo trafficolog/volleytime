@@ -627,6 +627,39 @@ export const bookingService = {
   },
 
   /**
+   * Счётчики главной игрока (20.4.4): точное число моих предстоящих активных записей
+   * (без отменённых, лист ожидания входит) и сколько из них ждут оплаты. Только свои данные.
+   * «Ждёт оплаты»: pending_payment по фиксированной цене либо есть неоплаченное место
+   * (платёж pending текущей инкарнации) — как чип «Ждёт оплаты» в Mini App; лист ожидания не считается.
+   */
+  async countMyUpcoming(ctx: ServiceContext, orgId: number) {
+    const [row] = await getDb(ctx)
+      .select({
+        total: sql<number>`count(*)::int`,
+        awaitingPayment: sql<number>`(count(*) FILTER (WHERE ${bookings.status} <> 'waitlisted' AND (
+          (${bookings.status} = 'pending_payment' AND ${events.priceMode} <> 'split')
+          OR EXISTS (
+            SELECT 1 FROM "payments" p
+            WHERE p.booking_id = "bookings"."id"
+              AND p.booking_incarnation = "bookings"."incarnation"
+              AND p.seat_released_at IS NULL
+              AND p.status = 'pending')
+        )))::int`,
+      })
+      .from(bookings)
+      .innerJoin(events, eq(events.id, bookings.eventId))
+      .where(
+        and(
+          eq(bookings.organizationId, orgId),
+          eq(bookings.userId, ctx.userId),
+          ne(bookings.status, 'cancelled'),
+          gte(events.startsAt, new Date()),
+        ),
+      )
+    return { total: row?.total ?? 0, awaitingPayment: row?.awaitingPayment ?? 0 }
+  },
+
+  /**
    * Отметить посещаемость пачкой (Task 5.13.4): все брони должны принадлежать событию
    * этой организации; отметка — только после начала события; одна транзакция.
    */

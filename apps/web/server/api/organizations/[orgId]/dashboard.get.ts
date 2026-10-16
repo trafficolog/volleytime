@@ -16,8 +16,9 @@ export default defineApiHandler(async (event) => {
   const orgId = event.context.organization!.id
   const isManager = canManageContent(event.context.member ?? null)
 
-  const [myBookings, mySubs, upcoming] = await Promise.all([
-    bookingService.listMyBookings(ctx, orgId, 'upcoming', { limit: 3, excludeCancelled: true }),
+  const [myBookings, myCounts, mySubs, upcoming] = await Promise.all([
+    bookingService.listMyBookings(ctx, orgId, 'upcoming', { limit: 10, excludeCancelled: true }),
+    bookingService.countMyUpcoming(ctx, orgId),
     subscriptionService.listMine(ctx, orgId),
     eventService.list(
       ctx,
@@ -26,10 +27,19 @@ export default defineApiHandler(async (event) => {
       { includeDrafts: isManager },
     ),
   ])
-  const stats = await eventService.statsFor(
-    ctx,
-    upcoming.map((e) => e.id),
-  )
+  // Hero главной игрока (20.4.4): ближайшая игра, на которую я иду (не лист ожидания), даже если
+  // она вне первых пяти опубликованных или запись уже закрыта, а доля ждёт оплаты.
+  const goingBooking = isManager
+    ? undefined
+    : myBookings.find(
+        (b) =>
+          (b.status === 'confirmed' || b.status === 'pending_payment') &&
+          b.event.status !== 'cancelled' &&
+          b.event.status !== 'draft',
+      )
+  const stats = await eventService.statsFor(ctx, [
+    ...new Set([...upcoming.map((e) => e.id), ...(goingBooking ? [goingBooking.eventId] : [])]),
+  ])
 
   const activeSub = mySubs.find(
     (s) =>
@@ -53,8 +63,11 @@ export default defineApiHandler(async (event) => {
 
   return {
     isManager,
+    // точные счётчики только своих записей для плитки «Мои записи» (20.4.4)
+    bookingsCount: myCounts.total,
+    bookingsAwaitingPayment: myCounts.awaitingPayment,
     myBookings: await Promise.all(
-      myBookings.map(async (b) => ({
+      myBookings.slice(0, 3).map(async (b) => ({
         id: b.id,
         status: b.status,
         pricing: await readEventPricing(ctx, b.eventId),
@@ -67,6 +80,14 @@ export default defineApiHandler(async (event) => {
         },
       })),
     ),
+    hero: goingBooking
+      ? {
+          ...goingBooking.event,
+          // stats переопределяет связь `venue` (name + address) — как в `upcoming`
+          ...stats.get(goingBooking.eventId)!,
+          pricing: await readEventPricing(ctx, goingBooking.eventId),
+        }
+      : null,
     subscription: activeSub
       ? {
           id: activeSub.id,
