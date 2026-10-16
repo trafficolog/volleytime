@@ -16,6 +16,7 @@ import {
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
 import { isBookingClosedBySchedule } from '../events/booking-close'
+import { schedulerEnabled } from '../scheduler/capability'
 import { enqueueNotification } from '../scheduler/journal'
 import { getDb, systemContext, type ServiceContext } from '../shared/context'
 
@@ -274,6 +275,8 @@ export async function expireDueOffers(now: Date, limit = 50): Promise<number> {
  * найденное событие — своя транзакция под его lock.
  */
 export async function offerFreeSeatsSweep(now: Date, limit = 50): Promise<number> {
+  // без планировщика места не предлагаются (D-03): проход ничего не делает
+  if (!schedulerEnabled()) return 0
   const at = now.toISOString()
   const due = await defaultDb.execute(sql`
     SELECT e.id FROM ${events} e

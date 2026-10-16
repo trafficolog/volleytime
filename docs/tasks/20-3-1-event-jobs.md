@@ -2,11 +2,11 @@
 id: '20.3.1'
 phase: '20'
 epic: '20.3'
-status: in_progress
+status: done
 release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-16
-status_note: 'PR #150 смёржен как bd8de38; ревью Opus — merge после одного раунда исправлений; CI green на d578ec3. Решения владельца 2026-10-16 (D-03/D-09): (A) истёкшее предложение — игрок покидает очередь; (B) срок закрытия записи у события 60/120/360/1440 мин; (C) проведение SCHEDULER_ENABLED, runbook, guard отката и capability-label — 20.7.1, п. 9. Журнал scheduled_jobs вместо pg-boss — утверждено владельцем 2026-10-16. Follow-up PR #153 (ревью: исправления внесены, повторное ревью ожидается): метка close_skipped для доменных отказов и после 5 временных сбоев, метка ручного закрытия вместо updated_at и вместо отказа при сдвиге момента закрытия в прошлое, справедливость очереди при записи, проход предложений свободных мест.'
+status_note: 'PR #150 смёржен как bd8de38, follow-up PR #153 — как 869f6b9; ревью Opus — merge; CI green на 8914bae. Решения владельца 2026-10-16: (A) истёкшее предложение — игрок покидает очередь; (B) срок закрытия записи у события 60/120/360/1440 мин; (C) проведение SCHEDULER_ENABLED, runbook, guard отката и capability-label — 20.7.1, п. 9; журнал scheduled_jobs вместо pg-boss утверждён владельцем. Проведение в production — 20.7.1, п. 9.'
 ref_id: 'P-04'
 complexity: XL
 impl_model: claude-opus-5-5

@@ -16,6 +16,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 
 import { behindEventLock } from '../__tests__/event-lock-barrier'
 import { auditService } from '../audit/service'
+import { offerFreeSeatsSweep } from '../bookings/offers'
 import { bookingService } from '../bookings/service'
 import { eventService } from '../events/service'
 import { memberService } from '../members/service'
@@ -487,6 +488,14 @@ describe('event jobs (20.3.1, PostgreSQL)', { timeout: 60_000 }, () => {
       ])
     })
 
+    it('the offer sweep does nothing with the scheduler off', async () => {
+      const { ev } = await fullEvent()
+      await eventService.update({ userId: ownerId }, ev.id, { capacity: 2 })
+      vi.stubEnv('SCHEDULER_ENABLED', '')
+      expect(await offerFreeSeatsSweep(new Date())).toBe(0)
+      expect(await offersOf(ev.id)).toHaveLength(0)
+    })
+
     it('the tick offers seats freed without a trigger to the queue', async () => {
       const { ev, bb } = await fullEvent()
       await eventService.update({ userId: ownerId }, ev.id, { capacity: 2 })
@@ -758,6 +767,46 @@ describe('event jobs (20.3.1, PostgreSQL)', { timeout: 60_000 }, () => {
       const jobs = await db.select().from(scheduledJobs).where(eq(scheduledJobs.eventId, ev.id))
       expect(jobs.find((j) => j.kind === 'event.close_retry')!.attempts).toBe(5)
       expect(jobs.filter((j) => j.kind === 'event.close_skipped')).toHaveLength(1)
+    })
+
+    it('a failed retry-counter write does not abort the rest of the close pass', async () => {
+      const first = await makeEvent({ capacity: 4, price: 0 })
+      const second = await makeEvent({
+        capacity: 4,
+        price: 0,
+        startsAt: new Date(BASE + 48 * H + MIN),
+      })
+      const original = auditService.record.bind(auditService)
+      const record = vi.spyOn(auditService, 'record').mockImplementation(async (ctx, params) => {
+        if (params.entityId === first.id && params.action === 'event.booking_closed')
+          throw new Error('connection terminated')
+        return original(ctx, params)
+      })
+      const originalExecute = db.execute.bind(db)
+      const execute = vi.spyOn(db, 'execute').mockImplementation(((query: unknown) => {
+        const chunks = (query as { queryChunks?: unknown[] }).queryChunks ?? []
+        const text = chunks
+          .map((c) =>
+            typeof c === 'string' ? c : ((c as { value?: string[] }).value ?? []).join(''),
+          )
+          .join(' ')
+        if (text.includes('event.close_retry'))
+          return Promise.reject(new Error('connection refused'))
+        return originalExecute(query as never)
+      }) as never)
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      at(46 * H + 2 * MIN)
+      await tick()
+      record.mockRestore()
+      execute.mockRestore()
+      warn.mockRestore()
+      const status = async (id: number) =>
+        (await db.query.events.findFirst({ where: eq(events.id, id) }))!.status
+      expect(await status(first.id)).toBe('published')
+      expect(await status(second.id)).toBe('closed')
+      // следующий проход закрывает и первое
+      await tick()
+      expect(await status(first.id)).toBe('closed')
     })
 
     it('edits after the close moment do not stop the scheduled close', async () => {
