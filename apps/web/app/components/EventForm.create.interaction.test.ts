@@ -472,6 +472,135 @@ describe('create a series with preview', () => {
   })
 })
 
+describe('booking close selector (closeBeforeMinutes)', () => {
+  it('defaults to 2 hours and sends the value with a single event', async () => {
+    const { wrapper } = await renderForm()
+    expect(radio(wrapper, 'за 2 ч').attributes('aria-checked')).toBe('true')
+    await choose(wrapper, 'за 6 ч')
+    await wrapper.get('form').trigger('submit')
+    await settle()
+    const body = calls('/events')[0]![1].body
+    expect(body.closeBeforeMinutes).toBe(360)
+    expect(() => CreateEventInput.parse(body)).not.toThrow()
+    wrapper.unmount()
+  })
+
+  it('links the hint to the selector with aria-describedby', async () => {
+    const { wrapper } = await renderForm()
+    const group = wrapper.get('[role="radiogroup"][aria-label="Запись закрывается"]')
+    const hint = wrapper.get(`#${group.attributes('aria-describedby')}`)
+    expect(hint.text()).toContain('за выбранное время')
+    wrapper.unmount()
+  })
+
+  it('sends the value in the series template and the contract accepts it', async () => {
+    const { wrapper } = await renderForm()
+    await choose(wrapper, 'Каждую неделю')
+    await choose(wrapper, 'за 24 ч')
+    await wrapper.get('form').trigger('submit')
+    await settle()
+    const body = calls('/series')[0]![1].body
+    expect(CreateSeriesInput.parse(body).template.closeBeforeMinutes).toBe(1440)
+    wrapper.unmount()
+  })
+
+  it('shows the saved value on edit and sends it only when changed', async () => {
+    const initial = {
+      id: 71,
+      organizationId: 30,
+      title: 'Среда',
+      type: 'training',
+      startsAt: new Date('2030-06-12T16:00:00Z'),
+      endsAt: new Date('2030-06-12T18:00:00Z'),
+      capacity: 12,
+      price: 1500,
+      priceMode: 'fixed',
+      targetAmount: null,
+      currency: 'BYN',
+      status: 'published',
+      venueId: null,
+      locationText: null,
+      description: null,
+      cancellationDeadlineHours: 6,
+      cancellationAllowed: true,
+      joinMode: 'open',
+      level: null,
+      closeBeforeMinutes: 360,
+      seriesId: null,
+      seriesDate: null,
+    } as unknown as Event
+    const { wrapper } = await renderForm({ submitLabel: 'Сохранить событие' }, initial)
+    expect(radio(wrapper, 'за 6 ч').attributes('aria-checked')).toBe('true')
+    await wrapper.get('form').trigger('submit')
+    await settle()
+    expect(calls('/events/71', 'PATCH')[0]![1].body).not.toHaveProperty('closeBeforeMinutes')
+    await choose(wrapper, 'за 1 ч')
+    await wrapper.get('form').trigger('submit')
+    await settle()
+    expect(calls('/events/71', 'PATCH')[1]![1].body.closeBeforeMinutes).toBe(60)
+    wrapper.unmount()
+  })
+
+  it('notes on edit that the close moment has passed, without blocking the save', async () => {
+    const soon = new Date(Date.now() + 30 * 60_000)
+    const initial = {
+      id: 71,
+      organizationId: 30,
+      title: 'Скоро',
+      type: 'training',
+      startsAt: soon,
+      endsAt: new Date(soon.getTime() + 2 * 3600_000),
+      capacity: 12,
+      price: 0,
+      priceMode: 'fixed',
+      targetAmount: null,
+      currency: 'BYN',
+      status: 'published',
+      venueId: null,
+      locationText: null,
+      description: null,
+      cancellationDeadlineHours: 6,
+      cancellationAllowed: true,
+      joinMode: 'open',
+      level: null,
+      closeBeforeMinutes: 120,
+      seriesId: null,
+      seriesDate: null,
+    } as unknown as Event
+    const { wrapper } = await renderForm({ submitLabel: 'Сохранить событие' }, initial)
+    await wrapper.get('#ev-start').setValue(
+      new Intl.DateTimeFormat('sv-SE', {
+        timeZone: 'Europe/Minsk',
+        dateStyle: 'short',
+        timeStyle: 'short',
+      })
+        .format(soon)
+        .replace(' ', 'T'),
+    )
+    await settle()
+    expect(wrapper.get('[data-testid="close-passed-note"]').text()).toContain(
+      'Момент закрытия уже прошёл — запись закроете вручную',
+    )
+    await choose(wrapper, 'за 1 ч')
+    expect(wrapper.find('[data-testid="close-passed-note"]').exists()).toBe(true)
+    await wrapper.get('form').trigger('submit')
+    await settle()
+    expect(calls('/events/71', 'PATCH')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('explains booking_opens_after_close in Russian', async () => {
+    mocks.eventPost = apiError('event.booking_opens_after_close', 422)
+    const { wrapper } = await renderForm()
+    await wrapper.get('form').trigger('submit')
+    await settle()
+    const text = wrapper.get('[role="alert"]').text()
+    expect(text).toContain('закрывается')
+    expect(text).toContain('открытие записи')
+    wrapper.unmount()
+  })
+})
+
 describe('failures and in-flight requests', () => {
   it('adds a check-the-list hint when the outcome of the series request is unknown', async () => {
     mocks.seriesPost = Object.assign(new Error('offline'), { statusCode: 503, data: {} })

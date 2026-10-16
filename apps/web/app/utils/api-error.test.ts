@@ -15,6 +15,9 @@ describe('apiErrorMessage: события и серии (20.5.5)', () => {
     ['series.invalid_rule', 'правило повтора'],
     ['series.too_many_dates', '366'],
     ['series.idempotency_conflict', 'ещё раз'],
+    ['event.booking_opens_after_close', 'закрывается'],
+    ['event.booking_opens_in_past', 'будущем'],
+    ['event.booking_already_open', 'уже открыта'],
   ])('%s has a clear Russian message', (code, part) => {
     const message = apiErrorMessage(apiError(code), 'fallback')
     expect(message).toContain(part)

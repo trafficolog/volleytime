@@ -183,6 +183,7 @@ describe('EventForm payload and state', () => {
       method: 'POST',
       body: {
         type: 'training',
+        closeBeforeMinutes: 120,
         title: 'Новая игра',
         startsAt: '2026-09-27T16:00:00.000Z',
         endsAt: '2026-09-27T17:30:00.000Z',

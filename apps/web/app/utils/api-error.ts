@@ -51,6 +51,10 @@ const CODE_MESSAGES: Record<string, string> = {
   'series.from_in_past':
     'Прошедшие даты серии отменить нельзя: выберите сегодняшнюю или будущую дату',
   'series.not_found': 'Серия не найдена',
+  'event.booking_opens_after_close':
+    'Запись закрывается раньше, чем открывается: выберите более раннее открытие записи или меньшее время «Запись закрывается»',
+  'event.booking_opens_in_past': 'Время открытия записи должно быть в будущем',
+  'event.booking_already_open': 'Запись уже открыта: время открытия больше не меняется',
 }
 
 export function apiErrorCode(e: unknown): string | undefined {

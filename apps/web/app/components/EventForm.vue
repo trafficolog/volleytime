@@ -135,6 +135,7 @@ const form = reactive({
   targetMajor: i?.targetAmount ? String(toMajor(i.targetAmount)) : '',
   joinMode: (i?.joinMode ?? groupJoinMode) as string,
   level: (i?.level ?? '') as string,
+  closeBefore: String(i?.closeBeforeMinutes ?? 120),
   description: i?.description ?? '',
   publish: i ? i.status === 'published' : true,
 })
@@ -184,6 +185,18 @@ const joinModeOptions = computed(() => [
   { value: 'open', label: 'Свободная' },
   { value: 'invite', label: 'По приглашению', disabled: props.inviteModeEnabled !== true },
 ])
+const closeBeforeOptions = [
+  { value: '60', label: 'за 1 ч' },
+  { value: '120', label: 'за 2 ч' },
+  { value: '360', label: 'за 6 ч' },
+  { value: '1440', label: 'за 24 ч' },
+]
+// правка опубликованного события: момент закрытия уже прошёл — сервер оставит запись на ручное закрытие
+const closeMomentPassed = computed(() => {
+  if (!i || !form.publish || !isDate(form.startsAt)) return false
+  const start = zonedInputToDate(form.startsAt, props.tz).getTime()
+  return start - Number(form.closeBefore) * 60_000 < Date.now()
+})
 const joinOverridden = computed(() => form.joinMode !== groupJoinMode)
 const durationOptions = computed(() => {
   const base = [60, 90, 120, 150, 180]
@@ -515,6 +528,7 @@ async function submit() {
         priceMode: common.priceMode,
         price: common.price,
         targetAmount: common.targetAmount,
+        closeBeforeMinutes: Number(form.closeBefore),
         ...(form.level ? { level: form.level } : {}),
         ...(joinOverridden.value ? { joinMode: form.joinMode } : {}),
       }
@@ -541,9 +555,13 @@ async function submit() {
     if (!i) {
       body.type = form.type
       if (form.level) body.level = form.level
+      body.closeBeforeMinutes = Number(form.closeBefore)
       if (joinOverridden.value) body.joinMode = form.joinMode
     } else {
       if (form.joinMode !== i.joinMode) body.joinMode = form.joinMode
+      if (Number(form.closeBefore) !== i.closeBeforeMinutes) {
+        body.closeBeforeMinutes = Number(form.closeBefore)
+      }
       if ((form.level || null) !== (i.level ?? null)) body.level = form.level || null
     }
     const res = props.initial
@@ -855,6 +873,28 @@ const seatsText = computed(() => {
           <div v-if="levelOptions.length > 1">
             <span class="vt-label">Уровень игроков</span>
             <VtSelect v-model="form.level" :options="levelOptions" label="Уровень игроков" />
+          </div>
+
+          <div>
+            <span class="vt-label">Запись закрывается</span>
+            <VtSegment
+              v-model="form.closeBefore"
+              :options="closeBeforeOptions"
+              label="Запись закрывается"
+              variant="chips"
+              :aria-describedby="`${uid}-close-hint`"
+            />
+            <p :id="`${uid}-close-hint`" class="mt-1 text-xs text-vt-mute-2">
+              Автоматически, за выбранное время до начала события.
+            </p>
+            <p
+              v-if="closeMomentPassed"
+              class="mt-1 text-xs font-semibold text-vt-ink"
+              role="status"
+              data-testid="close-passed-note"
+            >
+              Момент закрытия уже прошёл — запись закроете вручную
+            </p>
           </div>
 
           <p id="ev-cancellation-policy" class="text-xs text-vt-mute-2">
