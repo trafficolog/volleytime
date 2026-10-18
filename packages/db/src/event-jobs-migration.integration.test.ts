@@ -10,6 +10,7 @@ import { rollbackLastMigration } from './rollback'
 import * as schema from './schema'
 import { seedDemo } from './seed-demo'
 
+const TAG29 = '0029_notifications_feed'
 const TAG = '0028_event_jobs'
 const TAG27 = '0027_event_series'
 const BASE_URL = process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL ?? ''
@@ -66,6 +67,7 @@ describe('migration 0028 event jobs (integration)', { timeout: 60_000 }, () => {
     try {
       await runMigrations(url)
       expect(await objects(sql)).toBe(ALL)
+      expect(await rollbackLastMigration(url)).toBe(TAG29) // 20.3.2
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await objects(sql)).toBe(0)
       await runMigrations(url)
@@ -79,6 +81,7 @@ describe('migration 0028 event jobs (integration)', { timeout: 60_000 }, () => {
     const { url, sql } = await scratchDb()
     try {
       await runMigrations(url)
+      expect(await rollbackLastMigration(url)).toBe(TAG29) // 20.3.2
       expect(await rollbackLastMigration(url)).toBe(TAG) // теперь БД на 0027
       const [user] = await sql<{ id: number }[]>`
         INSERT INTO users (email) VALUES ('v027@example.com') RETURNING id`
@@ -140,6 +143,7 @@ describe('migration 0028 event jobs (integration)', { timeout: 60_000 }, () => {
       ).rejects.toThrow(/scheduled_jobs_dedup_uniq/)
 
       // откат запрещён, пока есть активное предложение; транзакция ничего не меняет
+      expect(await rollbackLastMigration(url)).toBe(TAG29) // 20.3.2
       await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0028 refused: active/)
       expect(await objects(sql)).toBe(ALL)
       await sql`UPDATE waitlist_offers SET status = 'revoked' WHERE status = 'offered'`
@@ -155,6 +159,7 @@ describe('migration 0028 event jobs (integration)', { timeout: 60_000 }, () => {
       // ... как и будущее время у отменённого события
       await sql`UPDATE events SET booking_opens_at = now() + interval '1 hour', status = 'cancelled' WHERE id = ${e}`
 
+      expect(await rollbackLastMigration(url)).toBe(TAG29) // 20.3.2
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await objects(sql)).toBe(0)
       expect(await sql`SELECT 1 FROM events`).toHaveLength(2)
@@ -162,6 +167,7 @@ describe('migration 0028 event jobs (integration)', { timeout: 60_000 }, () => {
 
       await runMigrations(url)
       expect(await objects(sql)).toBe(ALL)
+      expect(await rollbackLastMigration(url)).toBe(TAG29) // 20.3.2
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await rollbackLastMigration(url)).toBe(TAG27)
     } finally {
@@ -185,6 +191,7 @@ describe('migration 0028 event jobs (integration)', { timeout: 60_000 }, () => {
         balance: await count('event_balance_entries'),
       })
       const before = await snapshot()
+      expect(await rollbackLastMigration(url)).toBe(TAG29) // 20.3.2
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await snapshot()).toEqual(before)
       await runMigrations(url)

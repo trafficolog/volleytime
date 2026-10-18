@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type Server } from 'node:http'
 
-import type { Bot } from 'grammy'
+import { GrammyError, type Bot } from 'grammy'
 
 import type { BotContext } from './context'
 import { env, secretsMatch } from './env'
@@ -36,6 +36,27 @@ export function toInlineKeyboard(keyboard?: KeyboardButton[][]) {
       ),
     ),
   }
+}
+
+export type SendFailure =
+  | { kind: 'blocked'; code: number }
+  | { kind: 'rate_limited'; retryAfter: number }
+  | { kind: 'other' }
+
+/** Описания Bot API 400, при которых чат получателя недоступен навсегда. */
+const UNREACHABLE_400 = /chat not found|user is deactivated|bot was blocked|PEER_ID_INVALID/i
+
+/**
+ * Ответ Bot API на отправку -> действие (20.3.2): 403 («bot was blocked by the user», «user is
+ * deactivated») и 400 «chat not found» — получатель недоступен; 429 — лимит с `retry_after` (с).
+ */
+export function classifySendError(e: unknown): SendFailure {
+  if (!(e instanceof GrammyError)) return { kind: 'other' }
+  if (e.error_code === 403 || (e.error_code === 400 && UNREACHABLE_400.test(e.description)))
+    return { kind: 'blocked', code: e.error_code }
+  if (e.error_code === 429)
+    return { kind: 'rate_limited', retryAfter: e.parameters.retry_after ?? 30 }
+  return { kind: 'other' }
 }
 
 /** Валидация payload перед отправкой. */
@@ -90,6 +111,21 @@ export function startInternalServer(bot: Bot<BotContext>, port = 3001): Server {
       res.statusCode = 200
       res.end('OK')
     } catch (e) {
+      const failure = classifySendError(e)
+      if (failure.kind === 'blocked') {
+        // получатель недоступен (бот заблокирован, чат не найден): повтор бессмыслен, не ошибка бота
+        console.warn('[internal-notify] recipient unreachable', failure.code)
+        res.statusCode = 410
+        res.end('Gone')
+        return
+      }
+      if (failure.kind === 'rate_limited') {
+        console.warn('[internal-notify] rate limited', { retryAfter: failure.retryAfter })
+        res.statusCode = 429
+        res.setHeader('retry-after', String(failure.retryAfter))
+        res.end('Too Many Requests')
+        return
+      }
       console.error('[internal-notify] failed', e)
       captureError(e, { scope: 'internal-notify' })
       res.statusCode = 500

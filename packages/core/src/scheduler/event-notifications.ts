@@ -15,7 +15,7 @@ import {
 
 import type { NotificationType } from '../notifier/templates'
 
-import type { NotifyJobPayload } from './journal'
+import { enqueueNotifications, type NotifyJobPayload } from './journal'
 
 const H = 3600_000
 /** Окно, в котором ещё имеет смысл сообщать об открытии записи (пропуск при простое планировщика). */
@@ -36,30 +36,25 @@ async function enqueueRows(
   check: (r: Row) => NotifyJobPayload['check'],
 ): Promise<number> {
   if (rows.length === 0) return 0
-  const inserted = await defaultDb
-    .insert(scheduledJobs)
-    .values(
-      rows.map((r) => ({
-        kind: type,
-        dedupKey: `${type}:event:${r.eventId}:user:${r.userId}`,
+  // запись ленты и задача доставки — одной пачкой (20.3.2); повтор по ключу — no-op
+  return enqueueNotifications(
+    defaultDb,
+    rows.map((r) => ({
+      type,
+      dedupKey: `${type}:event:${r.eventId}:user:${r.userId}`,
+      organizationId: r.organizationId,
+      eventId: r.eventId,
+      runAt: now,
+      userId: r.userId,
+      params: {
+        eventTitle: r.title,
+        eventDate: r.startsAt.toISOString(),
         organizationId: r.organizationId,
         eventId: r.eventId,
-        runAt: now,
-        payload: {
-          userId: r.userId,
-          params: {
-            eventTitle: r.title,
-            eventDate: r.startsAt.toISOString(),
-            organizationId: r.organizationId,
-            eventId: r.eventId,
-          },
-          check: check(r),
-        } satisfies NotifyJobPayload,
-      })),
-    )
-    .onConflictDoNothing({ target: scheduledJobs.dedupKey })
-    .returning({ id: scheduledJobs.id })
-  return inserted.length
+      },
+      check: check(r),
+    })),
+  )
 }
 
 /** Ключ уже поставленной задачи этого типа — чтобы не перебирать уже обработанных получателей. */

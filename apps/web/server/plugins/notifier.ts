@@ -1,4 +1,4 @@
-import { setNotifierTransport } from '@volley-time/core'
+import { deliveryErrorFromStatus, setNotifierTransport } from '@volley-time/core'
 
 /**
  * Настраивает транспорт доставки уведомлений: web -> bot (internal HTTP) -> Telegram.
@@ -21,7 +21,13 @@ export default defineNitroPlugin(() => {
           (e as { statusCode?: number; status?: number })?.statusCode ??
           (e as { status?: number })?.status
         console.error('[notify] delivery failed', { url: botInternalUrl, status })
-        throw e
+        // 410 — получатель недоступен, 429 — лимит Bot API с `retry-after` (20.3.2)
+        const retryAfter = Number(
+          (
+            e as { response?: { headers?: { get?: (n: string) => string | null } } }
+          )?.response?.headers?.get?.('retry-after'),
+        )
+        throw deliveryErrorFromStatus(status, Number.isNaN(retryAfter) ? undefined : retryAfter)
       }
     },
   })

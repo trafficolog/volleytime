@@ -1,0 +1,69 @@
+import { describe, expect, it } from 'vitest'
+
+import { DeliveryError, deliveryErrorFromStatus } from './delivery-error'
+import { minutesOfDay, quietHoursEnd } from './quiet-hours'
+
+// Europe/Minsk — UTC+3 без перехода на летнее время
+const TZ = 'Europe/Minsk'
+const at = (iso: string) => new Date(iso)
+
+describe('quietHoursEnd', () => {
+  const night = { start: 22 * 60, end: 7 * 60 }
+
+  it('reads the clock in the group timezone', () => {
+    expect(minutesOfDay(at('2026-10-20T19:30:00Z'), TZ)).toBe(22 * 60 + 30)
+    expect(minutesOfDay(at('2026-10-20T21:00:00Z'), TZ)).toBe(0) // полночь, не «24:00»
+  })
+
+  it('returns null outside the window and when it is not set', () => {
+    expect(quietHoursEnd(at('2026-10-20T10:00:00Z'), night, TZ)).toBeNull() // 13:00
+    expect(quietHoursEnd(at('2026-10-20T10:00:00Z'), { start: null, end: null }, TZ)).toBeNull()
+    expect(quietHoursEnd(at('2026-10-20T10:00:00Z'), { start: 60, end: 60 }, TZ)).toBeNull()
+  })
+
+  it('wraps over midnight: both sides of 00:00 end at the next 07:00', () => {
+    // 23:30 по Минску -> 07:00 следующих суток
+    expect(quietHoursEnd(at('2026-10-20T20:30:00Z'), night, TZ)?.toISOString()).toBe(
+      '2026-10-21T04:00:00.000Z',
+    )
+    // 02:15 по Минску -> 07:00 того же дня
+    expect(quietHoursEnd(at('2026-10-20T23:15:00Z'), night, TZ)?.toISOString()).toBe(
+      '2026-10-21T04:00:00.000Z',
+    )
+  })
+
+  it('treats the start as inside and the end as outside', () => {
+    expect(quietHoursEnd(at('2026-10-20T19:00:00Z'), night, TZ)).not.toBeNull() // 22:00
+    expect(quietHoursEnd(at('2026-10-21T04:00:00Z'), night, TZ)).toBeNull() // 07:00
+  })
+
+  it('supports a same-day window and drops seconds', () => {
+    const lunch = { start: 12 * 60, end: 14 * 60 }
+    expect(quietHoursEnd(at('2026-10-20T09:20:45Z'), lunch, TZ)?.toISOString()).toBe(
+      '2026-10-20T11:00:00.000Z',
+    )
+  })
+
+  it('falls back to the default timezone for an unknown zone name', () => {
+    expect(quietHoursEnd(at('2026-10-20T20:30:00Z'), night, 'Mars/Olympus')).not.toBeNull()
+  })
+})
+
+describe('deliveryErrorFromStatus', () => {
+  it('maps bot responses to delivery error kinds', () => {
+    expect(deliveryErrorFromStatus(410)).toBeInstanceOf(DeliveryError)
+    expect(deliveryErrorFromStatus(410).kind).toBe('blocked')
+    expect(deliveryErrorFromStatus(500).kind).toBe('transient')
+    expect(deliveryErrorFromStatus(undefined).kind).toBe('transient')
+    const limited = deliveryErrorFromStatus(429, 7)
+    expect(limited.kind).toBe('rate_limited')
+    expect(limited.retryAfterMs).toBe(7000)
+  })
+
+  it('bounds retry-after and defaults it when missing', () => {
+    expect(deliveryErrorFromStatus(429).retryAfterMs).toBe(30_000)
+    expect(deliveryErrorFromStatus(429, 0).retryAfterMs).toBe(1000)
+    expect(deliveryErrorFromStatus(429, 86_400).retryAfterMs).toBe(600_000)
+    expect(deliveryErrorFromStatus(429, Number.NaN).retryAfterMs).toBe(30_000)
+  })
+})

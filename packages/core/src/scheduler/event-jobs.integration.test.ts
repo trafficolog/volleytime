@@ -1026,6 +1026,8 @@ describe('event jobs (20.3.1, PostgreSQL)', { timeout: 60_000 }, () => {
         skipped: 0,
         retried: 0,
         failed: 0,
+        deferred: 0,
+        unreachable: 0,
       })
       const [job] = await db
         .select()
