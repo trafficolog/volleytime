@@ -224,11 +224,7 @@ export function rejectPaymentText(
 }
 
 /** Текст подтверждения снятия записи: оплаченные места освобождаются без возврата (D-14). */
-export function removeBookingText(
-  name: string,
-  booking: RosterBooking,
-  _pricing?: Pick<RosterPricing, 'priceMode'>,
-): string {
+export function removeBookingText(name: string, booking: RosterBooking): string {
   const paid = booking.paidSeats
   return paid > 0
     ? `Снять ${name} с события? Оплаченные места (${paid}) освободятся без возврата денег: возврат — отдельное действие организатора.`

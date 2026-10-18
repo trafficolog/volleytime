@@ -14,6 +14,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 import { organizationService } from '../organizations/service'
 
 import { readEventPriceQuote, readEventPricing } from './pricing-read-model'
+import { eventPricingService } from './pricing-service'
 import { eventService } from './service'
 
 /**
@@ -92,5 +93,16 @@ describe('split pricing with seats taken above capacity', () => {
       { organizationId: orgId, eventId, includeDrafts: true },
     )
     expect(quote.seatCount).toEqual({ current: 4, max: 4 })
+  })
+
+  it('settlement is refused: it would split over actual seats, the forecast over capacity', async () => {
+    await expect(
+      eventPricingService.settle({ userId: ownerId }, orgId, eventId),
+    ).rejects.toMatchObject({
+      code: 'event.split_over_capacity',
+    })
+    // доли не зафиксированы, записи не тронуты
+    const after = await db.select().from(bookings).where(eq(bookings.eventId, eventId))
+    expect(after.every((b) => b.allocatedAmount === null && b.status === 'confirmed')).toBe(true)
   })
 })

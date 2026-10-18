@@ -55,6 +55,7 @@ const CODE_STATUS: Record<string, number> = {
   'event.not_split': 409,
   'event.not_settleable': 409,
   'event.split_empty': 409,
+  'event.split_over_capacity': 409,
   'event.split_target_too_small': 409,
   'event.split_booking_invalid': 409,
   'event.venue_not_in_org': 422,
