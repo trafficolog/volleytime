@@ -209,14 +209,6 @@ async function settlePricing() {
   }
 }
 
-const STATUS_CHIP: Record<string, { tone: 'grass' | 'amber' | 'rose' | 'default'; text: string }> =
-  {
-    confirmed: { tone: 'grass', text: 'в составе' },
-    pending_payment: { tone: 'amber', text: 'ждёт оплаты' },
-    attended: { tone: 'grass', text: 'был' },
-    no_show: { tone: 'rose', text: 'не пришёл' },
-  }
-
 async function mark(b: EventBookingRow, attended: boolean) {
   if (!isManager.value || !ev.value || rosterError.value || mutationBusy.value) return
   busy.value = true
@@ -482,65 +474,53 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
             <h2 class="vt-cap mb-2">Состав{{ started ? ' · отметьте посещаемость' : '' }}</h2>
             <EmptyState v-if="inRoster.length === 0" icon="users" title="Никто не записан" />
             <ul v-else class="vt-card divide-y divide-[var(--vt-stroke)] overflow-hidden">
-              <li
-                v-for="b in inRoster"
-                :key="b.id"
-                class="roster-row flex items-center gap-3 px-3.5 py-2.5"
-              >
-                <VtAvatar size="sm" :name="displayName(b.user)" :src="b.user.image" />
-                <div class="roster-identity flex-1 min-w-0">
-                  <div class="text-[13px] font-semibold truncate">{{ displayName(b.user) }}</div>
-                  <div class="text-[11px] text-vt-mute-2">
-                    {{
-                      b.method === 'subscription'
-                        ? 'абонемент'
-                        : b.method === 'cash'
-                          ? 'наличные'
-                          : b.method === 'transfer'
-                            ? 'перевод'
-                            : 'бесплатно'
-                    }}
-                  </div>
-                </div>
-                <VtChip :tone="STATUS_CHIP[b.status]?.tone ?? 'default'">{{
-                  b.status === 'pending_payment' && !b.paymentId && ev.pricing?.mode === 'split'
-                    ? 'сумма после закрытия'
-                    : STATUS_CHIP[b.status]?.text
-                }}</VtChip>
-                <template
-                  v-if="started && ev.status !== 'cancelled' && b.status !== 'pending_payment'"
+              <li v-for="b in inRoster" :key="b.id" class="roster-row px-3.5 py-2.5">
+                <OrganizerRosterRow
+                  :booking="b"
+                  :pricing="{
+                    priceMode: ev.pricing?.mode === 'split' ? 'split' : 'fixed',
+                    free: ev.pricing?.mode !== 'split' && ev.price === 0,
+                    settled: !!ev.pricing?.settledAt,
+                  }"
+                  :currency="ev.currency"
                 >
-                  <button
-                    type="button"
-                    class="vt-btn vt-btn--sm"
-                    :class="b.status === 'attended' ? 'vt-btn--grass' : 'vt-btn--ghost'"
-                    :disabled="mutationBusy"
-                    aria-label="Был"
-                    @click="mark(b, true)"
-                  >
-                    <VtIcon name="check" :size="14" />
-                  </button>
-                  <button
-                    type="button"
-                    class="vt-btn vt-btn--sm"
-                    :class="b.status === 'no_show' ? 'vt-btn--danger' : 'vt-btn--ghost'"
-                    :disabled="mutationBusy"
-                    aria-label="Не пришёл"
-                    @click="mark(b, false)"
-                  >
-                    <VtIcon name="close" :size="14" />
-                  </button>
-                </template>
-                <button
-                  v-else-if="!started && ev.status !== 'cancelled'"
-                  type="button"
-                  class="vt-btn vt-btn--ghost vt-btn--sm !px-2"
-                  :disabled="mutationBusy"
-                  aria-label="Снять с события"
-                  @click="removeBooking(b)"
-                >
-                  <VtIcon name="trash" :size="14" />
-                </button>
+                  <template #actions>
+                    <template
+                      v-if="started && ev.status !== 'cancelled' && b.status !== 'pending_payment'"
+                    >
+                      <button
+                        type="button"
+                        class="vt-btn vt-btn--sm"
+                        :class="b.status === 'attended' ? 'vt-btn--grass' : 'vt-btn--ghost'"
+                        :disabled="mutationBusy"
+                        aria-label="Был"
+                        @click="mark(b, true)"
+                      >
+                        <VtIcon name="check" :size="14" />
+                      </button>
+                      <button
+                        type="button"
+                        class="vt-btn vt-btn--sm"
+                        :class="b.status === 'no_show' ? 'vt-btn--danger' : 'vt-btn--ghost'"
+                        :disabled="mutationBusy"
+                        aria-label="Не пришёл"
+                        @click="mark(b, false)"
+                      >
+                        <VtIcon name="close" :size="14" />
+                      </button>
+                    </template>
+                    <button
+                      v-else-if="!started && ev.status !== 'cancelled'"
+                      type="button"
+                      class="vt-btn vt-btn--ghost vt-btn--sm !px-2"
+                      :disabled="mutationBusy"
+                      aria-label="Снять с события"
+                      @click="removeBooking(b)"
+                    >
+                      <VtIcon name="trash" :size="14" />
+                    </button>
+                  </template>
+                </OrganizerRosterRow>
               </li>
             </ul>
           </section>
@@ -652,15 +632,6 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
   .event-payment-actions {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .roster-row {
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-
-  .roster-identity {
-    flex: 1 1 calc(100% - 40px);
   }
 }
 </style>

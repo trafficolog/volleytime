@@ -10,8 +10,10 @@ const props = withDefaults(
     confirmLabel: string
     cancelLabel?: string
     danger?: boolean
+    /** Шире 360 px: диалог с перечнем последствий (20.5.6). */
+    wide?: boolean
   }>(),
-  { cancelLabel: 'Отмена' },
+  { cancelLabel: 'Отмена', wide: false },
 )
 const emit = defineEmits<{ confirm: [] }>()
 
@@ -115,14 +117,17 @@ onUnmounted(restore)
       role="alertdialog"
       aria-modal="true"
       :aria-labelledby="titleId"
-      :aria-describedby="props.body ? bodyId : undefined"
+      :aria-describedby="props.body || $slots.default ? bodyId : undefined"
       @keydown="onKeydown"
       @focusout="onFocusout"
     >
       <div class="vt-alert-scrim" aria-hidden="true" @click="open = false" />
-      <div ref="panel" class="vt-alert" tabindex="-1">
+      <div ref="panel" class="vt-alert" :class="{ 'vt-alert--wide': wide }" tabindex="-1">
         <h2 :id="titleId" class="vt-alert__title">{{ title }}</h2>
-        <p v-if="body" :id="bodyId" class="vt-alert__body">{{ body }}</p>
+        <div v-if="body || $slots.default" :id="bodyId">
+          <p v-if="body" class="vt-alert__body">{{ body }}</p>
+          <slot />
+        </div>
         <div class="vt-alert__actions">
           <button
             ref="cancelBtn"

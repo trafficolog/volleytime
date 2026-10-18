@@ -1,6 +1,7 @@
 import { and, eq, scheduledJobs, sql, type DbOrTx, type Event } from '@volley-time/db'
 
 import { schedulerEnabled } from '../scheduler/capability'
+import { getDb, type ServiceContext } from '../shared/context'
 
 type CloseFields = Pick<Event, 'status' | 'startsAt' | 'closeBeforeMinutes' | 'bookingOpensAt'>
 
@@ -56,6 +57,11 @@ async function hasManualClose(db: DbOrTx, eventId: number): Promise<boolean> {
     .from(scheduledJobs)
     .where(and(eq(scheduledJobs.dedupKey, manualCloseKey(eventId))))
   return row !== undefined
+}
+
+/** Метка «запись ведёт организатор» для карточки события в кабинете (20.5.6). */
+export async function readManualClose(ctx: ServiceContext, eventId: number): Promise<boolean> {
+  return hasManualClose(getDb(ctx), eventId)
 }
 
 /**

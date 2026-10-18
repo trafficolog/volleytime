@@ -2,11 +2,11 @@
 id: '20.5.6'
 phase: '20'
 epic: '20.5'
-status: todo
+status: in_progress
 release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-12
-status_note: ''
+status_note: 'Реализовано (PR #151), ревью claude-opus-5-5: после замечаний исправлено; ожидает повторного ревью. Есть: предложения листа ожидания с TTL, время открытия и автозакрытия записи. Строка «закрытие вручную» (метка 20.3.1, поле `manualClose` ответа события для управляющих) есть. Вне карточки: журнал события, ручное добавление игрока, дублирование / «В чат» (20.5.8) — вне карточки. Отчёт сверки: docs/operations/qa/2026-10-16-20-5-6-cabinet-event-card-visual.md.'
 ref_id: 'W-05'
 complexity: L
 impl_model: claude-sonnet-5-5

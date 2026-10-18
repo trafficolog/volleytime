@@ -3,7 +3,9 @@ import {
   asc,
   bookings,
   desc,
+  gt,
   gte,
+  isNull,
   lt,
   eq,
   events,
@@ -81,7 +83,16 @@ export interface EventBookingRow {
   bookedAt: Date
   confirmedAt: Date | null
   subscriptionId: number | null
+  /** Самый ранний живой платёж записи: может быть уже `succeeded` — действовать по нему нельзя. */
   paymentId: number | null
+  /** Ожидающие платежи текущего воплощения записи (по одному на место), по порядку создания (20.5.6). */
+  pendingPaymentIds: number[]
+  /** Места, оплаченные живыми `succeeded`-платежами (без мест абонемента). */
+  paidSeats: number
+  /** Зафиксированная доля split (у отменённой записи — возвращается при отмене события). */
+  allocatedAmount: number | null
+  /** Действующее предложение места из очереди (20.3.1): места и срок, иначе `null`. */
+  offer: { id: number; seats: number; expiresAt: Date } | null
   user: { id: number; name: string | null; telegramUsername: string | null; image: string | null }
 }
 
@@ -546,6 +557,8 @@ export const bookingService = {
         confirmedAt: bookings.confirmedAt,
         subscriptionId: bookings.subscriptionId,
         paymentId: bookings.paymentId,
+        incarnation: bookings.incarnation,
+        allocatedAmount: bookings.allocatedAmount,
         userId: users.id,
         name: users.name,
         telegramUsername: users.telegramUsername,
@@ -558,10 +571,53 @@ export const bookingService = {
         sql`CASE ${bookings.status} WHEN 'confirmed' THEN 0 WHEN 'pending_payment' THEN 0 WHEN 'attended' THEN 0 WHEN 'no_show' THEN 0 WHEN 'waitlisted' THEN 1 ELSE 2 END`,
         asc(bookings.bookedAt),
       )
-    return rows.map(({ userId, name, telegramUsername, image, ...b }) => ({
-      ...b,
-      user: { id: userId, name, telegramUsername, image },
-    }))
+    // платежи по местам: живые = текущее воплощение, место не освобождено, pending/succeeded
+    const live = await getDb(ctx)
+      .select({
+        id: payments.id,
+        bookingId: payments.bookingId,
+        incarnation: payments.bookingIncarnation,
+        status: payments.status,
+      })
+      .from(payments)
+      .where(
+        and(
+          inArray(
+            payments.bookingId,
+            rows.map((r) => r.id),
+          ),
+          isNull(payments.seatReleasedAt),
+          inArray(payments.status, ['pending', 'succeeded']),
+        ),
+      )
+      .orderBy(asc(payments.createdAt), asc(payments.id))
+    const offers = await getDb(ctx)
+      .select({
+        id: waitlistOffers.id,
+        bookingId: waitlistOffers.bookingId,
+        seats: waitlistOffers.seats,
+        expiresAt: waitlistOffers.expiresAt,
+      })
+      .from(waitlistOffers)
+      .where(
+        and(
+          eq(waitlistOffers.eventId, eventId),
+          eq(waitlistOffers.status, 'offered'),
+          gt(waitlistOffers.expiresAt, new Date()),
+        ),
+      )
+    const offerByBooking = new Map(offers.map((o) => [o.bookingId, o]))
+    return rows.map(({ userId, name, telegramUsername, image, incarnation, ...b }) => {
+      const own = live.filter((p) => p.bookingId === b.id && p.incarnation === incarnation)
+      const offer = offerByBooking.get(b.id)
+      return {
+        ...b,
+        pendingPaymentIds: own.filter((p) => p.status === 'pending').map((p) => p.id),
+        paidSeats: own.filter((p) => p.status === 'succeeded').length,
+        offer: offer ? { id: offer.id, seats: offer.seats, expiresAt: offer.expiresAt } : null,
+        user: { id: userId, name, telegramUsername, image },
+      }
+    })
   },
 
   /** Мои брони в организации, фильтр по времени события. */

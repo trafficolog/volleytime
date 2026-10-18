@@ -1,4 +1,5 @@
 export { eventService, type EventStats } from './service'
+export { readManualClose } from './booking-close'
 export * from './errors'
 export * from './schemas'
 export { isSplitPricingEnabled } from './pricing-capability'
