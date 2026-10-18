@@ -256,12 +256,12 @@ describe('rejectPaymentText', () => {
 
 describe('removeBookingText', () => {
   it('упоминает оплаченные места, которые освобождаются без возврата (D-14)', () => {
-    expect(removeBookingText('Артём', booking({ seats: 2, paidSeats: 2 }), fixed)).toContain(
+    expect(removeBookingText('Артём', booking({ seats: 2, paidSeats: 2 }))).toContain(
       'без возврата',
     )
-    expect(
-      removeBookingText('Артём', booking({ status: 'pending_payment', paidSeats: 0 }), fixed),
-    ).toBe('Снять Артём с события?')
+    expect(removeBookingText('Артём', booking({ status: 'pending_payment', paidSeats: 0 }))).toBe(
+      'Снять Артём с события?',
+    )
   })
 })
 

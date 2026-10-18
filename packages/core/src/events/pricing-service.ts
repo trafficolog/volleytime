@@ -99,6 +99,13 @@ export async function settleLockedEvent(
     throw new EventError('event.split_empty', 'Add participants before settling')
   // доли — по единицам-местам (20.1.2, ADR): цель сравнивается с суммой мест, не с числом записей
   const seatCount = participants.reduce((total, b) => total + b.seats, 0)
+  // состав больше вместимости (уменьшенная вместимость, данные вне сервиса): прогноз делит на
+  // вместимость, фиксация — на фактические места; расхождение не допускаем (follow-up 20.5.6)
+  if (seatCount > event.capacity)
+    throw new EventError(
+      'event.split_over_capacity',
+      'Occupied seats exceed capacity; fix the roster or capacity before settling',
+    )
   if (event.targetAmount! < seatCount)
     throw new EventError(
       'event.split_target_too_small',

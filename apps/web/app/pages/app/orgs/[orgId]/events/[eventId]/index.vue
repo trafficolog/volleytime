@@ -341,8 +341,7 @@ async function mark(booking: EventBookingRow, attended: boolean) {
 async function removeBooking(booking: EventBookingRow) {
   const target = event.value
   if (!target || !canAct(target.organizationId, target.id)) return
-  if (!window.confirm(removeBookingText(displayName(booking.user), booking, rosterPricing.value)))
-    return
+  if (!window.confirm(removeBookingText(displayName(booking.user), booking))) return
   if (!canAct(target.organizationId, target.id)) return
   busy.value = true
   actionError.value = ''
