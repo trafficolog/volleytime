@@ -3,11 +3,13 @@ import {
   canManageContent,
   eventInviteRequestService,
   eventService,
+  getDb,
   readEventPricing,
   readManualClose,
   readPricingFinancials,
   readPricingPermissions,
   requireOrgMember,
+  reservedSeats,
 } from '@volley-time/core'
 
 /** Событие + заполненность, моя бронь, площадка, публичный состав (5.13.18). */
@@ -36,8 +38,11 @@ export default defineApiHandler(async (event) => {
   // событие «по приглашению» (20.1.3): статус своего запроса для состояний Mini App (20.4.7)
   const myInviteRequest =
     ev.joinMode === 'invite' ? await eventInviteRequestService.mine(ctx, ev.id) : null
+  // Свободные места для новой записи: вместимость минус занятые и удерживаемые предложениями
+  // из очереди (20.3.1) — по ним степпер Mini App решает, нужна ли очередь (20.4.5).
+  const freeSeats = Math.max(0, ev.capacity - (await reservedSeats(getDb(ctx), ev.id)))
   return {
-    event: { ...ev, ...stats, pricing, ...managerPricing, myInviteRequest },
+    event: { ...ev, ...stats, freeSeats, pricing, ...managerPricing, myInviteRequest },
     roster,
   }
 })

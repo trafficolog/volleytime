@@ -223,3 +223,63 @@ describe('player event view state', () => {
     ).toBe(false)
   })
 })
+
+describe('player event view state: seats, queue and booking opening (20.4.5)', () => {
+  it('free seats come from the server and include seats held by waitlist offers', () => {
+    // занято 4 из 10, но 6 мест удерживают предложения из очереди: свободных нет — очередь
+    expect(projectPlayerEvent({ ...event, freeSeats: 0 }, access, now)).toMatchObject({
+      freeSeats: 0,
+      action: 'waitlist',
+      paymentMethods: ['cash', 'transfer', 'subscription'],
+    })
+    expect(projectPlayerEvent({ ...event, freeSeats: 3 }, access, now)).toMatchObject({
+      freeSeats: 3,
+      action: 'book',
+    })
+  })
+
+  it('falls back to capacity minus taken when the server sends no free seats', () => {
+    expect(projectPlayerEvent(event, access, now).freeSeats).toBe(6)
+    expect(projectPlayerEvent({ ...event, taken: 12 }, access, now).freeSeats).toBe(0)
+  })
+
+  it('does not offer booking before the booking opening time', () => {
+    const opens = '2026-09-24T12:00:00Z'
+    const view = projectPlayerEvent({ ...event, bookingOpensAt: opens }, access, now)
+    expect(view).toMatchObject({ action: 'none', paymentMethods: [] })
+    expect(view.opensAt?.toISOString()).toBe('2026-09-24T12:00:00.000Z')
+    expect(
+      projectPlayerEvent({ ...event, bookingOpensAt: '2026-09-24T09:00:00Z' }, access, now),
+    ).toMatchObject({ action: 'book', opensAt: null })
+  })
+
+  it('titles a multi-seat booking «Вы записаны на N места»', () => {
+    const view = projectPlayerEvent(
+      { ...event, myBooking: { status: 'confirmed', seats: 2, waitlistSeats: 0 } },
+      access,
+      now,
+    )
+    expect(view.bookingCard).toMatchObject({ title: 'Вы записаны на 2 места' })
+    expect(view.seatsNote).toBeNull()
+  })
+
+  it('explains a booking partly in the queue', () => {
+    const view = projectPlayerEvent(
+      { ...event, myBooking: { status: 'confirmed', seats: 1, waitlistSeats: 2 } },
+      access,
+      now,
+    )
+    expect(view.seatsNote).toBe('1 место за вами, ещё 2 места в очереди')
+  })
+
+  it('exposes the active waitlist offer of my booking', () => {
+    const offer = { id: 7, seats: 2, expiresAt: '2026-09-24T10:20:00Z' }
+    const view = projectPlayerEvent(
+      { ...event, myBooking: { status: 'waitlisted', seats: 2, waitlistSeats: 0, offer } },
+      access,
+      now,
+    )
+    expect(view.offer).toEqual(offer)
+    expect(projectPlayerEvent(event, access, now).offer).toBeNull()
+  })
+})

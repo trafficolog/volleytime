@@ -2,11 +2,11 @@
 id: '20.4.5'
 phase: '20'
 epic: '20.4'
-status: todo
+status: in_progress
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-10-18
+status_note: 'Реализовано, ревью ожидается: степпер мест (за EVENT_MULTI_SEAT_ENABLED), согласие на частичную очередь, +N в составе, принятие предложения места (истёкшее — выход из очереди, решение 2026-10-16), MainButton. Визуальная сверка: docs/operations/qa/2026-10-18-20-4-5-event-booking-visual.md. Открыто: 15 мин брони без серверного TTL, позиция в очереди — 20.4.11.'
 ref_id: 'M-06'
 complexity: L
 impl_model: claude-sonnet-5-5

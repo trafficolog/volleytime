@@ -12,13 +12,18 @@ import {
   ref,
   Suspense,
   watch,
+  watchEffect,
 } from 'vue'
 
 import Page from './index.vue'
 
+import BookingSeatsStepper from '~/components/BookingSeatsStepper.vue'
+import PlayerBookingForm from '~/components/PlayerBookingForm.vue'
+import WaitlistOfferCard from '~/components/WaitlistOfferCard.vue'
 import MyChip from '~/components/vt/MyChip.vue'
 import SeatsMini from '~/components/vt/SeatsMini.vue'
 import StateChip from '~/components/vt/StateChip.vue'
+import Toggle from '~/components/vt/Toggle.vue'
 import { apiErrorCode, apiErrorMessage, apiErrorStatus } from '~/utils/api-error'
 
 const levelsCatalog = [
@@ -93,6 +98,10 @@ async function render() {
           NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
           VtMiniHeader: true,
           VtChip: { template: '<span><slot /></span>' },
+          PlayerBookingForm,
+          WaitlistOfferCard,
+          BookingSeatsStepper,
+          VtToggle: Toggle,
           VtMyChip: MyChip,
           VtStateChip: StateChip,
           VtSeatsMini: SeatsMini,
@@ -114,6 +123,13 @@ async function render() {
 }
 const button = (label: string) =>
   wrapper!.findAll('button').find((b) => b.text().startsWith(label))!
+/** Лист записи: способ по умолчанию — первый (наличные), затем кнопка записи (20.4.5). */
+const submitInSheet = () =>
+  wrapper!
+    .get('[role="dialog"]')
+    .findAll('button')
+    .find((b) => b.text().startsWith('Записаться'))!
+    .trigger('click')
 const settleLatest = () => {
   data.value.event.pricing = {
     ...data.value.event.pricing,
@@ -140,6 +156,8 @@ beforeEach(() => {
     watch,
     onMounted,
     onUnmounted,
+    watchEffect,
+    createMainButton: () => ({ update: vi.fn(), destroy: vi.fn() }),
     definePageMeta: () => undefined,
     useRoute: () => route,
     useOrgTimezone: () => ({ tz: 'Europe/Minsk' }),
@@ -191,7 +209,7 @@ describe.each([path, `${path}/`])(
             post.mockImplementationOnce(() => pending.promise)
             if (action === 'booking') {
               await button('Записаться').trigger('click')
-              await button('Наличными').trigger('click')
+              await submitInSheet()
             } else await button('Отменить запись').trigger('click')
             expect(post).toHaveBeenCalledExactlyOnceWith(
               action === 'cancel'
@@ -253,7 +271,7 @@ describe.each([path, `${path}/`])(
             post.mockImplementationOnce(() => pending.promise)
             if (action === 'booking') {
               await button('Записаться').trigger('click')
-              await button('Наличными').trigger('click')
+              await submitInSheet()
             } else await button('Отменить запись').trigger('click')
             if (departure === 'unmount') wrapper.unmount()
             else if (departure === 'leave-return') {
@@ -349,7 +367,7 @@ describe('booking rejected because the event is gone (19.3.1)', () => {
     })
     wrapper = await render()
     await button('Записаться').trigger('click')
-    await button('Наличными').trigger('click')
+    await submitInSheet()
     await flushPromises()
     expect(post).toHaveBeenCalledOnce()
     expect(refresh).toHaveBeenCalledOnce()
