@@ -6,7 +6,7 @@ status: in_progress
 release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-12
-status_note: 'Реализовано в PR (ветка trafficolog/feat/20.5.6-cabinet-event-card), ревью claude-opus-5-5 ожидается. Не входит: предложения листа ожидания с TTL и время открытия записи (20.3.1, PR #150), журнал события, ручное добавление игрока, дублирование / «В чат» (20.5.8). Отчёт сверки: docs/operations/qa/2026-10-16-20-5-6-cabinet-event-card-visual.md.'
+status_note: 'Реализовано (PR #151), ревью claude-opus-5-5: после замечаний исправлено; ожидает повторного ревью. Есть: предложения листа ожидания с TTL, время открытия и автозакрытия записи. Follow-up: строка «закрытие вручную» после влития PR #153; журнал события, ручное добавление игрока, дублирование / «В чат» (20.5.8) — вне карточки. Отчёт сверки: docs/operations/qa/2026-10-16-20-5-6-cabinet-event-card-visual.md.'
 ref_id: 'W-05'
 complexity: L
 impl_model: claude-sonnet-5-5
