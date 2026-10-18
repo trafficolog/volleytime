@@ -9,6 +9,8 @@ export interface BookingWindowEvent {
   startsAt: string | Date
   bookingOpensAt?: string | Date | null
   closeBeforeMinutes?: number | null
+  /** Метка 20.3.1: запись ведёт организатор, планировщик её не закрывает. */
+  manualClose?: boolean
 }
 
 export const closeBeforeLabel = (minutes: number): string => `за ${Math.round(minutes / 60)} ч`
@@ -25,12 +27,15 @@ export function bookingWindowOf(
       ? 'открыта с публикации'
       : `${now < opensAt ? 'откроется' : 'открылась'} ${formatEventDate(opensAt, tz)}`
   const minutes = event.closeBeforeMinutes
-  const closes =
-    schedulerOn && minutes
-      ? `${closeBeforeLabel(minutes)} до начала (в ${formatTime(
-          new Date(new Date(event.startsAt).getTime() - minutes * 60_000),
-          tz,
-        )})`
-      : null
+  const closes = !schedulerOn
+    ? null
+    : event.manualClose
+      ? 'закрытие вручную'
+      : minutes
+        ? `${closeBeforeLabel(minutes)} до начала (в ${formatTime(
+            new Date(new Date(event.startsAt).getTime() - minutes * 60_000),
+            tz,
+          )})`
+        : null
   return { opens, closes }
 }

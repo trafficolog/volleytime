@@ -47,6 +47,13 @@ describe('bookingWindowOf: время открытия и закрытия за�
     expect(w.closes).toBe('за 2 ч до начала (в 18:00)')
   })
 
+  it('метка ручного закрытия: «закрытие вручную» вместо времени', () => {
+    expect(bookingWindowOf({ ...event, manualClose: true }, tz, true, now).closes).toBe(
+      'закрытие вручную',
+    )
+    expect(bookingWindowOf({ ...event, manualClose: true }, tz, false, now).closes).toBeNull()
+  })
+
   it('планировщик выключен: автозакрытия нет, строки закрытия нет', () => {
     expect(bookingWindowOf(event, tz, false, now).closes).toBeNull()
   })

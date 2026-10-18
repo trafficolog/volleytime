@@ -376,6 +376,13 @@ describe('W-05: окно записи (20.3.1)', () => {
     wrapper.unmount()
   })
 
+  it('метка ручного закрытия: «закрытие вручную»', async () => {
+    current = splitEvent({ manualClose: true })
+    const wrapper = await render()
+    expect(wrapper.get('[data-booking-closes]').text()).toBe('закрытие вручную')
+    wrapper.unmount()
+  })
+
   it('планировщик выключен: строки закрытия нет', async () => {
     schedulerOn = false
     const wrapper = await render()

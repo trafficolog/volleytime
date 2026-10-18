@@ -4,6 +4,7 @@ import {
   eventInviteRequestService,
   eventService,
   readEventPricing,
+  readManualClose,
   readPricingFinancials,
   readPricingPermissions,
   requireOrgMember,
@@ -28,6 +29,8 @@ export default defineApiHandler(async (event) => {
     ? {
         pricingFinancials: await readPricingFinancials(ctx, ev.id),
         pricingPermissions: await readPricingPermissions(ctx, ev.id),
+        // запись ведёт организатор (20.3.1): только для управляющих
+        manualClose: await readManualClose(ctx, ev.id),
       }
     : {}
   // событие «по приглашению» (20.1.3): статус своего запроса для состояний Mini App (20.4.7)

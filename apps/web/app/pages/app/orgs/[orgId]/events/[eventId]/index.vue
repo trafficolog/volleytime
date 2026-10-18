@@ -48,6 +48,7 @@ const { data, pending, error, refresh } = await useFetch<{
     pricing: EventPricingView
     pricingPermissions?: PricingPermissions
     pricingFinancials?: PricingFinancials
+    manualClose?: boolean
   }
   /** Состав для участников группы: уровень игрока приходит только отсюда (20.4.10). */
   roster?: RosterEntry[]
