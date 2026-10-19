@@ -1,4 +1,5 @@
 export { bookingService, type EventBookingRow } from './service'
+export { readBookingAvailability, type BookingAvailability } from './availability'
 export { isMultiSeatEnabled } from './multi-seat-capability'
 export * from './errors'
 export * from './schemas'

@@ -150,4 +150,56 @@ describe('event booking with several seats over HTTP (20.4.5)', () => {
     const off = await request('GET', `${base()}/events/${ev.id}`, { user: people[2] })
     expect((off.body as { event: { freeSeats: number } }).event.freeSeats).toBe(1)
   })
+
+  it('N1: queued seats that already hold offers do not hide a free seat', async () => {
+    const ev = await newEvent(2)
+    const [a, b, c] = people as [number, number, number]
+    const ba = await bookingService.book({ userId: a }, orgId, ev.id, { method: 'free' })
+    await bookingService.book({ userId: c }, orgId, ev.id, { method: 'free' })
+    await bookingService.book({ userId: b }, orgId, ev.id, { method: 'free' })
+    await bookingService.cancel({ userId: a }, ba.id) // место предложено b
+    await db.update(events).set({ capacity: 3 }).where(eq(events.id, ev.id))
+
+    const card = await request('GET', `${base()}/events/${ev.id}`, { user: people[0] })
+    // занято 1 (c) + 1 под предложением b; очередь без предложений пуста; свободно 1 из 3
+    expect((card.body as { event: { freeSeats: number } }).event.freeSeats).toBe(1)
+    const ok = await request('POST', `${base()}/events/${ev.id}/bookings`, {
+      user: people[0],
+      body: { method: 'free' },
+    })
+    expect(ok.status).toBe(200)
+    expect((ok.body as { booking: { status: string } }).booking.status).toBe('confirmed')
+  })
+
+  it('N2: bookingClosed comes from the server — a title edit after the close moment keeps it closed', async () => {
+    const ev = await newEvent(5)
+    // момент закрытия (старт − 120 мин) наступил, метки ручного закрытия нет
+    await db
+      .update(events)
+      .set({ startsAt: new Date(Date.now() + 3600_000), endsAt: new Date(Date.now() + 7200_000) })
+      .where(eq(events.id, ev.id))
+    const get = async () =>
+      (
+        (await request('GET', `${base()}/events/${ev.id}`, { user: people[0] })).body as {
+          event: { bookingClosed: boolean }
+        }
+      ).event.bookingClosed
+    expect(await get()).toBe(true)
+    await eventService.update({ userId: ownerId }, ev.id, { title: 'Renamed after close' })
+    expect(await get()).toBe(true)
+
+    vi.stubEnv('SCHEDULER_ENABLED', '')
+    expect(await get()).toBe(false)
+  })
+
+  it('N2: an event opened after the close moment is organizer-led (manual close mark) — not closed', async () => {
+    const created = await eventService.create({ userId: ownerId }, orgId, {
+      title: 'Late',
+      startsAt: new Date(Date.now() + 3600_000),
+      endsAt: new Date(Date.now() + 7200_000),
+      capacity: 5,
+    })
+    const card = await request('GET', `${base()}/events/${created.id}`, { user: people[0] })
+    expect((card.body as { event: { bookingClosed: boolean } }).event.bookingClosed).toBe(false)
+  })
 })

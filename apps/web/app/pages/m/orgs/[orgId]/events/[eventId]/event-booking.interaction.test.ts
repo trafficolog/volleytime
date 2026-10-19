@@ -594,7 +594,11 @@ describe('review #156 follow-ups', () => {
   it('M3: the close moment passes → «Запись закрыта», no action (scheduler on)', async () => {
     org.value = orgFixture(true, { scheduler: true })
     data.value.event.startsAt = '2027-10-03T12:01:00Z' // закрытие за 2 ч = 10:01
-    Object.assign(data.value.event, { closeBeforeMinutes: 120, updatedAt: '2027-10-01T00:00:00Z' })
+    Object.assign(data.value.event, { closeBeforeMinutes: 120, bookingClosed: false })
+    // на границе экран перечитывает событие; сервер отвечает: запись закрыта
+    refresh.mockImplementation(async () => {
+      data.value.event = { ...data.value.event, bookingClosed: true } as typeof data.value.event
+    })
     wrapper = await render()
     expect(pageButton('Записаться')).toBeDefined()
     await vi.advanceTimersByTimeAsync(61_000)
