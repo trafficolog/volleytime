@@ -77,6 +77,26 @@
       "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
     },
     {
+      "id": "player-subscription-buy",
+      "title": "Игрок: покупка абонемента",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "path": "/m/orgs/{org}/subscriptions/buy",
+      "references": ["3-miniapp-player/05-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
+      "id": "player-notifications",
+      "title": "Игрок: уведомления",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "path": "/m/orgs/{org}/notifications",
+      "references": ["3-miniapp-player/11-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
       "id": "player-profile",
       "title": "Игрок: профиль",
       "viewport": "miniapp",

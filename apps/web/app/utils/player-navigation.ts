@@ -2,7 +2,7 @@ export function playerTabs(base: string, availability: { showMenu: boolean }) {
   return [
     { to: base, label: 'Главная', icon: 'home' },
     ...(availability.showMenu
-      ? [{ to: `${base}/subscriptions`, label: 'Абонементы', icon: 'card' }]
+      ? [{ to: `${base}/subscriptions`, label: 'Абонементы', icon: 'card', prefix: true }]
       : []),
     { to: `${base}/profile`, label: 'Профиль', icon: 'users' },
   ]

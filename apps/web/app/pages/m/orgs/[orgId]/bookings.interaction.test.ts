@@ -127,4 +127,29 @@ describe('player bookings page money and status labels (moved from home, 20.4.4)
     expect(w.text()).not.toContain('Бесплатно')
     w.unmount()
   })
+
+  it('лист ожидания — отдельный раздел с кнопкой «Выйти», основные записи — с «Отменить»', async () => {
+    const fixed = {
+      mode: 'fixed',
+      targetAmount: null,
+      settledAt: null,
+      participantCount: 0,
+      minAmount: 1500,
+      maxAmount: 1500,
+      basis: 'fixed',
+      myAllocatedAmount: null,
+      myPaymentStatus: null,
+    }
+    const w = await mountBookings([booking(1, 'confirmed', fixed), booking(2, 'waitlisted', fixed)])
+    const waiting = w.get('[aria-labelledby="bookings-waitlist-title"]')
+    expect(waiting.text()).toContain('В листе ожидания')
+    expect(waiting.text()).toContain('Игра 102')
+    expect(waiting.text()).toContain('Вы в очереди')
+    expect(waiting.get('button').text()).toBe('Выйти из листа ожидания')
+    expect(waiting.text()).not.toContain('Игра 101')
+    const main = w.findAll('[data-booking-row]').filter((row) => row.text().includes('Игра 101'))
+    expect(main).toHaveLength(1)
+    expect(main[0]!.get('button').text()).toBe('Отменить запись')
+    w.unmount()
+  })
 })

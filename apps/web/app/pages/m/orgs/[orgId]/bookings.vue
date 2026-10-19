@@ -1,55 +1,17 @@
 <script setup lang="ts">
-import type { Booking, Event, Venue } from '@volley-time/db'
-import {
-  formatDay,
-  formatTime,
-  type EventPriceQuote,
-  type EventPricingView,
-} from '@volley-time/shared'
-
-import { eventPricingLabel, splitBookingPaymentLabel } from '~/utils/event-pricing-label'
+import PlayerBookingRow, { type MyBooking } from '~/components/PlayerBookingRow.vue'
 import {
   canCancelPlayerBooking,
   createPlayerBookingsLoader,
   runPlayerBookingCancellation,
 } from '~/utils/player-bookings-loader'
-import { bookingPaymentChip } from '~/utils/player-event'
 import { playerAccessFromApiError } from '~/utils/player-home'
-import { quotePriceLabel } from '~/utils/player-price-view'
 import { createPlayerRequestGuard } from '~/utils/player-request-guard'
-import { participationOf } from '~/utils/status-model'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
-
-type MyBooking = Booking & {
-  pricing: EventPricingView
-  /** Цена split из `quoteEventPrice` (как GET …/price, 20.4.6); `undefined` — источник не передан. */
-  priceQuote?: (EventPriceQuote & { currency?: string }) | null
-  event: Event & { venue: Venue | null }
-}
-
-/** Цена карточки записи: split — из ответа цены (без числа, если расчёта нет), иначе прежняя проекция. */
-function priceOf(b: MyBooking) {
-  // отменённая запись показывает зафиксированную долю/возврат (факт, не прогноз) — прежняя проекция
-  if (b.pricing.mode === 'split' && b.priceQuote !== undefined && b.status !== 'cancelled') {
-    const label =
-      b.event.status === 'cancelled'
-        ? null
-        : quotePriceLabel(b.priceQuote, b.event.currency, {
-            hasBooking: ['confirmed', 'pending_payment', 'attended', 'no_show'].includes(b.status),
-            waitlisted: b.status === 'waitlisted',
-          })
-    return {
-      text: label?.text ?? '',
-      description: label?.description ?? '',
-      forecast: b.priceQuote?.basis === 'forecast' && !!label,
-    }
-  }
-  const label = eventPricingLabel(b.pricing, b.event.currency)
-  return { ...label, forecast: b.pricing.mode === 'split' && b.pricing.basis !== 'settled' }
-}
 
 const route = useRoute()
 const orgId = computed(() => Number(route.params.orgId))
+const base = computed(() => `/m/orgs/${orgId.value}`)
 const { tz } = useOrgTimezone(orgId)
 const { confirm, haptic } = useTelegram()
 
@@ -166,6 +128,9 @@ async function onCancel(b: MyBooking) {
   if (request.isCurrent()) cancelling.value = null
 }
 
+const going = computed(() => items.value.filter((b) => b.status !== 'waitlisted'))
+const waiting = computed(() => items.value.filter((b) => b.status === 'waitlisted'))
+
 function bookingPolicy(booking: MyBooking) {
   return {
     id: booking.id,
@@ -186,8 +151,8 @@ function canCancel(booking: MyBooking) {
 
 <template>
   <div class="min-h-screen pb-10">
-    <VtMiniHeader title="Мои записи" :back="`/m/orgs/${orgId}`" />
-    <div class="px-4 pt-3 flex gap-1" role="group" aria-label="Период записей">
+    <VtMiniHeader title="Мои записи" :back="base" />
+    <div class="px-4 pt-1 flex gap-1" role="group" aria-label="Период записей">
       <button
         v-for="f in [
           { id: 'upcoming', label: 'Предстоящие' },
@@ -219,60 +184,37 @@ function canCancel(booking: MyBooking) {
           >
         </template>
       </EmptyState>
-      <ul v-else class="space-y-2.5">
-        <li v-for="b in items" :key="b.id" class="vt-card p-3.5">
-          <NuxtLink
-            :to="`/m/orgs/${orgId}/events/${b.event.id}`"
-            class="vt-hit-44 flex items-center gap-3"
-          >
-            <div class="w-14 text-center shrink-0">
-              <div class="vt-cap !text-[10px]">
-                {{ formatDay(b.event.startsAt, tz).split(',')[0] }}
-              </div>
-              <div class="vt-mono font-bold">{{ formatTime(b.event.startsAt, tz) }}</div>
-            </div>
-            <div class="flex-1 min-w-0">
-              <div class="font-semibold truncate">{{ b.event.title }}</div>
-              <div class="text-xs text-vt-mute-2 truncate">
-                {{ formatDay(b.event.startsAt, tz)
-                }}<template v-if="b.event.venue"> · {{ b.event.venue.name }}</template>
-              </div>
-              <div class="vt-mono text-xs mt-1">
-                {{ priceOf(b).text }}
-              </div>
-              <p v-if="priceOf(b).forecast" class="text-xs text-vt-mute-2 mt-1">
-                {{ priceOf(b).description }}
-              </p>
-              <p
-                v-if="b.status === 'waitlisted' && b.pricing.mode === 'split'"
-                class="text-xs text-vt-mute-2 mt-1"
-              >
-                {{ splitBookingPaymentLabel(b.pricing, b.status)?.description }}
-              </p>
-            </div>
-            <div class="flex shrink-0 flex-col items-end gap-1">
-              <VtMyChip v-if="participationOf(b)" :booking="b" />
-              <VtChip v-else-if="b.status === 'attended'">Был</VtChip>
-              <VtChip v-else-if="b.status === 'no_show'">Не пришёл</VtChip>
-              <VtChip
-                v-if="bookingPaymentChip(b.status, b.pricing)"
-                :tone="bookingPaymentChip(b.status, b.pricing)!.tone"
-                >{{ bookingPaymentChip(b.status, b.pricing)!.text }}</VtChip
-              >
-              <VtChip v-else-if="b.status === 'cancelled'">Запись отменена</VtChip>
-            </div>
-          </NuxtLink>
-          <button
-            v-if="canCancel(b)"
-            type="button"
-            class="vt-btn vt-btn--ghost vt-btn--sm vt-btn--full mt-3"
-            :disabled="cancelling === b.id"
-            @click="onCancel(b)"
-          >
-            Отменить запись
-          </button>
-        </li>
-      </ul>
+      <template v-else>
+        <ul v-if="going.length" class="space-y-2.5">
+          <li v-for="b in going" :key="b.id">
+            <PlayerBookingRow
+              :booking="b"
+              :org-id="orgId"
+              :tz="tz"
+              :cancellable="canCancel(b)"
+              :cancelling="cancelling === b.id"
+              @cancel="onCancel(b)"
+            />
+          </li>
+        </ul>
+        <section v-if="waiting.length" aria-labelledby="bookings-waitlist-title">
+          <h2 id="bookings-waitlist-title" class="vt-cap mb-2.5 mt-5 px-1 text-vt-mute-2">
+            В листе ожидания
+          </h2>
+          <ul class="space-y-2.5">
+            <li v-for="b in waiting" :key="b.id">
+              <PlayerBookingRow
+                :booking="b"
+                :org-id="orgId"
+                :tz="tz"
+                :cancellable="canCancel(b)"
+                :cancelling="cancelling === b.id"
+                @cancel="onCancel(b)"
+              />
+            </li>
+          </ul>
+        </section>
+      </template>
     </main>
   </div>
 </template>
