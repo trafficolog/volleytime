@@ -3,9 +3,12 @@ import {
   canManageContent,
   eventService,
   ledgerService,
+  EventNotFoundError,
   paymentService,
+  readEventPriceQuote,
   readEventPricing,
   requireOrgMember,
+  SeatsOverLimitError,
   subscriptionService,
 } from '@volley-time/core'
 
@@ -40,6 +43,25 @@ export default defineApiHandler(async (event) => {
   const stats = await eventService.statsFor(ctx, [
     ...new Set([...upcoming.map((e) => e.id), ...(goingBooking ? [goingBooking.eventId] : [])]),
   ])
+
+  /**
+   * Цена split для игрока — тот же расчёт, что и `GET …/events/{id}/price` (`quoteEventPrice`, 20.1.1,
+   * D-01 (B)): hero и расписание Главной показывают её, а не `readEventPricing` (20.4.6). Управляющему
+   * и fixed-событиям не нужна; недоступный расчёт (места игрока выше нового лимита группы) — без цены.
+   */
+  async function quoteFor(eventId: number, mode: string) {
+    if (isManager || mode !== 'split') return null
+    try {
+      return await readEventPriceQuote(ctx, {
+        organizationId: orgId,
+        eventId,
+        includeDrafts: false,
+      })
+    } catch (error) {
+      if (error instanceof SeatsOverLimitError || error instanceof EventNotFoundError) return null
+      throw error
+    }
+  }
 
   const activeSub = mySubs.find(
     (s) =>
@@ -81,12 +103,16 @@ export default defineApiHandler(async (event) => {
       })),
     ),
     hero: goingBooking
-      ? {
-          ...goingBooking.event,
-          // stats переопределяет связь `venue` (name + address) — как в `upcoming`
-          ...stats.get(goingBooking.eventId)!,
-          pricing: await readEventPricing(ctx, goingBooking.eventId),
-        }
+      ? await (async () => {
+          const pricing = await readEventPricing(ctx, goingBooking.eventId)
+          return {
+            ...goingBooking.event,
+            // stats переопределяет связь `venue` (name + address) — как в `upcoming`
+            ...stats.get(goingBooking.eventId)!,
+            pricing,
+            priceQuote: await quoteFor(goingBooking.eventId, pricing.mode),
+          }
+        })()
       : null,
     subscription: activeSub
       ? {
@@ -97,11 +123,15 @@ export default defineApiHandler(async (event) => {
         }
       : null,
     upcoming: await Promise.all(
-      upcoming.map(async (e) => ({
-        ...e,
-        ...stats.get(e.id)!,
-        pricing: await readEventPricing(ctx, e.id),
-      })),
+      upcoming.map(async (e) => {
+        const pricing = await readEventPricing(ctx, e.id)
+        return {
+          ...e,
+          ...stats.get(e.id)!,
+          pricing,
+          priceQuote: await quoteFor(e.id, pricing.mode),
+        }
+      }),
     ),
     manager,
   }

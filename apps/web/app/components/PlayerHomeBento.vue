@@ -5,6 +5,7 @@ import type { EventListItem } from '~/components/EventCard.vue'
 import PlayerHomeTiles from '~/components/PlayerHomeTiles.vue'
 import { eventPricingLabel } from '~/utils/event-pricing-label'
 import type { sessionsTile } from '~/utils/player-home'
+import { quotePriceLabel } from '~/utils/player-price-view'
 import { eventStateOf, meterTintOnDark, seatsOf } from '~/utils/status-model'
 
 /** Бенто главной игрока v3 (20.4.4, M-03): hero ближайшей игры + плитки абонемента и записей. */
@@ -23,8 +24,32 @@ const state = computed(() => eventStateOf(props.hero))
 const seats = computed(() =>
   seatsOf({ taken: props.hero.taken, capacity: props.hero.capacity }, state.value),
 )
-const pricing = computed(() =>
-  props.hero.pricing ? eventPricingLabel(props.hero.pricing, props.hero.currency) : null,
+// split: цена из `quoteEventPrice` (то же, что GET …/price, 20.4.6); `null` — без числа, а не
+// подстановка из `readEventPricing`. Без поля `priceQuote` остаётся проекция `pricing`.
+const quoteMode = computed(
+  () => props.hero.pricing?.mode === 'split' && props.hero.priceQuote !== undefined,
+)
+const pricing = computed(() => {
+  if (quoteMode.value) {
+    const label =
+      props.hero.status === 'cancelled'
+        ? null
+        : quotePriceLabel(props.hero.priceQuote, props.hero.currency, {
+            hasBooking: ['confirmed', 'pending_payment', 'attended', 'no_show'].includes(
+              props.hero.myBooking?.status ?? '',
+            ),
+          })
+    return label
+  }
+  return props.hero.pricing ? eventPricingLabel(props.hero.pricing, props.hero.currency) : null
+})
+const forecastNote = computed(
+  () =>
+    props.hero.pricing?.mode === 'split' &&
+    !!pricing.value &&
+    (quoteMode.value
+      ? props.hero.priceQuote?.basis === 'forecast'
+      : props.hero.pricing.basis !== 'settled'),
 )
 const place = computed(() => props.hero.venue?.name ?? props.hero.locationText)
 </script>
@@ -49,10 +74,7 @@ const place = computed(() => props.hero.venue?.name ?? props.hero.locationText)
       </div>
       <div class="mt-2 break-words text-sm font-semibold">{{ hero.title }}</div>
       <div v-if="pricing" class="mt-2 text-xs text-[var(--vt-on-hero-2)]">{{ pricing.text }}</div>
-      <p
-        v-if="hero.pricing?.mode === 'split' && hero.pricing.basis !== 'settled' && pricing"
-        class="mt-1 text-[11px] text-[var(--vt-on-hero-3)]"
-      >
+      <p v-if="forecastNote && pricing" class="mt-1 text-[11px] text-[var(--vt-on-hero-3)]">
         {{ pricing.description }}
       </p>
       <div v-if="place" class="mt-1 break-words text-xs text-[var(--vt-on-hero-3)]">

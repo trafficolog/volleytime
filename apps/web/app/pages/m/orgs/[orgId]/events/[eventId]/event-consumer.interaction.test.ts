@@ -19,11 +19,13 @@ import Page from './index.vue'
 
 import BookingSeatsStepper from '~/components/BookingSeatsStepper.vue'
 import PlayerBookingForm from '~/components/PlayerBookingForm.vue'
+import PlayerSplitPriceCard from '~/components/PlayerSplitPriceCard.vue'
 import WaitlistOfferCard from '~/components/WaitlistOfferCard.vue'
 import MyChip from '~/components/vt/MyChip.vue'
 import SeatsMini from '~/components/vt/SeatsMini.vue'
 import StateChip from '~/components/vt/StateChip.vue'
 import Toggle from '~/components/vt/Toggle.vue'
+import { withSplitPriceFetch } from '~/utils/__fixtures__/split-quote'
 import { apiErrorCode, apiErrorMessage, apiErrorStatus } from '~/utils/api-error'
 
 const levelsCatalog = [
@@ -99,6 +101,7 @@ async function render() {
           VtMiniHeader: true,
           VtChip: { template: '<span><slot /></span>' },
           PlayerBookingForm,
+          PlayerSplitPriceCard,
           WaitlistOfferCard,
           BookingSeatsStepper,
           VtToggle: Toggle,
@@ -162,7 +165,7 @@ beforeEach(() => {
     useRoute: () => route,
     useOrgTimezone: () => ({ tz: 'Europe/Minsk' }),
     useTelegram: () => ({ confirm, haptic, isTelegram: ref(false), useMainButton: vi.fn() }),
-    $fetch: post,
+    $fetch: withSplitPriceFetch(post, () => data.value.event),
     refreshNuxtData: refreshOther,
     apiErrorCode: (error: { data?: { code?: string } } | null) => error?.data?.code,
     apiErrorStatus: () => 500,

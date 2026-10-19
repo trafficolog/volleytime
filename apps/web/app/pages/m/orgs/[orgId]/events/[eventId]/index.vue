@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import type { Event, Organization, OrganizationMember, Subscription } from '@volley-time/db'
-import { formatDay, formatTime, type EventPricingView } from '@volley-time/shared'
+import {
+  formatDay,
+  formatTime,
+  type EventPriceQuote,
+  type EventPricingView,
+} from '@volley-time/shared'
 
 import {
   type BookingMethodOption,
@@ -29,6 +34,7 @@ import {
 } from '~/utils/player-event-action'
 import { playerHomeAccess } from '~/utils/player-home'
 import { levelTitle, type PlayerLevelView } from '~/utils/player-level'
+import { playerSplitViewOf, quotePriceLabel } from '~/utils/player-price-view'
 import { createPlayerRequestGuard } from '~/utils/player-request-guard'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
@@ -261,6 +267,81 @@ const confirmationGuard = createPlayerRequestGuard(() => route.fullPath)
 const routeGuard = createPlayerRequestGuard(() => currentViewKey)
 const optionsGuard = createPlayerRequestGuard(() => route.fullPath)
 
+// цена split — только из ответа GET …/price (`quoteEventPrice`, 20.1.1, D-01 (B)), не из `pricing`
+// события (`readEventPricing`). Запрос без `seats`: места моей записи или одно место (20.4.6).
+const splitMode = computed(() => ev.value?.pricing.mode === 'split')
+const priceQuote = ref<(EventPriceQuote & { currency: string }) | null>(null)
+const priceFailed = ref(false)
+let priceRequest = 0
+async function loadPrice() {
+  const request = ++priceRequest
+  const current = ev.value
+  if (!current || current.pricing.mode !== 'split' || current.status === 'cancelled') {
+    priceQuote.value = null
+    priceFailed.value = false
+    return
+  }
+  const key = route.fullPath
+  try {
+    const res = await $fetch<{ price?: EventPriceQuote & { currency: string } }>(
+      `/api/organizations/${current.organizationId}/events/${current.id}/price`,
+    )
+    if (!alive || request !== priceRequest || key !== route.fullPath) return
+    priceQuote.value = res?.price?.mode === 'split' ? res.price : null
+    priceFailed.value = priceQuote.value === null
+  } catch {
+    if (!alive || request !== priceRequest || key !== route.fullPath) return
+    priceQuote.value = null
+    priceFailed.value = true
+  }
+}
+// состав, моя запись, статус и фиксация доли меняются после записи, отмены и закрытия: цена заново
+watch(
+  () =>
+    [
+      ev.value?.id,
+      ev.value?.status,
+      ev.value?.pricing.mode,
+      ev.value?.pricing.settledAt,
+      ev.value?.taken,
+      ev.value?.capacity,
+      ev.value?.myBooking?.id,
+      ev.value?.myBooking?.status,
+      ev.value?.myBooking?.seats,
+    ] as const,
+  () => void loadPrice(),
+  { immediate: true },
+)
+const myActiveBooking = computed(
+  () =>
+    !!my.value && ['confirmed', 'pending_payment', 'attended', 'no_show'].includes(my.value.status),
+)
+const splitView = computed(() =>
+  ev.value && splitMode.value
+    ? playerSplitViewOf(
+        priceQuote.value,
+        ev.value.currency,
+        {
+          status: ev.value.status,
+          startsAt: ev.value.startsAt,
+          endsAt: ev.value.endsAt,
+          capacity: ev.value.capacity,
+          taken: occupiedSeats.value,
+        },
+        now.value,
+        {
+          hasBooking: myActiveBooking.value,
+          paid: ev.value.pricing.myPaymentStatus === 'succeeded',
+        },
+      )
+    : null,
+)
+const splitLabel = computed(() =>
+  ev.value && splitMode.value
+    ? quotePriceLabel(priceQuote.value, ev.value.currency, { hasBooking: myActiveBooking.value })
+    : null,
+)
+
 watch(sourcesReady, (ready) => {
   if (ready) return
   optionsGuard.invalidate()
@@ -395,6 +476,12 @@ const priceTotalText = computed(() => {
     ? formatMoneyRu(quote.value.total, quote.value.currency)
     : null
 })
+// сумма за несколько мест split — прогноз из GET …/price?seats=N, а не умножение на клиенте
+const splitTotalText = computed(() =>
+  splitMode.value && payableSeats.value > 1 && quote.value?.seats === payableSeats.value
+    ? `≈ ${formatMoneyRu(quote.value.total, quote.value.currency)}`
+    : null,
+)
 const methodOptions = computed<BookingMethodOption[]>(() => {
   const methods = eventView.value?.paymentMethods ?? []
   if (!ev.value || methods.includes('free')) return []
@@ -489,16 +576,28 @@ watch(
   async ([open, count]) => {
     quote.value = null
     const current = ev.value
-    if (!open || count <= 1 || !current || current.pricing.mode !== 'fixed' || current.price <= 0)
+    const split = current?.pricing.mode === 'split'
+    if (
+      !open ||
+      count <= 1 ||
+      !current ||
+      (!split && (current.pricing.mode !== 'fixed' || current.price <= 0))
+    )
       return
     const request = quoteGuard.begin()
     try {
-      const res = await $fetch<{ price: { total: { min: number }; currency: string } }>(
-        `/api/organizations/${orgId.value}/events/${eventId.value}/price`,
-        { query: { seats: count } },
-      )
+      const res = await $fetch<{
+        price: { total: { min: number; max: number }; currency: string }
+      }>(`/api/organizations/${orgId.value}/events/${eventId.value}/price`, {
+        query: { seats: count },
+      })
       if (!request.isCurrent()) return
-      quote.value = { seats: count, total: res.price.total.min, currency: res.price.currency }
+      // split до закрытия — прогноз: берём верхнюю границу («≈ …»), как и цену места
+      quote.value = {
+        seats: count,
+        total: split ? res.price.total.max : res.price.total.min,
+        currency: res.price.currency,
+      }
     } catch {
       // без суммы листу хватает цены места: сервер всё равно посчитает сам
       if (request.isCurrent()) quote.value = null
@@ -716,12 +815,20 @@ async function cancelMine() {
         </div>
         <div class="vt-divider my-3" />
         <div class="grid grid-cols-2 gap-2.5">
-          <div>
+          <div v-if="!splitMode">
             <div class="vt-cap text-vt-mute-2">Цена</div>
             <div class="vt-mono text-base mt-1 break-words">{{ priceLabel?.text }}</div>
             <p v-if="priceLabel?.description" class="text-xs text-vt-mute-2 mt-2">
               {{ priceLabel.description }}
             </p>
+          </div>
+          <div v-else-if="ev.status !== 'cancelled'">
+            <div class="vt-cap text-vt-mute-2">
+              {{ splitView?.stage === 'open' ? 'Прогноз' : 'За место' }}
+            </div>
+            <div class="vt-mono text-base mt-1 break-words" data-summary-price>
+              {{ splitView?.headline ?? '—' }}
+            </div>
           </div>
           <div>
             <div class="vt-cap text-vt-mute-2">Длительность</div>
@@ -736,6 +843,15 @@ async function cancelMine() {
           </div>
         </div>
       </section>
+
+      <PlayerSplitPriceCard v-if="splitView" :view="splitView" />
+      <p
+        v-else-if="splitMode && ev.status !== 'cancelled' && priceFailed"
+        class="vt-card p-4 text-sm text-vt-mute-2"
+        role="status"
+      >
+        Прогноз цены сейчас недоступен. Точная сумма — когда организатор закроет запись.
+      </p>
 
       <section v-if="ev.description" aria-labelledby="event-description-title">
         <h2 id="event-description-title" class="vt-cap mb-3">О тренировке</h2>
@@ -811,7 +927,9 @@ async function cancelMine() {
           {{ eventView.seatsNote }}
         </p>
         <div v-if="paymentLabel" class="mt-2 space-y-1">
-          <p v-if="my.status !== 'waitlisted'" class="vt-mono text-sm">{{ priceLabel?.text }}</p>
+          <p v-if="my.status !== 'waitlisted' && splitLabel" class="vt-mono text-sm">
+            {{ splitView?.myTotal?.text ?? splitLabel.text }}
+          </p>
           <VtChip v-if="my.status !== 'waitlisted'" :tone="paymentLabel.tone">{{
             paymentLabel.text
           }}</VtChip>
@@ -888,15 +1006,15 @@ async function cancelMine() {
         v-model:method="chosenMethod"
         :plan="plan"
         :max-seats="maxSeats"
-        :price-text="priceLabel?.text ?? null"
+        :price-text="splitMode ? (splitLabel?.text ?? null) : (priceLabel?.text ?? null)"
         :price-note="
-          ev?.pricing.mode === 'split'
+          splitMode
             ? queueOnly
               ? 'В листе ожидания начисления нет.'
-              : priceLabel?.description
+              : (splitLabel?.description ?? '')
             : ''
         "
-        :total="payableSeats > 1 ? priceTotalText : null"
+        :total="payableSeats > 1 ? (splitMode ? splitTotalText : priceTotalText) : null"
         :methods="methodOptions"
         :queued="ev?.waitlist ?? 0"
         :note="

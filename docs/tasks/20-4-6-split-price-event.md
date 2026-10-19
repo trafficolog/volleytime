@@ -2,11 +2,11 @@
 id: '20.4.6'
 phase: '20'
 epic: '20.4'
-status: todo
+status: in_progress
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-10-19
+status_note: 'Реализовано, ревью Opus ожидается. Экран события: блок цены split из GET …/price (PlayerSplitPriceCard), дашборд отдаёт priceQuote для hero и расписания Главной; сверка — docs/operations/qa/2026-10-19-20-4-6-split-price-visual.md. Список событий и «Мои записи» остаются на readEventPricing (вне карточки).'
 ref_id: 'M-07'
 complexity: L
 impl_model: claude-sonnet-5-5
