@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  buildBotStartAppDeeplink,
   buildEventInviteStartParam,
   buildInviteDeeplink,
   buildShareUrl,
@@ -18,6 +19,13 @@ describe('telegram deeplinks (4.9.2)', () => {
   })
   it('SECURITY/UX: empty bot username throws instead of https://t.me/?start=…', () => {
     expect(() => buildInviteDeeplink('', 'tok12345')).toThrow(DeeplinkConfigError)
+  })
+  it('builds a startapp link for group chats (20.3.4)', () => {
+    expect(buildBotStartAppDeeplink('@volleytime_bot', 'event_42')).toBe(
+      'https://t.me/volleytime_bot?startapp=event_42',
+    )
+    expect(() => buildBotStartAppDeeplink('', 'event_42')).toThrow(DeeplinkConfigError)
+    expect(() => buildBotStartAppDeeplink('volleytime_bot', 'bad param')).toThrow()
   })
   it('validates start_param charset', () => {
     expect(buildStartParam('event', 42)).toBe('event_42')

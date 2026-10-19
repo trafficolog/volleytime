@@ -8,7 +8,13 @@ export interface ApiCall {
 }
 
 /** Бот для тестов: транспорт перехвачен, в Telegram ничего не уходит (токен фиктивный). */
-export function makeTestBot(opts: { failEdit?: (call: ApiCall) => Error | null } = {}): {
+export function makeTestBot(
+  opts: {
+    failEdit?: (call: ApiCall) => Error | null
+    /** Ответ на метод Bot API вместо `true` (например, `getChatMember`); `undefined` — как обычно. */
+    reply?: (call: ApiCall) => unknown
+  } = {},
+): {
   bot: Bot<BotContext>
   calls: ApiCall[]
 } {
@@ -35,22 +41,40 @@ export function makeTestBot(opts: { failEdit?: (call: ApiCall) => Error | null }
     calls.push(call)
     const err = opts.failEdit?.(call)
     if (err) throw err
-    return { ok: true, result: true } as never
+    const custom = opts.reply?.(call)
+    return { ok: true, result: custom === undefined ? true : custom } as never
   })
   return { bot, calls }
 }
 
 const user = (id: number) => ({ id, is_bot: false, first_name: 'Артём' })
 
-export function messageUpdate(text: string, opts: { userId?: number; chatType?: string } = {}) {
+export function messageUpdate(
+  text: string,
+  opts: {
+    userId?: number
+    chatType?: string
+    /** Групповой чат: id (отрицательный) и название. */
+    chatId?: number
+    title?: string
+    /** Сообщение анонимного администратора: отправитель — сам чат. */
+    anonymous?: boolean
+  } = {},
+) {
   const id = opts.userId ?? 42
+  const chat = opts.chatId
+    ? { id: opts.chatId, type: opts.chatType ?? 'supergroup', title: opts.title ?? 'Чат' }
+    : { id, type: opts.chatType ?? 'private', first_name: 'Артём' }
   return {
     update_id: 1,
     message: {
       message_id: 1,
       date: 1,
-      chat: { id, type: opts.chatType ?? 'private', first_name: 'Артём' },
-      from: user(id),
+      chat,
+      from: opts.anonymous
+        ? { id: 1087968824, is_bot: true, first_name: 'Group', username: 'GroupAnonymousBot' }
+        : user(id),
+      ...(opts.anonymous ? { sender_chat: chat } : {}),
       text,
       ...(text.startsWith('/')
         ? { entities: [{ type: 'bot_command', offset: 0, length: text.split(' ')[0]!.length }] }
@@ -95,15 +119,31 @@ export function callbackUpdate(
   } as never
 }
 
-export function myChatMemberUpdate(status: string, opts: { chatType?: string } = {}) {
+export function myChatMemberUpdate(
+  status: string,
+  opts: {
+    chatType?: string
+    chatId?: number
+    title?: string
+    canSend?: boolean
+    isMember?: boolean
+  } = {},
+) {
   return {
     update_id: 3,
     my_chat_member: {
-      chat: { id: 42, type: opts.chatType ?? 'private', first_name: 'Артём' },
+      chat: opts.chatId
+        ? { id: opts.chatId, type: opts.chatType ?? 'supergroup', title: opts.title ?? 'Чат' }
+        : { id: 42, type: opts.chatType ?? 'private', first_name: 'Артём' },
       from: user(42),
       date: 1,
       old_chat_member: { status: 'kicked', user: { id: 1, is_bot: true, first_name: 'B' } },
-      new_chat_member: { status, user: { id: 1, is_bot: true, first_name: 'B' } },
+      new_chat_member: {
+        status,
+        user: { id: 1, is_bot: true, first_name: 'B' },
+        ...(opts.canSend === undefined ? {} : { can_send_messages: opts.canSend }),
+        ...(status === 'restricted' ? { is_member: opts.isMember ?? true } : {}),
+      },
     },
   } as never
 }

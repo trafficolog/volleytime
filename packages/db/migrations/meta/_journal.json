@@ -218,6 +218,13 @@
       "when": 1792392291149,
       "tag": "0030_event_public_slug",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1792474369204,
+      "tag": "0031_telegram_chat_link",
+      "breakpoints": true
     }
   ]
 }

@@ -28,7 +28,7 @@ export function registerHelpHandler(bot: Bot<BotContext>): void {
       reply_markup: new InlineKeyboard().webApp('🏐 Открыть приложение', `${env.WEB_URL}/m/`),
     })
   }
-  bot.command('help', help)
+  bot.chatType('private').command('help', help)
   bot.hears(MENU_HELP, async (ctx) => {
     if (ctx.chat.type === 'private') await help(ctx)
   })
@@ -40,4 +40,9 @@ export const BOT_COMMANDS = [
   { command: 'games', description: 'Ближайшие события' },
   { command: 'my', description: 'Мои записи' },
   { command: 'help', description: 'Справка' },
+]
+
+/** Команды для администраторов групповых чатов (область `all_chat_administrators`, 20.3.4). */
+export const GROUP_ADMIN_COMMANDS = [
+  { command: 'link', description: 'Привязать чат к группе (код из кабинета)' },
 ]

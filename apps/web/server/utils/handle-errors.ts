@@ -13,6 +13,7 @@ import {
   CurrencyMismatchError,
   EventBalanceError,
   SeriesError,
+  TelegramChatError,
 } from '@volley-time/core'
 
 /** HTTP-статусы для доменных error-кодов. */
@@ -102,6 +103,15 @@ const CODE_STATUS: Record<string, number> = {
   'booking.not_open_yet': 422,
   'waitlist_offer.not_found': 404,
   'waitlist_offer.expired': 410,
+  // привязка Telegram-чата и анонс (20.3.4)
+  'telegram_chat.group_has_chat': 409,
+  'telegram_chat.not_linked': 409,
+  'telegram_chat.bot_removed': 409,
+  'telegram_chat.no_rights': 409,
+  'telegram_chat.migrated': 409,
+  'telegram_chat.event_not_announceable': 409,
+  'telegram_chat.rate_limited': 429,
+  'telegram_chat.delivery_failed': 502,
   // forbidden
   'forbidden.manage_content': 403,
   'forbidden.manage_members': 403,
@@ -131,7 +141,8 @@ export function handleServiceError(e: unknown): never {
     e instanceof ForbiddenError ||
     e instanceof CurrencyMismatchError ||
     e instanceof EventBalanceError ||
-    e instanceof SeriesError
+    e instanceof SeriesError ||
+    e instanceof TelegramChatError
   ) {
     const status = CODE_STATUS[e.code] ?? 400
     throw createError({ statusCode: status, statusMessage: e.message, data: { code: e.code } })

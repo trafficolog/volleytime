@@ -42,13 +42,28 @@ export function toInlineKeyboard(keyboard?: KeyboardButton[][]) {
   }
 }
 
+/** Причина недоступности группового чата (20.3.4); web помечает привязку недействительной. */
+export type ChatFailureReason = 'bot_removed' | 'no_rights' | 'migrated'
+
 export type SendFailure =
-  | { kind: 'blocked'; code: number }
+  | { kind: 'blocked'; code: number; reason?: ChatFailureReason }
   | { kind: 'rate_limited'; retryAfter: number }
   | { kind: 'other' }
 
 /** Описания Bot API 400, при которых чат получателя недоступен навсегда. */
-const UNREACHABLE_400 = /chat not found|user is deactivated|bot was blocked|PEER_ID_INVALID/i
+const UNREACHABLE_400 =
+  /chat not found|user is deactivated|bot was blocked|PEER_ID_INVALID|have no rights|not enough rights|CHAT_WRITE_FORBIDDEN|CHAT_SEND_PLAIN_FORBIDDEN/i
+/** Групповой чат: бота исключили или чат удалён. */
+const BOT_REMOVED = /bot was kicked|bot is not a member|bot was removed|chat was deleted/i
+/** Групповой чат: боту запретили писать. */
+const NO_RIGHTS = /have no rights|not enough rights|CHAT_WRITE_FORBIDDEN|CHAT_SEND_PLAIN_FORBIDDEN/i
+
+function chatFailureReason(e: GrammyError): ChatFailureReason | undefined {
+  if (e.error_code === 400 && e.parameters?.migrate_to_chat_id) return 'migrated'
+  if (BOT_REMOVED.test(e.description)) return 'bot_removed'
+  if (NO_RIGHTS.test(e.description)) return 'no_rights'
+  return undefined
+}
 
 /**
  * Ответ Bot API на отправку -> действие (20.3.2): 403 («bot was blocked by the user», «user is
@@ -56,11 +71,24 @@ const UNREACHABLE_400 = /chat not found|user is deactivated|bot was blocked|PEER
  */
 export function classifySendError(e: unknown): SendFailure {
   if (!(e instanceof GrammyError)) return { kind: 'other' }
-  if (e.error_code === 403 || (e.error_code === 400 && UNREACHABLE_400.test(e.description)))
-    return { kind: 'blocked', code: e.error_code }
+  const reason = chatFailureReason(e)
+  if (
+    e.error_code === 403 ||
+    (e.error_code === 400 && (UNREACHABLE_400.test(e.description) || reason === 'migrated'))
+  )
+    return { kind: 'blocked', code: e.error_code, ...(reason ? { reason } : {}) }
   if (e.error_code === 429)
     return { kind: 'rate_limited', retryAfter: e.parameters.retry_after ?? 30 }
   return { kind: 'other' }
+}
+
+/** Групповые чаты Telegram имеют отрицательный id: личные чаты и пользователи — положительный. */
+export const isGroupChatId = (telegramId: string): boolean => telegramId.startsWith('-')
+
+/** Ошибка отправки без payload запроса (`chat_id`, текст): код и описание Bot API либо имя ошибки. */
+export function scrubSendError(e: unknown): { code?: number; description: string } {
+  if (e instanceof GrammyError) return { code: e.error_code, description: e.description }
+  return { description: e instanceof Error ? e.name : 'unknown' }
 }
 
 /** Валидация payload перед отправкой. */
@@ -71,12 +99,31 @@ export function isValidPayload(v: unknown): v is NotifyPayload {
     typeof p.telegramId === 'string' &&
     p.telegramId.length > 0 &&
     typeof p.text === 'string' &&
-    hasValidKeyboard(p.keyboard)
+    hasValidKeyboard(p.keyboard) &&
+    (!isGroupChatId(p.telegramId) || hasOnlyUrlButtons(p.keyboard))
   )
 }
 
 /** Разрешённые `callback_data` — те же, что понимает обработчик кнопок (handlers/callbacks.ts). */
 export const NOTIFY_CALLBACK_RE = /^(cx|oa):\d{1,10}$/
+
+/**
+ * В групповом чате работают только кнопки-ссылки (20.3.4): `web_app` там не открывается, а кнопки
+ * действий над записью принадлежат личному чату. Проверка на границе бота — последняя линия, даже
+ * если web построит клавиатуру неверно.
+ */
+function hasOnlyUrlButtons(keyboard: unknown): boolean {
+  if (keyboard === undefined) return true
+  return (keyboard as Record<string, unknown>[][]).every((row) =>
+    row.every(
+      (b) =>
+        b.webAppUrl === undefined &&
+        b.callbackData === undefined &&
+        typeof b.url === 'string' &&
+        b.url.startsWith('https://'),
+    ),
+  )
+}
 
 function hasValidKeyboard(keyboard: unknown): boolean {
   if (keyboard === undefined) return true
@@ -141,8 +188,9 @@ export function startInternalServer(bot: Bot<BotContext>, port = 3001): Server {
       const failure = classifySendError(e)
       if (failure.kind === 'blocked') {
         // получатель недоступен (бот заблокирован, чат не найден): повтор бессмыслен, не ошибка бота
-        console.warn('[internal-notify] recipient unreachable', failure.code)
+        console.warn('[internal-notify] recipient unreachable', failure.code, failure.reason)
         res.statusCode = 410
+        if (failure.reason) res.setHeader('x-failure-reason', failure.reason)
         res.end('Gone')
         return
       }
@@ -153,8 +201,12 @@ export function startInternalServer(bot: Bot<BotContext>, port = 3001): Server {
         res.end('Too Many Requests')
         return
       }
-      console.error('[internal-notify] failed', e)
-      captureError(e, { scope: 'internal-notify' })
+      // запрос Bot API несёт chat_id и текст сообщения: наружу — только код и описание ошибки
+      const scrubbed = scrubSendError(e)
+      console.error('[internal-notify] failed', scrubbed)
+      captureError(new Error(`[internal-notify] ${scrubbed.code ?? ''} ${scrubbed.description}`), {
+        scope: 'internal-notify',
+      })
       res.statusCode = 500
       res.end('Error')
     }

@@ -8,10 +8,18 @@
  */
 export type DeliveryErrorKind = 'blocked' | 'rate_limited' | 'transient'
 
+/**
+ * Причина недоступности чата, которую бот определяет по ответу Bot API (20.3.4): бот исключён,
+ * нет права писать, чат перенесён в супергруппу. Только для анонса в групповой чат.
+ */
+export type ChatFailureReason = 'bot_removed' | 'no_rights' | 'migrated'
+const CHAT_FAILURE_REASONS: readonly string[] = ['bot_removed', 'no_rights', 'migrated']
+
 export class DeliveryError extends Error {
   constructor(
     readonly kind: DeliveryErrorKind,
     readonly retryAfterMs?: number,
+    readonly reason?: ChatFailureReason,
   ) {
     super(`delivery ${kind}`)
     this.name = 'DeliveryError'
@@ -28,8 +36,14 @@ const MAX_RETRY_AFTER_MS = 10 * 60_000
 export function deliveryErrorFromStatus(
   status: number | undefined,
   retryAfterSeconds?: number,
+  reason?: string,
 ): DeliveryError {
-  if (status === 410) return new DeliveryError('blocked')
+  if (status === 410)
+    return new DeliveryError(
+      'blocked',
+      undefined,
+      reason && CHAT_FAILURE_REASONS.includes(reason) ? (reason as ChatFailureReason) : undefined,
+    )
   if (status === 429) {
     const seconds =
       retryAfterSeconds !== undefined && Number.isFinite(retryAfterSeconds)

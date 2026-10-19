@@ -99,7 +99,7 @@ export function buildMiniAppUrl(startParam: string | undefined): string {
 }
 
 export function registerStartHandler(bot: Bot<BotContext>): void {
-  bot.command('start', async (ctx) => {
+  bot.chatType('private').command('start', async (ctx) => {
     const user = ctx.from
     if (!user) {
       await ctx.reply('Не удалось определить пользователя')

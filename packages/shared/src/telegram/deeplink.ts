@@ -34,6 +34,15 @@ export function buildBotDeeplink(botUsername: string, startParam: string): strin
   return `https://t.me/${username}?start=${startParam}`
 }
 
+/**
+ * https://t.me/<bot>?startapp=<param>: ссылка-кнопка для групповых чатов (20.3.4), где `web_app`
+ * не работает. Открывает Mini App бота с параметром (`resolveStartParam`); требует основное
+ * Mini App у бота (BotFather).
+ */
+export function buildBotStartAppDeeplink(botUsername: string, startParam: string): string {
+  return buildBotDeeplink(botUsername, startParam).replace('?start=', '?startapp=')
+}
+
 export function buildInviteDeeplink(botUsername: string, token: string): string {
   return buildBotDeeplink(botUsername, buildStartParam('org', token))
 }

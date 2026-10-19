@@ -48,6 +48,12 @@ export const AUDIT_ACTIONS = {
   VENUE_ARCHIVED: 'venue.archived',
   LEDGER_EXPENSE_ADDED: 'ledger.expense_added',
   LEDGER_INCOME_ADDED: 'ledger.income_added',
+  // привязка Telegram-чата к группе (20.3.4); код и Telegram id в журнал не пишутся
+  TELEGRAM_CHAT_CODE_ISSUED: 'telegram_chat.code_issued',
+  TELEGRAM_CHAT_LINKED: 'telegram_chat.linked',
+  TELEGRAM_CHAT_STATUS_CHANGED: 'telegram_chat.status_changed',
+  TELEGRAM_CHAT_UNLINKED: 'telegram_chat.unlinked',
+  TELEGRAM_CHAT_ANNOUNCED: 'telegram_chat.event_announced',
   // баланс событий (20.2.1); начисления и решения root пишет операторская команда (packages/db)
   EVENT_BALANCE_PURCHASE_REQUESTED: 'event_balance.purchase_requested',
 } as const
@@ -68,3 +74,4 @@ export type AuditEntityType =
   | 'event_invite_request'
   | 'event_series'
   | 'waitlist_offer'
+  | 'telegram_chat'

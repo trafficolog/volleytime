@@ -8,6 +8,7 @@ import {
   organizationService,
   planService,
   seriesService,
+  telegramChatService,
   venueService,
 } from '@volley-time/core'
 import {
@@ -27,9 +28,11 @@ import {
   organizationEventBalances,
   organizationMembers,
   organizations,
+  organizationTelegramChats,
   payments,
   subscriptionPlans,
   subscriptions,
+  telegramChatLinkCodes,
   users,
   venues,
   waitlistOffers,
@@ -202,6 +205,17 @@ const ROUTES: OrgRouteTable = {
   },
   // 20.5.2: поиск кабинета — member; платежи и черновики в выдаче — только manager
   'GET /api/organizations/:orgId/search': { access: 'member', query: '?q=secret' },
+  // 20.3.4: привязка Telegram-чата и анонс события в чат — manager
+  'GET /api/organizations/:orgId/telegram-chat': { access: 'manager' },
+  'DELETE /api/organizations/:orgId/telegram-chat': { access: 'manager' },
+  'POST /api/organizations/:orgId/telegram-chat/link-code': {
+    access: 'manager',
+    body: () => ({}),
+  },
+  'POST /api/organizations/:orgId/events/:eventId/telegram-announce': {
+    access: 'manager',
+    body: () => ({}),
+  },
   'GET /api/organizations/:orgId/settings': { access: 'manager' },
   'PATCH /api/organizations/:orgId/settings': {
     access: 'owner',
@@ -297,6 +311,17 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
       template: { ...seriesBody().template, title: `Серия ${marker}`, venueId: venue.id },
       idempotencyKey: `idor-fixture-${label}`,
     })
+    // привязанный чат группы (20.3.4): отказы не должны его менять, чужая группа не видит
+    const { code: chatCode } = await telegramChatService.issueCode({ userId: owner }, org.id)
+    await telegramChatService.claim({
+      verdict: 'admin',
+      code: chatCode,
+      chatId: `-100${Math.floor(1e9 + Math.random() * 9e9)}`,
+      chatType: 'supergroup',
+      title: `Чат ${marker}`,
+      botCanPost: true,
+      confirmedByTelegramId: '777',
+    })
     const [offer] = await db
       .insert(waitlistOffers)
       .values({
@@ -358,6 +383,14 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
         .select()
         .from(eventBalancePurchaseRequests)
         .where(eq(eventBalancePurchaseRequests.organizationId, orgId)),
+      db
+        .select()
+        .from(organizationTelegramChats)
+        .where(eq(organizationTelegramChats.organizationId, orgId)),
+      db
+        .select()
+        .from(telegramChatLinkCodes)
+        .where(eq(telegramChatLinkCodes.organizationId, orgId)),
       db.select().from(auditLog).orderBy(asc(auditLog.id)),
       db.select().from(users).orderBy(asc(users.id)),
     ])
