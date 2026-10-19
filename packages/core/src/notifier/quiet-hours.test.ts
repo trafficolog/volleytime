@@ -44,6 +44,22 @@ describe('quietHoursEnd', () => {
     )
   })
 
+  it('ends at 07:00 wall-clock time across daylight-saving changes', () => {
+    const NY = 'America/New_York'
+    // 31.10 23:30 EDT (UTC-4) -> 01.11 03:30Z; в ночь на 1.11 часы переводят назад, 07:00 уже EST (UTC-5)
+    expect(quietHoursEnd(at('2026-11-01T03:30:00Z'), night, NY)?.toISOString()).toBe(
+      '2026-11-01T12:00:00.000Z',
+    )
+    // 7.03 23:30 EST (UTC-5) -> 08.03 04:30Z; в ночь на 8.03 часы переводят вперёд, 07:00 уже EDT (UTC-4)
+    expect(quietHoursEnd(at('2026-03-08T04:30:00Z'), night, NY)?.toISOString()).toBe(
+      '2026-03-08T11:00:00.000Z',
+    )
+    // без перехода результат тот же, что и раньше
+    expect(quietHoursEnd(at('2026-07-01T03:30:00Z'), night, NY)?.toISOString()).toBe(
+      '2026-07-01T11:00:00.000Z',
+    )
+  })
+
   it('falls back to the default timezone for an unknown zone name', () => {
     expect(quietHoursEnd(at('2026-10-20T20:30:00Z'), night, 'Mars/Olympus')).not.toBeNull()
   })

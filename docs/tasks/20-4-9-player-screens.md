@@ -60,6 +60,7 @@ tags: [reference-v3]
 
 - ✅ Совпадение с макетом по токенам
 - ✅ Отчёт визуальной сверки по экранам из `reference.screens` без открытых расхождений Critical/Important
+- ✅ Лента и колокольчик уведомлений (перенесено из [20.3.2](20-3-2-bot-notifications.md), решение владельца 2026-10-19): `GET /api/notifications`, `POST /api/notifications/read`, `unreadCount`; отчёт сверки охватывает экран «Уведомления»
 - ✅ Пять gates CODING_STANDARDS на tested revision; ревью `claude-sonnet-5-5` без Critical/Important
 
 ## Подсказки

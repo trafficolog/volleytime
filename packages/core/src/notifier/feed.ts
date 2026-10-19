@@ -5,6 +5,7 @@ import {
   eq,
   inArray,
   isNull,
+  lt,
   notifications,
   sql,
   users,
@@ -57,12 +58,14 @@ export const quietHoursSchema = z
 const DEFAULT_LIMIT = 30
 const MAX_LIMIT = 100
 
-/** Курсор ленты: `<created_at ISO>_<id>`; неверный разбирается как отсутствующий. */
-export function decodeFeedCursor(cursor: string | undefined): { at: Date; id: number } | null {
-  const m = /^(.+)_(\d+)$/.exec(cursor ?? '')
-  if (!m) return null
-  const at = new Date(m[1]!)
-  return Number.isNaN(at.getTime()) ? null : { at, id: Number(m[2]) }
+/**
+ * Курсор ленты — идентификатор последней записи страницы. Лента упорядочена по id (он растёт
+ * вместе с созданием), поэтому записи с одним временем создания (одна транзакция) не теряются при
+ * переходе между страницами. Неверный курсор разбирается как отсутствующий.
+ */
+export function decodeFeedCursor(cursor: string | undefined): number | null {
+  const id = cursor !== undefined && /^[0-9]{1,10}$/.test(cursor) ? Number(cursor) : NaN
+  return Number.isSafeInteger(id) && id > 0 ? id : null
 }
 
 /**
@@ -94,15 +97,8 @@ export const notificationFeedService = {
         deliveryStatus: notifications.deliveryStatus,
       })
       .from(notifications)
-      .where(
-        and(
-          scope,
-          cursor
-            ? sql`(${notifications.createdAt}, ${notifications.id}) < (${cursor.at.toISOString()}::timestamptz, ${cursor.id})`
-            : undefined,
-        ),
-      )
-      .orderBy(desc(notifications.createdAt), desc(notifications.id))
+      .where(and(scope, cursor ? lt(notifications.id, cursor) : undefined))
+      .orderBy(desc(notifications.id))
       .limit(limit + 1)
     const [unread] = await db
       .select({ n: sql<number>`count(*)::int` })
@@ -112,7 +108,7 @@ export const notificationFeedService = {
     const last = items.at(-1)
     return {
       items,
-      nextCursor: rows.length > limit && last ? `${last.createdAt.toISOString()}_${last.id}` : null,
+      nextCursor: rows.length > limit && last ? String(last.id) : null,
       unreadCount: unread?.n ?? 0,
     }
   },

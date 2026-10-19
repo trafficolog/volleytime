@@ -31,7 +31,11 @@ export function quietHoursEnd(
   const m = minutesOfDay(now, tz)
   const inside = start < end ? m >= start && m < end : m >= start || m < end
   if (!inside) return null
-  const wait = (end - m + 1440) % 1440
+  // конец окна — настенное время зоны: по разнице минут приближаем, затем поправляем на разницу
+  // смещения (переход на летнее/зимнее время между now и концом окна)
   const minuteFloor = now.getTime() - (now.getTime() % 60_000)
-  return new Date(minuteFloor + wait * 60_000)
+  let candidate = minuteFloor + ((end - m + 1440) % 1440) * 60_000
+  const drift = ((end - minutesOfDay(new Date(candidate), tz) + 2160) % 1440) - 720
+  candidate += drift * 60_000
+  return new Date(candidate)
 }

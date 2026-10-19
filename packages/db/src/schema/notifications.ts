@@ -66,11 +66,7 @@ export const notifications = pgTable(
   },
   (t) => [
     uniqueIndex('notifications_recipient_dedup_uniq').on(t.recipientUserId, t.dedupKey),
-    index('notifications_feed_idx').on(
-      t.recipientUserId,
-      sql`${t.createdAt} DESC`,
-      sql`${t.id} DESC`,
-    ),
+    index('notifications_feed_idx').on(t.recipientUserId, sql`${t.id} DESC`),
     index('notifications_organization_idx').on(t.organizationId),
   ],
 )

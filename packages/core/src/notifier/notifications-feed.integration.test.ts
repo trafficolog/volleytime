@@ -315,6 +315,29 @@ describe('notifications feed (20.3.2, PostgreSQL)', { timeout: 60_000 }, () => {
       expect(await run(NIGHT)).toMatchObject({ sent: 4, deferred: 0 })
     })
 
+    it('sends a reminder at once when the quiet window would end after the event start', async () => {
+      const u = await newUser(night)
+      // игра в 05:00 по Минску (02:00Z), окно кончается в 07:00: ждать нельзя
+      const startsAt = new Date(Date.UTC(2026, 9, 21, 2, 0, 0)).toISOString()
+      await enqueueNotification(db, {
+        ...base(u, 'k:early', 'reminder_2h'),
+        runAt: new Date(NIGHT),
+        params: { eventTitle: 'Ранняя', organizationId: orgId, eventDate: startsAt },
+      })
+      expect(await run(NIGHT)).toMatchObject({ sent: 1, deferred: 0 })
+      // а напоминание о поздней игре откладывается как обычно
+      await enqueueNotification(db, {
+        ...base(u, 'k:late', 'reminder_24h'),
+        runAt: new Date(NIGHT),
+        params: {
+          eventTitle: 'Поздняя',
+          organizationId: orgId,
+          eventDate: new Date(Date.UTC(2026, 9, 22, 15, 0, 0)).toISOString(),
+        },
+      })
+      expect(await run(NIGHT + MIN)).toMatchObject({ sent: 0, deferred: 1 })
+    })
+
     it('sends during the day and for users without quiet hours', async () => {
       const a = await newUser(night)
       const b = await newUser()
@@ -365,15 +388,32 @@ describe('notifications feed (20.3.2, PostgreSQL)', { timeout: 60_000 }, () => {
         deliveryStatus: 'skipped',
         lastError: 'bot_unreachable',
       })
-      // критичные тоже не отправляются заведомо недоступному получателю
-      await enqueueNotification(db, base(u, 'k:b3', 'waitlist_offer'))
-      expect(await run(NOON + 2 * H)).toMatchObject({ unreachable: 1, sent: 0 })
-
       // по истечении срока пробуем один раз; успех снимает отметку
       await enqueueNotification(db, base(u, 'k:b4', 'booking_opened'))
       expect(await run(NOON + UNREACHABLE_COOLDOWN_MS + MIN)).toMatchObject({ sent: 1 })
       const [user] = await db.select().from(users).where(eq(users.id, u))
       expect(user!.botBlockedAt).toBeNull()
+    })
+
+    it('always attempts critical notifications, ignoring the cooldown, and clears the mark on success', async () => {
+      const u = await newUser({ botBlockedAt: new Date(NOON) })
+      for (const [i, type] of (
+        ['waitlist_offer', 'payment_confirmed', 'payment_rejected', 'event_cancelled'] as const
+      ).entries())
+        await enqueueNotification(db, base(u, `k:c${i}`, type))
+      expect(await run(NOON + H)).toMatchObject({ sent: 4, unreachable: 0 })
+      const [user] = await db.select().from(users).where(eq(users.id, u))
+      expect(user!.botBlockedAt).toBeNull()
+    })
+
+    it('marks the user again when a critical attempt meets a blocked bot', async () => {
+      const u = await newUser({ botBlockedAt: new Date(NOON - H) })
+      failWith = () => new DeliveryError('blocked')
+      await enqueueNotification(db, base(u, 'k:c-blocked', 'payment_confirmed'))
+      expect(await run(NOON)).toMatchObject({ unreachable: 1, retried: 0 })
+      expect(await jobOf('k:c-blocked')).toMatchObject({ status: 'skipped' })
+      const [user] = await db.select().from(users).where(eq(users.id, u))
+      expect(user!.botBlockedAt!.getTime()).toBeGreaterThanOrEqual(NOON)
     })
   })
 
@@ -441,6 +481,32 @@ describe('notifications feed (20.3.2, PostgreSQL)', { timeout: 60_000 }, () => {
       expect(new Set(ids).size).toBe(5)
       expect(ids).toEqual([...ids].sort((x, y) => y - x))
       expect(third.nextCursor).toBeNull()
+    })
+
+    it('does not drop rows that share one creation time', async () => {
+      const me = await newUser()
+      // одна транзакция — один created_at у всех строк
+      await enqueueNotifications(
+        db,
+        [1, 2, 3, 4, 5].map((i) => base(me, `reminder_24h:event:${i}:user:${me}`, 'reminder_24h')),
+      )
+      const stamps = new Set((await feedOf(me)).map((n) => n.createdAt.getTime()))
+      expect(stamps.size).toBe(1)
+      const seen: number[] = []
+      let cursor: string | undefined
+      do {
+        const page = await notificationFeedService.list(me, { limit: 2, cursor })
+        seen.push(...page.items.map((n) => n.id))
+        cursor = page.nextCursor ?? undefined
+      } while (cursor)
+      expect(seen).toHaveLength(5)
+      expect(new Set(seen).size).toBe(5)
+    })
+
+    it('treats a malformed cursor as the first page', async () => {
+      const me = await newUser()
+      await enqueueNotification(db, base(me, `reminder_24h:event:1:user:${me}`, 'reminder_24h'))
+      expect((await notificationFeedService.list(me, { cursor: 'junk_1' })).items).toHaveLength(1)
     })
 
     it('narrows the feed to one group', async () => {

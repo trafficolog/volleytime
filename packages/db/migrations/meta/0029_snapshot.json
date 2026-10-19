@@ -1,5 +1,5 @@
 {
-  "id": "4c4ff171-9c82-473b-be3b-dcf7eb77bda9",
+  "id": "5eae4130-beea-42cc-9781-761ac9c65c13",
   "prevId": "6753680e-09cc-4649-841b-391201f11883",
   "version": "7",
   "dialect": "postgresql",
@@ -4172,12 +4172,6 @@
               "expression": "recipient_user_id",
               "isExpression": false,
               "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "\"created_at\" DESC",
-              "asc": true,
-              "isExpression": true,
               "nulls": "last"
             },
             {

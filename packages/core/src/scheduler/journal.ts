@@ -288,9 +288,16 @@ async function deliveryGate(db: DbOrTx, job: ClaimedJob, now: Date): Promise<Gat
     .where(eq(users.id, job.payload.userId))
   if (!user) return { action: 'skip', reason: 'no_user' }
   const wasBlocked = user.botBlockedAt !== null
-  if (user.botBlockedAt && now.getTime() - user.botBlockedAt.getTime() < UNREACHABLE_COOLDOWN_MS)
+  const critical = isCriticalNotification(job.kind as NotificationType)
+  // критичные всегда пробуют отправиться: отметка могла устареть (пользователь вернулся), а потеря
+  // места из очереди или сообщения об оплате дороже одной лишней попытки
+  if (
+    !critical &&
+    user.botBlockedAt &&
+    now.getTime() - user.botBlockedAt.getTime() < UNREACHABLE_COOLDOWN_MS
+  )
     return { action: 'skip', reason: 'bot_unreachable' }
-  if (!isCriticalNotification(job.kind as NotificationType)) {
+  if (!critical) {
     let timeZone = DEFAULT_TIMEZONE
     if (job.organizationId !== null) {
       const [org] = await db
@@ -304,7 +311,10 @@ async function deliveryGate(db: DbOrTx, job: ClaimedJob, now: Date): Promise<Gat
       { start: user.quietHoursStart, end: user.quietHoursEnd },
       timeZone,
     )
-    if (until) return { action: 'defer', until }
+    // напоминание полезно только до начала: если окно кончается позже, шлём сразу
+    const startsAt = job.kind.startsWith('reminder_') ? job.payload.params.eventDate : undefined
+    if (until && !(startsAt && until.getTime() >= new Date(startsAt).getTime()))
+      return { action: 'defer', until }
   }
   return { action: 'send', wasBlocked }
 }

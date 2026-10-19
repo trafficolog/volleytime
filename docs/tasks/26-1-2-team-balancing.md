@@ -64,6 +64,8 @@ tags: [reference-v3]
 - Исходники макета: `docs/design/reference-v3/handoff/idea-app.jsx`, `docs/design/reference-v3/handoff/screens-ideas-deep-a.jsx`, `docs/design/reference-v3/handoff/screens-ideas-deep-b.jsx`, `docs/design/reference-v3/handoff/screens-ideas-future.jsx`; токены — `handoff/styles.css`; доменные функции — `handoff/atoms.jsx`.
 - Handoff: [README](../design/reference-v3/handoff/README.md) — статусная модель, доменная логика, доступность.
 
+- Уведомление этой функции (`lineup_ready`) строит эта карточка: значение enum `notification_type` и ключ `<тип>:event:<id>` заданы ADR, доставка — `enqueueNotification` из [20.3.2](20-3-2-bot-notifications.md) (решение владельца 2026-10-19)
+
 ## Не делать
 
 - ❌ Не переносить React/Babel прототипа и моковые данные; только Vue-компоненты, токены проекта и реальные API

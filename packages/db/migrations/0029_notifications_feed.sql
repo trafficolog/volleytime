@@ -23,7 +23,7 @@ ALTER TABLE "notifications" ADD CONSTRAINT "notifications_recipient_user_id_user
 ALTER TABLE "notifications" ADD CONSTRAINT "notifications_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notifications" ADD CONSTRAINT "notifications_event_id_events_id_fk" FOREIGN KEY ("event_id") REFERENCES "public"."events"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "notifications_recipient_dedup_uniq" ON "notifications" USING btree ("recipient_user_id","dedup_key");--> statement-breakpoint
-CREATE INDEX "notifications_feed_idx" ON "notifications" USING btree ("recipient_user_id","created_at" DESC,"id" DESC);--> statement-breakpoint
+CREATE INDEX "notifications_feed_idx" ON "notifications" USING btree ("recipient_user_id","id" DESC);--> statement-breakpoint
 CREATE INDEX "notifications_organization_idx" ON "notifications" USING btree ("organization_id");--> statement-breakpoint
 ALTER TABLE "users" ADD CONSTRAINT "users_quiet_hours_range" CHECK (("users"."quiet_hours_start" IS NULL OR "users"."quiet_hours_start" BETWEEN 0 AND 1439)
       AND ("users"."quiet_hours_end" IS NULL OR "users"."quiet_hours_end" BETWEEN 0 AND 1439)
