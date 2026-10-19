@@ -12,3 +12,4 @@ export {
   readPricingPermissions,
   type EventPriceQuoteView,
 } from './pricing-read-model'
+export { readPublicEvent, initialsOf, PUBLIC_SLUG_RE, type PublicEventView } from './public-event'

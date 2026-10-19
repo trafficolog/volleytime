@@ -51,6 +51,7 @@ export interface TestResponse {
   status: number
   body: unknown
   text: string
+  headers: Headers
 }
 
 export async function createTestApi() {
@@ -67,6 +68,7 @@ export async function createTestApi() {
     getRequestIP: h3.getRequestIP,
     getCookie: h3.getCookie,
     setResponseStatus: h3.setResponseStatus,
+    setResponseHeader: h3.setResponseHeader,
     useRuntimeConfig: () => ({ public: {} }),
     // макрос Nitro (OpenAPI): в сборке вырезается, в харнессе — no-op
     defineRouteMeta: () => undefined,
@@ -127,6 +129,6 @@ export async function createTestApi() {
     } catch {
       body = text
     }
-    return { status: res.status, body, text }
+    return { status: res.status, body, text, headers: res.headers }
   }
 }

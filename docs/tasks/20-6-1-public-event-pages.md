@@ -2,11 +2,11 @@
 id: '20.6.1'
 phase: '20'
 epic: '20.6'
-status: todo
+status: in_progress
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-10-19
+status_note: 'Реализовано в PR (ревью ожидается): GET /api/public/events/{slug}, страница /e/{slug}, миграция 0029 events.public_slug, guard includeLevel, rate limit; QA: docs/operations/qa/2026-10-19-20-6-1-public-event-visual.md. Решения владельца: см. PR (seoIndex для событий, публикация без publicPageEnabled).'
 ref_id: 'P-17'
 complexity: M
 impl_model: claude-sonnet-5-5

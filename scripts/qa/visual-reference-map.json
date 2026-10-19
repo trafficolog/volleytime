@@ -344,6 +344,47 @@
       "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
     },
     {
+      "id": "public-event",
+      "title": "Публичная страница события: фиксированная цена",
+      "viewport": "cabinet",
+      "role": "anonymous",
+      "publicEvent": { "org": "vt", "title": "Открытая игра" },
+      "path": "/e/{slug}",
+      "references": ["5-public/01-state.png"],
+      "referenceCrop": { "x": 162, "y": 95, "width": 600, "height": 368 }
+    },
+    {
+      "id": "public-event-mobile",
+      "title": "Публичная страница события: узкий экран (в референсе только десктоп, ориентир — 01-state.png)",
+      "viewport": "miniapp",
+      "role": "anonymous",
+      "publicEvent": { "org": "vt", "title": "Открытая игра" },
+      "path": "/e/{slug}",
+      "fullPage": true,
+      "references": ["5-public/01-state.png"],
+      "referenceCrop": { "x": 162, "y": 95, "width": 600, "height": 368 }
+    },
+    {
+      "id": "public-event-split",
+      "title": "Публичная страница события: делим сумму (событие переведено в сбор суммой в локальной БД)",
+      "viewport": "cabinet",
+      "role": "anonymous",
+      "publicEvent": { "org": "vt", "title": "Открытая игра" },
+      "path": "/e/{slug}",
+      "references": ["5-public/02-state.png"],
+      "referenceCrop": { "x": 162, "y": 95, "width": 600, "height": 368 }
+    },
+    {
+      "id": "public-event-split-closed",
+      "title": "Публичная страница события: сумма распределена (сбор закрыт в локальной БД)",
+      "viewport": "cabinet",
+      "role": "anonymous",
+      "publicEvent": { "org": "vt", "title": "Открытая игра" },
+      "path": "/e/{slug}",
+      "references": ["5-public/03-state.png"],
+      "referenceCrop": { "x": 162, "y": 95, "width": 600, "height": 368 }
+    },
+    {
       "id": "auth-login",
       "title": "Вход (без сессии)",
       "viewport": "cabinet",
