@@ -6,7 +6,7 @@ status: done
 release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-19
-status_note: 'PR #156 merged as 3c14401 + follow-up PR #160 as ef45adb (свободные места с учётом предложений, флаг bookingClosed с сервера), Opus review merge after one fix round, CI green on 9682614; решения владельца 2026-10-19 (15 мин брони не нужна, позиция в очереди и поимённый лист — в 20.4.11, ветка очереди с выбором оплаты); follow-up: свободные места с предложениями, серверный флаг bookingClosed.'
+status_note: 'PR #156 merged as 3c14401 + follow-up PR #160 as ef45adb (свободные места с учётом предложений, флаг bookingClosed с сервера), Opus review merge after one fix round, CI green on 9682614; решения владельца 2026-10-19 (15 мин брони не нужна, позиция в очереди и поимённый лист — в 20.4.11, ветка очереди с выбором оплаты).'
 ref_id: 'M-06'
 complexity: L
 impl_model: claude-sonnet-5-5

@@ -6,7 +6,7 @@ release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-12
 status_note: ''
-estimated_hours: '24-48'
+estimated_hours: '32-64'
 depends_on: ['20.1.1', '20.1.3']
 ---
 
@@ -30,6 +30,7 @@ depends_on: ['20.1.1', '20.1.3']
 | [20.3.1](../tasks/20-3-1-event-jobs.md)        | Фоновые задачи по событию      | P-04     | XL     | `claude-opus-5-5`   | `claude-opus-5-5`   |
 | [20.3.2](../tasks/20-3-2-bot-notifications.md) | Уведомления через бота и лента | P-09     | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
 | [20.3.3](../tasks/20-3-3-telegram-bot.md)      | Telegram-бот v3                | P-16     | M      | `claude-sonnet-5-5` | `claude-sonnet-5-5` |
+| [20.3.4](../tasks/20-3-4-group-chat-link.md)   | Привязка чата группы и анонс   | —        | L      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
 
 ## Не делать
 

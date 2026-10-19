@@ -179,5 +179,18 @@ describe('botService (20.3.3, integration)', () => {
       })
       expect(await botService.acceptMyOffer(p.tg, ev.id)).toBe('expired')
     })
+    it('booking closed or event not open -> closed (not expired)', async () => {
+      const { p, ev, waiting } = await offerSetup()
+      await db.insert(waitlistOffers).values({
+        organizationId: orgId,
+        eventId: ev.id,
+        bookingId: waiting.id,
+        seats: 1,
+        offeredAt: new Date(),
+        expiresAt: future(1),
+      })
+      await db.execute(sql`UPDATE events SET status = 'cancelled' WHERE id = ${ev.id}`)
+      expect(await botService.acceptMyOffer(p.tg, ev.id)).toBe('closed')
+    })
   })
 })

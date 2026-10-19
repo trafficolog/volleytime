@@ -57,7 +57,7 @@ export interface BotBooking {
 }
 
 export type CancelOutcome = 'cancelled' | 'already_cancelled' | 'not_found' | 'not_allowed'
-export type AcceptOutcome = 'accepted' | 'expired' | 'not_found'
+export type AcceptOutcome = 'accepted' | 'expired' | 'closed' | 'not_found'
 
 const TELEGRAM_ID_RE = /^\d{1,15}$/
 
@@ -255,8 +255,9 @@ export const botService = {
       })
       return 'accepted'
     } catch (e) {
-      if (e instanceof WaitlistOfferExpiredError || e instanceof EventNotBookableError)
-        return 'expired'
+      if (e instanceof WaitlistOfferExpiredError) return 'expired'
+      // запись закрыта или событие не открыто: предложение не истекло само, место принять нельзя
+      if (e instanceof EventNotBookableError) return 'closed'
       if (e instanceof WaitlistOfferNotFoundError) return 'not_found'
       throw e
     }
