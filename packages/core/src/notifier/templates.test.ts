@@ -145,3 +145,35 @@ describe('split pricing notifications (8.11.1)', () => {
     expect(message?.text).not.toMatch(/получено|оплата подтверждена/i)
   })
 })
+
+describe('кнопки действий в уведомлениях (20.3.3)', () => {
+  const base = { eventId: 5, organizationId: 1, miniAppUrl: 'https://vt.by/m/?startapp=event_5' }
+  const callbacks = (type: Parameters<typeof renderMessage>[0]) =>
+    (renderMessage(type, base).keyboard ?? []).flat().flatMap((b) => (b.callbackData ? [b] : []))
+
+  it('напоминание 24 ч: «Не смогу прийти» после ссылки «Открыть»', () => {
+    const m = renderMessage('reminder_24h', base)
+    expect(m.keyboard?.[0]?.[0]?.webAppUrl).toContain('startapp=event_5')
+    expect(m.keyboard?.[1]).toEqual([{ text: 'Не смогу прийти', callbackData: 'cx:5' }])
+  })
+  it('напоминание 2 ч: «Не смогу»', () => {
+    expect(callbacks('reminder_2h')).toEqual([{ text: 'Не смогу', callbackData: 'cx:5' }])
+  })
+  it('предложение места: «Беру место»', () => {
+    expect(callbacks('waitlist_offer')).toEqual([{ text: 'Беру место', callbackData: 'oa:5' }])
+  })
+  it('без id события кнопки действия нет; callback_data укладывается в лимит Bot API', () => {
+    expect(
+      (renderMessage('reminder_24h', { miniAppUrl: 'https://vt.by/m/' }).keyboard ?? [])
+        .flat()
+        .some((b) => b.callbackData),
+    ).toBe(false)
+    for (const t of ['reminder_24h', 'reminder_2h', 'waitlist_offer'] as const)
+      for (const b of callbacks(t))
+        expect(Buffer.byteLength(b.callbackData!)).toBeLessThanOrEqual(64)
+  })
+  it('прочие типы без кнопок действий', () => {
+    expect(callbacks('booking_confirmed')).toEqual([])
+    expect(callbacks('payment_confirmed')).toEqual([])
+  })
+})
