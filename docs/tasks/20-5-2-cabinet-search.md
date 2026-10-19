@@ -2,11 +2,11 @@
 id: '20.5.2'
 phase: '20'
 epic: '20.5'
-status: todo
+status: in_progress
 release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-12
-status_note: ''
+status_note: 'GET /api/organizations/{orgId}/search + поиск в топбаре кабинета реализованы (PR ниже); ожидает ревью Opus. Без миграции: ILIKE по строкам группы, < 300 мс на 2000 игроков (тест).'
 ref_id: 'P-13'
 complexity: M
 impl_model: claude-sonnet-5-5

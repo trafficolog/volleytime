@@ -116,6 +116,10 @@ useHead(() => ({
             <VtIcon name="menu" :size="18" /> Меню
           </button>
           <p class="font-semibold">{{ organization.name }}</p>
+          <DesktopCabinetSearch
+            :org-id="organization.id"
+            :time-zone="organization.defaultTimezone"
+          />
           <NuxtLink to="/app?choose=1" class="vt-btn vt-btn--ghost vt-btn--sm"
             >Сменить группу</NuxtLink
           >
