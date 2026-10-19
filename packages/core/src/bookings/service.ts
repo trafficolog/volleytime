@@ -69,7 +69,7 @@ import {
   type BookInput as Input,
   type ChangeSeatsInput as ChangeSeats,
 } from './schemas'
-import { inQueueSql } from './seats'
+import { inQueueSql, OCCUPYING_STATUSES } from './seats'
 
 export interface EventBookingRow {
   id: number
@@ -656,7 +656,7 @@ export const bookingService = {
         and(
           eq(bookings.eventId, eventId),
           eq(bookings.organizationId, orgId),
-          sql`${bookings.status} IN ('confirmed','pending_payment','attended','no_show')`,
+          inArray(bookings.status, [...OCCUPYING_STATUSES]),
         ),
       )
       .orderBy(asc(bookings.bookedAt))

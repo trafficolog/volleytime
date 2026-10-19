@@ -2,11 +2,11 @@
 id: '20.6.1'
 phase: '20'
 epic: '20.6'
-status: todo
+status: in_progress
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-10-19
+status_note: 'Реализовано в PR (ревью ожидается): GET /api/public/events/{slug}, страница /e/{slug}, миграция 0030 events.public_slug, guard includeLevel, rate limit; QA: docs/operations/qa/2026-10-19-20-6-1-public-event-visual.md. Решения владельца: см. PR (seoIndex для событий, публикация без publicPageEnabled).'
 ref_id: 'P-17'
 complexity: M
 impl_model: claude-sonnet-5-5
@@ -66,6 +66,11 @@ tags: [reference-v3]
 - Скриншоты: [5-public](../design/reference-v3/screenshots/5-public) (окно 924×540 — ориентир; размеры и отступы брать из исходников).
 - Исходники макета: `docs/design/reference-v3/handoff/screens-public.jsx`; токены — `handoff/styles.css`; доменные функции — `handoff/atoms.jsx`.
 - Handoff: [README](../design/reference-v3/handoff/README.md) — статусная модель, доменная логика, доступность.
+
+## Решения и ограничения (ревью PR #158, 2026-10-19)
+
+- Решения владельца записаны в [журнале решений](../operations/decisions/2026-10-12-reference-v3-decisions.md): индексирование только при `seoIndex` группы (invite-only и отменённые — никогда); страница без `publicPageEnabled`; инициалы скрыты при числе игроков меньше 3 и после окончания события; лимит 120 запросов в минуту и кеш 15 с.
+- Идентификатор: `events.public_slug` (миграция 0030, 12 hex). **Follow-up:** slug нельзя отозвать или перевыпустить; deeplink `start=event_<id>` раскрывает числовой id события — заменить непрозрачными токенами.
 
 ## Не делать
 

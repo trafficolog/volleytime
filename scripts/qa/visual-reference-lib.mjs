@@ -67,6 +67,17 @@ export function validateMap(map) {
       errors.push(`${at}: path использует {org}, но org не задан или не описан в orgs`)
     if (path.includes('{event}') && !(isObj(s.event) && typeof s.event.title === 'string'))
       errors.push(`${at}: path использует {event}, нужен event.title`)
+    if (path.includes('{slug}') && s.publicEvent === undefined)
+      errors.push(`${at}: path использует {slug}, нужен publicEvent`)
+    if (
+      s.publicEvent !== undefined &&
+      !(
+        isObj(s.publicEvent) &&
+        s.publicEvent.org in orgs &&
+        typeof s.publicEvent.title === 'string'
+      )
+    )
+      errors.push(`${at}: publicEvent — { org (ключ из orgs), title, status? }`)
     if (s.role === 'anonymous' && /\{(org|event)\}/.test(path))
       errors.push(`${at}: anonymous не может открывать маршруты группы`)
     if (s.steps !== undefined) {
@@ -89,8 +100,8 @@ export function validateMap(map) {
   return errors
 }
 
-/** Подставляет {org} и {event} в шаблон пути. */
-export function resolvePath(template, { orgId, eventId } = {}) {
+/** Подставляет {org}, {event} и {slug} (публичный идентификатор события, 20.6.1) в шаблон пути. */
+export function resolvePath(template, { orgId, eventId, slug } = {}) {
   let out = template
   if (out.includes('{org}')) {
     if (orgId == null) throw new Error(`Не определён orgId для ${template}`)
@@ -99,6 +110,10 @@ export function resolvePath(template, { orgId, eventId } = {}) {
   if (out.includes('{event}')) {
     if (eventId == null) throw new Error(`Не определён eventId для ${template}`)
     out = out.replaceAll('{event}', String(eventId))
+  }
+  if (out.includes('{slug}')) {
+    if (slug == null) throw new Error(`Не определён slug для ${template}`)
+    out = out.replaceAll('{slug}', String(slug))
   }
   return out
 }

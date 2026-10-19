@@ -70,6 +70,11 @@ export const events = pgTable(
     joinMode: eventJoinModeEnum('join_mode').notNull().default('open'),
     level: playerLevelEnum('level').references(() => playerLevels.code, { onDelete: 'restrict' }),
     status: eventStatusEnum('status').notNull().default('published'),
+    // непрозрачный идентификатор публичной страницы (20.6.1, P-17): 12 случайных hex-символов
+    // (48 бит), выдаёт БД при вставке; ссылка = доступ, перебор неосуществим
+    publicSlug: varchar('public_slug', { length: 16 })
+      .notNull()
+      .default(sql`substr(replace(gen_random_uuid()::text, '-', ''), 1, 12)`),
     // дата серии (20.2.2): календарная дата в зоне группы; удаление серии оставляет событие
     seriesId: integer('series_id').references(() => eventSeries.id, { onDelete: 'set null' }),
     seriesDate: date('series_date', { mode: 'string' }),
@@ -96,6 +101,7 @@ export const events = pgTable(
     ),
     check('events_ends_after_start', sql`${t.endsAt} > ${t.startsAt}`),
     // одна дата серии — одно событие; событие серии всегда с датой
+    uniqueIndex('events_public_slug_uniq').on(t.publicSlug),
     uniqueIndex('events_series_date_uniq').on(t.seriesId, t.seriesDate),
     check('events_series_date_required', sql`${t.seriesId} IS NULL OR ${t.seriesDate} IS NOT NULL`),
     check(

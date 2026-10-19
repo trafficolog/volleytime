@@ -3,11 +3,21 @@
 const props = defineProps<{ error: { statusCode?: number; statusMessage?: string } }>()
 
 const isNotFound = computed(() => props.error?.statusCode === 404)
-const title = computed(() => (isNotFound.value ? 'Страница не найдена' : 'Что-то пошло не так'))
+// 429 — лимит запросов (публичная страница события, 20.6.1)
+const isTooMany = computed(() => props.error?.statusCode === 429)
+const title = computed(() =>
+  isTooMany.value
+    ? 'Слишком много запросов'
+    : isNotFound.value
+      ? 'Страница не найдена'
+      : 'Что-то пошло не так',
+)
 const description = computed(() =>
-  isNotFound.value
-    ? 'Возможно, ссылка устарела или экран переехал.'
-    : 'Попробуйте обновить экран. Если не помогает — откройте приложение заново из чата с ботом.',
+  isTooMany.value
+    ? 'Подождите минуту и обновите страницу.'
+    : isNotFound.value
+      ? 'Возможно, ссылка устарела или экран переехал.'
+      : 'Попробуйте обновить экран. Если не помогает — откройте приложение заново из чата с ботом.',
 )
 </script>
 

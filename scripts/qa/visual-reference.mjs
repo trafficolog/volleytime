@@ -93,15 +93,17 @@ const base = args.base.replace(/\/+$/, '')
 const botToken = (process.env.TELEGRAM_BOT_TOKEN ?? '').trim()
 const databaseUrl = process.env.DATABASE_URL ?? ''
 const needsAuth = screens.some((s) => s.role !== 'anonymous')
+// публичные события (20.6.1) выбираются по названию в БД: нужна локальная БД, вход не нужен
+const needsDb = needsAuth || screens.some((s) => s.publicEvent)
 if (process.env.NODE_ENV === 'production') {
   console.error('Харнесс не запускается при NODE_ENV=production')
   process.exit(1)
 }
 try {
   assertLocalUrl(base, '--base')
-  if (needsAuth) {
-    if (!botToken)
-      throw new Error('Задайте TELEGRAM_BOT_TOKEN (тестовый токен, тот же, что у сервера)')
+  if (needsAuth && !botToken)
+    throw new Error('Задайте TELEGRAM_BOT_TOKEN (тестовый токен, тот же, что у сервера)')
+  if (needsDb) {
     if (!databaseUrl) throw new Error('Задайте DATABASE_URL локальной БД с демо-сидом')
     assertLocalUrl(databaseUrl, 'DATABASE_URL')
   }
@@ -223,13 +225,13 @@ function gitCommit() {
 }
 
 const { chromium } = requireFromRoot('playwright-core')
-const postgres = needsAuth ? requireFromDb('postgres') : null
+const postgres = needsDb ? requireFromDb('postgres') : null
 
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+/, '').replace('T', '-')
 const runDir = join(args.out, stamp)
 for (const d of ['captures', 'refs', 'diffs']) mkdirSync(join(runDir, d), { recursive: true })
 
-const sql = needsAuth ? postgres(databaseUrl, { max: 1 }) : null
+const sql = needsDb ? postgres(databaseUrl, { max: 1 }) : null
 // страховка: фактические хосты клиента БД (postgres.js разбирает URL иначе, чем WHATWG URL)
 if (sql) assertLocalHosts(sql.options.host, 'DATABASE_URL')
 const browser = await chromium.launch({
@@ -302,7 +304,26 @@ try {
             if (!ev) throw new Error(`Событие «${screen.event.title}» не найдено в демо-данных`)
             eventId = ev.id
           }
-          result.url = resolvePath(screen.path, { orgId, eventId })
+          let slug
+          if (screen.publicEvent) {
+            const { org, title, status } = screen.publicEvent
+            const rows = await sql`
+              select e.public_slug, e.starts_at, e.status from events e
+              join organizations o on o.id = e.organization_id
+              where o.name = ${map.orgs[org]} and e.title = ${title}`
+            const ev = pickEvent(
+              rows.map((r) => ({
+                title,
+                status: r.status,
+                startsAt: r.starts_at,
+                slug: r.public_slug,
+              })),
+              { title, status },
+            )
+            if (!ev) throw new Error(`Публичное событие «${title}» не найдено в демо-данных`)
+            slug = ev.slug
+          }
+          result.url = resolvePath(screen.path, { orgId, eventId, slug })
           await page.goto(`${base}${result.url}`, { waitUntil: 'networkidle', timeout: 45_000 })
           await page.evaluate(
             (t) => document.documentElement.classList.toggle('dark', t === 'dark'),

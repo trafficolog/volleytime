@@ -55,6 +55,21 @@ describe('visual reference map', () => {
     expect(validateMap(m).join('\n')).toContain(expected)
   })
 
+  it('public event screens (20.6.1): {slug} needs publicEvent with a known org', () => {
+    const screen = map.screens.find((s: { id: string }) => s.id === 'public-event')
+    expect(screen.role).toBe('anonymous')
+    expect(resolvePath(screen.path, { slug: '0123456789ab' })).toBe('/e/0123456789ab')
+    expect(() => resolvePath(screen.path, {})).toThrow(/slug/)
+    const noEvent = valid()
+    const target = noEvent.screens.find((s) => s.id === 'public-event')!
+    delete target.publicEvent
+    expect(validateMap(noEvent).join('\n')).toContain('publicEvent')
+    const badOrg = valid()
+    ;(badOrg.screens.find((s) => s.id === 'public-event')!.publicEvent as { org: string }).org =
+      'zz'
+    expect(validateMap(badOrg).join('\n')).toContain('publicEvent')
+  })
+
   it('rejects anonymous route that needs a group', () => {
     const m = valid()
     m.screens[0].role = 'anonymous'

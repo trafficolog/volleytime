@@ -6,10 +6,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { DB } from './client'
 import { runMigrations } from './migrate'
+import { rollbackPublicSlug } from './migration-test-helpers'
 import { rollbackLastMigration } from './rollback'
 import * as schema from './schema'
 import { seedDemo } from './seed-demo'
 
+const TAG30 = '0030_event_public_slug'
 const TAG = '0029_notifications_feed'
 const TAG28 = '0028_event_jobs'
 const BASE_URL = process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL ?? ''
@@ -63,6 +65,7 @@ describe('migration 0029 notifications feed (integration)', { timeout: 60_000 },
     try {
       await runMigrations(url)
       expect(await objects(sql)).toBe(ALL)
+      expect(await rollbackPublicSlug(url, sql)).toBe(TAG30) // 20.6.1: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await objects(sql)).toBe(0)
       await runMigrations(url)
@@ -76,6 +79,7 @@ describe('migration 0029 notifications feed (integration)', { timeout: 60_000 },
     const { url, sql } = await scratchDb()
     try {
       await runMigrations(url)
+      expect(await rollbackPublicSlug(url, sql)).toBe(TAG30) // 20.6.1: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG) // теперь БД на 0028
       const [user] = await sql<{ id: number }[]>`
         INSERT INTO users (email) VALUES ('v028@example.com') RETURNING id`
@@ -118,6 +122,7 @@ describe('migration 0029 notifications feed (integration)', { timeout: 60_000 },
         await sql`SELECT delivery_status, attempts, read_at FROM notifications LIMIT 1`,
       ).toEqual([{ delivery_status: 'pending', attempts: 0, read_at: null }])
 
+      expect(await rollbackPublicSlug(url, sql)).toBe(TAG30) // 20.6.1: новая миграция откатывается первой
       // откат запрещён, пока есть уведомления; транзакция ничего не меняет
       await expect(rollbackLastMigration(url)).rejects.toThrow(
         /rollback 0029 refused: notifications/,
@@ -138,6 +143,7 @@ describe('migration 0029 notifications feed (integration)', { timeout: 60_000 },
 
       await runMigrations(url)
       expect(await objects(sql)).toBe(ALL)
+      expect(await rollbackPublicSlug(url, sql)).toBe(TAG30) // 20.6.1: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await rollbackLastMigration(url)).toBe(TAG28)
     } finally {
@@ -176,6 +182,7 @@ describe('migration 0029 notifications feed (integration)', { timeout: 60_000 },
         payments: await count('payments'),
       })
       const before = await snapshot()
+      expect(await rollbackPublicSlug(url, sql)).toBe(TAG30) // 20.6.1: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await snapshot()).toEqual(before)
       await runMigrations(url)

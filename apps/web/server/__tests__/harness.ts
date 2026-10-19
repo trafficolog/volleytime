@@ -51,6 +51,7 @@ export interface TestResponse {
   status: number
   body: unknown
   text: string
+  headers: Headers
 }
 
 export async function createTestApi() {
@@ -130,6 +131,6 @@ export async function createTestApi() {
     } catch {
       body = text
     }
-    return { status: res.status, body, text }
+    return { status: res.status, body, text, headers: res.headers }
   }
 }

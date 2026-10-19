@@ -211,6 +211,13 @@
       "when": 1792387944465,
       "tag": "0029_notifications_feed",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1792392291149,
+      "tag": "0030_event_public_slug",
+      "breakpoints": true
     }
   ]
 }
