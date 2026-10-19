@@ -3,12 +3,10 @@ import {
   canManageContent,
   eventService,
   ledgerService,
-  EventNotFoundError,
   paymentService,
-  readEventPriceQuote,
   readEventPricing,
+  readPlayerPriceQuote,
   requireOrgMember,
-  SeatsOverLimitError,
   subscriptionService,
 } from '@volley-time/core'
 
@@ -44,24 +42,9 @@ export default defineApiHandler(async (event) => {
     ...new Set([...upcoming.map((e) => e.id), ...(goingBooking ? [goingBooking.eventId] : [])]),
   ])
 
-  /**
-   * Цена split для игрока — тот же расчёт, что и `GET …/events/{id}/price` (`quoteEventPrice`, 20.1.1,
-   * D-01 (B)): hero и расписание Главной показывают её, а не `readEventPricing` (20.4.6). Управляющему
-   * и fixed-событиям не нужна; недоступный расчёт (места игрока выше нового лимита группы) — без цены.
-   */
-  async function quoteFor(eventId: number, mode: string) {
-    if (isManager || mode !== 'split') return null
-    try {
-      return await readEventPriceQuote(ctx, {
-        organizationId: orgId,
-        eventId,
-        includeDrafts: false,
-      })
-    } catch (error) {
-      if (error instanceof SeatsOverLimitError || error instanceof EventNotFoundError) return null
-      throw error
-    }
-  }
+  // Цена split — единый расчёт GET …/price (`quoteEventPrice`), а не `readEventPricing` (20.4.6).
+  const quoteFor = (eventId: number, mode: string) =>
+    readPlayerPriceQuote(ctx, { organizationId: orgId, eventId, mode, isManager })
 
   const activeSub = mySubs.find(
     (s) =>

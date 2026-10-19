@@ -30,6 +30,9 @@ defineProps<{ view: PlayerSplitView }>()
       <span class="player-split__value vt-mono" data-price-headline>{{ view.headline }}</span>
       <span class="text-sm text-vt-mute-2">за место</span>
     </p>
+    <p v-if="view.headlineNote" class="text-sm text-vt-mute-2 mt-1" data-price-note>
+      {{ view.headlineNote }}
+    </p>
     <p v-if="view.rangeText" class="vt-mono text-xs text-vt-mute-2 mt-2" data-price-range>
       {{ view.rangeText }}
     </p>
@@ -48,7 +51,9 @@ defineProps<{ view: PlayerSplitView }>()
           :class="{ 'is-current': s.current }"
           data-price-scenario
         >
-          <span class="vt-mono player-split__seats text-xs text-vt-mute-2">{{ s.seats }} мест</span>
+          <span class="vt-mono player-split__seats text-xs text-vt-mute-2">{{
+            seatsLabel(s.seats)
+          }}</span>
           <div class="vt-meter flex-1" aria-hidden="true">
             <i
               :style="{

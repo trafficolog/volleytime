@@ -125,6 +125,17 @@ describe.each(['card', 'schedule'] as const)(
       expect(w.text()).not.toContain(money(1111))
     })
 
+    it('0 записавшихся: «≈ вся сумма, если запишетесь» (я один), игрок в очереди — «если получите место»', () => {
+      const empty = render(event({ taken: 0 }), presentation)
+      expect(empty.text()).toContain(`≈ ${money(10000)}, если запишетесь`)
+      const queued = render(
+        event({ taken: 16, myBooking: { id: 1, status: 'waitlisted' } }),
+        presentation,
+      )
+      expect(queued.text()).toContain('если получите место')
+      expect(queued.text()).not.toContain('если запишетесь')
+    })
+
     it('без поля priceQuote (список событий) остаётся прежняя проекция pricing', () => {
       const ev = event()
       delete ev.priceQuote

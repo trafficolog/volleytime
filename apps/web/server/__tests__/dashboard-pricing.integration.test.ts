@@ -228,6 +228,54 @@ describe('dashboard pricing projection', () => {
       expect(quote.basis).toBe('settled')
     })
 
+    it('events list and «Мои записи» carry the same quote as GET …/price, waitlisted included', async () => {
+      const list = async (user: number) =>
+        (
+          (await request('GET', `/api/organizations/${orgId}/events`, { user })).body as {
+            events: Item[]
+          }
+        ).events
+      const mine = async (user: number) =>
+        (
+          (await request('GET', `/api/organizations/${orgId}/bookings/my`, { user })).body as {
+            bookings: { eventId: number; status: string; priceQuote?: unknown }[]
+          }
+        ).bookings
+      // до записи: прогноз «если запишусь»
+      expect((await list(playerId)).find((e) => e.id === eventId)?.priceQuote).toEqual(
+        await priceOf(playerId),
+      )
+      await bookingService.book({ userId: playerId }, orgId, eventId, { method: 'cash' })
+      await bookingService.book({ userId: otherId }, orgId, eventId, { method: 'cash' })
+      expect((await list(playerId)).find((e) => e.id === eventId)?.priceQuote).toEqual(
+        await priceOf(playerId),
+      )
+      const booked = (await mine(playerId)).find((b) => b.eventId === eventId)
+      expect(booked?.priceQuote).toEqual(await priceOf(playerId))
+      // лист ожидания: мест игрока в составе нет, расчёт — как для незаписанного
+      const full = await eventService.create({ userId: ownerId }, orgId, {
+        title: 'Full split',
+        startsAt: new Date(Date.now() + 3 * 86400000),
+        endsAt: new Date(Date.now() + 3 * 86400000 + 7200000),
+        capacity: 1,
+        priceMode: 'split',
+        targetAmount: 6000,
+      })
+      await bookingService.book({ userId: otherId }, orgId, full.id, { method: 'cash' })
+      const waitlisted = await bookingService.book({ userId: playerId }, orgId, full.id, {
+        method: 'cash',
+      })
+      expect(waitlisted.status).toBe('waitlisted')
+      const row = (await mine(playerId)).find((b) => b.eventId === full.id)
+      expect(row?.status).toBe('waitlisted')
+      expect(row?.priceQuote).toEqual(await priceOf(playerId, full.id))
+      expect((await list(playerId)).find((e) => e.id === full.id)?.priceQuote).toEqual(
+        await priceOf(playerId, full.id),
+      )
+      // управляющему и для fixed цена из расчёта не отдаётся
+      expect((await list(ownerId)).every((e) => (e.priceQuote ?? null) === null)).toBe(true)
+    })
+
     it('has no quote for fixed events and for managers', async () => {
       const fixed = await eventService.create({ userId: ownerId }, orgId, {
         title: 'Fixed',

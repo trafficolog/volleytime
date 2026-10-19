@@ -215,8 +215,9 @@ describe('M-07 · событие со сбором суммой: цена из G
       `от ${money(quote.perSeat.min)} до ${money(quote.perSeat.max)}`,
     )
     expect(block.get('[data-price-divider]').text()).toBe(
-      `${money(10000)} ÷ ${quote.seatCount!.current} мест`,
+      `${money(10000)} ÷ ${quote.seatCount!.current} мест с вами`,
     )
+    expect(block.get('[data-price-note]').text()).toBe('если запишетесь')
     expect(block.text()).toContain('Абонемент к событию со сбором суммой не применяется')
     expect(block.findAll('[data-price-scenario]').length).toBeGreaterThanOrEqual(2)
     wrapper.unmount()
@@ -247,7 +248,7 @@ describe('M-07 · событие со сбором суммой: цена из G
     expect(priceCalls().length).toBeGreaterThan(callsBefore)
     const after = wrapper.get('[data-price-divider]').text()
     expect(after).not.toBe(before)
-    expect(after).toBe(`${money(10000)} ÷ ${forecastQuote(9).seatCount!.current} мест`)
+    expect(after).toBe(`${money(10000)} ÷ ${forecastQuote(9).seatCount!.current} мест с вами`)
     expect(wrapper.get('[data-price-headline]').text()).not.toBe(headlineBefore)
     expect(wrapper.get('[data-summary-price]').text()).toBe(
       wrapper.get('[data-price-headline]').text(),
@@ -348,6 +349,48 @@ describe('M-07 · событие со сбором суммой: цена из G
     expect(wrapper.find('[data-player-split]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain(money(1111))
     expect(wrapper.text()).toContain('Прогноз цены сейчас недоступен')
+    wrapper.unmount()
+  })
+
+  it('игрок в листе ожидания: «если получите место», доли не начислено', async () => {
+    priceResponse = () => ({ price: forecastQuote(14) })
+    data.value = {
+      ...data.value,
+      event: {
+        ...fixture(),
+        taken: 14,
+        freeSeats: 0,
+        myBooking: { id: 5, status: 'waitlisted', method: 'cash', paymentId: null },
+      },
+    }
+    const wrapper = await renderPage()
+    const block = wrapper.get('[data-player-split]')
+    expect(block.get('[data-price-note]').text()).toBe('если получите место')
+    expect(block.get('[data-price-headline]').text()).toBe(
+      `≈ ${money(forecastQuote(14).perSeat.max)}`,
+    )
+    expect(block.find('[data-price-due]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('смена события сбрасывает цену прежнего, пока грузится новая', async () => {
+    const wrapper = await renderPage()
+    expect(wrapper.find('[data-player-split]').exists()).toBe(true)
+    let release!: (value: unknown) => void
+    apiFetch.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = resolve
+        }),
+    )
+    data.value = { ...data.value, event: { ...fixture(), id: 72 } }
+    route.params.eventId = '72'
+    await flushPromises()
+    // прежний прогноз не показывается для другого события
+    expect(wrapper.find('[data-player-split]').exists()).toBe(false)
+    release({ price: forecastQuote(8) })
+    await flushPromises()
+    expect(wrapper.find('[data-player-split]').exists()).toBe(true)
     wrapper.unmount()
   })
 

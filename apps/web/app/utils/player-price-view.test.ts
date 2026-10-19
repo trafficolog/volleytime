@@ -1,6 +1,7 @@
 import { quoteEventPrice, type EventPriceQuote } from '@volley-time/shared'
 import { describe, expect, it } from 'vitest'
 
+import { seatsLabel } from './booking-seats'
 import { formatMoneyRu } from './labels'
 import { playerSplitViewOf, quotePriceLabel } from './player-price-view'
 
@@ -39,19 +40,21 @@ describe('playerSplitViewOf: цена split только из ответа GET �
     expect(view.chip).toEqual({ text: 'предварительно', tone: 'amber' })
     expect(view.headline).toBe(`≈ ${money(quote.perSeat.max)}`)
     expect(view.rangeText).toBe(`от ${money(quote.perSeat.min)} до ${money(quote.perSeat.max)}`)
-    expect(view.divider).toBe(`${money(10000)} ÷ ${quote.seatCount!.current} мест`)
+    expect(view.divider).toBe(`${money(10000)} ÷ ${seatsLabel(quote.seatCount!.current)} с вами`)
+    expect(view.headlineNote).toBe('если запишетесь')
     expect(view.subscriptionNote).toBe('Абонемент к событию со сбором суммой не применяется')
     expect(view.myTotal).toBeNull()
     expect(view.scenarios[0]).toMatchObject({ seats: quote.seatCount!.current, current: true })
-    expect(view.scenarios[0]!.meterPct).toBe(100)
+    // занято 8 из 9 «мест с вами»
+    expect(view.scenarios[0]!.meterPct).toBe(89)
     expect(view.scenarios.at(-1)!.meterPct).toBeLessThan(100)
   })
 
   it('прогноз обновляется с новой записью: больше мест в делителе, меньше доля', () => {
     const before = playerSplitViewOf(forecast(8), 'BYN', open, NOW, idle)!
     const after = playerSplitViewOf(forecast(9), 'BYN', { ...open, taken: 9 }, NOW, idle)!
-    expect(before.divider).toContain('÷ 9 мест')
-    expect(after.divider).toContain('÷ 10 мест')
+    expect(before.divider).toContain('÷ 9 мест с вами')
+    expect(after.divider).toContain('÷ 10 мест с вами')
     expect(after.headline).not.toBe(before.headline)
   })
 
@@ -82,6 +85,34 @@ describe('playerSplitViewOf: цена split только из ответа GET �
     const view = playerSplitViewOf(quote, 'BYN', closed, NOW, idle)!
     expect(view.headline).toBe(money(quote.perSeat.max))
     expect(view.myTotal).toBeNull()
+  })
+
+  it('записан: без «если запишетесь»; в листе ожидания: «если получите место»', () => {
+    const booked = playerSplitViewOf(forecast(8, 1), 'BYN', open, NOW, {
+      hasBooking: true,
+      paid: false,
+    })!
+    expect(booked.headlineNote).toBeNull()
+    expect(booked.divider).toBe(`${money(10000)} ÷ 8 мест`)
+    const queued = playerSplitViewOf(forecast(14), 'BYN', { ...open, taken: 14 }, NOW, {
+      hasBooking: false,
+      waitlisted: true,
+    })!
+    expect(queued.headlineNote).toBe('если получите место')
+    expect(
+      quotePriceLabel(forecast(14), 'BYN', { hasBooking: false, waitlisted: true })!.text,
+    ).toContain(', если получите место')
+  })
+
+  it('шкала считает занятые места, а не места «с вами»; склонение места/места/мест', () => {
+    const none = playerSplitViewOf(forecast(0), 'BYN', { ...open, taken: 0 }, NOW, idle)!
+    expect(none.divider).toBe(`${money(10000)} ÷ 1 место с вами`)
+    expect(none.scenarios[0]!.meterPct).toBe(0)
+    const some = playerSplitViewOf(forecast(8), 'BYN', open, NOW, idle)!
+    // текущая строка — 9 мест (8 занято + я): занято 8 из 9
+    expect(some.scenarios[0]).toMatchObject({ seats: 9, meterPct: 89 })
+    const two = playerSplitViewOf(forecast(1), 'BYN', { ...open, taken: 1 }, NOW, idle)!
+    expect(two.divider).toBe(`${money(10000)} ÷ 2 места с вами`)
   })
 
   it('«мест нет» — по занятости события, а не по цене', () => {
@@ -121,7 +152,9 @@ describe('quotePriceLabel: цена Главной совпадает с отв�
       const shown = hasBooking ? quote.total.max : quote.perSeat.max
       expect(label.text).toBe(money(shown))
     } else {
-      expect(label.text).toBe(`≈ ${money(quote.perSeat.max)}`)
+      expect(label.text).toBe(
+        `≈ ${money(quote.perSeat.max)}${hasBooking ? '' : ', если запишетесь'}`,
+      )
       if (quote.perSeat.min !== quote.perSeat.max)
         expect(label.description).toContain(
           `От ${money(quote.perSeat.min)} до ${money(quote.perSeat.max)}`,

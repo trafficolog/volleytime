@@ -69,6 +69,7 @@ const priceLabel = computed(() => {
         ? null
         : quotePriceLabel(props.event.priceQuote, props.event.currency, {
             hasBooking: hasActiveBooking.value,
+            waitlisted: props.event.myBooking?.status === 'waitlisted',
           })
     return { text: label?.text ?? '', description: label?.description ?? '', payable: false }
   }

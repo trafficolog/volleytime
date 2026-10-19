@@ -309,7 +309,14 @@ watch(
       ev.value?.myBooking?.status,
       ev.value?.myBooking?.seats,
     ] as const,
-  () => void loadPrice(),
+  (now, before) => {
+    // другое событие: цена прежнего не должна мелькать, пока грузится новая
+    if (now[0] !== before?.[0]) {
+      priceQuote.value = null
+      priceFailed.value = false
+    }
+    void loadPrice()
+  },
   { immediate: true },
 )
 const myActiveBooking = computed(
@@ -332,13 +339,17 @@ const splitView = computed(() =>
         {
           hasBooking: myActiveBooking.value,
           paid: ev.value.pricing.myPaymentStatus === 'succeeded',
+          waitlisted: my.value?.status === 'waitlisted',
         },
       )
     : null,
 )
 const splitLabel = computed(() =>
   ev.value && splitMode.value
-    ? quotePriceLabel(priceQuote.value, ev.value.currency, { hasBooking: myActiveBooking.value })
+    ? quotePriceLabel(priceQuote.value, ev.value.currency, {
+        hasBooking: myActiveBooking.value,
+        waitlisted: my.value?.status === 'waitlisted',
+      })
     : null,
 )
 

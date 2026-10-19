@@ -157,6 +157,32 @@ export async function readEventPriceQuote(
   return { ...quote, currency: event.currency }
 }
 
+/**
+ * Цена split игрока для списков (Главная, события, «Мои записи», 20.4.6): тот же расчёт, что и
+ * `GET …/events/{id}/price`. `null` — управляющему, fixed-событию и недоступному расчёту (места игрока
+ * выше нового лимита, чужое событие, неверные числа): список не должен падать из-за одной цены.
+ */
+export async function readPlayerPriceQuote(
+  ctx: ServiceContext,
+  input: { organizationId: number; eventId: number; mode: string; isManager: boolean },
+): Promise<EventPriceQuoteView | null> {
+  if (input.isManager || input.mode !== 'split') return null
+  try {
+    return await readEventPriceQuote(ctx, {
+      organizationId: input.organizationId,
+      eventId: input.eventId,
+      includeDrafts: false,
+    })
+  } catch (error) {
+    if (error instanceof SeatsOverLimitError || error instanceof EventNotFoundError) return null
+    if (error instanceof RangeError) {
+      console.warn('[price] split quote unavailable', { eventId: input.eventId, error })
+      return null
+    }
+    throw error
+  }
+}
+
 async function managerEvent(ctx: ServiceContext, eventId: number) {
   const db = getDb(ctx)
   const event = await db.query.events.findFirst({ where: eq(events.id, eventId) })

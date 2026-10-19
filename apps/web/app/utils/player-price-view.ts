@@ -1,6 +1,6 @@
 /**
- * Цена split для игрока (20.4.6, M-07): экран события и Главная. Все суммы берутся только из ответа
- * `GET …/events/{id}/price` (`quoteEventPrice`, 20.1.1, D-01 (B)), а не из `readEventPricing`/
+ * Цена split для игрока (20.4.6, M-07): экран события и списки игрока. Все суммы берутся только из
+ * ответа `GET …/events/{id}/price` (`quoteEventPrice`, 20.1.1, D-01 (B)), а не из `readEventPricing`/
  * `previewSplitAmount`. «Мест нет» определяется занятостью события, а не ценой (`seatCount.current`
  * ограничен вместимостью); для отменённого события цена не показывается.
  */
@@ -16,10 +16,16 @@ export interface PlayerPriceContext {
   hasBooking: boolean
   /** Доля оплачена (платёж подтверждён организатором). */
   paid?: boolean
+  /** Игрок в листе ожидания: места в составе у него нет. */
+  waitlisted?: boolean
 }
 
+/** Подпись к прогнозу для игрока без места: цена «если запишетесь» (решение владельца 2026-10-19). */
+const ifJoinNote = (ctx: Pick<PlayerPriceContext, 'hasBooking' | 'waitlisted'>) =>
+  ctx.hasBooking ? null : ctx.waitlisted ? 'если получите место' : 'если запишетесь'
+
 export interface PlayerSplitScenario extends PriceScenario {
-  /** Ширина шкалы «как меняется цена»: текущее наполнение ÷ n мест, в процентах. */
+  /** Ширина шкалы «как меняется цена»: занятые места ÷ n мест, в процентах. */
   meterPct: number
 }
 
@@ -29,9 +35,11 @@ export interface PlayerSplitView {
   chip: { text: string; tone: 'amber' | 'grass' }
   /** Цена места: «≈ …» до закрытия, точная доля после. */
   headline: string
+  /** «если запишетесь» / «если получите место» — прогноз для игрока без места в составе. */
+  headlineNote: string | null
   /** «от … до …» — только пока границы прогноза различаются. */
   rangeText: string | null
-  /** «100,00 BYN ÷ 8 мест». */
+  /** «100,00 BYN ÷ 8 мест» (без места в составе: «÷ 9 мест с вами»). */
   divider: string | null
   scenarios: PlayerSplitScenario[]
   /** Доля игрока за все его места — после закрытия записи («с вас» показывается, пока не оплачено). */
@@ -52,7 +60,7 @@ export function playerSplitViewOf(
   if (!base) return null
   const settled = quote.basis === 'settled'
   const paid = settled && ctx.hasBooking && ctx.paid === true
-  const currentSeats = quote.seatCount?.current ?? 0
+  const note = settled ? null : ifJoinNote(ctx)
   return {
     stage: paid ? 'paid' : settled ? 'settled' : 'open',
     eyebrow: settled ? 'Итоговый расчёт' : 'Делим общую сумму',
@@ -62,11 +70,13 @@ export function playerSplitViewOf(
         ? { text: 'зафиксировано', tone: 'grass' }
         : { text: 'предварительно', tone: 'amber' },
     headline: base.headline,
+    headlineNote: note,
     rangeText: settled ? null : base.rangeText,
-    divider: base.divider,
+    divider: base.divider && note ? `${base.divider} с вами` : base.divider,
     scenarios: base.scenarios.map((s) => ({
       ...s,
-      meterPct: s.seats > 0 ? Math.round((Math.min(currentSeats, s.seats) / s.seats) * 100) : 0,
+      // шкала считает занятые места события (без «меня», если я ещё не записан)
+      meterPct: s.seats > 0 ? Math.round((Math.min(event.taken, s.seats) / s.seats) * 100) : 0,
     })),
     myTotal:
       settled && ctx.hasBooking
@@ -78,13 +88,13 @@ export function playerSplitViewOf(
 }
 
 /**
- * Цена split в карточках Главной (hero и расписание): текст и пояснение из ответа цены.
+ * Цена split в карточках игрока (Главная, события, «Мои записи»): текст и пояснение из ответа цены.
  * `null` — расчёта нет (fixed или цена недоступна): число из другого расчёта подставлять нельзя.
  */
 export function quotePriceLabel(
   quote: EventPriceQuote | null | undefined,
   currency: string,
-  ctx: Pick<PlayerPriceContext, 'hasBooking'>,
+  ctx: Pick<PlayerPriceContext, 'hasBooking' | 'waitlisted'>,
 ): { text: string; description: string } | null {
   if (quote?.mode !== 'split') return null
   const money = (minor: number) => formatMoneyRu(minor, currency)
@@ -97,8 +107,9 @@ export function quotePriceLabel(
     quote.perSeat.min !== quote.perSeat.max
       ? `От ${money(quote.perSeat.min)} до ${money(quote.perSeat.max)}. `
       : ''
+  const note = ifJoinNote(ctx)
   return {
-    text: `≈ ${money(quote.perSeat.max)}`,
+    text: `≈ ${money(quote.perSeat.max)}${note ? `, ${note}` : ''}`,
     description: `${range}Точная сумма — когда организатор закроет запись.`,
   }
 }
