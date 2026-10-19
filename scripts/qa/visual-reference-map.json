@@ -33,6 +33,18 @@
       "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
     },
     {
+      "id": "player-event-book",
+      "title": "Игрок: запись на событие (лист записи)",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "event": { "title": "Открытая игра", "status": "published" },
+      "path": "/m/orgs/{org}/events/{event}",
+      "steps": [{ "click": ".player-event-action button" }],
+      "references": ["3-miniapp-player/03-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
       "id": "player-subscriptions",
       "title": "Игрок: абонементы",
       "viewport": "miniapp",

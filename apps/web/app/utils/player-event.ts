@@ -1,5 +1,6 @@
 import type { EventPricingView } from '@volley-time/shared'
 
+import { myBookingSeatsText, myBookingTitle } from './booking-seats'
 import { splitBookingPaymentLabel } from './event-pricing-label'
 import { isDeniedOrgError } from './player-home'
 
@@ -114,20 +115,57 @@ export function projectPlayerEvent(
     taken: number
     price: number
     pricing?: EventPricingView
-    myBooking: { status: string } | null
+    /** Свободные места для новой записи с учётом предложений из очереди (сервер, 20.3.1). */
+    freeSeats?: number
+    /** Время открытия записи (20.3.1): до него запись закрыта для всех. */
+    bookingOpensAt?: string | Date | null
+    /** Срок закрытия записи и последнее изменение: как `isBookingClosedBySchedule` на сервере. */
+    closeBeforeMinutes?: number
+    updatedAt?: string | Date
+    myBooking: {
+      status: string
+      seats?: number
+      waitlistSeats?: number
+      /** Активное предложение места из очереди (D-03). */
+      offer?: { id: number; seats: number; expiresAt: string | Date } | null
+    } | null
   },
   context: {
     memberActive: boolean
     subscriptionsEnabled: boolean | null
     hasEligibleSubscription: boolean
+    /** Планировщик включён (capabilities.eventScheduler): запись закрывается с момента закрытия. */
+    schedulerEnabled?: boolean
   },
   now: Date,
 ) {
   const started = new Date(event.startsAt) <= now
   const bookingStatus = event.myBooking?.status ?? null
   const hasBooking = bookingStatus !== null && bookingStatus !== 'cancelled'
-  const bookable = context.memberActive && event.status === 'published' && !started && !hasBooking
-  const action = bookable ? (event.taken >= event.capacity ? 'waitlist' : 'book') : 'none'
+  const opensAt =
+    event.bookingOpensAt && new Date(event.bookingOpensAt) > now
+      ? new Date(event.bookingOpensAt)
+      : null
+  const freeSeats = Math.max(0, event.freeSeats ?? event.capacity - event.taken)
+  const closeAt =
+    event.closeBeforeMinutes === undefined
+      ? null
+      : new Date(new Date(event.startsAt).getTime() - event.closeBeforeMinutes * 60_000)
+  const closedBySchedule =
+    context.schedulerEnabled === true &&
+    closeAt !== null &&
+    event.status === 'published' &&
+    (event.updatedAt === undefined || new Date(event.updatedAt) < closeAt) &&
+    (!event.bookingOpensAt || new Date(event.bookingOpensAt) <= closeAt) &&
+    now >= closeAt
+  const bookable =
+    context.memberActive &&
+    event.status === 'published' &&
+    !started &&
+    !hasBooking &&
+    !opensAt &&
+    !closedBySchedule
+  const action = bookable ? (freeSeats === 0 ? 'waitlist' : 'book') : 'none'
   const split = event.pricing?.mode === 'split'
   const paymentMethods: ('free' | 'cash' | 'transfer' | 'subscription')[] =
     action === 'none' ? [] : !split && event.price === 0 ? ['free'] : ['cash', 'transfer']
@@ -151,7 +189,11 @@ export function projectPlayerEvent(
     ['confirmed', 'pending_payment', 'waitlisted'].includes(bookingStatus ?? '') &&
     (deadline === null || now <= deadline)
 
-  const bookingCard = bookingStatus ? (BOOKING_CARDS[bookingStatus] ?? null) : null
+  const baseCard = bookingStatus ? (BOOKING_CARDS[bookingStatus] ?? null) : null
+  const bookingCard =
+    baseCard && event.myBooking
+      ? { ...baseCard, title: myBookingTitle(event.myBooking, baseCard.title) }
+      : baseCard
   const splitPayment =
     event.pricing && bookingStatus ? splitBookingPaymentLabel(event.pricing, bookingStatus) : null
   return {
@@ -162,7 +204,9 @@ export function projectPlayerEvent(
       bookingCard && splitPayment
         ? {
             ...bookingCard,
-            ...(bookingStatus === 'pending_payment' && event.pricing?.myAllocatedAmount === null
+            ...(bookingStatus === 'pending_payment' &&
+            event.pricing?.myAllocatedAmount === null &&
+            (event.myBooking?.seats ?? 1) <= 1
               ? { title: 'Место забронировано' }
               : {}),
             text: splitPayment.description,
@@ -170,5 +214,15 @@ export function projectPlayerEvent(
         : bookingCard,
     hasBooking,
     canCancel,
+    freeSeats,
+    opensAt,
+    closedBySchedule,
+    /** Ближайший момент, когда вид изменится сам (открытие / закрытие записи). */
+    nextBoundary:
+      [opensAt, closeAt && context.schedulerEnabled && closeAt > now ? closeAt : null]
+        .filter((d): d is Date => d !== null)
+        .sort((a, b) => a.getTime() - b.getTime())[0] ?? null,
+    seatsNote: event.myBooking && hasBooking ? myBookingSeatsText(event.myBooking) : null,
+    offer: hasBooking ? (event.myBooking?.offer ?? null) : null,
   }
 }

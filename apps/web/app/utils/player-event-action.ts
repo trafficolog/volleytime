@@ -6,6 +6,11 @@ const staleEventRejections = new Set([
   'booking.deadline_passed',
   'booking.already_booked',
   'booking.method_not_allowed',
+  // места или предложение изменились, пока экран был открыт (20.1.2, 20.3.1): перечитать событие
+  'booking.not_enough_seats',
+  'booking.not_open_yet',
+  'waitlist_offer.expired',
+  'waitlist_offer.not_found',
   // событие удалено или принадлежит другой группе: сервер отвечает 404 (19.3.1)
   'event.not_found',
 ])
@@ -14,12 +19,27 @@ export function shouldRefreshPlayerEventAfterRejection(code: string | null | und
   return code != null && staleEventRejections.has(code)
 }
 
-export function bookingPayload(method: PaymentMethod, subscriptionId?: number) {
-  if (method !== 'subscription') return { method }
+export interface BookingSeatsOptions {
+  seats?: number
+  /** Явное согласие игрока на частичную очередь; без него части «в очередь» нет (409). */
+  allowWaitlist?: boolean
+}
+
+/** Тело POST …/bookings (схема BookInput, 20.1.2): без мест и согласия — как до 20.1.2. */
+export function bookingPayload(
+  method: PaymentMethod,
+  subscriptionId?: number,
+  options: BookingSeatsOptions = {},
+) {
+  const extra = {
+    ...(options.seats !== undefined && options.seats > 1 ? { seats: options.seats } : {}),
+    ...(options.allowWaitlist === true ? { allowWaitlist: true } : {}),
+  }
+  if (method !== 'subscription') return { method, ...extra }
   if (!Number.isInteger(subscriptionId) || (subscriptionId ?? 0) <= 0) {
     throw new Error('Choose an active subscription before booking')
   }
-  return { method, subscriptionId }
+  return { method, subscriptionId, ...extra }
 }
 
 export async function runPlayerEventAction<T>(

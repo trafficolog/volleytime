@@ -29,6 +29,10 @@ const CODE_MESSAGES: Record<string, string> = {
   'booking.cannot_cancel_others': 'Нельзя отменить чужую запись',
   'booking.seats_over_limit': 'Столько мест в одной записи взять нельзя',
   'booking.not_enough_seats': 'Свободных мест меньше, чем вы выбрали',
+  'booking.not_open_yet': 'Запись на это событие ещё не открыта',
+  // срок вышел и предложение снято организатором неразличимы по коду: текст нейтральный
+  'waitlist_offer.expired': 'Предложение места больше не действует. Проверьте статус своей записи',
+  'waitlist_offer.not_found': 'Это предложение места больше недоступно',
   'booking.multi_seat_disabled': 'Запись на несколько мест пока недоступна',
   'subscription.no_active': 'Нет активного абонемента с остатком',
   'subscription.not_enough_sessions': 'В абонементе не хватает занятий на все места',

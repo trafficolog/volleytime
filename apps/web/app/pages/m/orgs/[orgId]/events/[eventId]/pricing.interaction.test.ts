@@ -13,16 +13,21 @@ import {
   ref,
   Suspense,
   watch,
+  watchEffect,
 } from 'vue'
 
 import Bookings from '../../bookings.vue'
 
 import Page from './index.vue'
 
+import BookingSeatsStepper from '~/components/BookingSeatsStepper.vue'
 import EventCard from '~/components/EventCard.vue'
+import PlayerBookingForm from '~/components/PlayerBookingForm.vue'
+import WaitlistOfferCard from '~/components/WaitlistOfferCard.vue'
 import MyChip from '~/components/vt/MyChip.vue'
 import SeatsMini from '~/components/vt/SeatsMini.vue'
 import StateChip from '~/components/vt/StateChip.vue'
+import Toggle from '~/components/vt/Toggle.vue'
 
 const route = reactive({ params: { orgId: '30', eventId: '71' }, fullPath: '/m/orgs/30/events/71' })
 const pricing: EventPricingView = {
@@ -80,6 +85,8 @@ for (const [name, value] of Object.entries({
   watch,
   onMounted,
   onUnmounted,
+  watchEffect,
+  createMainButton: () => ({ update: vi.fn(), destroy: vi.fn() }),
   definePageMeta: () => undefined,
   useRoute: () => route,
   useOrgTimezone: () => ({ tz: 'Europe/Minsk' }),
@@ -112,6 +119,10 @@ async function renderPage() {
           NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
           VtMiniHeader: { template: '<header><slot name="right" /></header>' },
           VtChip: { template: '<span><slot /></span>' },
+          PlayerBookingForm,
+          WaitlistOfferCard,
+          BookingSeatsStepper,
+          VtToggle: Toggle,
           VtMyChip: MyChip,
           VtStateChip: StateChip,
           VtSeatsMini: SeatsMini,
@@ -898,8 +909,14 @@ describe('player split pricing interactions', () => {
       expect(wrapper.find('[role="dialog"]').text()).not.toContain('Абонемент')
       expect(apiFetch).not.toHaveBeenCalled()
       await wrapper
+        .findAll('label')
+        .find((l) => l.text().includes(method === 'cash' ? 'Наличными организатору' : 'Переводом'))!
+        .get('input')
+        .setValue()
+      await wrapper
+        .get('[role="dialog"]')
         .findAll('button')
-        .find((b) => b.text().includes(method === 'cash' ? 'Наличными организатору' : 'Переводом'))!
+        .find((b) => b.text().startsWith('Записаться'))!
         .trigger('click')
       await flushPromises()
       expect(apiFetch).toHaveBeenCalledWith('/api/organizations/30/events/71/bookings', {
