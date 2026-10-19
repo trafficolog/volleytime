@@ -61,3 +61,13 @@ describe('buildMiniAppUrl', () => {
     expect(buildMiniAppUrl('event_5')).toContain('/m/?startapp=event_5')
   })
 })
+
+describe('event invite deeplink (20.1.3)', () => {
+  const token = 'Ab_c-1234567890XYZabcdeF'
+  it('opens the exact event with the invite token in startapp', () => {
+    expect(buildMiniAppUrl(`event_42_${token}`)).toContain(`/m/?startapp=event_42_${token}`)
+  })
+  it('greets as an event invitation', () => {
+    expect(buildStartMessage('Иван', `event_42_${token}`)).toContain('событие')
+  })
+})

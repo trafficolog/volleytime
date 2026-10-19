@@ -67,6 +67,7 @@ export async function createTestApi() {
     getRequestIP: h3.getRequestIP,
     getCookie: h3.getCookie,
     setResponseStatus: h3.setResponseStatus,
+    setResponseHeader: h3.setResponseHeader,
     useRuntimeConfig: () => ({ public: {} }),
     // макрос Nitro (OpenAPI): в сборке вырезается, в харнессе — no-op
     defineRouteMeta: () => undefined,
@@ -82,6 +83,7 @@ export async function createTestApi() {
     'path-id',
     'tenant-path',
     'internal-auth',
+    'bot-internal',
     'root-admin',
   ]) {
     Object.assign(g, await import(pathToFileURL(path.join(serverDir, 'utils', `${mod}.ts`)).href))
@@ -108,7 +110,7 @@ export async function createTestApi() {
   return async function request(
     method: string,
     url: string,
-    opts: { user?: number; body?: unknown } = {},
+    opts: { user?: number; body?: unknown; headers?: Record<string, string> } = {},
   ): Promise<TestResponse> {
     const res = await web(
       new Request(`http://test${url}`, {
@@ -116,6 +118,7 @@ export async function createTestApi() {
         headers: {
           'content-type': 'application/json',
           ...(opts.user ? { 'x-test-user': String(opts.user) } : {}),
+          ...opts.headers,
         },
         body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
       }),

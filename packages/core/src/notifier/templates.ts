@@ -21,6 +21,8 @@ export interface KeyboardButton {
   text: string
   url?: string
   webAppUrl?: string
+  /** Inline-кнопка с действием (`cx:<id события>` — отмена записи, `oa:<id>` — принять место, 20.3.3). */
+  callbackData?: string
 }
 
 export interface RenderedMessage {
@@ -88,6 +90,13 @@ export function renderMessage(type: NotificationType, p: TemplateParams): Render
           ],
         ]
       : undefined
+
+  // кнопка действия под ссылкой «Открыть»; id события — не секрет, права проверяет web по Telegram id
+  const withAction = (text: string, prefix: 'cx' | 'oa'): KeyboardButton[][] | undefined => {
+    const rows = openBtn() ?? []
+    if (!p.eventId) return rows.length ? rows : undefined
+    return [...rows, [{ text, callbackData: `${prefix}:${p.eventId}` }]]
+  }
 
   const title = p.eventTitle ? esc(p.eventTitle) : 'событие'
   const when = p.eventDate ? `\n📅 ${esc(p.eventDate)}` : ''
@@ -180,9 +189,15 @@ export function renderMessage(type: NotificationType, p: TemplateParams): Render
         keyboard: openBtn(),
       }
     case 'reminder_24h':
-      return { text: `🏐 Напоминание: завтра <b>${title}</b>${when}`, keyboard: openBtn() }
+      return {
+        text: `🏐 Напоминание: завтра <b>${title}</b>${when}`,
+        keyboard: withAction('Не смогу прийти', 'cx'),
+      }
     case 'reminder_2h':
-      return { text: `⏰ Через 2 часа: <b>${title}</b>${when}\n\nДо встречи!`, keyboard: openBtn() }
+      return {
+        text: `⏰ Через 2 часа: <b>${title}</b>${when}\n\nДо встречи!`,
+        keyboard: withAction('Не смогу', 'cx'),
+      }
     case 'booking_opened':
       return { text: `📣 Запись открыта: <b>${title}</b>${when}`, keyboard: openBtn() }
     // предложение места из листа ожидания с TTL 30 мин (D-03)
@@ -191,7 +206,7 @@ export function renderMessage(type: NotificationType, p: TemplateParams): Render
         text:
           `🎉 Освободилось место на <b>${title}</b>${when}${seatsNote(p)}\n\n` +
           `Подтвердите участие в течение 30 мин — иначе место уйдёт следующему в очереди.`,
-        keyboard: openBtn(),
+        keyboard: withAction('Беру место', 'oa'),
       }
     case 'waitlist_offer_expired':
       return {

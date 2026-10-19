@@ -28,4 +28,19 @@ describe('parseDeeplink', () => {
   it('none for unknown prefix', () => {
     expect(parseDeeplink('random123')).toEqual({ kind: 'none' })
   })
+
+  it('parses personal event invite event_<id>_<token> (20.1.3)', () => {
+    const token = 'Ab_c-1234567890XYZabcdeF'
+    expect(parseDeeplink(`event_42_${token}`)).toEqual({
+      kind: 'event',
+      eventId: 42,
+      inviteToken: token,
+    })
+  })
+
+  it('none for malformed event invite token', () => {
+    expect(parseDeeplink('event_42_short')).toEqual({ kind: 'none' })
+    expect(parseDeeplink('event_42_bad token!!!!!!!!!')).toEqual({ kind: 'none' })
+    expect(parseDeeplink('event_0_Ab_c-1234567890XYZabcdeF')).toEqual({ kind: 'none' })
+  })
 })

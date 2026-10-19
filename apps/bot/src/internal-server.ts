@@ -10,6 +10,8 @@ interface KeyboardButton {
   text: string
   url?: string
   webAppUrl?: string
+  /** Действие inline-кнопки (`<действие>:<id>`, 20.3.3); формат проверяется перед отправкой. */
+  callbackData?: string
 }
 
 interface NotifyPayload {
@@ -30,9 +32,11 @@ export function toInlineKeyboard(keyboard?: KeyboardButton[][]) {
   return {
     inline_keyboard: keyboard.map((row) =>
       row.map((b) =>
-        b.webAppUrl
-          ? { text: b.text, web_app: { url: b.webAppUrl } }
-          : { text: b.text, url: b.url ?? env.WEB_URL },
+        b.callbackData
+          ? { text: b.text, callback_data: b.callbackData }
+          : b.webAppUrl
+            ? { text: b.text, web_app: { url: b.webAppUrl } }
+            : { text: b.text, url: b.url ?? env.WEB_URL },
       ),
     ),
   }
@@ -63,7 +67,30 @@ export function classifySendError(e: unknown): SendFailure {
 export function isValidPayload(v: unknown): v is NotifyPayload {
   if (!v || typeof v !== 'object') return false
   const p = v as Record<string, unknown>
-  return typeof p.telegramId === 'string' && p.telegramId.length > 0 && typeof p.text === 'string'
+  return (
+    typeof p.telegramId === 'string' &&
+    p.telegramId.length > 0 &&
+    typeof p.text === 'string' &&
+    hasValidKeyboard(p.keyboard)
+  )
+}
+
+/** Разрешённые `callback_data` — те же, что понимает обработчик кнопок (handlers/callbacks.ts). */
+export const NOTIFY_CALLBACK_RE = /^(cx|oa):\d{1,10}$/
+
+function hasValidKeyboard(keyboard: unknown): boolean {
+  if (keyboard === undefined) return true
+  if (!Array.isArray(keyboard)) return false
+  return keyboard.every(
+    (row) =>
+      Array.isArray(row) &&
+      row.every((b) => {
+        if (!b || typeof b !== 'object' || typeof (b as { text?: unknown }).text !== 'string')
+          return false
+        const data = (b as { callbackData?: unknown }).callbackData
+        return data === undefined || (typeof data === 'string' && NOTIFY_CALLBACK_RE.test(data))
+      }),
+  )
 }
 
 /**

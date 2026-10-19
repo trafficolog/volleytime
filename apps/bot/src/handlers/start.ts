@@ -3,7 +3,10 @@ import { InlineKeyboard, type Bot } from 'grammy'
 import type { BotContext } from '../context'
 import { env } from '../env'
 
+import { markUserReachable } from '../web-client'
+
 import { parseDeeplink } from './deeplink'
+import { sendMenu } from './menu'
 
 export interface InvitePreview {
   status: 'valid' | 'revoked' | 'expired' | 'exhausted' | 'not_found'
@@ -90,7 +93,8 @@ export function buildMiniAppUrl(startParam: string | undefined): string {
   const dl = parseDeeplink(startParam)
   // startapp читается Mini App как start_param (8.8.3)
   if (dl.kind === 'org_invite') return `${base}?startapp=org_${encodeURIComponent(dl.token)}`
-  if (dl.kind === 'event') return `${base}?startapp=event_${dl.eventId}`
+  if (dl.kind === 'event')
+    return `${base}?startapp=event_${dl.eventId}${dl.inviteToken ? `_${dl.inviteToken}` : ''}`
   return base
 }
 
@@ -110,5 +114,8 @@ export function registerStartHandler(bot: Bot<BotContext>): void {
       buildMiniAppUrl(startParam),
     )
     await ctx.reply(text, { reply_markup: keyboard, parse_mode: 'HTML' })
+    // пользователь написал боту: доставка снова возможна (снять users.bot_blocked_at, 20.3.2)
+    await markUserReachable(user.id)
+    await sendMenu(ctx)
   })
 }

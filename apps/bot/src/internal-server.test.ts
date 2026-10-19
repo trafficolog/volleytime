@@ -49,3 +49,26 @@ describe('internal notify — keyboard conversion', () => {
     expect(kb?.inline_keyboard).toHaveLength(2)
   })
 })
+
+describe('internal notify — action buttons (20.3.3)', () => {
+  it('converts callbackData to callback_data', () => {
+    const kb = toInlineKeyboard([[{ text: 'Беру место', callbackData: 'oa:5' }]])
+    expect(kb?.inline_keyboard[0]?.[0]).toEqual({ text: 'Беру место', callback_data: 'oa:5' })
+  })
+
+  it('accepts only known callback_data formats', () => {
+    const p = (callbackData: string) => ({
+      telegramId: '1',
+      text: 'x',
+      keyboard: [[{ text: 'b', callbackData }]],
+    })
+    expect(isValidPayload(p('cx:5'))).toBe(true)
+    expect(isValidPayload(p('oa:5'))).toBe(true)
+    expect(isValidPayload(p('cy:5'))).toBe(false)
+    expect(isValidPayload(p('cx:5;x'))).toBe(false)
+    expect(isValidPayload({ telegramId: '1', text: 'x', keyboard: 'nope' })).toBe(false)
+    expect(
+      isValidPayload({ telegramId: '1', text: 'x', keyboard: [[{ callbackData: 'cx:1' }]] }),
+    ).toBe(false)
+  })
+})

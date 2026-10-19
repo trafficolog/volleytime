@@ -39,6 +39,7 @@ export async function registerWebhook(bot: Bot<BotContext>): Promise<void> {
   if (!env.WEBHOOK_URL) throw new Error('WEBHOOK_URL is not set')
   await bot.api.setWebhook(env.WEBHOOK_URL, {
     secret_token: env.WEBHOOK_SECRET_TOKEN,
+    allowed_updates: ['message', 'callback_query', 'my_chat_member'],
     // не теряем апдейты, накопившиеся во время деплоя (Task 9.9.10)
     drop_pending_updates: false,
   })
