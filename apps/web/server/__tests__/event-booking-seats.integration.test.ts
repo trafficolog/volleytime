@@ -1,5 +1,5 @@
 import { bookingService, eventService, memberService, organizationService } from '@volley-time/core'
-import { closeDb, db, organizations, users } from '@volley-time/db'
+import { closeDb, db, eq, events, organizations, users } from '@volley-time/db'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createTestApi } from './harness'
@@ -131,5 +131,23 @@ describe('event booking with several seats over HTTP (20.4.5)', () => {
     expect(detail.event.freeSeats).toBe(0)
     expect(detail.event.myBooking.offer).toMatchObject({ seats: 1 })
     expect(Date.parse(detail.event.myBooking.offer!.expiresAt)).toBeGreaterThan(Date.now())
+  })
+
+  it('a non-empty queue holds the free seats back while the scheduler is on (M1) and the card carries server time (M2)', async () => {
+    const ev = await newEvent(1)
+    const [a, b] = people as [number, number, number]
+    await bookingService.book({ userId: a }, orgId, ev.id, { method: 'free' })
+    await bookingService.book({ userId: b }, orgId, ev.id, { method: 'free' })
+    // вместимость выросла без предложения: свободное место есть, очередь не пуста
+    await db.update(events).set({ capacity: 2 }).where(eq(events.id, ev.id))
+
+    const on = await request('GET', `${base()}/events/${ev.id}`, { user: people[2] })
+    const body = on.body as { event: { freeSeats: number }; serverNow: string }
+    expect(body.event.freeSeats).toBe(0)
+    expect(Math.abs(Date.parse(body.serverNow) - Date.now())).toBeLessThan(60_000)
+
+    vi.stubEnv('SCHEDULER_ENABLED', '')
+    const off = await request('GET', `${base()}/events/${ev.id}`, { user: people[2] })
+    expect((off.body as { event: { freeSeats: number } }).event.freeSeats).toBe(1)
   })
 })

@@ -75,12 +75,28 @@ const fixture = () => ({
   pricing: fixedPricing(),
   myBooking: null as MyBooking,
 })
-const orgFixture = (multiSeat: boolean, maxSeatsPerBooking = 3) => ({
-  organization: { id: 30, subscriptionsEnabled: false, maxSeatsPerBooking },
+const orgFixture = (
+  multiSeat: boolean,
+  opts: { maxSeatsPerBooking?: number; subs?: boolean; scheduler?: boolean } = {},
+) => ({
+  organization: {
+    id: 30,
+    subscriptionsEnabled: opts.subs ?? false,
+    maxSeatsPerBooking: opts.maxSeatsPerBooking ?? 3,
+  },
   myMember: { organizationId: 30, role: 'player', status: 'active' },
-  capabilities: { eventMultiSeat: multiSeat },
+  capabilities: { eventMultiSeat: multiSeat, eventScheduler: opts.scheduler ?? false },
 })
-let data = ref({ event: fixture(), roster: [] as unknown[] })
+const subscription = {
+  id: 3,
+  organizationId: 30,
+  status: 'active',
+  usedSessions: 2,
+  totalSessions: 8,
+  expiresAt: null,
+}
+type PageData = { event: ReturnType<typeof fixture>; roster: unknown[]; serverNow?: string }
+let data = ref<PageData>({ event: fixture(), roster: [] as unknown[] })
 let org = ref(orgFixture(true))
 const refresh = vi.fn(async () => undefined)
 const post = vi.fn(
@@ -89,6 +105,7 @@ const post = vi.fn(
     _opts?: { method?: string; body?: unknown; query?: unknown },
   ): Promise<unknown> => {
     if (url.endsWith('/price')) return { price: { total: { min: 4321 }, currency: 'BYN' } }
+    if (url.endsWith('/subscriptions/my')) return { subscriptions: [subscription] }
     return {}
   },
 )
@@ -145,8 +162,11 @@ const open = async () => {
 }
 
 beforeEach(() => {
-  vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'], now: NOW })
-  data = ref({ event: fixture(), roster: [] as unknown[] })
+  vi.useFakeTimers({
+    toFake: ['Date', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'],
+    now: NOW,
+  })
+  data = ref<PageData>({ event: fixture(), roster: [] as unknown[] })
   org = ref(orgFixture(true))
   route.params = { orgId: '30', eventId: '71' }
   route.fullPath = '/m/orgs/30/events/71'
@@ -305,14 +325,14 @@ describe('partial queue needs explicit consent (M-06)', () => {
   })
 })
 
-describe('no free seats: queue branch without payment (M-06)', () => {
+describe('no free seats: queue branch keeps the payment choice (M-06, D-03 C)', () => {
   beforeEach(() => {
     data.value.event.freeSeats = 0
     data.value.event.taken = 14
     data.value.event.waitlist = 2
   })
 
-  it('shows how the queue works and no payment choice; a whole booking joins the queue', async () => {
+  it('shows how the queue works; cash and transfer are selectable; nothing is charged now', async () => {
     wrapper = await render()
     await pageButton('Встать в лист ожидания')!.trigger('click')
     await flushPromises()
@@ -321,7 +341,8 @@ describe('no free seats: queue branch without payment (M-06)', () => {
     expect(sheet().text()).toContain('покинете очередь')
     expect(sheet().text()).not.toContain('в конец')
     expect(sheet().text()).toContain('Сейчас в очереди 2 места')
-    expect(sheet().find('input[type="radio"]').exists()).toBe(false)
+    expect(sheet().text()).toContain('Сейчас ничего не списываем')
+    expect(sheet().findAll('input[type="radio"]')).toHaveLength(2)
     expect(sheet().find('[role="switch"]').exists()).toBe(false)
 
     await sheet().get('[aria-label="Больше мест"]').trigger('click')
@@ -330,6 +351,45 @@ describe('no free seats: queue branch without payment (M-06)', () => {
     // очередь целиком: согласие не нужно и не отправляется
     expect(lastBookingBody()).toEqual({ method: 'cash', seats: 2 })
     BookInput.parse(lastBookingBody())
+  })
+
+  it('a queue booking with a subscription sends subscription and its id (activity restored)', async () => {
+    org.value = orgFixture(true, { subs: true })
+    wrapper = await render()
+    await pageButton('Встать в лист ожидания')!.trigger('click')
+    await flushPromises()
+    expect(post.mock.calls.some(([url]) => url.endsWith('/subscriptions/my'))).toBe(true)
+    expect(sheet().text()).toContain(
+      'спишется при переходе в состав, не хватит занятий — наличными',
+    )
+    await sheetButton('Встать в лист ожидания')!.trigger('click')
+    await flushPromises()
+    expect(lastBookingBody()).toEqual({ method: 'subscription', subscriptionId: 3 })
+    expect(BookInput.parse(lastBookingBody())).toMatchObject({ subscriptionId: 3 })
+  })
+
+  it('flag off: the queue body is the same as before 20.4.5', async () => {
+    org.value = orgFixture(false, { subs: true })
+    wrapper = await render()
+    await pageButton('Встать в лист ожидания')!.trigger('click')
+    await flushPromises()
+    await sheet().findAll('input[type="radio"]')[1]!.setValue()
+    await sheetButton('Встать в лист ожидания')!.trigger('click')
+    await flushPromises()
+    expect(lastBookingBody()).toEqual({ method: 'cash' })
+  })
+
+  it('a free event in the queue shows no payment choice and says so', async () => {
+    data.value.event.price = 0
+    data.value.event.pricing = { ...fixedPricing(), minAmount: 0, maxAmount: 0 }
+    wrapper = await render()
+    await pageButton('Встать в лист ожидания')!.trigger('click')
+    await flushPromises()
+    expect(sheet().find('input[type="radio"]').exists()).toBe(false)
+    expect(sheet().text()).toContain('платить не придётся')
+    await sheetButton('Встать в лист ожидания')!.trigger('click')
+    await flushPromises()
+    expect(lastBookingBody()).toEqual({ method: 'free' })
   })
 })
 
@@ -446,7 +506,7 @@ describe('waitlist offer (D-03, 20.3.1)', () => {
     await pageButton('Принять место')!.trigger('click')
     await flushPromises()
     expect(refresh).toHaveBeenCalled()
-    expect(wrapper.text()).toContain('Время подтверждения вышло')
+    expect(wrapper.text()).toContain('Предложение места больше не действует')
   })
 })
 
@@ -502,5 +562,81 @@ describe('Telegram MainButton drives the booking sheet (20.4.1, 20.4.5)', () => 
     expect(post).toHaveBeenCalledWith('/api/organizations/30/waitlist-offers/7/accept', {
       method: 'POST',
     })
+  })
+})
+
+describe('review #156 follow-ups', () => {
+  it('M2: the countdown follows server time, not the phone clock', async () => {
+    // телефон «отстаёт» на 10 минут: сервер уже 10:10, срок предложения — 10:10:30
+    data.value.serverNow = '2027-10-03T10:10:00Z'
+    data.value.event.myBooking = {
+      id: 5,
+      status: 'waitlisted',
+      method: 'cash',
+      paymentId: null,
+      seats: 1,
+      waitlistSeats: 0,
+      offer: { id: 7, seats: 1, expiresAt: '2027-10-03T10:10:30Z' },
+    }
+    wrapper = await render()
+    expect(wrapper.get('[role="timer"]').text()).toBe('0:30')
+  })
+
+  it('M3: opening time passes → the booking action appears and the event is re-read', async () => {
+    data.value.event.bookingOpensAt = '2027-10-03T10:01:00Z'
+    wrapper = await render()
+    expect(pageButton('Записаться')).toBeUndefined()
+    await vi.advanceTimersByTimeAsync(61_000)
+    expect(refresh).toHaveBeenCalled()
+    expect(pageButton('Записаться')).toBeDefined()
+  })
+
+  it('M3: the close moment passes → «Запись закрыта», no action (scheduler on)', async () => {
+    org.value = orgFixture(true, { scheduler: true })
+    data.value.event.startsAt = '2027-10-03T12:01:00Z' // закрытие за 2 ч = 10:01
+    Object.assign(data.value.event, { closeBeforeMinutes: 120, updatedAt: '2027-10-01T00:00:00Z' })
+    wrapper = await render()
+    expect(pageButton('Записаться')).toBeDefined()
+    await vi.advanceTimersByTimeAsync(61_000)
+    expect(pageButton('Записаться')).toBeUndefined()
+    expect(wrapper.text()).toContain('Запись закрыта')
+  })
+
+  it('M4: the seat bar counts seats held by offers like the action does', async () => {
+    data.value.event.freeSeats = 0
+    wrapper = await render()
+    expect(wrapper.get('.vt-seats-mini').text()).toContain('мест нет')
+  })
+
+  it('M5: consent survives a refresh that leaves the split unchanged', async () => {
+    data.value.event.freeSeats = 1
+    wrapper = await render()
+    await open()
+    await sheet().get('[aria-label="Больше мест"]').trigger('click')
+    await sheet().get('[role="switch"]').trigger('click')
+    data.value = { ...data.value, event: { ...data.value.event } }
+    await flushPromises()
+    expect(sheet().get('[role="switch"]').attributes('aria-checked')).toBe('true')
+  })
+
+  it('M6: partial queue charges only the main seats; the subscription hint names the cash fallback', async () => {
+    org.value = orgFixture(true, { subs: true })
+    data.value.event.freeSeats = 2
+    wrapper = await render()
+    await open()
+    await sheet().get('[aria-label="Больше мест"]').trigger('click')
+    await sheet().get('[aria-label="Больше мест"]').trigger('click')
+    await flushPromises()
+    const priceCall = post.mock.calls.filter(([url]) => url.endsWith('/events/71/price')).at(-1)
+    expect(priceCall?.[1]).toMatchObject({ query: { seats: 2 } })
+    expect(sheet().text()).toContain('К оплате за 2 места')
+    expect(sheet().text()).toContain('места из очереди — по занятиям, не хватит — наличными')
+  })
+
+  it('M7: the seat count is announced through visually hidden live text', async () => {
+    wrapper = await render()
+    await open()
+    await sheet().get('[aria-label="Больше мест"]').trigger('click')
+    expect(sheet().get('.sr-only[aria-live="polite"]').text()).toBe('2 места')
   })
 })

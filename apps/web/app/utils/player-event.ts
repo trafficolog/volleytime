@@ -119,6 +119,9 @@ export function projectPlayerEvent(
     freeSeats?: number
     /** Время открытия записи (20.3.1): до него запись закрыта для всех. */
     bookingOpensAt?: string | Date | null
+    /** Срок закрытия записи и последнее изменение: как `isBookingClosedBySchedule` на сервере. */
+    closeBeforeMinutes?: number
+    updatedAt?: string | Date
     myBooking: {
       status: string
       seats?: number
@@ -131,6 +134,8 @@ export function projectPlayerEvent(
     memberActive: boolean
     subscriptionsEnabled: boolean | null
     hasEligibleSubscription: boolean
+    /** Планировщик включён (capabilities.eventScheduler): запись закрывается с момента закрытия. */
+    schedulerEnabled?: boolean
   },
   now: Date,
 ) {
@@ -142,8 +147,24 @@ export function projectPlayerEvent(
       ? new Date(event.bookingOpensAt)
       : null
   const freeSeats = Math.max(0, event.freeSeats ?? event.capacity - event.taken)
+  const closeAt =
+    event.closeBeforeMinutes === undefined
+      ? null
+      : new Date(new Date(event.startsAt).getTime() - event.closeBeforeMinutes * 60_000)
+  const closedBySchedule =
+    context.schedulerEnabled === true &&
+    closeAt !== null &&
+    event.status === 'published' &&
+    (event.updatedAt === undefined || new Date(event.updatedAt) < closeAt) &&
+    (!event.bookingOpensAt || new Date(event.bookingOpensAt) <= closeAt) &&
+    now >= closeAt
   const bookable =
-    context.memberActive && event.status === 'published' && !started && !hasBooking && !opensAt
+    context.memberActive &&
+    event.status === 'published' &&
+    !started &&
+    !hasBooking &&
+    !opensAt &&
+    !closedBySchedule
   const action = bookable ? (freeSeats === 0 ? 'waitlist' : 'book') : 'none'
   const split = event.pricing?.mode === 'split'
   const paymentMethods: ('free' | 'cash' | 'transfer' | 'subscription')[] =
@@ -195,6 +216,12 @@ export function projectPlayerEvent(
     canCancel,
     freeSeats,
     opensAt,
+    closedBySchedule,
+    /** Ближайший момент, когда вид изменится сам (открытие / закрытие записи). */
+    nextBoundary:
+      [opensAt, closeAt && context.schedulerEnabled && closeAt > now ? closeAt : null]
+        .filter((d): d is Date => d !== null)
+        .sort((a, b) => a.getTime() - b.getTime())[0] ?? null,
     seatsNote: event.myBooking && hasBooking ? myBookingSeatsText(event.myBooking) : null,
     offer: hasBooking ? (event.myBooking?.offer ?? null) : null,
   }

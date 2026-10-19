@@ -71,7 +71,7 @@ const {
   error: loadError,
   pending: eventLoading,
   refresh,
-} = await useFetch<{ event: EventDetails; roster: RosterItem[] }>(
+} = await useFetch<{ event: EventDetails; roster: RosterItem[]; serverNow?: string }>(
   () => `/api/organizations/${orgId.value}/events/${eventId.value}`,
   { key: () => `player-event-${orgId.value}-${eventId.value}` },
 )
@@ -82,7 +82,7 @@ const {
 } = await useFetch<{
   organization: Organization
   myMember: OrganizationMember
-  capabilities?: { eventMultiSeat?: boolean }
+  capabilities?: { eventMultiSeat?: boolean; eventScheduler?: boolean }
 }>(() => `/api/organizations/${orgId.value}`, { key: () => `player-event-org-${orgId.value}` })
 const organization = computed(() =>
   orgData.value?.organization.id === orgId.value ? orgData.value.organization : null,
@@ -133,7 +133,21 @@ const paymentLabel = computed(() =>
 const paymentChip = computed(() =>
   my.value ? bookingPaymentChip(my.value.status, ev.value?.pricing) : null,
 )
-const started = computed(() => !!ev.value && new Date(ev.value.startsAt) <= new Date())
+// Часы экрана по времени сервера (часы телефона уходят): сдвиг берётся при каждой загрузке события.
+// Один таймер: каждую секунду, пока есть предложение места; иначе — до ближайшего открытия или
+// закрытия записи, затем экран перерисовывается и перечитывает событие (M2, M3, ревью #156).
+const clockSkew = ref(0)
+watch(
+  () => data.value?.serverNow,
+  (serverNow) => {
+    const parsed = serverNow ? Date.parse(serverNow) : Number.NaN
+    clockSkew.value = Number.isFinite(parsed) ? parsed - Date.now() : 0
+  },
+  { immediate: true },
+)
+const serverDate = () => new Date(Date.now() + clockSkew.value)
+const now = ref(serverDate())
+const started = computed(() => !!ev.value && new Date(ev.value.startsAt) <= now.value)
 const subs = ref<Subscription[]>([])
 const eventView = computed(() =>
   sourcesReady.value && ev.value
@@ -143,14 +157,56 @@ const eventView = computed(() =>
           memberActive: access.value === 'active',
           subscriptionsEnabled: subscriptionsEnabled.value,
           hasEligibleSubscription: subs.value.length > 0,
+          schedulerEnabled: orgData.value?.capabilities?.eventScheduler === true,
         },
-        new Date(),
+        now.value,
       )
     : null,
 )
 const bookable = computed(() => eventView.value?.action !== 'none' && !!eventView.value)
+// шкала и действие считают занятость одинаково: места под предложениями из очереди заняты (M4)
+const occupiedSeats = computed(() =>
+  ev.value
+    ? ev.value.capacity - (eventView.value?.freeSeats ?? ev.value.capacity - ev.value.taken)
+    : 0,
+)
 /** В Telegram действие живёт на MainButton — панель не показываем (5.14.1). */
 const showActionBar = computed(() => bookable.value && !isTelegram.value)
+
+const offer = computed(() => eventView.value?.offer ?? null)
+const offerLeft = computed(() =>
+  offer.value ? offerCountdown(offer.value.expiresAt, now.value) : null,
+)
+const offerActive = computed(() => !!offer.value && offerLeft.value?.expired === false)
+let clock: ReturnType<typeof setInterval> | ReturnType<typeof setTimeout> | undefined
+const stopClock = () => {
+  if (clock) {
+    clearInterval(clock)
+    clearTimeout(clock)
+  }
+  clock = undefined
+}
+watch(
+  [() => offer.value?.id, () => eventView.value?.nextBoundary?.getTime() ?? null, clockSkew],
+  ([offerId, boundary]) => {
+    stopClock()
+    now.value = serverDate()
+    if (typeof window === 'undefined') return
+    if (offerId !== undefined) {
+      clock = setInterval(() => {
+        now.value = serverDate()
+      }, 1000)
+    } else if (boundary !== null) {
+      // таймер не длиннее 2^31 мс; при срабатывании вид пересчитывается и событие перечитывается
+      const wait = Math.min(Math.max(boundary - serverDate().getTime(), 0) + 50, 2_000_000_000)
+      clock = setTimeout(() => {
+        now.value = serverDate()
+        void refresh()
+      }, wait)
+    }
+  },
+  { immediate: true },
+)
 
 // выбор мест (20.4.5): степпер виден только при EVENT_MULTI_SEAT_ENABLED и лимите группы > 1
 const multiSeatEnabled = computed(() => orgData.value?.capabilities?.eventMultiSeat === true)
@@ -172,34 +228,10 @@ watch(maxSeats, (max) => {
   seats.value = clampSeats(seats.value, max)
 })
 // согласие относится к конкретному разбиению: сменилось число мест или очередь — спросить заново
-watch(
-  () => [plan.value.kind, plan.value.queueSeats],
-  () => {
-    consent.value = false
-  },
-)
+watch([() => plan.value.kind, () => plan.value.queueSeats], () => {
+  consent.value = false
+})
 
-// часы для отсчёта предложения места: один таймер на экран, только пока предложение есть
-const now = ref(new Date())
-const offer = computed(() => eventView.value?.offer ?? null)
-const offerLeft = computed(() =>
-  offer.value ? offerCountdown(offer.value.expiresAt, now.value) : null,
-)
-const offerActive = computed(() => !!offer.value && offerLeft.value?.expired === false)
-let clock: ReturnType<typeof setInterval> | undefined
-watch(
-  () => offer.value?.id,
-  (id) => {
-    if (clock) clearInterval(clock)
-    clock = undefined
-    if (id === undefined || typeof window === 'undefined') return
-    now.value = new Date()
-    clock = setInterval(() => {
-      now.value = new Date()
-    }, 1000)
-  },
-  { immediate: true },
-)
 const cancelDeadline = computed(() => {
   if (!ev.value || ev.value.cancellationDeadlineHours == null) return null
   return new Date(
@@ -269,12 +301,11 @@ async function openBooking() {
   // одно место и бесплатно — выбирать нечего, запись уходит сразу (как до 20.4.5)
   if (ev.value.pricing.mode === 'fixed' && ev.value.price === 0 && maxSeats.value === 1)
     return doBook('free')
-  // очереди абонемент не нужен: способ оплаты выбирается, когда место предложат (D-03)
+  // абонементы нужны и очереди: занятия спишутся при переходе в состав (D-03, уточнение C)
   if (
     ev.value.pricing.mode === 'split' ||
     subscriptionsEnabled.value !== true ||
-    ev.value.price === 0 ||
-    (eventView.value?.freeSeats ?? 0) === 0
+    ev.value.price === 0
   ) {
     subs.value = []
     sheetOpen.value = true
@@ -355,28 +386,37 @@ async function doBook(
 }
 
 // способы оплаты листа записи: места основы (после согласия на частичную очередь) и абонементы
+// к оплате сейчас: места основы; в очереди ничего не списывается — показываем сумму «если получите»
+const payableSeats = computed(() => (queueOnly.value ? seats.value : plan.value.mainSeats))
 const priceTotalText = computed(() => {
   if (!ev.value || ev.value.pricing.mode !== 'fixed' || ev.value.price <= 0) return null
-  if (seats.value <= 1) return priceLabel.value?.text ?? null
-  return quote.value?.seats === seats.value
+  if (payableSeats.value <= 1) return priceLabel.value?.text ?? null
+  return quote.value?.seats === payableSeats.value
     ? formatMoneyRu(quote.value.total, quote.value.currency)
     : null
 })
 const methodOptions = computed<BookingMethodOption[]>(() => {
   const methods = eventView.value?.paymentMethods ?? []
-  if (queueOnly.value || !ev.value || methods.includes('free')) return []
+  if (!ev.value || methods.includes('free')) return []
   const split = ev.value.pricing.mode === 'split'
+  const queued = queueOnly.value
   const options: BookingMethodOption[] = []
   for (const s of methods.includes('subscription') ? subs.value : []) {
     const left = s.totalSessions - s.usedSessions
-    const enough = left >= plan.value.mainSeats
+    const rest = `осталось ${left} из ${s.totalSessions}`
+    // очередь: занятия списываются при переходе в состав; не хватит — наличными (D-03, уточнение C)
+    const enough = queued || left >= plan.value.mainSeats
     options.push({
       id: `subscription:${s.id}`,
       label: 'С абонемента',
-      hint: enough
-        ? `осталось ${left} из ${s.totalSessions}`
-        : `осталось ${left} из ${s.totalSessions} — не хватает на ${seatsLabel(plan.value.mainSeats)}`,
-      tag: `−${plan.value.mainSeats} сесс.`,
+      hint: queued
+        ? `${rest}; спишется при переходе в состав, не хватит занятий — наличными`
+        : !enough
+          ? `${rest} — не хватает на ${seatsLabel(plan.value.mainSeats)}`
+          : plan.value.queueSeats > 0
+            ? `${rest}; места из очереди — по занятиям, не хватит — наличными`
+            : rest,
+      tag: `−${queued ? seats.value : plan.value.mainSeats} сесс.`,
       disabled: !enough,
     })
   }
@@ -384,15 +424,21 @@ const methodOptions = computed<BookingMethodOption[]>(() => {
     options.push({
       id: 'cash',
       label: 'Наличными организатору',
-      hint: split ? 'Точная сумма после закрытия записи' : 'подтвердит организатор',
-      tag: priceTotalText.value ?? undefined,
+      hint: queued
+        ? 'оплатите организатору, когда получите место'
+        : split
+          ? 'Точная сумма после закрытия записи'
+          : 'подтвердит организатор',
+      tag: queued ? undefined : (priceTotalText.value ?? undefined),
     })
   if (methods.includes('transfer'))
     options.push({
       id: 'transfer',
       label: 'Переводом',
-      hint: 'реквизиты — у организатора',
-      tag: priceTotalText.value ?? undefined,
+      hint: queued
+        ? 'реквизиты — у организатора, когда получите место'
+        : 'реквизиты — у организатора',
+      tag: queued ? undefined : (priceTotalText.value ?? undefined),
     })
   return options
 })
@@ -408,12 +454,8 @@ const bookingMethod = computed<{
   method: 'free' | 'cash' | 'transfer' | 'subscription'
   subscriptionId?: number
 } | null>(() => {
-  const methods = eventView.value?.paymentMethods ?? []
-  // очередь и бесплатное событие: способа не выбирают, сервер получает free либо cash (D-03)
-  if (queueOnly.value || methods.includes('free')) {
-    const first = methods[0]
-    return first === 'free' || first === 'cash' ? { method: first } : null
-  }
+  // бесплатное событие: способа нет; иначе выбранный (в очереди — тот же выбор, ничего не списывается)
+  if (eventView.value?.paymentMethods.includes('free')) return { method: 'free' }
   const picked = methodOptions.value.find((o) => o.id === chosenMethod.value && !o.disabled)
   if (!picked) return null
   if (picked.id.startsWith('subscription:'))
@@ -443,7 +485,7 @@ async function submitBooking() {
 const quote = ref<{ seats: number; total: number; currency: string } | null>(null)
 const quoteGuard = createPlayerRequestGuard(() => route.fullPath)
 watch(
-  [sheetOpen, seats],
+  [sheetOpen, payableSeats],
   async ([open, count]) => {
     quote.value = null
     const current = ev.value
@@ -542,7 +584,7 @@ onUnmounted(() => {
   routeGuard.invalidate()
   optionsGuard.invalidate()
   quoteGuard.invalidate()
-  if (clock) clearInterval(clock)
+  stopClock()
   mainButton.destroy()
 })
 
@@ -660,7 +702,7 @@ async function cancelMine() {
             <div class="flex items-start gap-1.5 mt-1">
               <VtIcon name="clock" :size="12" class="shrink-0 mt-0.5" />
               <span>{{
-                started || ev.status !== 'published'
+                started || ev.status !== 'published' || eventView?.closedBySchedule
                   ? 'Запись закрыта'
                   : `Начало в ${formatTime(ev.startsAt, tz)}`
               }}</span>
@@ -705,7 +747,7 @@ async function cancelMine() {
           <h2 id="event-roster-title" class="vt-cap">Состав</h2>
           <span v-if="ev.waitlist" class="text-xs text-vt-mute-2">ожидают {{ ev.waitlist }}</span>
         </div>
-        <VtSeatsMini :taken="ev.taken" :capacity="ev.capacity" :event="ev" :width="120" />
+        <VtSeatsMini :taken="occupiedSeats" :capacity="ev.capacity" :event="ev" :width="120" />
         <p
           v-if="ev.players !== undefined && ev.players < ev.taken"
           class="flex items-center gap-1.5 text-[11px] text-vt-mute-2 mt-2"
@@ -819,6 +861,12 @@ async function cancelMine() {
           {{ eventView?.action === 'waitlist' ? 'Встать в лист ожидания' : 'Записаться' }}
         </button>
       </div>
+      <p
+        v-else-if="eventView?.closedBySchedule && !eventView.hasBooking"
+        class="text-sm text-vt-mute-2 text-center"
+      >
+        Запись закрыта — до начала осталось мало времени.
+      </p>
       <p v-else-if="started && !eventView?.hasBooking" class="text-sm text-vt-mute-2 text-center">
         Запись закрыта — событие уже началось.
       </p>
@@ -848,7 +896,7 @@ async function cancelMine() {
               : priceLabel?.description
             : ''
         "
-        :total="priceTotalText"
+        :total="payableSeats > 1 ? priceTotalText : null"
         :methods="methodOptions"
         :queued="ev?.waitlist ?? 0"
         :note="
@@ -856,6 +904,7 @@ async function cancelMine() {
             ? ''
             : 'Место закрепляется за вами сразу. Оплату подтвердит организатор вручную.'
         "
+        :free="eventView?.paymentMethods.includes('free') ?? false"
         :error="actionError"
         :submit-label="submitLabel"
         :submit-tag="submitTag"

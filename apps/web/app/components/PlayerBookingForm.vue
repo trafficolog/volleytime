@@ -22,6 +22,8 @@ const props = withDefaults(
     methods: BookingMethodOption[]
     /** Мест в очереди сейчас (для пояснения ветки очереди). */
     queued?: number
+    /** Бесплатное событие: способа оплаты нет. */
+    free?: boolean
     note?: string
     error?: string
     submitLabel: string
@@ -35,6 +37,7 @@ const props = withDefaults(
     priceNote: '',
     total: null,
     queued: 0,
+    free: false,
     note: '',
     error: '',
     submitTag: '',
@@ -68,8 +71,10 @@ const queueSteps = computed(() => [
   },
   {
     icon: 'wallet' as const,
-    title: 'Оплата — потом',
-    text: 'Сейчас ничего не списываем. Оплату подтвердит организатор после того, как вы получите место.',
+    title: props.free ? 'Оплата не нужна' : 'Оплата — потом',
+    text: props.free
+      ? 'Событие бесплатное — платить не придётся.'
+      : 'Сейчас ничего не списываем. Способ, который вы выберете ниже, сработает, когда вы получите место.',
   },
 ])
 </script>
@@ -88,11 +93,17 @@ const queueSteps = computed(() => [
       <div class="vt-card p-3.5">
         <BookingSeatsStepper v-model="seats" :max="maxSeats" :disabled="submitting" />
         <div
-          v-if="seats > 1 && total"
+          v-if="total"
           class="mt-3 pt-3 flex items-baseline justify-between border-t border-vt-stroke"
         >
           <span class="text-sm text-vt-mute-2">
-            {{ plan.kind === 'queue' ? 'Если получите места' : 'За все места' }}
+            {{
+              plan.kind === 'queue'
+                ? 'Если получите места'
+                : plan.kind === 'partial'
+                  ? `К оплате за ${seatsLabel(plan.mainSeats)}`
+                  : 'За все места'
+            }}
           </span>
           <span class="vt-mono text-[15px] font-bold">{{ total }}</span>
         </div>
@@ -138,7 +149,7 @@ const queueSteps = computed(() => [
       </ul>
     </section>
 
-    <fieldset v-else-if="methods.length" class="space-y-2 min-w-0" :aria-labelledby="methodTitleId">
+    <fieldset v-if="methods.length" class="space-y-2 min-w-0" :aria-labelledby="methodTitleId">
       <legend :id="methodTitleId" class="vt-cap text-vt-mute-2 mb-2.5 px-1">Как оплатите</legend>
       <label
         v-for="m in methods"

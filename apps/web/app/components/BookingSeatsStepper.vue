@@ -41,9 +41,8 @@ const step = (delta: number) => {
       >
         −
       </button>
-      <output class="vt-mono vt-seats-count" aria-live="polite" :aria-label="seatsLabel(seats)">{{
-        seats
-      }}</output>
+      <span class="vt-mono vt-seats-count" aria-hidden="true">{{ seats }}</span>
+      <span class="sr-only" aria-live="polite">{{ seatsLabel(seats) }}</span>
       <button
         type="button"
         class="vt-btn vt-btn--ghost vt-seats-step"

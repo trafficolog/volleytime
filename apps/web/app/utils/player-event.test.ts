@@ -283,3 +283,32 @@ describe('player event view state: seats, queue and booking opening (20.4.5)', (
     expect(projectPlayerEvent(event, access, now).offer).toBeNull()
   })
 })
+
+describe('time-reactive booking state (M3, review #156)', () => {
+  const sched = { ...access, schedulerEnabled: true }
+  // начало 2026-09-25T18:00Z, закрытие за 120 мин = 16:00Z
+  const base = { ...event, closeBeforeMinutes: 120, updatedAt: '2026-09-01T00:00:00Z' }
+  it('closes the booking from the close moment when the scheduler is on', () => {
+    const before = projectPlayerEvent(base, sched, new Date('2026-09-25T15:59:00Z'))
+    expect(before).toMatchObject({ action: 'book', closedBySchedule: false })
+    expect(before.nextBoundary?.toISOString()).toBe('2026-09-25T16:00:00.000Z')
+    expect(projectPlayerEvent(base, sched, new Date('2026-09-25T16:00:00Z'))).toMatchObject({
+      action: 'none',
+      closedBySchedule: true,
+    })
+  })
+  it('does not close by schedule when the scheduler is off or the event is newer than the close moment', () => {
+    const late = new Date('2026-09-25T16:30:00Z')
+    expect(projectPlayerEvent(base, access, late).action).toBe('book')
+    expect(
+      projectPlayerEvent({ ...base, updatedAt: '2026-09-25T16:10:00Z' }, sched, late).action,
+    ).toBe('book')
+  })
+  it('the opening moment is the next boundary', () => {
+    const opening = { ...base, bookingOpensAt: '2026-09-24T12:00:00Z' }
+    expect(projectPlayerEvent(opening, sched, now).nextBoundary?.toISOString()).toBe(
+      '2026-09-24T12:00:00.000Z',
+    )
+    expect(projectPlayerEvent(opening, sched, new Date('2026-09-24T12:00:01Z')).action).toBe('book')
+  })
+})
