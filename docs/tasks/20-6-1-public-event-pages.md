@@ -2,11 +2,11 @@
 id: '20.6.1'
 phase: '20'
 epic: '20.6'
-status: in_progress
+status: done
 release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-19
-status_note: 'Реализовано в PR (ревью ожидается): GET /api/public/events/{slug}, страница /e/{slug}, миграция 0030 events.public_slug, guard includeLevel, rate limit; QA: docs/operations/qa/2026-10-19-20-6-1-public-event-visual.md. Решения владельца: см. PR (seoIndex для событий, публикация без publicPageEnabled).'
+status_note: 'PR #158 (миграция 0030 events.public_slug, GET /api/public/events/{slug}, страница /e/{slug}); QA: docs/operations/qa/2026-10-19-20-6-1-public-event-visual.md. Follow-up — в конце карточки.'
 ref_id: 'P-17'
 complexity: M
 impl_model: claude-sonnet-5-5
@@ -71,6 +71,14 @@ tags: [reference-v3]
 
 - Решения владельца записаны в [журнале решений](../operations/decisions/2026-10-12-reference-v3-decisions.md): индексирование только при `seoIndex` группы (invite-only и отменённые — никогда); страница без `publicPageEnabled`; инициалы скрыты при числе игроков меньше 3 и после окончания события; лимит 120 запросов в минуту и кеш 15 с.
 - Идентификатор: `events.public_slug` (миграция 0030, 12 hex). **Follow-up:** slug нельзя отозвать или перевыпустить; deeplink `start=event_<id>` раскрывает числовой id события — заменить непрозрачными токенами.
+
+### Follow-up (ревью gate, PR #158; бэклог, не блокируют закрытие)
+
+- `.ics` отдавать отдельным эндпоинтом с `Content-Disposition`, а не `data:` URL (iOS Safari и встроенный браузер Telegram).
+- Защита внутреннего вызова без `remoteAddress` в `00.rate-limit.ts` (комментарий есть; нужен env-флаг или признак внутреннего вызова вместо «нет адреса»).
+- HTTP-тест границы «игроков 2 → 3» (появление инициалов) в `public-event.integration.test.ts`.
+- Визуальная проверка страницы 429, отменённого события, «по приглашению» и «запись откроется»; пересъёмка скриншотов после скрытия инициалов — в QA релиза [20.7.1](20-7-1-release-v0-2-0-qa.md).
+- Отзыв/перевыпуск slug и непрозрачные токены вместо `start=event_<id>` (см. выше).
 
 ## Не делать
 
