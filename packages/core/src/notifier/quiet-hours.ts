@@ -34,8 +34,9 @@ export function quietHoursEnd(
   // конец окна — настенное время зоны: по разнице минут приближаем, затем поправляем на разницу
   // смещения (переход на летнее/зимнее время между now и концом окна)
   const minuteFloor = now.getTime() - (now.getTime() % 60_000)
-  let candidate = minuteFloor + ((end - m + 1440) % 1440) * 60_000
-  const drift = ((end - minutesOfDay(new Date(candidate), tz) + 2160) % 1440) - 720
-  candidate += drift * 60_000
-  return new Date(candidate)
+  const approx = minuteFloor + ((end - m + 1440) % 1440) * 60_000
+  const drift = ((end - minutesOfDay(new Date(approx), tz) + 2160) % 1440) - 720
+  const corrected = approx + drift * 60_000
+  // конец окна внутри пропущенного часа (весна): поправка может уйти в прошлое — берём без неё
+  return new Date(corrected > now.getTime() ? corrected : approx)
 }

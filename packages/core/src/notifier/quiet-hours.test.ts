@@ -60,6 +60,15 @@ describe('quietHoursEnd', () => {
     )
   })
 
+  it('never returns a moment before now when the window ends in the skipped spring hour', () => {
+    const NY = 'America/New_York'
+    const skipped = { start: 22 * 60, end: 2 * 60 + 30 } // 02:30 в ночь на 8.03 не существует
+    // 01:50 EST (06:50Z): без защиты поправка дала бы 06:30Z, то есть прошлое
+    const got = quietHoursEnd(at('2026-03-08T06:50:00Z'), skipped, NY)
+    expect(got?.toISOString()).toBe('2026-03-08T07:30:00.000Z')
+    expect(got!.getTime()).toBeGreaterThan(at('2026-03-08T06:50:00Z').getTime())
+  })
+
   it('falls back to the default timezone for an unknown zone name', () => {
     expect(quietHoursEnd(at('2026-10-20T20:30:00Z'), night, 'Mars/Olympus')).not.toBeNull()
   })

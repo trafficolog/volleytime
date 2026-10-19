@@ -2,11 +2,11 @@
 id: '20.3.2'
 phase: '20'
 epic: '20.3'
-status: in_progress
+status: done
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-18
-status_note: 'Реализовано, правки ревью Opus (PR #157) внесены, повторное ревью ожидается: лента notifications и доставка через журнал scheduled_jobs (миграция 0029), тихие часы, недоступный бот, лимиты Bot API, API ленты. Не вошло: отключение типов игроком (после P-12/23.1.1) и настройка группы (21.2.14); UI Mini App (20.4.9); inline-кнопки бота (20.3.3); визуальная сверка неприменима — UI нет.'
+last_reviewed: 2026-10-19
+status_note: 'PR #157 смёржен как 8c35595, ревью Opus — merge после одного круга правок, CI green на b07fd5d; решения владельца 2026-10-19: критерии перенесены в 21.2.14, 23.1.1, 20.4.9, 20.3.3, 26.1.x.'
 ref_id: 'P-09'
 complexity: M
 impl_model: claude-sonnet-5-5
