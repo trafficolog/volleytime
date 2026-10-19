@@ -6,10 +6,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { DB } from './client'
 import { runMigrations } from './migrate'
+import { rollbackPublicSlug } from './migration-test-helpers'
 import { rollbackLastMigration } from './rollback'
 import * as schema from './schema'
 import { seedDemo } from './seed-demo'
 
+const TAG30 = '0030_event_public_slug'
 const TAG = '0027_event_series'
 const TAG29 = '0029_notifications_feed'
 const TAG28 = '0028_event_jobs'
@@ -68,6 +70,7 @@ describe('migration 0027 event series (integration)', { timeout: 60_000 }, () =>
     try {
       await runMigrations(url)
       expect(await objects(sql)).toBe(ALL)
+      expect(await rollbackPublicSlug(url, sql)).toBe(TAG30) // 20.6.1: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG29) // 20.3.2: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG28) // 20.3.1: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
@@ -83,6 +86,7 @@ describe('migration 0027 event series (integration)', { timeout: 60_000 }, () =>
     const { url, sql } = await scratchDb()
     try {
       await runMigrations(url)
+      expect(await rollbackPublicSlug(url, sql)).toBe(TAG30) // 20.6.1: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG29) // 20.3.2: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG28) // 20.3.1: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG) // теперь БД на 0026
@@ -135,6 +139,7 @@ describe('migration 0027 event series (integration)', { timeout: 60_000 }, () =>
       ).rejects.toThrow(/event_series_idempotency_uniq/)
 
       // откат запрещён, пока есть серии; транзакция ничего не меняет
+      expect(await rollbackPublicSlug(url, sql)).toBe(TAG30) // 20.6.1: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG29) // 20.3.2: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG28) // 20.3.1: новая миграция откатывается первой
       await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0027 refused/)
@@ -152,6 +157,7 @@ describe('migration 0027 event series (integration)', { timeout: 60_000 }, () =>
 
       await runMigrations(url)
       expect(await objects(sql)).toBe(ALL)
+      expect(await rollbackPublicSlug(url, sql)).toBe(TAG30) // 20.6.1: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG29) // 20.3.2: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG28) // 20.3.1: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
@@ -172,6 +178,7 @@ describe('migration 0027 event series (integration)', { timeout: 60_000 }, () =>
         (await sql.unsafe<{ n: number }[]>(`SELECT count(*)::int AS n FROM ${table}`))[0]!.n
       // demo-сид содержит серию (20.2.2): откат требует её удаления оператором
       expect(await count('event_series')).toBeGreaterThan(0)
+      expect(await rollbackPublicSlug(url, sql)).toBe(TAG30) // 20.6.1: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG29) // 20.3.2: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG28) // 20.3.1: новая миграция откатывается первой
       await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0027 refused/)

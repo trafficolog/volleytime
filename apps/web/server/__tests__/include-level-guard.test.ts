@@ -37,6 +37,11 @@ describe('includeLevel allowlist (20.6.1)', () => {
     expect(findIncludeLevelUsages(publicDir)).toEqual([])
   })
 
+  it('the public read model in core never mentions the level option either', () => {
+    const core = path.resolve(API_DIR, '../../../../packages/core/src/events/public-event.ts')
+    expect(readFileSync(core, 'utf8')).not.toContain('includeLevel')
+  })
+
   it('the scanner catches a new usage outside the allowlist (the guard can fail)', () => {
     const tmp = mkdtempSync(path.join(tmpdir(), 'vt-guard-'))
     try {

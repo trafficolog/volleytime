@@ -1,0 +1,2 @@
+ALTER TABLE "events" ADD COLUMN "public_slug" varchar(16) DEFAULT substr(replace(gen_random_uuid()::text, '-', ''), 1, 12) NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "events_public_slug_uniq" ON "events" USING btree ("public_slug");

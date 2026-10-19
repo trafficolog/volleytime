@@ -195,12 +195,58 @@ export function publicEventModel(p: PublicEventPayload, now: Date = new Date()):
   }
 }
 
+/** Страница без данных: 404 — нет события, 429 — лимит запросов, иначе сбой загрузки. */
+export function publicEventProblem(statusCode: number | undefined): {
+  status: 404 | 429 | 502
+  title: string
+  description: string
+} {
+  if (statusCode === 404)
+    return {
+      status: 404,
+      title: 'Событие не найдено',
+      description: 'Ссылка устарела или событие скрыто организатором.',
+    }
+  if (statusCode === 429)
+    return {
+      status: 429,
+      title: 'Слишком много запросов',
+      description: 'Подождите минуту и обновите страницу.',
+    }
+  return {
+    status: 502,
+    title: 'Не удалось загрузить событие',
+    description: 'Попробуйте обновить страницу чуть позже.',
+  }
+}
+
 const icsStamp = (d: Date) =>
   d
     .toISOString()
     .replace(/[-:]/g, '')
     .replace(/\.\d{3}/, '')
-const icsText = (t: string) => t.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\r?\n/g, '\\n')
+const icsText = (t: string) => t.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\r\n|\r|\n/g, '\\n')
+
+/** Свёртка строки по RFC 5545: не больше 75 октетов, продолжение — CRLF + пробел, без разрыва символа. */
+export function icsFold(line: string): string {
+  const enc = new TextEncoder()
+  const out: string[] = []
+  let cur = ''
+  let size = 0
+  for (const ch of line) {
+    const n = enc.encode(ch).length
+    // у продолжения первый октет занят пробелом
+    if (size + n > (out.length === 0 ? 75 : 74)) {
+      out.push(cur)
+      cur = ''
+      size = 0
+    }
+    cur += ch
+    size += n
+  }
+  out.push(cur)
+  return out.join('\r\n ')
+}
 
 /** Файл календаря (.ics) для кнопки «В календарь»: только данные события, без игроков. */
 export function publicEventIcs(p: PublicEventPayload, now: Date = new Date()): string {
@@ -219,5 +265,7 @@ export function publicEventIcs(p: PublicEventPayload, now: Date = new Date()): s
     'END:VEVENT',
     'END:VCALENDAR',
     '',
-  ].join('\r\n')
+  ]
+    .map(icsFold)
+    .join('\r\n')
 }

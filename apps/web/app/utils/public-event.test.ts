@@ -1,7 +1,13 @@
 import { quoteEventPrice } from '@volley-time/shared'
 import { describe, expect, it } from 'vitest'
 
-import { publicEventIcs, publicEventModel, type PublicEventPayload } from './public-event'
+import {
+  icsFold,
+  publicEventIcs,
+  publicEventModel,
+  publicEventProblem,
+  type PublicEventPayload,
+} from './public-event'
 
 const NOW = new Date('2026-05-28T10:00:00Z')
 
@@ -169,6 +175,37 @@ describe('publicEventModel (P-17)', () => {
     expect(m.seoDescription).toBe(
       'Суббота, 30 мая, 19:30 — 22:00. СК «Заслонова». Мест занято 9 из 14.',
     )
+  })
+})
+
+describe('publicEventIcs hardening', () => {
+  it('escapes CR, LF and CRLF so text cannot inject iCalendar lines', () => {
+    const p = base()
+    p.event.title = 'A\rEND:VEVENT\nB\r\nC'
+    const ics = publicEventIcs(p, NOW)
+    expect(ics).toContain('SUMMARY:A\\nEND:VEVENT\\nB\\nC\r\n')
+    expect(ics.split('\r\n').filter((l) => l === 'END:VEVENT')).toHaveLength(1)
+  })
+
+  it('folds long lines at 75 octets without splitting characters', () => {
+    const p = base()
+    p.event.title = 'Игра '.repeat(40)
+    const ics = publicEventIcs(p, NOW)
+    for (const line of ics.split('\r\n'))
+      expect(new TextEncoder().encode(line).length).toBeLessThanOrEqual(75)
+    // развёртка возвращает исходный текст
+    const unfolded = ics.replace(/\r\n /g, '')
+    expect(unfolded).toContain(`SUMMARY:${'Игра '.repeat(40)}`)
+    expect(icsFold('x'.repeat(200)).split('\r\n')).toHaveLength(3)
+  })
+})
+
+describe('publicEventProblem', () => {
+  it('maps 404, 429 and other failures to distinct pages and statuses', () => {
+    expect(publicEventProblem(404)).toMatchObject({ status: 404, title: 'Событие не найдено' })
+    expect(publicEventProblem(429)).toMatchObject({ status: 429, title: 'Слишком много запросов' })
+    expect(publicEventProblem(500).status).toBe(502)
+    expect(publicEventProblem(undefined).status).toBe(502)
   })
 })
 

@@ -10,18 +10,18 @@ import { rollbackLastMigration } from './rollback'
 import * as schema from './schema'
 import { seedDemo } from './seed-demo'
 
-const TAG = '0029_event_public_slug'
-const TAG28 = '0028_event_jobs'
+const TAG = '0030_event_public_slug'
+const TAG29 = '0029_notifications_feed'
 const BASE_URL = process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL ?? ''
 const SLUG_RE = /^[0-9a-f]{12}$/
 
 /**
  * Task 20.6.1: `events.public_slug` — непрозрачный идентификатор публичной страницы. Миграция
- * применяется и откатывается на пустой базе, на базе после demo-сида и на базе на 0028 с данными
+ * применяется и откатывается на пустой базе, на базе после demo-сида и на базе на 0029 с данными
  * (ADR v3, «Правила совместимости»): существующим событиям выдаются уникальные случайные значения,
  * INSERT прежнего runtime без колонки работает, откат отказывает при живых событиях.
  */
-describe('migration 0029 event public slug (integration)', { timeout: 60_000 }, () => {
+describe('migration 0030 event public slug (integration)', { timeout: 60_000 }, () => {
   const admin = postgres(BASE_URL, { max: 1 })
   const created: string[] = []
 
@@ -67,11 +67,11 @@ describe('migration 0029 event public slug (integration)', { timeout: 60_000 }, 
     }
   })
 
-  it('backfills unique slugs on 0028 data, keeps the old runtime working and guards the rollback', async () => {
+  it('backfills unique slugs on 0029 data, keeps the old runtime working and guards the rollback', async () => {
     const { url, sql } = await scratchDb()
     try {
       await runMigrations(url)
-      expect(await rollbackLastMigration(url)).toBe(TAG) // теперь БД на 0028
+      expect(await rollbackLastMigration(url)).toBe(TAG) // теперь БД на 0029
       const [user] = await sql<{ id: number }[]>`
         INSERT INTO users (email) VALUES ('v028@example.com') RETURNING id`
       const u = user!.id
@@ -105,7 +105,7 @@ describe('migration 0029 event public slug (integration)', { timeout: 60_000 }, 
       ).rejects.toThrow(/events_public_slug_uniq/)
 
       // откат запрещён, пока есть живые события; транзакция ничего не меняет
-      await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0029 refused/)
+      await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0030 refused/)
       expect(await objects(sql)).toBe(2)
 
       // прошедшие, отменённые и черновые события откат не блокируют
@@ -119,7 +119,7 @@ describe('migration 0029 event public slug (integration)', { timeout: 60_000 }, 
       await runMigrations(url)
       expect(await objects(sql)).toBe(2)
       expect(await rollbackLastMigration(url)).toBe(TAG)
-      expect(await rollbackLastMigration(url)).toBe(TAG28)
+      expect(await rollbackLastMigration(url)).toBe(TAG29)
     } finally {
       await sql.end()
     }
@@ -140,7 +140,7 @@ describe('migration 0029 event public slug (integration)', { timeout: 60_000 }, 
       expect(total).toBeGreaterThan(0)
       expect(n).toBe(total)
       // демо-сид содержит живые события: откат отказывает, события не затронуты
-      await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0029 refused/)
+      await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0030 refused/)
       await sql`UPDATE events SET status = 'finished' WHERE status IN ('published', 'closed')`
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await sql`SELECT 1 FROM events`).toHaveLength(total)

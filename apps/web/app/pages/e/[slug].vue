@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { publicEventModel, type PublicEventPayload } from '~/utils/public-event'
+import { publicEventModel, publicEventProblem, type PublicEventPayload } from '~/utils/public-event'
 
 /**
  * Публичная страница события по ссылке (20.6.1, P-17): без авторизации, серверный рендер.
@@ -28,10 +28,11 @@ if (import.meta.client) {
 const url = useRequestURL()
 const linkLabel = computed(() => `${url.host}/e/${slug}`)
 const found = computed(() => (data.value ? publicEventModel(data.value, now.value) : null))
+const problem = computed(() => publicEventProblem(error.value?.statusCode))
 
 if (import.meta.server) {
   const event = useRequestEvent()
-  if (event && !data.value) setResponseStatus(event, error.value?.statusCode === 404 ? 404 : 502)
+  if (event && !data.value) setResponseStatus(event, problem.value.status)
   if (data.value) useResponseHeader('cache-control').value = 'public, max-age=15, s-maxage=15'
   if (!data.value?.indexable) useResponseHeader('x-robots-tag').value = 'noindex, nofollow'
 }
@@ -61,15 +62,7 @@ useHead(() => {
 <template>
   <PublicEventPage v-if="data" :data="data" :now="now" :link-label="linkLabel" />
   <div v-else class="flex min-h-screen items-center justify-center bg-vt-paper px-5 text-vt-ink">
-    <EmptyState
-      icon="alert"
-      :title="error?.statusCode === 404 ? 'Событие не найдено' : 'Не удалось загрузить событие'"
-      :description="
-        error?.statusCode === 404
-          ? 'Ссылка устарела или событие скрыто организатором.'
-          : 'Попробуйте обновить страницу чуть позже.'
-      "
-    >
+    <EmptyState icon="alert" :title="problem.title" :description="problem.description">
       <template #action>
         <NuxtLink to="/" class="vt-btn vt-btn--primary">На главную</NuxtLink>
       </template>

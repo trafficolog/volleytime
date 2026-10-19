@@ -6,10 +6,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { DB } from './client'
 import { runMigrations } from './migrate'
+import { rollbackPublicSlug } from './migration-test-helpers'
 import { rollbackLastMigration } from './rollback'
 import * as schema from './schema'
 import { seedDemo } from './seed-demo'
 
+const TAG30 = '0030_event_public_slug'
 const TAG29 = '0029_notifications_feed'
 const TAG = '0028_event_jobs'
 const TAG27 = '0027_event_series'
@@ -67,6 +69,7 @@ describe('migration 0028 event jobs (integration)', { timeout: 60_000 }, () => {
     try {
       await runMigrations(url)
       expect(await objects(sql)).toBe(ALL)
+      expect(await rollbackPublicSlug(url, sql)).toBe(TAG30) // 20.6.1: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG29) // 20.3.2
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await objects(sql)).toBe(0)
@@ -81,6 +84,7 @@ describe('migration 0028 event jobs (integration)', { timeout: 60_000 }, () => {
     const { url, sql } = await scratchDb()
     try {
       await runMigrations(url)
+      expect(await rollbackPublicSlug(url, sql)).toBe(TAG30) // 20.6.1: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG29) // 20.3.2
       expect(await rollbackLastMigration(url)).toBe(TAG) // теперь БД на 0027
       const [user] = await sql<{ id: number }[]>`
@@ -143,6 +147,7 @@ describe('migration 0028 event jobs (integration)', { timeout: 60_000 }, () => {
       ).rejects.toThrow(/scheduled_jobs_dedup_uniq/)
 
       // откат запрещён, пока есть активное предложение; транзакция ничего не меняет
+      expect(await rollbackPublicSlug(url, sql)).toBe(TAG30) // 20.6.1: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG29) // 20.3.2
       await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0028 refused: active/)
       expect(await objects(sql)).toBe(ALL)
@@ -159,6 +164,8 @@ describe('migration 0028 event jobs (integration)', { timeout: 60_000 }, () => {
       // ... как и будущее время у отменённого события
       await sql`UPDATE events SET booking_opens_at = now() + interval '1 hour', status = 'cancelled' WHERE id = ${e}`
 
+      expect(await rollbackPublicSlug(url, sql)).toBe(TAG30) // 20.6.1: новая миграция откатывается первой
+
       expect(await rollbackLastMigration(url)).toBe(TAG29) // 20.3.2
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await objects(sql)).toBe(0)
@@ -167,6 +174,7 @@ describe('migration 0028 event jobs (integration)', { timeout: 60_000 }, () => {
 
       await runMigrations(url)
       expect(await objects(sql)).toBe(ALL)
+      expect(await rollbackPublicSlug(url, sql)).toBe(TAG30) // 20.6.1: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG29) // 20.3.2
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await rollbackLastMigration(url)).toBe(TAG27)
@@ -191,6 +199,7 @@ describe('migration 0028 event jobs (integration)', { timeout: 60_000 }, () => {
         balance: await count('event_balance_entries'),
       })
       const before = await snapshot()
+      expect(await rollbackPublicSlug(url, sql)).toBe(TAG30) // 20.6.1: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG29) // 20.3.2
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await snapshot()).toEqual(before)

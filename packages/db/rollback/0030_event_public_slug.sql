@@ -1,4 +1,4 @@
--- Откат 0029 (20.6.1): удаляет `events.public_slug` — идентификатор публичной страницы события.
+-- Откат 0030 (20.6.1): удаляет `events.public_slug` — идентификатор публичной страницы события.
 -- Прежний runtime публичной страницы не знает, но после повторного применения миграции каждому
 -- событию выдаётся НОВЫЙ случайный идентификатор: уже разосланные ссылки перестанут открываться
 -- (ссылка = доступ, восстановить старое значение нельзя). Поэтому откат допустим только когда
@@ -13,7 +13,7 @@ BEGIN
     SELECT 1 FROM "events"
     WHERE "status" IN ('published', 'closed') AND "ends_at" > now()
   ) THEN
-    RAISE EXCEPTION 'rollback 0029 refused: live events have shared public links';
+    RAISE EXCEPTION 'rollback 0030 refused: live events have shared public links';
   END IF;
 END
 $$;

@@ -17,7 +17,7 @@ import { getDb, systemContext, type ServiceContext } from '../shared/context'
 
 import type { EventPriceQuoteView } from './pricing-read-model'
 
-/** Идентификатор публичной страницы: 12 hex-символов, выдаёт БД (миграция 0029). */
+/** Идентификатор публичной страницы: 12 hex-символов, выдаёт БД (миграция 0030). */
 export const PUBLIC_SLUG_RE = /^[0-9a-f]{12}$/
 
 /** Записавшиеся игроки (COUNT) — не путать с занятыми местами (SUM seats). */
