@@ -44,9 +44,7 @@ export default defineApiHandler(async (event) => {
   // При включённом планировщике свободное место уходит очереди (предложением): пока она не пуста,
   // новому игроку свободных мест не обещаем — запись всё равно встала бы в очередь (M1, ревью #156).
   const queued = isSchedulerEnabled(process.env.SCHEDULER_ENABLED) && stats.waitlist > 0
-  const freeSeats = queued
-    ? 0
-    : Math.max(0, ev.capacity - (await reservedSeats(getDb(ctx), ev.id)))
+  const freeSeats = queued ? 0 : Math.max(0, ev.capacity - (await reservedSeats(getDb(ctx), ev.id)))
   return {
     event: { ...ev, ...stats, freeSeats, pricing, ...managerPricing, myInviteRequest },
     roster,
