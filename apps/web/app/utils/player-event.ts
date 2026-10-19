@@ -119,9 +119,10 @@ export function projectPlayerEvent(
     freeSeats?: number
     /** Время открытия записи (20.3.1): до него запись закрыта для всех. */
     bookingOpensAt?: string | Date | null
-    /** Срок закрытия записи и последнее изменение: как `isBookingClosedBySchedule` на сервере. */
+    /** Запись закрыта по расписанию — решает сервер (`isBookingClosedBySchedule`, метка ручного закрытия учтена). */
+    bookingClosed?: boolean
+    /** Срок закрытия записи: только чтобы знать, когда перечитать событие. */
     closeBeforeMinutes?: number
-    updatedAt?: string | Date
     myBooking: {
       status: string
       seats?: number
@@ -151,13 +152,7 @@ export function projectPlayerEvent(
     event.closeBeforeMinutes === undefined
       ? null
       : new Date(new Date(event.startsAt).getTime() - event.closeBeforeMinutes * 60_000)
-  const closedBySchedule =
-    context.schedulerEnabled === true &&
-    closeAt !== null &&
-    event.status === 'published' &&
-    (event.updatedAt === undefined || new Date(event.updatedAt) < closeAt) &&
-    (!event.bookingOpensAt || new Date(event.bookingOpensAt) <= closeAt) &&
-    now >= closeAt
+  const closedBySchedule = event.bookingClosed === true
   const bookable =
     context.memberActive &&
     event.status === 'published' &&
@@ -219,7 +214,10 @@ export function projectPlayerEvent(
     closedBySchedule,
     /** Ближайший момент, когда вид изменится сам (открытие / закрытие записи). */
     nextBoundary:
-      [opensAt, closeAt && context.schedulerEnabled && closeAt > now ? closeAt : null]
+      [
+        opensAt,
+        closeAt && context.schedulerEnabled && !closedBySchedule && closeAt > now ? closeAt : null,
+      ]
         .filter((d): d is Date => d !== null)
         .sort((a, b) => a.getTime() - b.getTime())[0] ?? null,
     seatsNote: event.myBooking && hasBooking ? myBookingSeatsText(event.myBooking) : null,
