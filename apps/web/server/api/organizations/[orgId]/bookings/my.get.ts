@@ -1,5 +1,6 @@
 import {
   bookingService,
+  canManageContent,
   readEventPricing,
   readPlayerPriceQuote,
   requireOrgMember,
@@ -34,7 +35,7 @@ export default defineApiHandler(async (event) => {
             organizationId: event.context.organization!.id,
             eventId: booking.eventId,
             mode: pricing.mode,
-            isManager: false,
+            isManager: canManageContent(event.context.member ?? null),
           }),
         }
       }),
