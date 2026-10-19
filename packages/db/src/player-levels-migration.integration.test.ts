@@ -11,6 +11,7 @@ import * as schema from './schema'
 import { seedDemo } from './seed-demo'
 
 const TAG27 = '0027_event_series'
+const TAG29 = '0029_notifications_feed'
 const TAG28 = '0028_event_jobs'
 const TAG26 = '0026_event_join_mode_invites'
 const TAG = '0023_player_levels'
@@ -73,6 +74,7 @@ describe('migration 0023 player levels (integration)', { timeout: 60_000 }, () =
       expect(await columns(sql, 'events')).toContain('level')
 
       await sql`DELETE FROM event_series` // 20.2.2: откат 0027 требует отсутствия серий
+      expect(await rollbackLastMigration(url)).toBe(TAG29) // 20.3.2: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG28) // 20.3.1: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG27) // 20.2.2: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG26) // 20.1.3: новая миграция откатывается первой
@@ -127,6 +129,7 @@ describe('migration 0023 player levels (integration)', { timeout: 60_000 }, () =
     try {
       await runMigrations(url)
       await sql`DELETE FROM event_series` // 20.2.2: откат 0027 требует отсутствия серий
+      expect(await rollbackLastMigration(url)).toBe(TAG29) // 20.3.2: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG28) // 20.3.1: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG27) // 20.2.2: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG26) // 20.1.3: новая миграция откатывается первой
@@ -172,6 +175,7 @@ describe('migration 0023 player levels (integration)', { timeout: 60_000 }, () =
       // откат возвращает 0022 и не трогает остальные данные
       await sql`UPDATE organization_members SET level = 'v2' WHERE user_id = ${user!.id}`
       await sql`DELETE FROM event_series` // 20.2.2: откат 0027 требует отсутствия серий
+      expect(await rollbackLastMigration(url)).toBe(TAG29) // 20.3.2: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG28) // 20.3.1: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG27) // 20.2.2: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG26) // 20.1.3: новая миграция откатывается первой
@@ -253,6 +257,7 @@ describe('migration 0023 player levels (integration)', { timeout: 60_000 }, () =
       // откат 0025 требует отсутствия данных нескольких мест (precondition rollback-скрипта)
       await sql`UPDATE bookings SET seats = 1, waitlist_seats = 0 WHERE seats > 1 OR waitlist_seats > 0`
       await sql`DELETE FROM event_series` // 20.2.2: откат 0027 требует отсутствия серий
+      expect(await rollbackLastMigration(url)).toBe(TAG29) // 20.3.2: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG28) // 20.3.1: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG27) // 20.2.2: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG26) // 20.1.3: новая миграция откатывается первой

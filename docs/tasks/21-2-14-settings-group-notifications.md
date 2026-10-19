@@ -53,6 +53,8 @@ tags: [reference-v3]
 - ✅ Отчёт визуальной сверки по экранам из `reference.screens` без открытых расхождений Critical/Important
 - ✅ Пять gates CODING_STANDARDS на tested revision; ревью `claude-opus-5-5` без Critical/Important
 
+- ✅ Критерий, перенесённый из [20.3.2](20-3-2-bot-notifications.md) (решение владельца 2026-10-19): выключенный групповой тип не приходит; критичные (`isCriticalNotification`) проходят всегда — проверка в шаге `deliveryGate` журнала доставки
+
 ## Подсказки
 
 - Скриншот: [4-cabinet/22-screen.png](../design/reference-v3/screenshots/4-cabinet/22-screen.png) (окно 924×540 — ориентир; размеры и отступы брать из исходников).

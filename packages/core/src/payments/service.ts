@@ -158,6 +158,8 @@ async function notifyOrganizersAboutPending(
     collectNotification(ctx, {
       userId: m.userId,
       type: 'payment_pending_organizer',
+      // заявка на оплату: одно уведомление организатору на платёж-основание операции
+      dedupKey: `payment_pending_organizer:payment:${payment.id}:user:${m.userId}`,
       params: {
         amount: total.amount,
         seats: total.seats,
@@ -173,6 +175,24 @@ async function notifyOrganizersAboutPending(
 }
 
 const sum = (rows: Payment[]) => rows.reduce((a, p) => a + p.amount, 0)
+
+/**
+ * Ключ дедупликации ленты для подтверждения или отклонения (ADR v3, «Лента уведомлений»): одно
+ * уведомление на операцию над записью — запись, её воплощение и наименьший `payment_id` операции
+ * (повтор операции даёт тот же ключ, следующая операция над той же записью — новый). Платёж
+ * абонемента — по своему `payment_id`.
+ */
+function paymentOperationKey(
+  type: 'payment_confirmed' | 'payment_rejected',
+  rows: Payment[],
+  userId: number,
+): string {
+  const first = rows.reduce((a, p) => (p.id < a.id ? p : a))
+  const subject = first.bookingId
+    ? `booking:${first.bookingId}:${first.bookingIncarnation}:${first.id}`
+    : `payment:${first.id}`
+  return `${type}:${subject}:user:${userId}`
+}
 
 export const paymentService = {
   listHistory: listPaymentHistory,
@@ -544,6 +564,7 @@ export const paymentService = {
       collectNotification(ctx, {
         userId: payment.userId,
         type: 'payment_confirmed',
+        dedupKey: paymentOperationKey('payment_confirmed', confirmed, payment.userId),
         params: {
           amount: sum(confirmed),
           seats: confirmed.length,
@@ -675,6 +696,7 @@ export const paymentService = {
       collectNotification(ctx, {
         userId: payment.userId,
         type: 'payment_rejected',
+        dedupKey: paymentOperationKey('payment_rejected', rejected, payment.userId),
         params: {
           amount: sum(rejected),
           seats: rejected.length,

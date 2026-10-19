@@ -19,6 +19,9 @@ const storedUser: User = {
   image: null,
   isActive: true,
   isRootAdmin: false,
+  quietHoursStart: null,
+  quietHoursEnd: null,
+  botBlockedAt: null,
   createdAt: new Date('2026-09-28T00:00:00Z'),
   updatedAt: new Date('2026-09-28T00:00:00Z'),
 }

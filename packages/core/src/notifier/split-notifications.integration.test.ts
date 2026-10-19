@@ -5,7 +5,9 @@ import {
   eq,
   organizations,
   organizationMembers,
+  notifications,
   payments,
+  scheduledJobs,
   users,
 } from '@volley-time/db'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -237,12 +239,23 @@ describe('split notifications after commit (PostgreSQL)', () => {
         throw new Error('Telegram unavailable')
       },
     })
-    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const logged = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const result = await withNotifications((notifications) =>
       eventPricingService.settle({ ...owner(), notifications }, orgId, eventId),
     )
     await vi.waitFor(() => expect(committedAtSend).toHaveLength(4))
     await vi.waitFor(() => expect(logged).toHaveBeenCalledTimes(4))
+    // сбой доставки не теряет уведомления: задачи ждут повтора планировщика, лента хранит записи
+    expect(
+      (await db.select().from(scheduledJobs).where(eq(scheduledJobs.status, 'pending'))).map(
+        (j) => [j.status, j.attempts, j.lastError],
+      ),
+    ).toEqual(Array(4).fill(['pending', 1, 'Telegram unavailable']))
+    expect(
+      (
+        await db.select().from(notifications).where(eq(notifications.deliveryStatus, 'pending'))
+      ).map((n) => n.deliveryStatus),
+    ).toEqual(Array(4).fill('pending'))
     expect(committedAtSend).toEqual(['closed', 'closed', 'closed', 'closed'])
     expect(await db.select().from(payments)).toHaveLength(3)
     expect(
