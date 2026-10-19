@@ -61,6 +61,16 @@ describe('internal bot API (integration)', () => {
     }
   })
 
+  it('wrong secret plus malformed body is 401, not 422 (secret is checked before parsing)', async () => {
+    const bad = { 'x-internal-secret': 'nope' }
+    expect((await post('reachable', { telegramId: 'abc' }, bad)).status).toBe(401)
+    expect((await post('cancel-booking', { telegramId: 1, eventId: '1; drop' }, bad)).status).toBe(
+      401,
+    )
+    expect((await post('accept-offer', 'not-json{', bad)).status).toBe(401)
+    expect((await post('reachable', { telegramId: 'abc' }, {})).status).toBe(401)
+  })
+
   it('rejects malformed payloads with 422', async () => {
     expect((await post('reachable', { telegramId: 'abc' })).status).toBe(422)
     expect(

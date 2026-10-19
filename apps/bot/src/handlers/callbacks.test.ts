@@ -11,6 +11,7 @@ import {
   CANCEL_QUESTION,
   NOT_FOUND,
   OFFER_DONE,
+  OFFER_CLOSED,
   OFFER_EXPIRED,
   registerCallbackHandler,
   resetCallbackLimiter,
@@ -136,6 +137,7 @@ describe('inline callbacks (20.3.3)', () => {
   it.each([
     ['accepted', OFFER_DONE],
     ['expired', OFFER_EXPIRED],
+    ['closed', OFFER_CLOSED],
   ])('«Беру место» outcome %s', async (result, line) => {
     web.mockResolvedValue({ result })
     const { bot, calls } = setup()

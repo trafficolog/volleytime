@@ -15,18 +15,21 @@ import { UNAVAILABLE_TEXT } from './games'
  */
 export const CALLBACK_RE = /^(cx|cy|cn|oa):(\d{1,10})$/
 
-export const CANCEL_QUESTION = '❓ Отменить запись?'
+/** D-14: оплаченные места освобождаются без автоматического возврата (как у организатора). */
+export const CANCEL_QUESTION =
+  '❓ Отменить запись?\nОплаченные места освободятся без возврата денег: возврат — отдельное действие организатора.'
 export const CANCEL_DONE = '✅ Запись отменена.'
 export const CANCEL_DENIED = '⚠️ Отменить запись уже нельзя — напишите организатору.'
 export const NOT_FOUND = '⚠️ Запись не найдена.'
 export const OFFER_DONE = '✅ Место подтверждено.'
 export const OFFER_EXPIRED = '⌛ Время на подтверждение вышло — место ушло дальше.'
+export const OFFER_CLOSED = '⚠️ Запись на игру закрыта.'
 export const OFFER_NOT_FOUND = '⚠️ Предложение не найдено.'
 const STALE = 'Кнопка устарела, откройте /my'
 const TOO_FAST = 'Слишком часто, подождите немного'
 
 type CancelResult = 'cancelled' | 'already_cancelled' | 'not_found' | 'not_allowed'
-type AcceptResult = 'accepted' | 'expired' | 'not_found'
+type AcceptResult = 'accepted' | 'expired' | 'closed' | 'not_found'
 
 /** Ограничение частоты нажатий на пользователя: 8 за 10 с (защита web и Bot API от флуда). */
 const hits = new Map<number, number[]>()
@@ -147,6 +150,7 @@ export function registerCallbackHandler(bot: Bot<BotContext>): void {
     if (!res) return void (await ctx.answerCallbackQuery({ text: UNAVAILABLE_TEXT }))
     if (res.result === 'accepted') return finish(OFFER_DONE, 'Место подтверждено')
     if (res.result === 'expired') return finish(OFFER_EXPIRED, 'Время вышло')
+    if (res.result === 'closed') return finish(OFFER_CLOSED, 'Запись закрыта')
     return finish(OFFER_NOT_FOUND, 'Предложение не найдено')
   })
 }
