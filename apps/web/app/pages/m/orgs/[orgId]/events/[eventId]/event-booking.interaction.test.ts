@@ -477,7 +477,7 @@ describe('waitlist offer (D-03, 20.3.1)', () => {
     await vi.advanceTimersByTimeAsync(5000)
     expect(wrapper.get('[role="timer"]').text()).toBe('29:36')
 
-    await pageButton('Принять место')!.trigger('click')
+    await pageButton('Подтвердить до 13:29')!.trigger('click')
     await flushPromises()
     expect(post).toHaveBeenCalledWith('/api/organizations/30/waitlist-offers/7/accept', {
       method: 'POST',
@@ -488,9 +488,9 @@ describe('waitlist offer (D-03, 20.3.1)', () => {
   it('after the TTL the player has left the queue: no accept, the outcome is explained', async () => {
     data.value.event.myBooking = offerBooking('2027-10-03T10:00:03Z')
     wrapper = await render()
-    expect(pageButton('Принять место')).toBeDefined()
+    expect(pageButton('Подтвердить до 13:00')).toBeDefined()
     await vi.advanceTimersByTimeAsync(4000)
-    expect(pageButton('Принять место')).toBeUndefined()
+    expect(pageButton('Подтвердить до 13:00')).toBeUndefined()
     expect(wrapper.text()).toContain('вы покинули очередь')
     // экран перечитывает событие: сервер уже снял игрока с очереди
     expect(refresh).toHaveBeenCalled()
@@ -503,7 +503,7 @@ describe('waitlist offer (D-03, 20.3.1)', () => {
       statusCode: 410,
       data: { data: { code: 'waitlist_offer.expired' } },
     })
-    await pageButton('Принять место')!.trigger('click')
+    await pageButton('Подтвердить до 13:10')!.trigger('click')
     await flushPromises()
     expect(refresh).toHaveBeenCalled()
     expect(wrapper.text()).toContain('Предложение места больше не действует')
@@ -555,8 +555,8 @@ describe('Telegram MainButton drives the booking sheet (20.4.1, 20.4.5)', () => 
       offer: { id: 7, seats: 1, expiresAt: '2027-10-03T10:20:00Z' },
     }
     wrapper = await render()
-    expect(lastState()).toMatchObject({ text: 'Принять место' })
-    expect(wrapper.text()).not.toContain('Принять место')
+    expect(lastState()).toMatchObject({ text: 'Подтвердить до 13:20' })
+    expect(wrapper.text()).not.toContain('Подтвердить до')
     mainButtonClick!()
     await flushPromises()
     expect(post).toHaveBeenCalledWith('/api/organizations/30/waitlist-offers/7/accept', {

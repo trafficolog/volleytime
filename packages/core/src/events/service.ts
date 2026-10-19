@@ -25,6 +25,7 @@ import { DEFAULT_TIMEZONE, dateToZonedInput, zonedInputToDate } from '@volley-ti
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
 import { reservedSeats, revokeEventOffers } from '../bookings/offers'
+import { queuePositionsOf } from '../bookings/queue-position'
 import { queuedSeatsSql, takenSeatsSql } from '../bookings/seats'
 import { eventBalanceService } from '../event-balance/service'
 import { collectNotification } from '../notifier/collect'
@@ -127,6 +128,8 @@ export interface EventStats {
     waitlistSeats: number
     /** Активное предложение места из очереди (20.3.1, D-03): принять — POST …/waitlist-offers/{id}/accept. */
     offer: { id: number; seats: number; expiresAt: Date } | null
+    /** Место в очереди (1 — первый), только у своей записи в очереди (20.4.11); иначе null. */
+    waitPos: number | null
   } | null
   venue: { name: string; address: string | null } | null
 }
@@ -367,6 +370,7 @@ export const eventService = {
       .from(events)
       .innerJoin(venues, eq(venues.id, events.venueId))
       .where(inArray(events.id, eventIds))
+    const positions = await queuePositionsOf(db, ctx.userId, eventIds)
     for (const id of eventIds)
       out.set(id, { taken: 0, players: 0, waitlist: 0, myBooking: null, venue: null })
     for (const c of counts)
@@ -384,6 +388,7 @@ export const eventService = {
         seats: m.seats,
         waitlistSeats: m.waitlistSeats,
         offer: null,
+        waitPos: positions.get(m.id) ?? null,
       }
     for (const o of myOffers) {
       const mineRow = mine.find((m) => m.id === o.bookingId)

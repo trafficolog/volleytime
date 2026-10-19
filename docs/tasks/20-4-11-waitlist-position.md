@@ -2,11 +2,11 @@
 id: '20.4.11'
 phase: '20'
 epic: '20.4'
-status: todo
+status: in_progress
 release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-13
-status_note: 'Добавлена по ревью 19.1.2: чип «В очереди · N-й» поддержан, но сервер не отдаёт позицию.'
+status_note: 'Реализация: сервер отдаёт waitPos (только своя запись) и срок предложения, Mini App показывает «В очереди · N-й» и «Подтвердить до HH:MM»; поимённый лист ожидания не реализован — противоречит критерию IDOR, нужно решение владельца (см. PR).'
 ref_id: ''
 complexity: M
 impl_model: claude-sonnet-5-5

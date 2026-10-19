@@ -18,7 +18,7 @@ export interface Participation {
  * Участие игрока по статусу его записи.
  * `pending_payment` — место за игроком, оплата — отдельная ось, поэтому «Иду».
  * `attended` / `no_show` — итог уже прошедшего события, не «участие»: чипа нет.
- * `waitPos` — позиция в очереди; сервер её пока не отдаёт, без неё «В очереди».
+ * `waitPos` — позиция в очереди (20.4.11): сервер отдаёт её только самому игроку; без неё «В очереди».
  */
 export function participationOf(
   booking: { status: string; waitPos?: number | null } | null | undefined,

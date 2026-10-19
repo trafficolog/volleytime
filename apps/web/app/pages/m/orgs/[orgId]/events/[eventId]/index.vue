@@ -14,6 +14,7 @@ import {
   clampSeats,
   maxSeatsFor,
   offerCountdown,
+  offerDeadlineLabel,
   planSeats,
   playersWord,
   seatsLabel,
@@ -54,6 +55,8 @@ type EventDetails = Event & {
     seats?: number
     waitlistSeats?: number
     offer?: { id: number; seats: number; expiresAt: string } | null
+    /** Место в очереди (1 — первый), только у своей записи в очереди (20.4.11). */
+    waitPos?: number | null
   } | null
   venue: { name: string; address: string | null } | null
 }
@@ -672,7 +675,8 @@ const mainButtonState = computed(() => {
   if (!isTelegram.value) return null
   if (sheetOpen.value)
     return { text: submitLabel.value, disabled: !canSubmit.value, loading: submitting.value }
-  if (offerActive.value) return { text: 'Принять место', loading: submitting.value }
+  if (offerActive.value && offer.value)
+    return { text: offerDeadlineLabel(offer.value.expiresAt, tz.value), loading: submitting.value }
   if (bookable.value)
     return {
       text: eventView.value?.action === 'waitlist' ? 'Встать в лист ожидания' : 'Записаться',
@@ -920,6 +924,7 @@ async function cancelMine() {
         :now="now"
         :submitting="submitting"
         :show-action="!isTelegram"
+        :tz="tz"
         @accept="acceptOffer"
       />
 

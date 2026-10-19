@@ -61,6 +61,7 @@ import {
   reservedSeats,
   revokeBookingOffers,
 } from './offers'
+import { queuePositionsOf } from './queue-position'
 import {
   AttendanceInput,
   BookInput,
@@ -725,7 +726,36 @@ export const bookingService = {
       with: { event: { with: { venue: true } } },
     })
     const order = new Map(ids.map((r, i) => [r.id, i]))
-    return rows.sort((a, b) => order.get(a.id)! - order.get(b.id)!)
+    // позиция в очереди и действующее предложение места — только свои (20.4.11, D-03)
+    const positions = await queuePositionsOf(db, ctx.userId, [
+      ...new Set(rows.map((r) => r.eventId)),
+    ])
+    const offers = await db
+      .select({
+        id: waitlistOffers.id,
+        bookingId: waitlistOffers.bookingId,
+        seats: waitlistOffers.seats,
+        expiresAt: waitlistOffers.expiresAt,
+      })
+      .from(waitlistOffers)
+      .where(
+        and(
+          inArray(
+            waitlistOffers.bookingId,
+            rows.map((r) => r.id),
+          ),
+          eq(waitlistOffers.status, 'offered'),
+          gt(waitlistOffers.expiresAt, now),
+        ),
+      )
+    const offerOf = new Map(offers.map((o) => [o.bookingId, o]))
+    return rows
+      .sort((a, b) => order.get(a.id)! - order.get(b.id)!)
+      .map((r) => ({
+        ...r,
+        waitPos: positions.get(r.id) ?? null,
+        offer: offerOf.get(r.id) ?? null,
+      }))
   },
 
   /**
