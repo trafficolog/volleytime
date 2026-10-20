@@ -665,6 +665,7 @@ async function notifyOrganizers(
         eventTitle: ev.title,
         eventDate: ev.startsAt.toISOString(),
         playerName,
+        inviteRequest: true,
       },
     })
   }

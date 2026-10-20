@@ -47,6 +47,8 @@ interface Params {
   currency?: string
   refunded?: boolean
   target?: string
+  /** Запрос приглашения на событие (20.4.7), а не заявка на оплату. */
+  inviteRequest?: boolean
 }
 
 function paramsOf(payload: unknown): Params {
@@ -164,6 +166,15 @@ export function notificationView(n: FeedNotification, base: string): Notificatio
         to,
       }
     case 'organizer_action_required':
+      if (p.inviteRequest) {
+        return {
+          title: 'Запрос приглашения',
+          body: joinText(p.playerName && `${p.playerName} ·`, event),
+          icon: 'users',
+          tone: 'amber',
+          to,
+        }
+      }
       return {
         title: 'Заявка на оплату',
         body: joinText(p.playerName, p.planName ? `· «${p.planName}»` : `· ${event}`),

@@ -67,6 +67,56 @@
       "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
     },
     {
+      "id": "player-event-invite-none",
+      "title": "Игрок: событие по приглашению — без приглашения (M-08, D-06)",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "event": { "title": "Открытая игра", "status": "published" },
+      "inviteState": "none",
+      "path": "/m/orgs/{org}/events/{event}",
+      "references": ["3-miniapp-player/m08-invite-none.jpg"],
+      "referenceCrop": { "x": 546, "y": 94, "width": 328, "height": 692 }
+    },
+    {
+      "id": "player-event-invite-requested",
+      "title": "Игрок: событие по приглашению — запрос отправлен (M-08, D-06)",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "event": { "title": "Открытая игра", "status": "published" },
+      "inviteState": "requested",
+      "path": "/m/orgs/{org}/events/{event}",
+      "steps": [{ "scroll": "bottom" }],
+      "references": ["3-miniapp-player/m08-invite-requested.jpg"],
+      "referenceCrop": { "x": 546, "y": 94, "width": 328, "height": 692 }
+    },
+    {
+      "id": "player-event-invite-invited",
+      "title": "Игрок: событие по приглашению — вы приглашены (M-08, D-06)",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "event": { "title": "Открытая игра", "status": "published" },
+      "inviteState": "invited",
+      "path": "/m/orgs/{org}/events/{event}",
+      "references": ["3-miniapp-player/m08-invite-invited.jpg"],
+      "referenceCrop": { "x": 546, "y": 94, "width": 328, "height": 692 }
+    },
+    {
+      "id": "player-event-invite-expired",
+      "title": "Игрок: событие по приглашению — ссылка просрочена (M-08, D-06)",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "event": { "title": "Открытая игра", "status": "published" },
+      "inviteState": "expired",
+      "path": "/m/orgs/{org}/events/{event}",
+      "steps": [{ "scroll": "bottom" }],
+      "references": ["3-miniapp-player/m08-invite-expired.jpg"],
+      "referenceCrop": { "x": 546, "y": 94, "width": 328, "height": 692 }
+    },
+    {
       "id": "player-subscriptions",
       "title": "Игрок: абонементы",
       "viewport": "miniapp",
