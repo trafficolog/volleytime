@@ -42,11 +42,14 @@ export default defineApiHandler(async (event) => {
   requireOrgMember(event.context.member ?? null)
   const eventId = pathId(getRouterParam(event, 'eventId'))
   const body = (await readBody(event)) ?? {}
-  const request = await eventInviteRequestService.request(
-    createServiceContextFromEvent(event),
-    event.context.organization!.id,
-    eventId,
-    body,
+  const ctx = createServiceContextFromEvent(event)
+  const request = await withNotifications((notifications) =>
+    eventInviteRequestService.request(
+      { ...ctx, notifications },
+      event.context.organization!.id,
+      eventId,
+      body,
+    ),
   )
   return { request }
 })

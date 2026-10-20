@@ -56,6 +56,37 @@ describe('notifier templates (pure)', () => {
   })
 })
 
+describe('invite request templates (20.4.7)', () => {
+  it('organizer is told who asks for an invitation to which event', () => {
+    const m = renderMessage('invite_request_organizer', {
+      eventTitle: 'Основа <1>',
+      eventDate: '30 мая, 20:00',
+      playerName: 'Соня',
+      miniAppUrl: 'https://vt.by/m/?startapp=event_5',
+    })
+    expect(m.text).toContain('Запрос приглашения')
+    expect(m.text).toContain('Соня')
+    expect(m.text).toContain('Основа &lt;1&gt;')
+    expect(m.keyboard?.[0]?.[0]?.webAppUrl).toBe('https://vt.by/m/?startapp=event_5')
+  })
+
+  it('player gets the answer: approved invites to book, declined allows asking again', () => {
+    const yes = renderMessage('invite_request_decided', {
+      eventTitle: 'Основа',
+      eventDate: '30 мая, 20:00',
+      inviteApproved: true,
+    })
+    expect(yes.text).toContain('пригласил')
+    expect(yes.text).toContain('Основа')
+    const no = renderMessage('invite_request_decided', {
+      eventTitle: 'Основа',
+      inviteApproved: false,
+    })
+    expect(no.text).toContain('не смог')
+    expect(no.text).toContain('снова')
+  })
+})
+
 describe('templates ru formatting (8.8.5)', () => {
   it('formats money in ru-RU', () => {
     expect(formatMoney(1500)).toBe('15,00 BYN')

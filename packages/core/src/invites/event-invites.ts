@@ -7,6 +7,7 @@ import {
   eventInviteRequests,
   events,
   gt,
+  inArray,
   inviteLinks,
   isNotNull,
   isNull,
@@ -31,6 +32,7 @@ import {
   EventNotBookableError,
 } from '../bookings/errors'
 import { EventJoinModeOpenError, EventNotFoundError } from '../events/errors'
+import { collectNotification } from '../notifier/collect'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
 
 import {
@@ -67,6 +69,39 @@ export interface EventInviteRequestView {
   /** Только публичные поля игрока: без email, телефона и Telegram id (5.13.2). */
   user: { id: number; name: string | null; telegramUsername: string | null; image: string | null }
 }
+
+/** Публичные поля человека для карточки приглашения: без email, телефона и Telegram id (5.13.2). */
+export interface InvitePersonView {
+  name: string | null
+  telegramUsername: string | null
+  image: string | null
+}
+
+/**
+ * Состояние записи на событие `invite` для Mini App (20.4.7, D-06): «без приглашения» (`none`),
+ * «запрос отправлен» (`requested`), «приглашён» (`invited`), «ссылка просрочена» (`expired`).
+ */
+export interface EventInviteAccessView {
+  state: 'none' | 'requested' | 'invited' | 'expired'
+  /** Последний запрос игрока на это событие. */
+  request: { id: number; status: EventInviteRequest['status']; createdAt: Date } | null
+  /**
+   * Приглашение, по которому игрок записывается (`invited`) или которое истекло (`expired`).
+   * `source`: `link` — токен из тела; `request` — одобренный запрос; `previous` — приглашение
+   * отменённой самим игроком записи. Токен клиенту не возвращается; в запись токен уходит только
+   * при `source = 'link'`.
+   */
+  invite: {
+    source: 'link' | 'request' | 'previous'
+    expiresAt: Date | null
+    inviter: InvitePersonView | null
+  } | null
+  /** Кто решает (автор события, иначе владелец группы): строка «<имя> · организатор». */
+  organizer: InvitePersonView | null
+}
+
+export const InviteAccessInput = z.object({ inviteToken: z.string().max(64).optional() }).strict()
+export type InviteAccessInput = z.input<typeof InviteAccessInput>
 
 type Db = ReturnType<typeof getDb>
 
@@ -263,7 +298,133 @@ function toView(
   }
 }
 
+/**
+ * Состояние «приглашения» для экрана игрока (POST …/events/{id}/invite-access, member). Только
+ * чтение: токен не расходуется и не возвращается; логика источников повторяет
+ * `consumeEventInvite` — «приглашён» означает, что запись пройдёт. Чужой, неизвестный, отозванный
+ * или использованный токен ничего не показывает (как `booking.invite_required`, без перечисления);
+ * просроченная ссылка этого события — `expired`.
+ */
+async function readInviteAccess(
+  ctx: ServiceContext,
+  orgId: number,
+  eventId: number,
+  input: InviteAccessInput = {},
+): Promise<EventInviteAccessView> {
+  const data = InviteAccessInput.parse(input)
+  const token =
+    data.inviteToken && /^[A-Za-z0-9_-]{1,64}$/.test(data.inviteToken) ? data.inviteToken : null
+  const db = getDb(ctx)
+  const [ev] = await db.select().from(events).where(eq(events.id, eventId))
+  if (!ev || ev.organizationId !== orgId || ev.status === 'draft') {
+    throw new EventNotFoundError(eventId)
+  }
+  if (ev.joinMode !== 'invite') throw new EventJoinModeOpenError()
+
+  const person = async (userId: number | null): Promise<InvitePersonView | null> => {
+    if (userId === null) return null
+    const [u] = await db
+      .select({ name: users.name, telegramUsername: users.telegramUsername, image: users.image })
+      .from(users)
+      .where(eq(users.id, userId))
+    return u ?? null
+  }
+  const now = new Date()
+  const usable = (inv: InviteLink, ignoreUses = false): boolean =>
+    !inv.isRevoked &&
+    (inv.expiresAt === null || inv.expiresAt > now) &&
+    (ignoreUses || inv.maxUses === null || inv.usesCount < inv.maxUses)
+  const ofEvent = (inv: InviteLink | undefined): inv is InviteLink =>
+    !!inv &&
+    inv.type === 'event_join' &&
+    inv.eventId === ev.id &&
+    inv.organizationId === ev.organizationId
+  type Source = 'link' | 'request' | 'previous'
+  let expired: { inv: InviteLink; source: Source } | null = null
+  let found: { inv: InviteLink; source: Source } | null = null
+
+  if (token) {
+    const [inv] = await db.select().from(inviteLinks).where(eq(inviteLinks.token, token))
+    if (ofEvent(inv)) {
+      if (usable(inv)) found = { inv, source: 'link' }
+      else if (onlyExpired(inv)) expired = { inv, source: 'link' }
+    }
+  }
+  if (!found) {
+    // повторная запись после своей отмены: приглашение отменённой записи (D-06, уточнение B)
+    const [prev] = await db
+      .select()
+      .from(bookings)
+      .where(
+        and(
+          eq(bookings.eventId, ev.id),
+          eq(bookings.userId, ctx.userId),
+          eq(bookings.status, 'cancelled'),
+          isNotNull(bookings.inviteId),
+        ),
+      )
+      .orderBy(desc(bookings.id))
+      .limit(1)
+    if (prev?.inviteId) {
+      const [stored] = await db.select().from(inviteLinks).where(eq(inviteLinks.id, prev.inviteId))
+      const lastCancel = await auditService.latest(
+        ctx,
+        'booking',
+        prev.id,
+        AUDIT_ACTIONS.BOOKING_CANCELLED,
+      )
+      const byAdmin = (lastCancel?.newValue as { byAdmin?: boolean } | null)?.byAdmin === true
+      if (ofEvent(stored) && !stored.isRevoked && !byAdmin) {
+        if (usable(stored, true)) found = { inv: stored, source: 'previous' }
+        else expired ??= { inv: stored, source: 'previous' }
+      }
+    }
+  }
+  const requests = await db
+    .select()
+    .from(eventInviteRequests)
+    .where(and(eq(eventInviteRequests.eventId, ev.id), eq(eventInviteRequests.userId, ctx.userId)))
+    .orderBy(desc(eventInviteRequests.createdAt), desc(eventInviteRequests.id))
+  if (!found) {
+    for (const r of requests.filter((x) => x.status === 'approved' && x.inviteId !== null)) {
+      const [inv] = await db.select().from(inviteLinks).where(eq(inviteLinks.id, r.inviteId!))
+      if (!ofEvent(inv)) continue
+      if (usable(inv)) {
+        found = { inv, source: 'request' }
+        break
+      }
+      if (onlyExpired(inv)) expired ??= { inv, source: 'request' }
+    }
+  }
+
+  const last = requests[0]
+  const pending = requests.some((r) => r.status === 'pending')
+  const state: EventInviteAccessView['state'] = found
+    ? 'invited'
+    : pending
+      ? 'requested'
+      : expired
+        ? 'expired'
+        : 'none'
+  const shown = found ?? (state === 'expired' ? expired : null)
+
+  return {
+    state,
+    request: last ? { id: last.id, status: last.status, createdAt: last.createdAt } : null,
+    invite: shown
+      ? {
+          source: shown.source,
+          expiresAt: shown.inv.expiresAt,
+          inviter: await person(shown.inv.createdByUserId),
+        }
+      : null,
+    organizer: await person(ev.createdByUserId),
+  }
+}
+
 export const eventInviteService = {
+  access: readInviteAccess,
+
   /**
    * Личная ссылка-приглашение на событие `invite` (POST …/events/{id}/invites, manager): однократная,
    * срок — `expiresInHours` или до начала события. `startParam` — параметр startapp Mini App
@@ -343,7 +504,54 @@ export const eventInviteRequestService = {
         entityId: created.id,
         newValue: { eventId },
       })
+      await notifyOrganizers(tx, ev, created)
       return created
+    })
+  },
+
+  /**
+   * Отозвать свой ожидающий запрос (POST …/invite-requests/{id}/cancel, member, 20.4.7). Только
+   * автор и только из `pending` — условным UPDATE под тем же lock события, что и решение
+   * организатора: гонка «отзыв / ответ» даёт ровно один исход. Чужой запрос, запрос другого
+   * события или группы неотличим от несуществующего. Игрок может запросить снова.
+   */
+  async cancel(
+    ctx: ServiceContext,
+    orgId: number,
+    eventId: number,
+    requestId: number,
+  ): Promise<EventInviteRequest> {
+    return inTransaction(ctx, async (tx) => {
+      const db = getDb(tx)
+      await lockGroupEvent(db, orgId, eventId, { includeDrafts: false })
+      const mine = and(
+        eq(eventInviteRequests.id, requestId),
+        eq(eventInviteRequests.eventId, eventId),
+        eq(eventInviteRequests.organizationId, orgId),
+        eq(eventInviteRequests.userId, ctx.userId),
+      )
+      const [updated] = await db
+        .update(eventInviteRequests)
+        .set({ status: 'cancelled' })
+        .where(and(mine, eq(eventInviteRequests.status, 'pending')))
+        .returning()
+      if (!updated) {
+        const exists = await db.query.eventInviteRequests.findFirst({
+          where: mine,
+          columns: { id: true },
+        })
+        if (exists) throw new InviteRequestNotPendingError()
+        throw new InviteRequestNotFoundError()
+      }
+      await auditService.record(tx, {
+        organizationId: orgId,
+        action: AUDIT_ACTIONS.EVENT_INVITE_REQUEST_CANCELLED,
+        entityType: 'event_invite_request',
+        entityId: requestId,
+        oldValue: { status: 'pending' },
+        newValue: { status: 'cancelled', eventId },
+      })
+      return updated
     })
   },
 
@@ -422,6 +630,46 @@ export const eventInviteRequestService = {
   },
 }
 
+/** Владельцам и организаторам группы (кроме самого игрока) — запрос приглашения, в ленту и в бот. */
+async function notifyOrganizers(
+  ctx: ServiceContext,
+  ev: Event,
+  created: EventInviteRequest,
+): Promise<void> {
+  const db = getDb(ctx)
+  const [asker] = await db
+    .select({ name: users.name, telegramUsername: users.telegramUsername })
+    .from(users)
+    .where(eq(users.id, created.userId))
+  const playerName =
+    asker?.name || (asker?.telegramUsername ? `@${asker.telegramUsername}` : 'Игрок')
+  const managers = await db
+    .select({ userId: organizationMembers.userId })
+    .from(organizationMembers)
+    .where(
+      and(
+        eq(organizationMembers.organizationId, ev.organizationId),
+        eq(organizationMembers.status, 'active'),
+        inArray(organizationMembers.role, ['owner', 'organizer']),
+      ),
+    )
+  for (const m of managers) {
+    if (m.userId === created.userId) continue
+    collectNotification(ctx, {
+      userId: m.userId,
+      type: 'invite_request_organizer',
+      dedupKey: `invite_request_organizer:request:${created.id}:user:${m.userId}`,
+      params: {
+        eventId: ev.id,
+        organizationId: ev.organizationId,
+        eventTitle: ev.title,
+        eventDate: ev.startsAt.toISOString(),
+        playerName,
+      },
+    })
+  }
+}
+
 /**
  * Решение по запросу. Переход только из `pending` — условным UPDATE: параллельные решения
  * сериализуются блокировкой строки, второе получает `invite_request.not_pending`. Запрос другого
@@ -472,6 +720,17 @@ async function decide(
         .returning()
       result = linked!
     }
+    collectNotification(ctx, {
+      userId: updated.userId,
+      type: 'invite_request_decided',
+      params: {
+        eventId,
+        organizationId: orgId,
+        eventTitle: ev.title,
+        eventDate: ev.startsAt.toISOString(),
+        inviteApproved: status === 'approved',
+      },
+    })
     await auditService.record(ctx, {
       organizationId: orgId,
       action:
