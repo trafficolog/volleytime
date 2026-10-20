@@ -62,6 +62,13 @@ describe('waitlist offers and booking opening over HTTP (20.3.1)', () => {
     expect(card.status).toBe(200)
     expect(JSON.stringify(card.body)).toContain(`"offer":{"id":${offer!.id}`)
 
+    // «Мои записи»: позиция и предложение без bookingId (20.4.11)
+    const mineRes = await request('GET', `${base()}/bookings/my`, { user: b })
+    const mine = (mineRes.body as { bookings: Array<{ waitPos: number | null; offer: unknown }> })
+      .bookings[0]!
+    expect(mine.waitPos).toBe(1)
+    expect(mine.offer).toEqual({ id: offer!.id, seats: 1, expiresAt: expect.any(String) })
+
     const url = `${base()}/waitlist-offers/${offer!.id}/accept`
     const foreign = await request('POST', url, { user: c, body: {} })
     expect(foreign.status).toBe(404)
@@ -82,6 +89,55 @@ describe('waitlist offers and booking opening over HTTP (20.3.1)', () => {
     const expired = await request('POST', url, { user: b, body: {} })
     expect(expired.status).toBe(410)
     expect((expired.body as { data: { code: string } }).data.code).toBe('waitlist_offer.expired')
+  })
+
+  // 20.4.11: игрок видит свою позицию и размер очереди, но не чужие записи и личности
+  it('gives a player only their own queue position and the aggregate queue size', async () => {
+    const ev = await eventService.create({ userId: ownerId }, orgId, {
+      title: 'Queue',
+      startsAt: new Date(Date.now() + 48 * 3600_000),
+      endsAt: new Date(Date.now() + 50 * 3600_000),
+      capacity: 1,
+    })
+    const [a, b, c] = people as [number, number, number]
+    await db.update(users).set({ name: 'Mainov' }).where(eq(users.id, a))
+    await db.update(users).set({ name: 'Waitnik-Bravo' }).where(eq(users.id, b))
+    await db.update(users).set({ name: 'Waitnik-Charlie' }).where(eq(users.id, c))
+    const ba = await bookingService.book({ userId: a }, orgId, ev.id, { method: 'free' })
+    const bb = await bookingService.book({ userId: b }, orgId, ev.id, { method: 'free' })
+    const bc = await bookingService.book({ userId: c }, orgId, ev.id, { method: 'free' })
+
+    type Card = { event: { waitlist: number; myBooking: { id: number; waitPos: number | null } } }
+    const card = await request('GET', `${base()}/events/${ev.id}`, { user: c })
+    expect(card.status).toBe(200)
+    expect((card.body as Card).event.waitlist).toBe(2)
+    expect((card.body as Card).event.myBooking).toMatchObject({ id: bc.id, waitPos: 2 })
+    for (const leak of ['Waitnik-Bravo', `"userId":${b}`])
+      expect(JSON.stringify(card.body)).not.toContain(leak)
+    expect(JSON.stringify(card.body)).not.toContain(`"id":${bb.id},`)
+
+    const list = await request('GET', `${base()}/events`, { user: b })
+    const row = (list.body as { events: Array<{ id: number } & Card['event']> }).events.find(
+      (e) => e.id === ev.id,
+    )
+    expect(row?.myBooking).toMatchObject({ id: bb.id, waitPos: 1 })
+
+    const dash = await request('GET', `${base()}/dashboard`, { user: c })
+    const dashRow = (
+      dash.body as { upcoming: Array<{ id: number; myBooking: { waitPos: number | null } | null }> }
+    ).upcoming.find((e) => e.id === ev.id)
+    expect(dashRow?.myBooking?.waitPos).toBe(2)
+    expect(JSON.stringify(dash.body)).not.toContain('Waitnik-Bravo')
+
+    const mine = await request('GET', `${base()}/bookings/my`, { user: c })
+    const bookingsBody = (mine.body as { bookings: Array<{ id: number; waitPos: number | null }> })
+      .bookings
+    expect(bookingsBody.map((x) => [x.id, x.waitPos])).toEqual([[bc.id, 2]])
+    expect(JSON.stringify(mine.body)).not.toContain('Waitnik-Bravo')
+
+    // игрок в основе позиции не имеет
+    const main = await request('GET', `${base()}/events/${ev.id}`, { user: a })
+    expect((main.body as Card).event.myBooking).toMatchObject({ id: ba.id, waitPos: null })
   })
 
   it('rejects booking before the opening time with 422 booking.not_open_yet', async () => {

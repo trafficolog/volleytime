@@ -2,7 +2,7 @@
 import { formatTime } from '@volley-time/shared'
 
 import type { EventListItem } from '~/components/EventCard.vue'
-import { eventStateOf } from '~/utils/status-model'
+import { eventStateOf, waitlistPeopleLabel } from '~/utils/status-model'
 
 /** Таблица событий кабинета (W-03, 20.5.4): дата · тренировка · зал · состав · статус. */
 const props = defineProps<{ events: EventListItem[]; timeZone: string; base: string }>()
@@ -61,7 +61,7 @@ const dimmed = (event: EventListItem) => eventStateOf(event, now.value) !== null
               :width="90"
             />
             <div v-if="event.waitlist" class="vt-desktop-table__sub">
-              ожидают {{ event.waitlist }}
+              {{ waitlistPeopleLabel(event.waitlist) }}
             </div>
           </td>
           <td>

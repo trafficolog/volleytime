@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import { offerCountdown, offerTitle } from '~/utils/booking-seats'
+import { offerCountdown, offerDeadlineLabel, offerTitle } from '~/utils/booking-seats'
 
 /**
  * Предложение места из листа ожидания (D-03, 20.3.1): 30 минут на подтверждение. После истечения
@@ -15,8 +15,10 @@ const props = withDefaults(
     submitting?: boolean
     /** В Telegram действие живёт на MainButton — собственную кнопку не рисуем. */
     showAction?: boolean
+    /** Часовой пояс группы: с ним действие называет срок — «Подтвердить до 13:29» (20.4.11). */
+    tz?: string
   }>(),
-  { submitting: false, showAction: true },
+  { submitting: false, showAction: true, tz: undefined },
 )
 const emit = defineEmits<{ accept: [] }>()
 const left = computed(() => offerCountdown(props.offer.expiresAt, props.now))
@@ -51,7 +53,7 @@ const left = computed(() => offerCountdown(props.offer.expiresAt, props.now))
       :disabled="submitting"
       @click="emit('accept')"
     >
-      Принять место
+      {{ tz ? offerDeadlineLabel(offer.expiresAt, tz) : 'Принять место' }}
     </button>
   </section>
 </template>

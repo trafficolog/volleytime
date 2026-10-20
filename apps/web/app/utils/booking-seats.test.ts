@@ -9,6 +9,7 @@ import {
   myBookingSeatsText,
   myBookingTitle,
   offerCountdown,
+  offerDeadlineLabel,
   OFFER_EXPIRED_TEXT,
   planSeats,
   seatsHeadline,
@@ -102,6 +103,15 @@ describe('labels', () => {
       '1 место за вами, ещё 2 места в очереди',
     )
     expect(myBookingSeatsText({ status: 'confirmed', seats: 2, waitlistSeats: 0 })).toBeNull()
+  })
+})
+
+describe('offerDeadlineLabel (20.4.11)', () => {
+  it('names the absolute confirm-by time in the group timezone', () => {
+    expect(offerDeadlineLabel('2027-10-03T10:29:41Z', 'Europe/Minsk')).toBe('Подтвердить до 13:29')
+    expect(offerDeadlineLabel(new Date('2027-10-03T23:50:00Z'), 'Europe/Minsk')).toBe(
+      'Подтвердить до 02:50',
+    )
   })
 })
 

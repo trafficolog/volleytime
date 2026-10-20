@@ -6,7 +6,8 @@ import { participationOf } from '~/utils/status-model'
 /** Ось «Моё участие»: синий чип словом, только у игрока (19.1.2). */
 const props = withDefaults(
   defineProps<{
-    booking: { status: string; waitPos?: number | null } | null | undefined
+    booking:
+      { status: string; waitPos?: number | null; waitlistSeats?: number | null } | null | undefined
     onDark?: boolean
   }>(),
   { onDark: false },
@@ -19,7 +20,10 @@ const participation = computed(() => participationOf(props.booking))
     v-if="participation"
     class="vt-chip"
     :class="[
-      participation.key === 'going' ? 'vt-chip--mine' : 'vt-chip--queue',
+      {
+        'vt-chip--mine': participation.key === 'going',
+        'vt-chip--queue': participation.key === 'waitlist',
+      },
       { 'vt-chip--on-hero': onDark },
     ]"
     :data-participation="participation.key"

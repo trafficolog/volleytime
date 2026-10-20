@@ -14,6 +14,7 @@ import {
   clampSeats,
   maxSeatsFor,
   offerCountdown,
+  offerDeadlineLabel,
   planSeats,
   playersWord,
   seatsLabel,
@@ -36,6 +37,7 @@ import { playerHomeAccess } from '~/utils/player-home'
 import { levelTitle, type PlayerLevelView } from '~/utils/player-level'
 import { playerSplitViewOf, quotePriceLabel } from '~/utils/player-price-view'
 import { createPlayerRequestGuard } from '~/utils/player-request-guard'
+import { waitlistPeopleLabel } from '~/utils/status-model'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
 type EventDetails = Event & {
@@ -44,6 +46,8 @@ type EventDetails = Event & {
   /** Игроков в составе: меньше `taken`, когда кто-то занял несколько мест (20.1.2). */
   players?: number
   waitlist: number
+  /** Мест в очереди (для листа записи); `waitlist` — люди (20.4.11). */
+  waitlistSeats?: number
   /** Свободные места для новой записи с учётом удерживаемых предложениями (20.3.1). */
   freeSeats?: number
   myBooking: {
@@ -54,6 +58,8 @@ type EventDetails = Event & {
     seats?: number
     waitlistSeats?: number
     offer?: { id: number; seats: number; expiresAt: string } | null
+    /** Место в очереди (1 — первый), только у своей записи в очереди (20.4.11). */
+    waitPos?: number | null
   } | null
   venue: { name: string; address: string | null } | null
 }
@@ -672,7 +678,8 @@ const mainButtonState = computed(() => {
   if (!isTelegram.value) return null
   if (sheetOpen.value)
     return { text: submitLabel.value, disabled: !canSubmit.value, loading: submitting.value }
-  if (offerActive.value) return { text: 'Принять место', loading: submitting.value }
+  if (offerActive.value && offer.value)
+    return { text: offerDeadlineLabel(offer.value.expiresAt, tz.value), loading: submitting.value }
   if (bookable.value)
     return {
       text: eventView.value?.action === 'waitlist' ? 'Встать в лист ожидания' : 'Записаться',
@@ -872,7 +879,9 @@ async function cancelMine() {
       <section aria-labelledby="event-roster-title">
         <div class="flex items-center justify-between mb-2">
           <h2 id="event-roster-title" class="vt-cap">Состав</h2>
-          <span v-if="ev.waitlist" class="text-xs text-vt-mute-2">ожидают {{ ev.waitlist }}</span>
+          <span v-if="ev.waitlist" class="text-xs text-vt-mute-2">{{
+            waitlistPeopleLabel(ev.waitlist)
+          }}</span>
         </div>
         <VtSeatsMini :taken="occupiedSeats" :capacity="ev.capacity" :event="ev" :width="120" />
         <p
@@ -920,6 +929,7 @@ async function cancelMine() {
         :now="now"
         :submitting="submitting"
         :show-action="!isTelegram"
+        :tz="tz"
         @accept="acceptOffer"
       />
 
@@ -1027,7 +1037,7 @@ async function cancelMine() {
         "
         :total="payableSeats > 1 ? (splitMode ? splitTotalText : priceTotalText) : null"
         :methods="methodOptions"
-        :queued="ev?.waitlist ?? 0"
+        :queued="ev?.waitlistSeats ?? 0"
         :note="
           queueOnly || !bookingMethod || ['free', 'subscription'].includes(bookingMethod.method)
             ? ''

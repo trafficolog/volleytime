@@ -3,6 +3,7 @@
  * согласие на частичную очередь и отсчёт предложения места. Только представление: число мест,
  * лимит группы и очередь решает сервер (20.1.2, 20.3.1) — здесь они лишь предсказаны для экрана.
  */
+import { formatTime } from '@volley-time/shared'
 
 export type SeatPlanKind = 'main' | 'partial' | 'queue'
 
@@ -129,6 +130,13 @@ export function offerCountdown(expiresAt: string | Date, now: Date): OfferCountd
   const clock = `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, '0')}`
   return { expired: false, secondsLeft, clock, text: `Осталось ${clock}` }
 }
+
+/**
+ * Действие по предложению места: абсолютный срок подтверждения в часовом поясе группы
+ * («Подтвердить до 13:29», D-03). Срок отдаёт сервер, часы телефона в нём не участвуют.
+ */
+export const offerDeadlineLabel = (expiresAt: string | Date, tz: string): string =>
+  `Подтвердить до ${formatTime(expiresAt, tz)}`
 
 export const offerTitle = (seats: number): string =>
   seats > 1 ? `Освободилось ${seatsLabel(seats)}` : 'Освободилось место'
