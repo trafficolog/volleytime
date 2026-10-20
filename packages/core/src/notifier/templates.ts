@@ -16,6 +16,9 @@ export type NotificationType =
   | 'booking_opened'
   | 'waitlist_offer'
   | 'waitlist_offer_expired'
+  // запросы приглашения на событие «по приглашению» (20.4.7)
+  | 'invite_request_organizer'
+  | 'invite_request_decided'
 
 export interface KeyboardButton {
   text: string
@@ -70,6 +73,8 @@ export interface TemplateParams {
   waitlistSeats?: number
   /** Оплаченные места, оставшиеся у записи после отклонения неоплаченных (20.1.2). */
   keptSeats?: number
+  /** Ответ организатора на запрос приглашения: `true` — приглашение выдано (20.4.7). */
+  inviteApproved?: boolean
 }
 
 /** « · мест: N» для операций над несколькими местами; одно место — текст R0.7 без изменений. */
@@ -207,6 +212,23 @@ export function renderMessage(type: NotificationType, p: TemplateParams): Render
           `🎉 Освободилось место на <b>${title}</b>${when}${seatsNote(p)}\n\n` +
           `Подтвердите участие в течение 30 мин — иначе место уйдёт следующему в очереди.`,
         keyboard: withAction('Беру место', 'oa'),
+      }
+    // запрос приглашения на событие `invite`: организатору — запрос, игроку — ответ (20.4.7)
+    case 'invite_request_organizer':
+      return {
+        text:
+          `🔑 Запрос приглашения\n<b>${title}</b>${when}\n` +
+          `Игрок: ${esc(p.playerName ?? '—')}\n\nОтветьте на запрос, чтобы игрок смог записаться.`,
+        keyboard: openBtn(),
+      }
+    case 'invite_request_decided':
+      return {
+        text: p.inviteApproved
+          ? `🎟 Организатор пригласил вас на <b>${title}</b>${when}\n\n` +
+            `Приглашение одноразовое. Место не держится, пока вы не запишетесь.`
+          : `Организатор не смог пригласить вас на <b>${title}</b>${when}.\n\n` +
+            `Вы можете отправить запрос снова.`,
+        keyboard: openBtn(),
       }
     case 'waitlist_offer_expired':
       return {

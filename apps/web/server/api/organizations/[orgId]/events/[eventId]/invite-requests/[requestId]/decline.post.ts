@@ -28,11 +28,14 @@ export default defineApiHandler(async (event) => {
   requireCanManageContent(event.context.member ?? null)
   const eventId = pathId(getRouterParam(event, 'eventId'))
   const requestId = pathId(getRouterParam(event, 'requestId'))
-  const request = await eventInviteRequestService.decline(
-    createServiceContextFromEvent(event),
-    event.context.organization!.id,
-    eventId,
-    requestId,
+  const ctx = createServiceContextFromEvent(event)
+  const request = await withNotifications((notifications) =>
+    eventInviteRequestService.decline(
+      { ...ctx, notifications },
+      event.context.organization!.id,
+      eventId,
+      requestId,
+    ),
   )
   return { request }
 })

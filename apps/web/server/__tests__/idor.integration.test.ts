@@ -1,6 +1,5 @@
 import {
   bookingService,
-  eventInviteRequestService,
   eventInviteService,
   eventService,
   inviteService,
@@ -108,6 +107,15 @@ const ROUTES: OrgRouteTable = {
   },
   'POST /api/organizations/:orgId/events/:eventId/invite-requests/:requestId/decline': {
     access: 'manager',
+    body: () => ({}),
+  },
+  // 20.4.7: состояние приглашения и отзыв своего запроса — member (свои данные)
+  'POST /api/organizations/:orgId/events/:eventId/invite-access': {
+    access: 'member',
+    body: () => ({}),
+  },
+  'POST /api/organizations/:orgId/events/:eventId/invite-requests/:requestId/cancel': {
+    access: 'member',
     body: () => ({}),
   },
   'GET /api/organizations/:orgId/events/:eventId': { access: 'member' },
@@ -300,7 +308,13 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
       method: 'cash',
       inviteToken: eventInvite.token,
     })
-    const request = await eventInviteRequestService.request({ userId: assistant }, org.id, ev.id)
+    // ожидающий запрос игрока фикстуры (игрок уже записан, поэтому строка — напрямую): его отзывает
+    // сам автор (20.4.7), решают организаторы
+    const [request] = await db
+      .insert(eventInviteRequests)
+      .values({ organizationId: org.id, eventId: ev.id, userId: player })
+      .returning()
+    if (!request) throw new Error('request fixture')
     const plan = await planService.create(
       { userId: owner },
       { organizationId: org.id, name: `План ${marker}`, totalSessions: 8, price: 8000 },
