@@ -44,6 +44,18 @@
       "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
     },
     {
+      "id": "player-event-cancel-partial",
+      "title": "Игрок: отмена части мест и срок отмены (20.4.8)",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "event": { "title": "Открытая игра", "status": "published" },
+      "path": "/m/orgs/{org}/events/{event}",
+      "references": ["3-miniapp-player/02-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 },
+      "fullPage": true
+    },
+    {
       "id": "player-event-split-closed",
       "title": "Игрок: событие со сбором суммой (запись закрыта, доля рассчитана)",
       "viewport": "miniapp",

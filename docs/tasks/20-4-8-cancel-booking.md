@@ -6,7 +6,7 @@ status: in_progress
 release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-12
-status_note: 'Реализация в PR (ветка trafficolog/feat/20.4.8-cancel-booking): снимок политики в UI, «Отменить можно до …», частичная отмена мест (PATCH), D-14 в подтверждении и после отмены, ошибка booking.cancellation_not_allowed. Визуальная сверка и ревью открыты, см. docs/operations/qa/2026-10-20-20-4-8-cancel-booking.md.'
+status_note: 'Реализация в PR (ветка trafficolog/feat/20.4.8-cancel-booking): снимок политики в UI, «Отменить можно до …», частичная отмена мест (PATCH), D-14 в подтверждении и после отмены, ошибка booking.cancellation_not_allowed. Визуальная сверка харнессом 19.0.2 (light и dark) — docs/operations/qa/2026-10-20-20-4-8-cancel-booking.md. Открыто: follow-up «оплачено, место освобождено» (нужен API игрока).'
 ref_id: 'M-09'
 complexity: S
 impl_model: claude-haiku-5-5
@@ -37,6 +37,7 @@ tags: [reference-v3]
 - **Дельта до референса:** Политика группы (D-02), «Отменить можно до …», частичная отмена мест, пояснение после дедлайна.
 - Решения владельца (2026-10-13): [D-14](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-14) — при отмене игроком после оплаты деньги автоматически не возвращаются; возврат — действие организатора.
 - Модель: реализация `claude-haiku-5-5`, ревью `claude-sonnet-5-5` (независимое ревью); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
+- **Follow-up (вне 20.4.8, нужен player API):** пункт «оплачено, место освобождено» в истории игрока не показан: у игрока нет API с признаком `payments.seat_released_at` (список «Мои записи» отдаёт отменённые записи только для split). Нужна отдельная задача на API игрока, после неё — строка в истории.
 
 **Общий функционал с другими интерфейсами:**
 
