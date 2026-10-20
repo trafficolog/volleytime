@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import {
   assertLocalHosts,
   assertLocalUrl,
+  inviteFixturePlan,
   pickEvent,
   renderHtml,
   renderMarkdown,
@@ -53,6 +54,43 @@ describe('visual reference map', () => {
     const m = valid()
     mutate(m)
     expect(validateMap(m).join('\n')).toContain(expected)
+  })
+
+  it('M-08 invite states (20.4.7, D-06): four screens with approved jpg references', () => {
+    const states = ['none', 'requested', 'invited', 'expired']
+    const screens = map.screens.filter((s: { inviteState?: string }) => s.inviteState)
+    expect(screens.map((s: { inviteState: string }) => s.inviteState)).toEqual(states)
+    for (const s of screens) {
+      expect(s.role).toBe('player')
+      expect(s.references[0]).toBe(`3-miniapp-player/m08-invite-${s.inviteState}.jpg`)
+    }
+    const m = valid()
+    m.screens.find((s) => s.inviteState)!.inviteState = 'bogus'
+    expect(validateMap(m).join('\n')).toContain('inviteState')
+    const noEvent = valid()
+    delete noEvent.screens.find((s) => s.inviteState)!.event
+    expect(validateMap(noEvent).join('\n')).toContain('{event}')
+  })
+
+  it('invite fixture plan: what each state needs in the DB', () => {
+    const startsAt = new Date('2026-06-01T17:00:00Z')
+    const now = new Date('2026-05-29T16:00:00Z')
+    expect(inviteFixturePlan('none', { now, startsAt })).toEqual({
+      request: null,
+      inviteExpiresAt: null,
+    })
+    expect(inviteFixturePlan('requested', { now, startsAt })).toEqual({
+      request: 'pending',
+      inviteExpiresAt: null,
+    })
+    expect(inviteFixturePlan('invited', { now, startsAt })).toEqual({
+      request: 'approved',
+      inviteExpiresAt: startsAt,
+    })
+    const expired = inviteFixturePlan('expired', { now, startsAt })
+    expect(expired.request).toBe('approved')
+    expect(expired.inviteExpiresAt!.getTime()).toBeLessThan(now.getTime())
+    expect(() => inviteFixturePlan('x', { now, startsAt })).toThrow()
   })
 
   it('public event screens (20.6.1): {slug} needs publicEvent with a known org', () => {
