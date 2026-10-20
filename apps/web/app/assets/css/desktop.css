@@ -82,7 +82,12 @@
   text-transform: uppercase;
 }
 
-.vt-desktop__nav-heading:not(:first-child) {
+.vt-desktop__nav-group {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.vt-desktop__nav-group + .vt-desktop__nav-group {
   margin-block-start: 0.75rem;
 }
 

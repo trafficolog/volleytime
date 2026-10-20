@@ -46,8 +46,11 @@ function pluralEvents(n: number): string {
 }
 
 /** Плашка «Баланс событий» в сайдбаре: единица — «событие» (D-10). */
-export function eventBalanceCard(balance: { balance: number; low: boolean } | null) {
-  if (!balance) return { value: '—', caption: 'баланс событий', low: false }
+export function eventBalanceCard(
+  balance: { balance: number; low: boolean } | null,
+  failed = false,
+) {
+  if (!balance) return { value: '—', caption: failed ? 'нет данных' : 'баланс событий', low: false }
   return {
     value: String(balance.balance),
     caption: `${pluralEvents(balance.balance)} в балансе`,

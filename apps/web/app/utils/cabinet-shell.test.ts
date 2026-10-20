@@ -11,7 +11,6 @@ describe('cabinet sidebar sections (20.5.3)', () => {
       'events',
       'members',
       'plans',
-      'payments',
       'cashbox',
     ])
     expect(sections[1]!.items.map((i) => i.key)).toEqual(['settings'])
@@ -24,6 +23,7 @@ describe('cabinet sidebar sections (20.5.3)', () => {
     expect(keys).not.toContain('contributions')
     expect(keys).not.toContain('reports')
     expect(keys).not.toContain('billing')
+    expect(keys).not.toContain('payments')
   })
 
   it('gives every nav item an icon', () => {
@@ -50,5 +50,9 @@ describe('event balance card (20.5.3, D-10)', () => {
 
   it('falls back to a dash while the balance is not loaded', () => {
     expect(eventBalanceCard(null)).toEqual({ value: '—', caption: 'баланс событий', low: false })
+  })
+
+  it('says "нет данных" when loading failed', () => {
+    expect(eventBalanceCard(null, true)).toEqual({ value: '—', caption: 'нет данных', low: false })
   })
 })
