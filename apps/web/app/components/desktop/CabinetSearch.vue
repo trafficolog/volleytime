@@ -20,16 +20,32 @@ const loading = ref(false)
 const error = ref('')
 const data = ref<CabinetSearchResponse | null>(null)
 let generation = 0
+let controller: AbortController | undefined
+let skipOpenOnFocus = false
 let timer: ReturnType<typeof setTimeout> | undefined
 
 const sections = computed(() =>
   data.value ? buildSearchSections(props.orgId, data.value, props.timeZone) : [],
 )
 const tooShort = computed(() => query.value.trim().length > 0 && !shouldSearch(query.value))
+const found = computed(() => sections.value.reduce((n, sec) => n + sec.rows.length, 0))
 const empty = computed(
-  () =>
-    !loading.value && !error.value && data.value?.searched === true && sections.value.length === 0,
+  () => !loading.value && !error.value && data.value?.searched === true && found.value === 0,
 )
+/** Одна постоянная live-область: меняется только текст, скринридер озвучивает итог. */
+const liveText = computed(() => {
+  if (!open.value) return ''
+  if (tooShort.value) return `Введите минимум ${CABINET_SEARCH_MIN} символа`
+  if (loading.value) return 'Ищем…'
+  if (error.value) return ''
+  if (empty.value) return 'Ничего не найдено'
+  return data.value?.searched ? `Найдено: ${found.value}` : ''
+})
+
+function abortInFlight() {
+  controller?.abort()
+  controller = undefined
+}
 
 async function run() {
   const token = ++generation
@@ -43,9 +59,13 @@ async function run() {
   }
   loading.value = true
   error.value = ''
+  abortInFlight()
+  const ctl = new AbortController()
+  controller = ctl
   try {
     const result = await $fetch<CabinetSearchResponse>(`/api/organizations/${orgId}/search`, {
       query: { q },
+      signal: ctl.signal,
     })
     // устаревший ответ (новый ввод или другая группа) не должен перетереть актуальный
     if (token !== generation || orgId !== props.orgId) return
@@ -61,6 +81,7 @@ async function run() {
 
 function schedule() {
   clearTimeout(timer)
+  abortInFlight()
   open.value = query.value.trim().length > 0
   if (!shouldSearch(query.value)) {
     generation++
@@ -77,8 +98,29 @@ function close() {
   open.value = false
 }
 
+/** Esc при открытой выдаче: закрыть, вернуть фокус в поле и не пускать событие к обработчикам кабинета. */
+function onEsc(e: KeyboardEvent) {
+  if (!open.value) return
+  e.stopPropagation()
+  close()
+  skipOpenOnFocus = true
+  input.value?.focus()
+  skipOpenOnFocus = false
+}
+
+/** Фокус ушёл за пределы поиска (Tab, клик по фокусируемому элементу): закрыть выдачу. */
+function onFocusOut(e: FocusEvent) {
+  const next = e.relatedTarget as Node | null
+  if (next && root.value && !root.value.contains(next)) close()
+}
+
+function onFocus() {
+  if (!skipOpenOnFocus) open.value = query.value.trim().length > 0
+}
+
 function clear() {
   clearTimeout(timer)
+  abortInFlight()
   generation++
   query.value = ''
   data.value = null
@@ -87,8 +129,15 @@ function clear() {
   open.value = false
 }
 
+function isEditable(t: EventTarget | null): boolean {
+  if (!(t instanceof HTMLElement)) return false
+  return t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)
+}
+
 function onGlobalKey(e: KeyboardEvent) {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    // в другом поле ввода (форма, заметка) Ctrl+K не наш: фокус не забираем
+    if (isEditable(e.target) && e.target !== input.value) return
     e.preventDefault()
     input.value?.focus()
     input.value?.select()
@@ -111,6 +160,7 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
   clearTimeout(timer)
+  abortInFlight()
   generation++
   window.removeEventListener('keydown', onGlobalKey)
   document.removeEventListener('mousedown', onOutside)
@@ -118,7 +168,13 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="root" class="vt-cabinet-search" role="search" @keydown.esc="close">
+  <div
+    ref="root"
+    class="vt-cabinet-search"
+    role="search"
+    @keydown.esc="onEsc"
+    @focusout="onFocusOut"
+  >
     <label class="vt-cabinet-search__field">
       <VtIcon name="search" :size="16" />
       <span class="sr-only">Поиск по игрокам, событиям и платежам</span>
@@ -131,21 +187,29 @@ onBeforeUnmount(() => {
         autocomplete="off"
         maxlength="64"
         aria-controls="cabinet-search-panel"
-        :aria-expanded="open"
         @input="schedule"
-        @focus="open = query.trim().length > 0"
+        @focus="onFocus"
       />
     </label>
+    <p class="sr-only" role="status">{{ liveText }}</p>
     <div v-if="open" id="cabinet-search-panel" class="vt-cabinet-search__panel">
-      <p v-if="tooShort" class="vt-cabinet-search__note" role="status">
+      <p v-if="tooShort" class="vt-cabinet-search__note">
         Введите минимум {{ CABINET_SEARCH_MIN }} символа
       </p>
-      <p v-else-if="loading" class="vt-cabinet-search__note" role="status">Ищем…</p>
+      <p v-else-if="loading" class="vt-cabinet-search__note">Ищем…</p>
       <p v-else-if="error" class="vt-cabinet-search__note" role="alert">{{ error }}</p>
-      <p v-else-if="empty" class="vt-cabinet-search__note" role="status">Ничего не найдено</p>
+      <p v-else-if="empty" class="vt-cabinet-search__note">Ничего не найдено</p>
       <template v-else>
-        <section v-for="section in sections" :key="section.key" class="vt-cabinet-search__group">
-          <h2 class="vt-cabinet-search__heading">{{ section.heading }}</h2>
+        <div
+          v-for="section in sections"
+          :key="section.key"
+          role="group"
+          :aria-labelledby="`cabinet-search-${section.key}`"
+          class="vt-cabinet-search__group"
+        >
+          <p :id="`cabinet-search-${section.key}`" class="vt-cabinet-search__heading">
+            {{ section.heading }}
+          </p>
           <ul>
             <li v-for="row in section.rows" :key="row.key">
               <NuxtLink :to="row.to" class="vt-cabinet-search__row" @click="clear">
@@ -155,7 +219,7 @@ onBeforeUnmount(() => {
             </li>
           </ul>
           <p v-if="section.more" class="vt-cabinet-search__more">Есть ещё — уточните запрос</p>
-        </section>
+        </div>
       </template>
     </div>
   </div>
