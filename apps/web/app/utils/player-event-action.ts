@@ -4,6 +4,8 @@ const staleEventRejections = new Set([
   'booking.event_not_bookable',
   'booking.not_cancellable',
   'booking.deadline_passed',
+  // политика группы сменилась: кнопка отмены скрывается после перечтения события (19.2.2, 20.4.8)
+  'booking.cancellation_not_allowed',
   'booking.already_booked',
   'booking.method_not_allowed',
   // места или предложение изменились, пока экран был открыт (20.1.2, 20.3.1): перечитать событие

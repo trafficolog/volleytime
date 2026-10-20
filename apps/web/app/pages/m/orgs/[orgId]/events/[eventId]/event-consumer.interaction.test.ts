@@ -19,6 +19,7 @@ import Page from './index.vue'
 
 import BookingSeatsStepper from '~/components/BookingSeatsStepper.vue'
 import PlayerBookingForm from '~/components/PlayerBookingForm.vue'
+import PlayerSeatsCancel from '~/components/PlayerSeatsCancel.vue'
 import PlayerSplitPriceCard from '~/components/PlayerSplitPriceCard.vue'
 import WaitlistOfferCard from '~/components/WaitlistOfferCard.vue'
 import MyChip from '~/components/vt/MyChip.vue'
@@ -48,6 +49,7 @@ const fixture = () => ({
   currency: 'BYN',
   description: null,
   cancellationDeadlineHours: null as number | null,
+  cancellationAllowed: true,
   venue: null,
   locationText: null,
   pricing: {
@@ -101,6 +103,7 @@ async function render() {
           VtMiniHeader: true,
           VtChip: { template: '<span><slot /></span>' },
           PlayerBookingForm,
+          PlayerSeatsCancel,
           PlayerSplitPriceCard,
           WaitlistOfferCard,
           BookingSeatsStepper,
@@ -380,6 +383,55 @@ describe('booking rejected because the event is gone (19.3.1)', () => {
     )
     expect(wrapper.text()).not.toContain('Не удалось записаться')
     expect(wrapper.find('a[href="/m/orgs/30/events"]').exists()).toBe(true)
+  })
+})
+
+describe('self-cancellation policy, deadline and partial seats (20.4.8)', () => {
+  it('hides the cancel button and explains it when the group policy forbids self-cancel (D-02)', async () => {
+    data.value.event.cancellationAllowed = false
+    data.value.event.cancellationDeadlineHours = null
+    wrapper = await render()
+    expect(wrapper.findAll('button').some((b) => b.text().startsWith('Отменить запись'))).toBe(
+      false,
+    )
+    expect(wrapper.text()).toContain('Самостоятельная отмена недоступна')
+  })
+
+  it('shows «Отменить можно до …» next to the booking while cancellation is open', async () => {
+    data.value.event.cancellationAllowed = true
+    data.value.event.cancellationDeadlineHours = 12
+    wrapper = await render()
+    expect(wrapper.text()).toContain('Отменить можно до')
+  })
+
+  it('removes part of the seats with PATCH, warns about paid seats and keeps the rest', async () => {
+    data.value.event.cancellationAllowed = true
+    data.value.event.cancellationDeadlineHours = null
+    data.value.event.myBooking = {
+      id: 5,
+      status: 'confirmed',
+      method: 'cash',
+      paymentId: 9,
+      seats: 3,
+      waitlistSeats: 0,
+    } as unknown as typeof data.value.event.myBooking
+    wrapper = await render()
+    await button('Снять 1 место').trigger('click')
+    await flushPromises()
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('Останется 2 места'))
+    expect(confirm).toHaveBeenCalledWith(
+      expect.stringContaining('Оплаченные места освободятся без возврата денег'),
+    )
+    expect(post).toHaveBeenCalledExactlyOnceWith('/api/organizations/30/bookings/5', {
+      method: 'PATCH',
+      body: { seats: 2 },
+    })
+    expect(haptic).toHaveBeenCalledWith('success')
+    expect(
+      wrapper
+        .findAll('p[role="status"]')
+        .some((p) => p.text().includes('Оплаченные места освободятся без возврата денег')),
+    ).toBe(true)
   })
 })
 

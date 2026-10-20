@@ -27,6 +27,7 @@ type CancellableBooking = {
   status: string
   startsAt: string | Date
   cancellationDeadlineHours: number | null
+  cancellationAllowed?: boolean
 }
 
 export function canCancelPlayerBooking(booking: CancellableBooking, now: Date) {
@@ -36,6 +37,7 @@ export function canCancelPlayerBooking(booking: CancellableBooking, now: Date) {
       ? null
       : new Date(start.getTime() - booking.cancellationDeadlineHours * 3600_000)
   return (
+    booking.cancellationAllowed !== false &&
     ['confirmed', 'pending_payment', 'waitlisted'].includes(booking.status) &&
     start > now &&
     (deadline === null || now <= deadline)
