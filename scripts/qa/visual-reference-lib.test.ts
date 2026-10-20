@@ -57,12 +57,14 @@ describe('visual reference map', () => {
   })
 
   it('M-08 invite states (20.4.7, D-06): four screens with approved jpg references', () => {
-    const states = ['none', 'requested', 'invited', 'expired']
+    const states = ['none', 'requested', 'invited', 'invited-link', 'expired']
     const screens = map.screens.filter((s: { inviteState?: string }) => s.inviteState)
     expect(screens.map((s: { inviteState: string }) => s.inviteState)).toEqual(states)
     for (const s of screens) {
       expect(s.role).toBe('player')
-      expect(s.references[0]).toBe(`3-miniapp-player/m08-invite-${s.inviteState}.jpg`)
+      // «invited-link» — то же утверждённое состояние, приглашение по личной ссылке
+      const ref = s.inviteState === 'invited-link' ? 'invited' : s.inviteState
+      expect(s.references[0]).toBe(`3-miniapp-player/m08-invite-${ref}.jpg`)
     }
     const m = valid()
     m.screens.find((s) => s.inviteState)!.inviteState = 'bogus'
@@ -86,6 +88,12 @@ describe('visual reference map', () => {
     expect(inviteFixturePlan('invited', { now, startsAt })).toEqual({
       request: 'approved',
       inviteExpiresAt: startsAt,
+    })
+    // по личной ссылке: приглашение без запроса, токен кладётся в хранилище сессии Mini App
+    expect(inviteFixturePlan('invited-link', { now, startsAt })).toEqual({
+      request: null,
+      inviteExpiresAt: startsAt,
+      link: true,
     })
     const expired = inviteFixturePlan('expired', { now, startsAt })
     expect(expired.request).toBe('approved')

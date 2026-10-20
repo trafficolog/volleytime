@@ -278,6 +278,60 @@ describe('event page: invite-only booking (M-08)', () => {
     expect(readStashedInviteToken(71)).toBeNull()
   })
 
+  it('a stashed token that gave no link invite (revoked, used, foreign, expired) is cleared (m-1)', async () => {
+    stashInviteToken(71, 'dead-token-0123456789')
+    inviteAccess = access({ state: 'none' })
+    wrapper = await render()
+    expect(callsTo('/invite-access')[0]?.[1]).toMatchObject({
+      body: { inviteToken: 'dead-token-0123456789' },
+    })
+    expect(readStashedInviteToken(71)).toBeNull()
+    wrapper.unmount()
+
+    stashInviteToken(71, 'old-token-0123456789')
+    inviteAccess = access({ state: 'expired', invite: linkInvite('2027-10-02T14:00:00Z') })
+    wrapper = await render()
+    expect(readStashedInviteToken(71)).toBeNull()
+    wrapper.unmount()
+
+    // действующая ссылка токен сохраняет: он нужен записи
+    stashInviteToken(71, 'live-token-0123456789')
+    inviteAccess = access({ state: 'invited', invite: linkInvite() })
+    wrapper = await render()
+    expect(readStashedInviteToken(71)).toBe('live-token-0123456789')
+  })
+
+  it('a full event does not offer the waitlist to an uninvited player (20.4.11 × M-08)', async () => {
+    data.value.event.freeSeats = 0
+    data.value.event.taken = 14
+    for (const state of ['none', 'requested', 'expired'] as const) {
+      inviteAccess = access({
+        state,
+        request:
+          state === 'requested'
+            ? { id: 9, status: 'pending', createdAt: '2027-10-03T09:30:00Z' }
+            : null,
+        invite: state === 'expired' ? linkInvite('2027-10-02T14:00:00Z') : null,
+      })
+      wrapper = await render()
+      expect(wrapper.text(), state).not.toContain('Встать в лист ожидания')
+      expect(wrapper.text(), state).not.toContain('вы встанете в лист ожидания')
+      wrapper.unmount()
+    }
+    // приглашённый — может встать в очередь
+    inviteAccess = access({ state: 'invited', invite: linkInvite() })
+    wrapper = await render()
+    expect(button('Встать в лист ожидания')).toBeTruthy()
+  })
+
+  it('inside Telegram a full invite event gives an uninvited player no waitlist MainButton', async () => {
+    inTelegram = true
+    data.value.event.freeSeats = 0
+    data.value.event.taken = 14
+    wrapper = await render()
+    expect(mainButtonUpdate).toHaveBeenLastCalledWith(null)
+  })
+
   it('invited by an approved request: no token is sent even if one is stashed', async () => {
     stashInviteToken(71, 'stale-token-0123456789')
     inviteAccess = access({ state: 'invited', invite: { ...linkInvite(), source: 'request' } })

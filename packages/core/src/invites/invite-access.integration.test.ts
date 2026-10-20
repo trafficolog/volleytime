@@ -5,6 +5,8 @@ import {
   eq,
   eventInviteRequests,
   inviteLinks,
+  notifications,
+  organizationMembers,
   organizations,
   users,
 } from '@volley-time/db'
@@ -15,6 +17,7 @@ import { bookingService } from '../bookings/service'
 import { eventService } from '../events/service'
 import { memberService } from '../members/service'
 import type { PendingNotification } from '../notifier/types'
+import { enqueueNotifications } from '../scheduler/journal'
 import { organizationService } from '../organizations/service'
 
 import { eventInviteRequestService, eventInviteService } from './event-invites'
@@ -324,6 +327,27 @@ describe('invite access for the Mini App (20.4.7, PostgreSQL)', () => {
       ).resolves.toBeTruthy()
     })
 
+    it('the event author is the organizer only while an active owner/organizer; else the owner', async () => {
+      const ev = await makeEvent()
+      const p = await player()
+      expect((await access(p, ev.id)).organizer?.name).toBe('Иван Петренко')
+      // автора понизили до игрока
+      await db
+        .update(organizationMembers)
+        .set({ role: 'player' })
+        .where(eq(organizationMembers.userId, organizerId))
+      expect((await access(p, ev.id)).organizer?.name).toBe('Owner')
+      // автор снова организатор, но заблокирован
+      await db
+        .update(organizationMembers)
+        .set({ role: 'organizer', status: 'blocked' })
+        .where(eq(organizationMembers.userId, organizerId))
+      expect((await access(p, ev.id)).organizer?.name).toBe('Owner')
+      // автор — сам владелец
+      const own = await makeEvent({ by: ownerId })
+      expect((await access(p, own.id)).organizer?.name).toBe('Owner')
+    })
+
     it('open events have no invite access; foreign group and drafts are 404', async () => {
       const open = await makeEvent({ joinMode: 'open' })
       const p = await player()
@@ -371,7 +395,7 @@ describe('invite access for the Mini App (20.4.7, PostgreSQL)', () => {
       const ev = await makeEvent()
       const p = await player('Соня')
       const c = collector()
-      const req = await eventInviteRequestService.request(c.ctx(p), orgId, ev.id)
+      await eventInviteRequestService.request(c.ctx(p), orgId, ev.id)
       expect(c.notifications.map((n) => [n.userId, n.type]).sort()).toEqual(
         [
           [ownerId, 'invite_request_organizer'],
@@ -385,13 +409,55 @@ describe('invite access for the Mini App (20.4.7, PostgreSQL)', () => {
           eventTitle: 'Основа',
           playerName: 'Соня',
         })
-        expect(n.dedupKey).toBe(`invite_request_organizer:request:${req.id}:user:${n.userId}`)
+        expect(n.dedupKey).toBe(
+          `invite_request_organizer:invite_request:event:${ev.id}:player:${p}:round:0:user:${n.userId}`,
+        )
       }
       // организатор-игрок не получает уведомление о собственном запросе
       const c2 = collector()
       const ev2 = await makeEvent()
       await eventInviteRequestService.request(c2.ctx(organizerId), orgId, ev2.id)
       expect(c2.notifications.map((n) => n.userId)).toEqual([ownerId])
+    })
+
+    it('request → cancel → request leaves the organizer one feed item; a new round after a decline notifies again', async () => {
+      const ev = await makeEvent()
+      const p = await player('Соня')
+      const feedFor = async (userId: number) =>
+        (await db.select().from(notifications).where(eq(notifications.recipientUserId, userId)))
+          .length
+      const deliver = async (c: ReturnType<typeof collector>) => {
+        await enqueueNotifications(
+          db,
+          c.notifications.map((n) => ({
+            type: n.type,
+            dedupKey: n.dedupKey!,
+            userId: n.userId,
+            params: n.params,
+            organizationId: n.params.organizationId ?? null,
+            eventId: n.params.eventId ?? null,
+          })),
+        )
+        c.notifications.length = 0
+      }
+      const c = collector()
+      const first = await eventInviteRequestService.request(c.ctx(p), orgId, ev.id)
+      await deliver(c)
+      await eventInviteRequestService.cancel(c.ctx(p), orgId, ev.id, first.id)
+      const second = await eventInviteRequestService.request(c.ctx(p), orgId, ev.id)
+      await deliver(c)
+      await eventInviteRequestService.cancel(c.ctx(p), orgId, ev.id, second.id)
+      await eventInviteRequestService.request(c.ctx(p), orgId, ev.id)
+      await deliver(c)
+      expect(await feedFor(organizerId)).toBe(1)
+      expect(await feedFor(ownerId)).toBe(1)
+
+      // организатор ответил (отказ): следующий запрос — новый раунд и новое уведомление
+      const pending = (await access(p, ev.id)).request!
+      await eventInviteRequestService.decline({ userId: ownerId }, orgId, ev.id, pending.id)
+      await eventInviteRequestService.request(c.ctx(p), orgId, ev.id)
+      await deliver(c)
+      expect(await feedFor(organizerId)).toBe(2)
     })
 
     it('the answer goes to the player; withdrawal and failed requests notify nobody', async () => {

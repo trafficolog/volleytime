@@ -412,6 +412,9 @@ async function loadInviteAccess() {
     if (!alive || request !== inviteRequestSeq || key !== route.fullPath) return
     inviteAccess.value = res.access
     inviteLoaded.value = true
+    // токен не дал приглашения по ссылке (отозван, использован, чужой, просрочен): больше не нужен
+    if (stashed && !(res.access.state === 'invited' && res.access.invite?.source === 'link'))
+      clearStashedInviteToken(current.id)
   } catch {
     if (!alive || request !== inviteRequestSeq || key !== route.fullPath) return
     // состояние неизвестно: запись остаётся закрытой, сервер проверит приглашение сам

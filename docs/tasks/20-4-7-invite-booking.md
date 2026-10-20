@@ -12,7 +12,7 @@ complexity: M
 impl_model: claude-sonnet-5-5
 review_model: claude-opus-5-5
 review_gate: opus
-roles: [FE]
+roles: [FE, BE]
 depends_on: ['20.1.3', '19.0.3']
 supersedes: []
 decisions: ['D-06']

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* global document, Image */
+/* global document, Image, window */
 /**
  * Харнесс визуальной сверки с референсом v3 (Task 19.0.2). Локальный инструмент, не CI-gate.
  *
@@ -163,8 +163,9 @@ async function applyInviteFixture(sql, { orgId, eventId, userKey, state }) {
   await sql`delete from event_invite_requests where event_id = ${ev.id} and user_id = ${user.id}`
   await sql`delete from invite_links where event_id = ${ev.id} and type = 'event_join'`
   let inviteId = null
+  let token = null
   if (plan.inviteExpiresAt) {
-    const token = `visual${Math.random().toString(36).slice(2, 14)}${Date.now().toString(36)}`
+    token = `visual${Math.random().toString(36).slice(2, 14)}${Date.now().toString(36)}`
     ;[{ id: inviteId }] = await sql`
       insert into invite_links
         (token, organization_id, event_id, type, created_by_user_id, default_member_status,
@@ -181,6 +182,8 @@ async function applyInviteFixture(sql, { orgId, eventId, userKey, state }) {
         ${plan.request === 'approved' ? ev.created_by_user_id : null},
         ${plan.request === 'approved' ? new Date() : null}, ${inviteId})`
   }
+  // по личной ссылке: токен приходит из startapp и ждёт экран события в хранилище сессии
+  return plan.link ? token : null
 }
 
 async function login(context, tg) {
@@ -342,13 +345,19 @@ try {
             if (!ev) throw new Error(`Событие «${screen.event.title}» не найдено в демо-данных`)
             eventId = ev.id
           }
-          if (screen.inviteState)
-            await applyInviteFixture(sql, {
+          if (screen.inviteState) {
+            const linkToken = await applyInviteFixture(sql, {
               orgId,
               eventId,
               userKey: map.users[role],
               state: screen.inviteState,
             })
+            if (linkToken)
+              await page.addInitScript(
+                ([key, value]) => window.sessionStorage.setItem(key, value),
+                [`vt.inviteToken.${eventId}`, linkToken],
+              )
+          }
           let slug
           if (screen.publicEvent) {
             const { org, title, status } = screen.publicEvent
