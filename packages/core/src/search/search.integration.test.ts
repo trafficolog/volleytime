@@ -5,6 +5,7 @@ import {
   organizationMembers,
   organizations,
   payments,
+  sql,
   users,
   type User,
 } from '@volley-time/db'
@@ -218,6 +219,14 @@ describe('cabinet search (integration, 20.5.2)', () => {
         amount: 1500,
         method: 'cash' as const,
       })),
+    )
+    // Свежезаполненные таблицы без статистики (autovacuum ещё не отработал) дают планировщику
+    // оценку «1 строка» и вложенные циклы: запрос платежей занимал секунды (CI main 2026-10-20).
+    // Тест измеряет план на нормальной статистике, как у живой группы.
+    await db.execute(
+      sql.raw(
+        'ANALYZE users, organization_members, events, payments, bookings, venues, subscriptions, subscription_plans',
+      ),
     )
     const run = () =>
       searchService.search({ userId: owner.id }, perfOrg, { isManager: true }, 'иванов')
