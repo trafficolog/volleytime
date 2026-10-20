@@ -20,11 +20,11 @@
 - Команда: `pnpm qa:visual --base http://127.0.0.1:3491 --routes player-event-cancel-partial,player-event --themes light,dark --out output/visual`. Все четыре снимка `ok`.
 - В карту харнесса `scripts/qa/visual-reference-map.json` добавлен экран `player-event-cancel-partial` (полная страница).
 - Артефакты (не коммитятся):
-  - `output/visual/20261020-162607/captures/player-event-cancel-partial.light.png`
-  - `output/visual/20261020-162607/captures/player-event-cancel-partial.dark.png`
-  - `output/visual/20261020-162607/captures/player-event.light.png`
-  - `output/visual/20261020-162607/captures/player-event.dark.png`
-  - `output/visual/20261020-162607/report.html`
+  - `output/visual/20261020-163915/captures/player-event-cancel-partial.light.png`
+  - `output/visual/20261020-163915/captures/player-event-cancel-partial.dark.png`
+  - `output/visual/20261020-163915/captures/player-event.light.png`
+  - `output/visual/20261020-163915/captures/player-event.dark.png`
+  - `output/visual/20261020-163915/report.html`
 - Сверка с референсом (глазами, `docs/design/reference-v3/screenshots/3-miniapp-player/02-screen.png`): шапка, карточка события, состав и блок записи совпадают по структуре. Расхождения: (1) в референсе под записью одна кнопка «Отменить запись» с подписью «на абонемент» (возврат занятия), в приложении подписи нет; (2) степпер частичной отмены в референсе не показан (отдельного экрана нет, состояние собрано из атомов v3 по карточке 20.4.8). Оба зафиксированы как Minor; решение владельца не запрошено. Pixel diff не запускался (ориентир, не gate).
 - Не снималось харнессом: нативное подтверждение `confirm()` с текстом D-14 и пояснение после успешной отмены: харнесс не подтверждает диалоги и не выполняет отмену. Текст подтверждения и пояснения проверяется интерактивными тестами (`event-consumer.interaction.test.ts`, `player-booking-cancel.test.ts`).
 
