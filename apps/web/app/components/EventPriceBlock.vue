@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { seatsLabel } from '~/utils/booking-seats'
 import type { PriceView } from '~/utils/event-price-view'
 
 /**
@@ -25,7 +26,7 @@ defineProps<{ view: PriceView }>()
     <p v-if="view.rangeText" class="vt-price-block__meta" data-price-range>{{ view.rangeText }}</p>
     <ul v-if="view.scenarios.length" class="vt-price-block__scenarios" aria-label="Доли сбора">
       <li v-for="s in view.scenarios" :key="s.seats" :class="{ 'is-current': s.current }">
-        <span>{{ s.seats }} мест</span>
+        <span>{{ seatsLabel(s.seats) }}</span>
         <strong class="vt-mono">{{ s.amount }}</strong>
       </li>
     </ul>

@@ -1,9 +1,15 @@
 <script setup lang="ts">
-import { formatDay, formatTime, type EventPricingView } from '@volley-time/shared'
+import {
+  formatDay,
+  formatTime,
+  type EventPriceQuote,
+  type EventPricingView,
+} from '@volley-time/shared'
 
 import { eventPricingLabel, splitBookingPaymentLabel } from '~/utils/event-pricing-label'
 import { formatPrice } from '~/utils/labels'
 import { bookingPaymentChip } from '~/utils/player-event'
+import { quotePriceLabel } from '~/utils/player-price-view'
 
 export interface EventListItem {
   id: number
@@ -14,6 +20,12 @@ export interface EventListItem {
   capacity: number
   price: number
   pricing?: EventPricingView
+  /**
+   * Цена split из `quoteEventPrice` (то же, что `GET …/events/{id}/price`, 20.4.6): Главная игрока.
+   * `null` — расчёта нет (fixed, управляющий или цена недоступна); `undefined` — источник не передан
+   * (список событий, «Мои записи»): остаётся проекция `pricing`.
+   */
+  priceQuote?: (EventPriceQuote & { currency?: string }) | null
   currency: string
   taken: number
   waitlist: number
@@ -41,14 +53,41 @@ const weekday = computed(() =>
     new Date(props.event.startsAt),
   ),
 )
-const priceLabel = computed(() =>
-  props.event.pricing
+const quoteMode = computed(
+  () => props.event.pricing?.mode === 'split' && props.event.priceQuote !== undefined,
+)
+const hasActiveBooking = computed(() =>
+  ['confirmed', 'pending_payment', 'attended', 'no_show'].includes(
+    props.event.myBooking?.status ?? '',
+  ),
+)
+const priceLabel = computed(() => {
+  if (quoteMode.value) {
+    // цена из ответа цены; отменённое событие цены не показывает, недоступный расчёт — без числа
+    const label =
+      props.event.status === 'cancelled'
+        ? null
+        : quotePriceLabel(props.event.priceQuote, props.event.currency, {
+            hasBooking: hasActiveBooking.value,
+            waitlisted: props.event.myBooking?.status === 'waitlisted',
+          })
+    return { text: label?.text ?? '', description: label?.description ?? '', payable: false }
+  }
+  return props.event.pricing
     ? eventPricingLabel(props.event.pricing, props.event.currency)
     : {
         text: formatPrice(props.event.price, props.event.currency),
         description: '',
         payable: props.event.price > 0,
-      },
+      }
+})
+const forecastNote = computed(
+  () =>
+    props.event.pricing?.mode === 'split' &&
+    (quoteMode.value
+      ? props.event.priceQuote?.basis === 'forecast'
+      : props.event.pricing.basis !== 'settled') &&
+    !!priceLabel.value.description,
 )
 const paymentLabel = computed(() =>
   props.event.myBooking
@@ -77,15 +116,12 @@ const splitWaitlistNote = computed(() =>
         <VtStateChip :event="event" />
       </div>
       <div
-        v-if="event.price > 0 || event.pricing?.mode === 'split'"
+        v-if="(event.price > 0 || event.pricing?.mode === 'split') && priceLabel.text"
         class="text-[11px] text-vt-mute-2 mt-1"
       >
         {{ priceLabel.text }}
       </div>
-      <p
-        v-if="event.pricing?.mode === 'split' && event.pricing.basis !== 'settled'"
-        class="text-[11px] text-vt-mute-2 mt-1"
-      >
+      <p v-if="forecastNote" class="text-[11px] text-vt-mute-2 mt-1">
         {{ priceLabel.description }}
       </p>
       <p v-if="splitWaitlistNote" class="text-[11px] text-vt-mute-2 mt-1">
@@ -127,10 +163,7 @@ const splitWaitlistNote = computed(() =>
         <VtChip v-if="paymentLabel" :tone="paymentLabel.tone">{{ paymentLabel.text }}</VtChip>
         <span class="ml-auto text-[12px] font-semibold">{{ priceLabel.text }}</span>
       </div>
-      <p
-        v-if="event.pricing?.mode === 'split' && event.pricing.basis !== 'settled'"
-        class="text-[11px] text-vt-mute-2 mt-1"
-      >
+      <p v-if="forecastNote" class="text-[11px] text-vt-mute-2 mt-1">
         {{ priceLabel.description }}
       </p>
       <p v-if="splitWaitlistNote" class="text-[11px] text-vt-mute-2 mt-1">

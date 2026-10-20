@@ -6,6 +6,7 @@
  */
 import { quoteEventPrice, type EventPriceQuote } from '@volley-time/shared'
 
+import { seatsLabel } from './booking-seats'
 import { formatMoneyRu } from './labels'
 import { eventStateOf, seatsOf } from './status-model'
 
@@ -72,7 +73,7 @@ export function priceViewOf(
           : null,
       divider:
         quote.targetAmount !== null && quote.seatCount
-          ? `${money(quote.targetAmount)} ÷ ${quote.seatCount.current} мест`
+          ? `${money(quote.targetAmount)} ÷ ${seatsLabel(quote.seatCount.current)}`
           : null,
       scenarios: [],
       full,
@@ -95,7 +96,7 @@ export function priceViewOf(
       quote.perSeat.min !== quote.perSeat.max
         ? `от ${money(quote.perSeat.min)} до ${money(quote.perSeat.max)}`
         : null,
-    divider: `${money(target)} ÷ ${current} мест`,
+    divider: `${money(target)} ÷ ${seatsLabel(current)}`,
     // та же функция расчёта, что и в ответе эндпоинта: n мест, одно из них — «моё»
     scenarios: counts.map((n) => ({
       seats: n,

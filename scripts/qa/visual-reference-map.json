@@ -33,6 +33,28 @@
       "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
     },
     {
+      "id": "player-event-split",
+      "title": "Игрок: событие со сбором суммой (прогноз до закрытия)",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "event": { "title": "Аренда большого зала", "status": "published" },
+      "path": "/m/orgs/{org}/events/{event}",
+      "references": ["3-miniapp-player/02-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
+      "id": "player-event-split-closed",
+      "title": "Игрок: событие со сбором суммой (запись закрыта, доля рассчитана)",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "event": { "title": "Воскресная игра", "status": "closed" },
+      "path": "/m/orgs/{org}/events/{event}",
+      "references": ["3-miniapp-player/02-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
       "id": "player-event-book",
       "title": "Игрок: запись на событие (лист записи)",
       "viewport": "miniapp",

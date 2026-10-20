@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { quoteEventPrice } from '@volley-time/shared'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -20,6 +21,7 @@ import MyChip from '~/components/vt/MyChip.vue'
 import SeatsMini from '~/components/vt/SeatsMini.vue'
 import StateChip from '~/components/vt/StateChip.vue'
 import { apiErrorMessage } from '~/utils/api-error'
+import { formatMoneyRu } from '~/utils/labels'
 
 const HomeHost = defineComponent({ render: () => h(Suspense, null, { default: () => h(Home) }) })
 
@@ -557,6 +559,48 @@ describe('player Home bento v3 (20.4.4)', () => {
     expect(w.get('a[href="/m/orgs/30/bookings"]').text()).toContain('2 ждут оплаты')
     expect(w.get('a[href="/m/orgs/30/events"]').text()).toContain('Смотреть все')
     expect(w.text()).not.toContain('Мои ближайшие записи')
+    w.unmount()
+  })
+
+  it('hero and schedule show the split price from the quote (GET …/price), not from pricing (20.4.6)', async () => {
+    const money = (minor: number) => formatMoneyRu(minor, 'BYN')
+    const legacy = {
+      mode: 'split',
+      targetAmount: 10000,
+      settledAt: null,
+      participantCount: 12,
+      minAmount: 1111,
+      maxAmount: 1111,
+      basis: 'current',
+      myAllocatedAmount: null,
+      myPaymentStatus: null,
+    }
+    const quoteOf = (taken: number, mySeats: number) => ({
+      ...quoteEventPrice({
+        mode: 'split',
+        targetAmount: 10000,
+        capacity: 14,
+        takenSeats: taken,
+        mySeats,
+        seats: 1,
+        settled: null,
+      }),
+      currency: 'BYN',
+    })
+    const heroQuote = quoteOf(12, 1)
+    const rowQuote = quoteOf(12, 0)
+    const w = await mountPlayer({
+      upcoming: [
+        { ...game(1, 28, { id: 9, status: 'confirmed' }), pricing: legacy, priceQuote: heroQuote },
+        { ...game(2, 30), pricing: legacy, priceQuote: rowQuote },
+        { ...game(3, 29), status: 'cancelled', pricing: legacy, priceQuote: rowQuote },
+      ],
+    })
+    const hero = w.get('a[href="/m/orgs/30/events/1"]').text()
+    expect(hero).toContain(`≈ ${money(heroQuote.perSeat.max)}`)
+    const row = w.get('a[href="/m/orgs/30/events/2"]').text()
+    expect(row).toContain(`≈ ${money(rowQuote.perSeat.max)}`)
+    expect(w.text()).not.toContain(money(1111))
     w.unmount()
   })
 

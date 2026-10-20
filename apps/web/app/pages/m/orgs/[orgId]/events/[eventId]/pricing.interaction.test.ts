@@ -23,11 +23,13 @@ import Page from './index.vue'
 import BookingSeatsStepper from '~/components/BookingSeatsStepper.vue'
 import EventCard from '~/components/EventCard.vue'
 import PlayerBookingForm from '~/components/PlayerBookingForm.vue'
+import PlayerSplitPriceCard from '~/components/PlayerSplitPriceCard.vue'
 import WaitlistOfferCard from '~/components/WaitlistOfferCard.vue'
 import MyChip from '~/components/vt/MyChip.vue'
 import SeatsMini from '~/components/vt/SeatsMini.vue'
 import StateChip from '~/components/vt/StateChip.vue'
 import Toggle from '~/components/vt/Toggle.vue'
+import { withSplitPriceFetch } from '~/utils/__fixtures__/split-quote'
 
 const route = reactive({ params: { orgId: '30', eventId: '71' }, fullPath: '/m/orgs/30/events/71' })
 const pricing: EventPricingView = {
@@ -91,7 +93,7 @@ for (const [name, value] of Object.entries({
   useRoute: () => route,
   useOrgTimezone: () => ({ tz: 'Europe/Minsk' }),
   useTelegram: () => ({ confirm, haptic: vi.fn(), isTelegram: ref(false), useMainButton: vi.fn() }),
-  $fetch: apiFetch,
+  $fetch: withSplitPriceFetch(apiFetch, () => data.value.event),
   refreshNuxtData: vi.fn(),
   apiErrorCode: (e: { data?: { code?: string } } | null) => e?.data?.code,
   apiErrorStatus: () => 500,
@@ -120,6 +122,7 @@ async function renderPage() {
           VtMiniHeader: { template: '<header><slot name="right" /></header>' },
           VtChip: { template: '<span><slot /></span>' },
           PlayerBookingForm,
+          PlayerSplitPriceCard,
           WaitlistOfferCard,
           BookingSeatsStepper,
           VtToggle: Toggle,
@@ -972,7 +975,8 @@ describe('player split pricing interactions', () => {
   })
   it('unsettled_split_is_not_free_or_paid and roster does not reveal other payments', async () => {
     const wrapper = await renderPage()
-    expect(wrapper.text()).toContain('≈ 33,33–33,34 BYN')
+    // цена из ответа GET …/price: игрок, записавшийся сейчас, делит сумму на 4 места (3 занято + он)
+    expect(wrapper.text()).toContain('≈ 25,00 BYN')
     expect(wrapper.text()).toContain('Прогноз')
     expect(wrapper.text()).not.toContain('Бесплатно')
     expect(wrapper.text()).not.toContain('Оплачено')
@@ -985,7 +989,9 @@ describe('player split pricing interactions', () => {
     }
     data.value.event.taken = 0
     await flushPromises()
-    expect(wrapper.text()).toContain('При полном составе')
+    // пока никого нет, прогноз — «я один»: вся сумма на одно место
+    expect(wrapper.text()).toContain('≈ 100,00 BYN')
+    expect(wrapper.text()).not.toContain('При полном составе')
     wrapper.unmount()
   })
   it.each(['pending', 'succeeded', 'cancelled', 'refunded'] as const)(

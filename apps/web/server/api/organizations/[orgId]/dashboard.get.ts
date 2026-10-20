@@ -5,6 +5,7 @@ import {
   ledgerService,
   paymentService,
   readEventPricing,
+  readPlayerPriceQuote,
   requireOrgMember,
   subscriptionService,
 } from '@volley-time/core'
@@ -40,6 +41,10 @@ export default defineApiHandler(async (event) => {
   const stats = await eventService.statsFor(ctx, [
     ...new Set([...upcoming.map((e) => e.id), ...(goingBooking ? [goingBooking.eventId] : [])]),
   ])
+
+  // Цена split — единый расчёт GET …/price (`quoteEventPrice`), а не `readEventPricing` (20.4.6).
+  const quoteFor = (eventId: number, mode: string) =>
+    readPlayerPriceQuote(ctx, { organizationId: orgId, eventId, mode, isManager })
 
   const activeSub = mySubs.find(
     (s) =>
@@ -81,12 +86,16 @@ export default defineApiHandler(async (event) => {
       })),
     ),
     hero: goingBooking
-      ? {
-          ...goingBooking.event,
-          // stats переопределяет связь `venue` (name + address) — как в `upcoming`
-          ...stats.get(goingBooking.eventId)!,
-          pricing: await readEventPricing(ctx, goingBooking.eventId),
-        }
+      ? await (async () => {
+          const pricing = await readEventPricing(ctx, goingBooking.eventId)
+          return {
+            ...goingBooking.event,
+            // stats переопределяет связь `venue` (name + address) — как в `upcoming`
+            ...stats.get(goingBooking.eventId)!,
+            pricing,
+            priceQuote: await quoteFor(goingBooking.eventId, pricing.mode),
+          }
+        })()
       : null,
     subscription: activeSub
       ? {
@@ -97,11 +106,15 @@ export default defineApiHandler(async (event) => {
         }
       : null,
     upcoming: await Promise.all(
-      upcoming.map(async (e) => ({
-        ...e,
-        ...stats.get(e.id)!,
-        pricing: await readEventPricing(ctx, e.id),
-      })),
+      upcoming.map(async (e) => {
+        const pricing = await readEventPricing(ctx, e.id)
+        return {
+          ...e,
+          ...stats.get(e.id)!,
+          pricing,
+          priceQuote: await quoteFor(e.id, pricing.mode),
+        }
+      }),
     ),
     manager,
   }

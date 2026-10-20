@@ -1,4 +1,10 @@
-import { bookingService, readEventPricing, requireOrgMember } from '@volley-time/core'
+import {
+  bookingService,
+  canManageContent,
+  readEventPricing,
+  readPlayerPriceQuote,
+  requireOrgMember,
+} from '@volley-time/core'
 import { z } from 'zod'
 
 const Query = z.object({
@@ -19,10 +25,20 @@ export default defineApiHandler(async (event) => {
   )
   return {
     bookings: await Promise.all(
-      bookings.map(async (booking) => ({
-        ...booking,
-        pricing: await readEventPricing(ctx, booking.eventId),
-      })),
+      bookings.map(async (booking) => {
+        const pricing = await readEventPricing(ctx, booking.eventId)
+        return {
+          ...booking,
+          pricing,
+          // цена split — единый расчёт GET …/price (20.4.6)
+          priceQuote: await readPlayerPriceQuote(ctx, {
+            organizationId: event.context.organization!.id,
+            eventId: booking.eventId,
+            mode: pricing.mode,
+            isManager: canManageContent(event.context.member ?? null),
+          }),
+        }
+      }),
     ),
     limit,
     offset,

@@ -10,6 +10,7 @@ export {
   readEventPricing,
   readPricingFinancials,
   readPricingPermissions,
+  readPlayerPriceQuote,
   type EventPriceQuoteView,
 } from './pricing-read-model'
 export { readPublicEvent, initialsOf, PUBLIC_SLUG_RE, type PublicEventView } from './public-event'

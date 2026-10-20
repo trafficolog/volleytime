@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import type { Booking, Event, Venue } from '@volley-time/db'
-import { formatDay, formatTime, type EventPricingView } from '@volley-time/shared'
+import {
+  formatDay,
+  formatTime,
+  type EventPriceQuote,
+  type EventPricingView,
+} from '@volley-time/shared'
 
 import { eventPricingLabel, splitBookingPaymentLabel } from '~/utils/event-pricing-label'
 import {
@@ -10,11 +15,38 @@ import {
 } from '~/utils/player-bookings-loader'
 import { bookingPaymentChip } from '~/utils/player-event'
 import { playerAccessFromApiError } from '~/utils/player-home'
+import { quotePriceLabel } from '~/utils/player-price-view'
 import { createPlayerRequestGuard } from '~/utils/player-request-guard'
 import { participationOf } from '~/utils/status-model'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
-type MyBooking = Booking & { pricing: EventPricingView; event: Event & { venue: Venue | null } }
+type MyBooking = Booking & {
+  pricing: EventPricingView
+  /** Цена split из `quoteEventPrice` (как GET …/price, 20.4.6); `undefined` — источник не передан. */
+  priceQuote?: (EventPriceQuote & { currency?: string }) | null
+  event: Event & { venue: Venue | null }
+}
+
+/** Цена карточки записи: split — из ответа цены (без числа, если расчёта нет), иначе прежняя проекция. */
+function priceOf(b: MyBooking) {
+  // отменённая запись показывает зафиксированную долю/возврат (факт, не прогноз) — прежняя проекция
+  if (b.pricing.mode === 'split' && b.priceQuote !== undefined && b.status !== 'cancelled') {
+    const label =
+      b.event.status === 'cancelled'
+        ? null
+        : quotePriceLabel(b.priceQuote, b.event.currency, {
+            hasBooking: ['confirmed', 'pending_payment', 'attended', 'no_show'].includes(b.status),
+            waitlisted: b.status === 'waitlisted',
+          })
+    return {
+      text: label?.text ?? '',
+      description: label?.description ?? '',
+      forecast: b.priceQuote?.basis === 'forecast' && !!label,
+    }
+  }
+  const label = eventPricingLabel(b.pricing, b.event.currency)
+  return { ...label, forecast: b.pricing.mode === 'split' && b.pricing.basis !== 'settled' }
+}
 
 const route = useRoute()
 const orgId = computed(() => Number(route.params.orgId))
@@ -206,13 +238,10 @@ function canCancel(booking: MyBooking) {
                 }}<template v-if="b.event.venue"> · {{ b.event.venue.name }}</template>
               </div>
               <div class="vt-mono text-xs mt-1">
-                {{ eventPricingLabel(b.pricing, b.event.currency).text }}
+                {{ priceOf(b).text }}
               </div>
-              <p
-                v-if="b.pricing.mode === 'split' && b.pricing.basis !== 'settled'"
-                class="text-xs text-vt-mute-2 mt-1"
-              >
-                {{ eventPricingLabel(b.pricing, b.event.currency).description }}
+              <p v-if="priceOf(b).forecast" class="text-xs text-vt-mute-2 mt-1">
+                {{ priceOf(b).description }}
               </p>
               <p
                 v-if="b.status === 'waitlisted' && b.pricing.mode === 'split'"
