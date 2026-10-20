@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Organization, OrganizationMember } from '@volley-time/db'
 
+import { cabinetNavIcon, cabinetNavSections } from '~/utils/cabinet-shell'
 import {
   desktopNavItems,
   desktopSignInPath,
@@ -29,6 +30,9 @@ const isLoading = computed(() =>
 )
 const items = computed(() =>
   desktopNavItems(orgId.value, organization.value?.subscriptionsEnabled === true),
+)
+const sections = computed(() =>
+  cabinetNavSections(orgId.value, organization.value?.subscriptionsEnabled === true),
 )
 const mobileNavOpen = ref(false)
 const mobileMenuButton = ref<HTMLButtonElement | null>(null)
@@ -73,34 +77,20 @@ useHead(() => ({
           <VtIcon name="chevron-r" :size="16" />
         </NuxtLink>
         <nav class="vt-desktop__nav" aria-label="Навигация по группе">
-          <div class="vt-desktop__nav-heading">Организация</div>
-          <NuxtLink
-            v-for="item in items"
-            :key="item.key"
-            :to="item.to"
-            :aria-current="isCurrent(item.to) ? 'page' : undefined"
-          >
-            <VtIcon
-              :name="
-                item.key === 'overview'
-                  ? 'home'
-                  : item.key === 'plans'
-                    ? 'ticket'
-                    : item.key === 'members'
-                      ? 'users'
-                      : item.key === 'payments'
-                        ? 'card'
-                        : item.key === 'cashbox'
-                          ? 'wallet'
-                          : item.key === 'settings'
-                            ? 'settings'
-                            : 'calendar'
-              "
-              :size="18"
-            />
-            {{ item.label }}
-          </NuxtLink>
+          <template v-for="section in sections" :key="section.key">
+            <div class="vt-desktop__nav-heading">{{ section.heading }}</div>
+            <NuxtLink
+              v-for="item in section.items"
+              :key="item.key"
+              :to="item.to"
+              :aria-current="isCurrent(item.to) ? 'page' : undefined"
+            >
+              <VtIcon :name="cabinetNavIcon(item.key)" :size="18" />
+              {{ item.label }}
+            </NuxtLink>
+          </template>
         </nav>
+        <DesktopCabinetBalanceCard :org-id="organization.id" />
       </aside>
 
       <div class="vt-desktop__body" @keydown.esc="mobileNavOpen && closeMobileNav()">
@@ -115,11 +105,22 @@ useHead(() => ({
           >
             <VtIcon name="menu" :size="18" /> Меню
           </button>
-          <p class="font-semibold">{{ organization.name }}</p>
-          <DesktopCabinetSearch
-            :org-id="organization.id"
-            :time-zone="organization.defaultTimezone"
-          />
+          <p class="vt-desktop__topbar-title font-semibold">{{ organization.name }}</p>
+          <div class="vt-desktop__topbar-tools">
+            <DesktopCabinetSearchToggle
+              :org-id="organization.id"
+              :time-zone="organization.defaultTimezone"
+            />
+            <button
+              type="button"
+              class="vt-btn vt-btn--ghost vt-btn--sm"
+              aria-label="Уведомления"
+              title="Лента уведомлений появится позже"
+              disabled
+            >
+              <VtIcon name="bell" :size="18" />
+            </button>
+          </div>
           <NuxtLink to="/app?choose=1" class="vt-btn vt-btn--ghost vt-btn--sm"
             >Сменить группу</NuxtLink
           >
