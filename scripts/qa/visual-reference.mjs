@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* global document, Image */
+/* global document, Image, window */
 /**
  * Харнесс визуальной сверки с референсом v3 (Task 19.0.2). Локальный инструмент, не CI-gate.
  *
@@ -26,6 +26,7 @@ import {
   THEMES,
   assertLocalHosts,
   assertLocalUrl,
+  inviteFixturePlan,
   pickEvent,
   renderHtml,
   renderMarkdown,
@@ -94,7 +95,8 @@ const botToken = (process.env.TELEGRAM_BOT_TOKEN ?? '').trim()
 const databaseUrl = process.env.DATABASE_URL ?? ''
 const needsAuth = screens.some((s) => s.role !== 'anonymous')
 // публичные события (20.6.1) выбираются по названию в БД: нужна локальная БД, вход не нужен
-const needsDb = needsAuth || screens.some((s) => s.publicEvent)
+// состояния M-08 (inviteState) готовятся прямо в локальной БД
+const needsDb = needsAuth || screens.some((s) => s.publicEvent || s.inviteState)
 if (process.env.NODE_ENV === 'production') {
   console.error('Харнесс не запускается при NODE_ENV=production')
   process.exit(1)
@@ -143,6 +145,45 @@ async function ensureTelegramId(sql, key, index) {
   const [row] = await sql`select telegram_user_id, name from users where email = ${email}`
   if (!row) throw new Error(`Демо-пользователь ${email} не найден: выполните pnpm db:seed:demo`)
   return { tgId: Number(row.telegram_user_id), name: row.name ?? key }
+}
+
+/**
+ * Состояние записи по приглашению (M-08, 20.4.7): событие переводится в `invite`, у игрока
+ * остаётся только запрос и приглашение из плана состояния. Только локальная БД с демо-сидом.
+ */
+async function applyInviteFixture(sql, { orgId, eventId, userKey, state }) {
+  const [user] =
+    await sql`select id from users where email = ${`demo-${userKey}@${DEMO_EMAIL_DOMAIN}`}`
+  const [ev] = await sql`
+    select id, starts_at, created_by_user_id from events
+    where id = ${eventId} and organization_id = ${orgId}`
+  if (!user || !ev) throw new Error('Фикстура приглашения: игрок или событие не найдены')
+  const plan = inviteFixturePlan(state, { now: new Date(), startsAt: ev.starts_at })
+  await sql`update events set join_mode = 'invite' where id = ${ev.id}`
+  await sql`delete from event_invite_requests where event_id = ${ev.id} and user_id = ${user.id}`
+  await sql`delete from invite_links where event_id = ${ev.id} and type = 'event_join'`
+  let inviteId = null
+  let token = null
+  if (plan.inviteExpiresAt) {
+    token = `visual${Math.random().toString(36).slice(2, 14)}${Date.now().toString(36)}`
+    ;[{ id: inviteId }] = await sql`
+      insert into invite_links
+        (token, organization_id, event_id, type, created_by_user_id, default_member_status,
+         max_uses, expires_at)
+      values (${token}, ${orgId}, ${ev.id}, 'event_join', ${ev.created_by_user_id}, 'pending',
+         1, ${plan.inviteExpiresAt})
+      returning id`
+  }
+  if (plan.request) {
+    await sql`
+      insert into event_invite_requests
+        (organization_id, event_id, user_id, status, decided_by_user_id, decided_at, invite_id)
+      values (${orgId}, ${ev.id}, ${user.id}, ${plan.request},
+        ${plan.request === 'approved' ? ev.created_by_user_id : null},
+        ${plan.request === 'approved' ? new Date() : null}, ${inviteId})`
+  }
+  // по личной ссылке: токен приходит из startapp и ждёт экран события в хранилище сессии
+  return plan.link ? token : null
 }
 
 async function login(context, tg) {
@@ -304,6 +345,19 @@ try {
             if (!ev) throw new Error(`Событие «${screen.event.title}» не найдено в демо-данных`)
             eventId = ev.id
           }
+          if (screen.inviteState) {
+            const linkToken = await applyInviteFixture(sql, {
+              orgId,
+              eventId,
+              userKey: map.users[role],
+              state: screen.inviteState,
+            })
+            if (linkToken)
+              await page.addInitScript(
+                ([key, value]) => window.sessionStorage.setItem(key, value),
+                [`vt.inviteToken.${eventId}`, linkToken],
+              )
+          }
           let slug
           if (screen.publicEvent) {
             const { org, title, status } = screen.publicEvent
@@ -331,7 +385,11 @@ try {
           )
           // плашка Nuxt DevTools (dev-режим) не часть интерфейса и перекрывает нижний край
           await page.addStyleTag({ content: '#nuxt-devtools-container{display:none!important}' })
-          for (const step of screen.steps ?? []) await page.click(step.click, { timeout: 10_000 })
+          for (const step of screen.steps ?? []) {
+            if (step.scroll === 'bottom')
+              await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+            else await page.click(step.click, { timeout: 10_000 })
+          }
           await page.evaluate(() => document.fonts.ready)
           await page.waitForTimeout(400)
           const file = `captures/${screen.id}.${theme}.png`

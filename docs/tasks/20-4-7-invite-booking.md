@@ -2,24 +2,29 @@
 id: '20.4.7'
 phase: '20'
 epic: '20.4'
-status: todo
+status: in_progress
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-10-20
+status_note: 'D-06 закрыт 2026-10-20: владелец утвердил 4 экрана M-08. Реализация в ветке trafficolog/feat/20.4.7-invite-booking; без миграций (invite-access, отзыв запроса, шаблоны уведомлений). Утверждение скриншотов приложения владельцем — до merge.'
 ref_id: 'M-08'
 complexity: M
 impl_model: claude-sonnet-5-5
 review_model: claude-opus-5-5
 review_gate: opus
-roles: [FE]
+roles: [FE, BE]
 depends_on: ['20.1.3', '19.0.3']
 supersedes: []
 decisions: ['D-06']
 estimated_hours: '4-8'
 reference:
   spec: 'docs/design/reference-v3/specs/02-mini-app/M-08-invite-booking.md'
-  screens: ['3-miniapp-player/07-screen.png']
+  screens:
+    - '3-miniapp-player/07-screen.png'
+    - '3-miniapp-player/m08-invite-none.jpg'
+    - '3-miniapp-player/m08-invite-requested.jpg'
+    - '3-miniapp-player/m08-invite-invited.jpg'
+    - '3-miniapp-player/m08-invite-expired.jpg'
 tags: [reference-v3]
 ---
 
@@ -33,8 +38,10 @@ tags: [reference-v3]
 
 - Спецификация референса: [M-08 · Запись по приглашению](../design/reference-v3/specs/02-mini-app/M-08-invite-booking.md); макет: 4 Кабинет → Создание события → Запись (в Mini App пока нет).
 - **Как есть (main `e68acf2`):** Экран приглашения в группу `/m/invite/[token]` (8.10.6).
-- **Дельта до референса:** Бейдж «по приглашению», «Запросить приглашение» и статус запроса, вход по ссылке сразу в событие, просроченная ссылка. Состояния не нарисованы в референсе — старт только после D-06.
+- **Дельта до референса:** Бейдж «по приглашению», «Запросить приглашение» и статус запроса, вход по ссылке сразу в событие, просроченная ссылка. Состояния не были нарисованы в референсе; D-06 закрыт 2026-10-20 — владелец утвердил 4 экрана (`3-miniapp-player/m08-invite-*.jpg`).
 - Решения владельца (2026-10-12): [D-06](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-06) — исполнитель собирает 4 состояния из атомов v3 и прикладывает скриншоты; владелец утверждает до merge.
+- **2026-10-20 · D-06 закрыт: экраны M-08 утверждены** ([журнал](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-06)): владелец утвердил четыре целевых экрана — «без приглашения», «запрос отправлен», «вы приглашены», «ссылка просрочена» — снимки `m08-invite-none|requested|invited|expired.jpg` в `reference.screens` и в карте харнесса. Принятое отступление: валюта «BYN», не «Br» (владелец, 2026-10-19); цена только из `quoteEventPrice` / `GET …/price`.
+- **Бэкенд (без миграции):** `POST …/events/{id}/invite-access` (состояние, срок, имя пригласившего), `POST …/invite-requests/{id}/cancel` (отзыв своего запроса), шаблоны бота `invite_request_organizer` (в ленту `organizer_action_required`) и `invite_request_decided`; права — [permissions-v3](../architecture/permissions-v3.md), IDOR-таблица обновлена.
 - Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` (ревью Opus); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
 
 **Общий функционал с другими интерфейсами:**

@@ -20,6 +20,8 @@ export const AUDIT_ACTIONS = {
   EVENT_INVITE_REQUEST_CREATED: 'event_invite_request.created',
   EVENT_INVITE_REQUEST_APPROVED: 'event_invite_request.approved',
   EVENT_INVITE_REQUEST_DECLINED: 'event_invite_request.declined',
+  // игрок отозвал свой запрос (20.4.7)
+  EVENT_INVITE_REQUEST_CANCELLED: 'event_invite_request.cancelled',
   EVENT_CREATED: 'event.created',
   EVENT_UPDATED: 'event.updated',
   EVENT_CANCELLED: 'event.cancelled',
