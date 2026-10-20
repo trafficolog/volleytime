@@ -2,11 +2,11 @@
 id: '20.5.3'
 phase: '20'
 epic: '20.5'
-status: todo
+status: in_progress
 release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-12
-status_note: ''
+status_note: 'Сайдбар v3 (240px, разделы), топбар без переноса, поиск за иконкой (Ctrl/⌘+K, Esc, крестик, клик вне), плашка «Баланс событий» реализованы без миграции и новых маршрутов (используется GET /event-balance); отчёт сверки docs/operations/qa/2026-10-20-20-5-3-cabinet-shell-visual.md. Не сделано до своих карточек: пункты Сборы/Отчёты/Баланс, кнопка Пополнить (21.2.8), живой колокольчик (21.2.9). Ожидает ревью.'
 ref_id: 'W-01'
 complexity: M
 impl_model: claude-sonnet-5-5
