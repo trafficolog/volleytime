@@ -188,8 +188,9 @@ const planMeta = (p: SubscriptionPlan) => {
         <div class="px-1 pb-3.5">
           <h2 class="font-display text-xl font-bold">Выберите абонемент</h2>
           <p class="mt-1.5 text-sm text-vt-mute-2">
-            Списывается автоматически при записи. Абонемент активируется, когда организатор
-            подтвердит оплату.
+            Списывается автоматически при записи.<template v-if="!isFree">
+              Абонемент активируется, когда организатор подтвердит оплату.</template
+            >
           </p>
         </div>
 

@@ -80,11 +80,9 @@ const paymentChip = computed(() => bookingPaymentChip(b.value.status, b.value.pr
           }}<template v-if="b.event.venue"> · {{ b.event.venue.name }}</template></span
         >
         <span class="mt-1.5 block vt-mono text-xs">{{ price.text }}</span>
-        <span
-          v-if="price.forecast"
-          class="mt-1 block text-xs text-vt-mute-2"
-          >{{ price.description }}</span
-        >
+        <span v-if="price.forecast" class="mt-1 block text-xs text-vt-mute-2">{{
+          price.description
+        }}</span>
         <span
           v-if="waitlisted && b.pricing.mode === 'split'"
           class="mt-1 block text-xs text-vt-mute-2"
