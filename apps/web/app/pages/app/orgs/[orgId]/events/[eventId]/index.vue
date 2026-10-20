@@ -44,6 +44,7 @@ const { data, pending, error, refresh } = await useFetch<{
     taken: number
     players?: number
     waitlist: number
+    waitlistSeats?: number
     venue: { name: string } | null
     pricing: EventPricingView
     pricingPermissions?: PricingPermissions
@@ -566,7 +567,7 @@ async function resolvePayment(booking: EventBookingRow, action: 'confirm' | 'rej
               role="group"
             >
               <h3 id="desktop-waitlist-title" class="vt-cap">
-                Лист ожидания · {{ seatsWordRu(event.waitlist) }}
+                Лист ожидания · {{ seatsWordRu(event.waitlistSeats ?? event.waitlist) }}
               </h3>
               <ol v-if="waitlist.length">
                 <li v-for="booking in waitlist" :key="booking.id">

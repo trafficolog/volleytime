@@ -6,6 +6,7 @@ import {
   eq,
   events,
   eventSeries,
+  gt,
   gte,
   inArray,
   isNotNull,
@@ -26,7 +27,7 @@ import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
 import { reservedSeats, revokeEventOffers } from '../bookings/offers'
 import { queuePositionsOf } from '../bookings/queue-position'
-import { queuedSeatsSql, takenSeatsSql } from '../bookings/seats'
+import { queuedBookingsSql, queuedSeatsSql, takenSeatsSql } from '../bookings/seats'
 import { eventBalanceService } from '../event-balance/service'
 import { collectNotification } from '../notifier/collect'
 import { OrganizationNotFoundError } from '../organizations/errors'
@@ -117,8 +118,10 @@ export interface EventStats {
   taken: number
   /** Игроков в составе — COUNT(*) тех же записей; не равно `taken` при записях на несколько мест. */
   players: number
-  /** Мест в очереди: записи `waitlisted` целиком и очередная часть записей в основе. */
+  /** Людей (записей) в очереди: `waitlisted` и записи в основе с местами в очереди; без имён (20.4.11). */
   waitlist: number
+  /** Мест в очереди: записи `waitlisted` целиком и очередная часть записей в основе. */
+  waitlistSeats: number
   myBooking: {
     id: number
     status: string
@@ -324,12 +327,14 @@ export const eventService = {
     const out = new Map<number, EventStats>()
     if (eventIds.length === 0) return out
     const db = getDb(ctx)
+    const now = new Date()
     const counts = await db
       .select({
         eventId: bookings.eventId,
         taken: takenSeatsSql,
         players: sql<number>`count(*) FILTER (WHERE ${bookings.status} IN ('confirmed','pending_payment','attended','no_show'))::int`,
-        waitlist: queuedSeatsSql,
+        waitlist: queuedBookingsSql,
+        waitlistSeats: queuedSeatsSql,
       })
       .from(bookings)
       .where(inArray(bookings.eventId, eventIds))
@@ -362,6 +367,8 @@ export const eventService = {
                 mine.map((m) => m.id),
               ),
               eq(waitlistOffers.status, 'offered'),
+              // истёкшее, но не обработанное предложение не показывается: игрок покидает очередь (20.4.11)
+              gt(waitlistOffers.expiresAt, now),
             ),
           )
       : []
@@ -370,14 +377,22 @@ export const eventService = {
       .from(events)
       .innerJoin(venues, eq(venues.id, events.venueId))
       .where(inArray(events.id, eventIds))
-    const positions = await queuePositionsOf(db, ctx.userId, eventIds)
+    const positions = await queuePositionsOf(db, ctx.userId, eventIds, now)
     for (const id of eventIds)
-      out.set(id, { taken: 0, players: 0, waitlist: 0, myBooking: null, venue: null })
+      out.set(id, {
+        taken: 0,
+        players: 0,
+        waitlist: 0,
+        waitlistSeats: 0,
+        myBooking: null,
+        venue: null,
+      })
     for (const c of counts)
       Object.assign(out.get(c.eventId)!, {
         taken: c.taken,
         players: c.players,
         waitlist: c.waitlist,
+        waitlistSeats: c.waitlistSeats,
       })
     for (const m of mine)
       out.get(m.eventId)!.myBooking = {

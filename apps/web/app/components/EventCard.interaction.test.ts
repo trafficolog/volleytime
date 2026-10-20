@@ -86,6 +86,31 @@ describe.each(['card', 'schedule'] as const)('EventCard %s status axes', (presen
     expect(w.find('.vt-chip--amber').exists()).toBe(false)
   })
 
+  it('shows the server position, the main+queued label and «Не попали» (20.4.11)', () => {
+    const q = render(
+      event({ taken: 16, myBooking: { id: 1, status: 'waitlisted', waitPos: 2 } }),
+      presentation,
+    )
+    expect(q.get('.vt-chip--queue').text()).toBe('В очереди · 2-й')
+    const main = render(
+      event({
+        myBooking: { id: 1, status: 'confirmed', waitlistSeats: 1, waitPos: 2 },
+      }),
+      presentation,
+    )
+    expect(main.get('.vt-chip--mine').text()).toBe('Иду · +1 в очереди · 2-й')
+    const missed = render(
+      event({ myBooking: { id: 1, status: 'waitlisted', waitPos: null } }),
+      presentation,
+    )
+    expect(missed.text()).toContain('Не попали')
+    expect(missed.find('.vt-chip--queue').exists()).toBe(false)
+  })
+
+  it('names the queue size in people, not seats', () => {
+    expect(render(event({ taken: 16, waitlist: 3 }), 'card').text()).toContain('в очереди 3 чел.')
+  })
+
   it('cancelled and past events get the neutral state word', () => {
     expect(
       render(event({ status: 'cancelled' }), presentation)

@@ -12,6 +12,9 @@ export const takenSeatsSql = sql<number>`coalesce(sum(${bookings.seats}) FILTER 
 /** SQL: места в очереди — вся запись `waitlisted` или очередная часть записи в основе. */
 export const queuedSeatsSql = sql<number>`coalesce(sum(CASE WHEN ${bookings.status} = 'waitlisted' THEN ${bookings.seats} ELSE ${bookings.waitlistSeats} END) FILTER (WHERE ${bookings.status} IN ('waitlisted', 'confirmed', 'pending_payment')), 0)::int`
 
+/** SQL: людей (записей) в очереди — одна запись один раз, сколько бы мест она ни держала (20.4.11). */
+export const queuedBookingsSql = sql<number>`(count(*) FILTER (WHERE ${bookings.status} = 'waitlisted' OR (${bookings.status} IN ('confirmed', 'pending_payment') AND ${bookings.waitlistSeats} > 0)))::int`
+
 /** Запись стоит в очереди (целиком или частью мест); порядок очереди — (booked_at, id). */
 export const inQueueSql = sql`(${bookings.status} = 'waitlisted' OR ${bookings.waitlistSeats} > 0)`
 

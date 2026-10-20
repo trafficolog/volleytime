@@ -727,9 +727,12 @@ export const bookingService = {
     })
     const order = new Map(ids.map((r, i) => [r.id, i]))
     // позиция в очереди и действующее предложение места — только свои (20.4.11, D-03)
-    const positions = await queuePositionsOf(db, ctx.userId, [
-      ...new Set(rows.map((r) => r.eventId)),
-    ])
+    const positions = await queuePositionsOf(
+      db,
+      ctx.userId,
+      [...new Set(rows.map((r) => r.eventId))],
+      now,
+    )
     const offers = await db
       .select({
         id: waitlistOffers.id,
@@ -748,7 +751,9 @@ export const bookingService = {
           gt(waitlistOffers.expiresAt, now),
         ),
       )
-    const offerOf = new Map(offers.map((o) => [o.bookingId, o]))
+    const offerOf = new Map(
+      offers.map((o) => [o.bookingId, { id: o.id, seats: o.seats, expiresAt: o.expiresAt }]),
+    )
     return rows
       .sort((a, b) => order.get(a.id)! - order.get(b.id)!)
       .map((r) => ({

@@ -52,6 +52,7 @@ type MyBooking = null | {
   seats?: number
   waitlistSeats?: number
   offer?: { id: number; seats: number; expiresAt: string } | null
+  waitPos?: number | null
 }
 const fixture = () => ({
   id: 71,
@@ -65,6 +66,7 @@ const fixture = () => ({
   players: 9,
   freeSeats: 5,
   waitlist: 0,
+  waitlistSeats: 0,
   price: 1500,
   currency: 'BYN',
   description: null,
@@ -330,6 +332,7 @@ describe('no free seats: queue branch keeps the payment choice (M-06, D-03 C)', 
     data.value.event.freeSeats = 0
     data.value.event.taken = 14
     data.value.event.waitlist = 2
+    data.value.event.waitlistSeats = 2
   })
 
   it('shows how the queue works; cash and transfer are selectable; nothing is charged now', async () => {
@@ -455,6 +458,36 @@ describe('my booking and roster (M-06)', () => {
     wrapper = await render()
     expect(pageButton('Записаться')).toBeUndefined()
     expect(wrapper.text()).toContain('Запись откроется')
+  })
+})
+
+describe('waitlist position chip (20.4.11)', () => {
+  it('shows «В очереди · N-й» from the server position on the event page', async () => {
+    data.value.event.myBooking = {
+      id: 5,
+      status: 'waitlisted',
+      method: 'cash',
+      paymentId: null,
+      seats: 1,
+      waitlistSeats: 0,
+      waitPos: 2,
+    } as MyBooking
+    wrapper = await render()
+    expect(wrapper.text()).toContain('В очереди · 2-й')
+  })
+
+  it('shows «Иду · +1 в очереди · 2-й» for main seats plus queued seats', async () => {
+    data.value.event.myBooking = {
+      id: 5,
+      status: 'confirmed',
+      method: 'cash',
+      paymentId: null,
+      seats: 1,
+      waitlistSeats: 1,
+      waitPos: 2,
+    } as MyBooking
+    wrapper = await render()
+    expect(wrapper.text()).toContain('Иду · +1 в очереди · 2-й')
   })
 })
 

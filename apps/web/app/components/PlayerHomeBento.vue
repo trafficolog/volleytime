@@ -60,7 +60,7 @@ const place = computed(() => props.hero.venue?.name ?? props.hero.locationText)
       :to="`${base}/events/${hero.id}`"
       class="vt-card vt-card--hero row-span-2 flex min-h-48 min-w-0 flex-col p-[18px]"
     >
-      <div class="flex items-center justify-between gap-1.5">
+      <div class="flex flex-wrap items-center justify-between gap-x-1.5 gap-y-1">
         <span class="vt-cap min-w-0 !text-[var(--vt-on-hero-2)]">{{
           formatDay(hero.startsAt, tz)
         }}</span>

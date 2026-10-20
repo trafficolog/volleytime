@@ -37,6 +37,7 @@ import { playerHomeAccess } from '~/utils/player-home'
 import { levelTitle, type PlayerLevelView } from '~/utils/player-level'
 import { playerSplitViewOf, quotePriceLabel } from '~/utils/player-price-view'
 import { createPlayerRequestGuard } from '~/utils/player-request-guard'
+import { waitlistPeopleLabel } from '~/utils/status-model'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
 type EventDetails = Event & {
@@ -45,6 +46,8 @@ type EventDetails = Event & {
   /** Игроков в составе: меньше `taken`, когда кто-то занял несколько мест (20.1.2). */
   players?: number
   waitlist: number
+  /** Мест в очереди (для листа записи); `waitlist` — люди (20.4.11). */
+  waitlistSeats?: number
   /** Свободные места для новой записи с учётом удерживаемых предложениями (20.3.1). */
   freeSeats?: number
   myBooking: {
@@ -876,7 +879,9 @@ async function cancelMine() {
       <section aria-labelledby="event-roster-title">
         <div class="flex items-center justify-between mb-2">
           <h2 id="event-roster-title" class="vt-cap">Состав</h2>
-          <span v-if="ev.waitlist" class="text-xs text-vt-mute-2">ожидают {{ ev.waitlist }}</span>
+          <span v-if="ev.waitlist" class="text-xs text-vt-mute-2">{{
+            waitlistPeopleLabel(ev.waitlist)
+          }}</span>
         </div>
         <VtSeatsMini :taken="occupiedSeats" :capacity="ev.capacity" :event="ev" :width="120" />
         <p
@@ -1032,7 +1037,7 @@ async function cancelMine() {
         "
         :total="payableSeats > 1 ? (splitMode ? splitTotalText : priceTotalText) : null"
         :methods="methodOptions"
-        :queued="ev?.waitlist ?? 0"
+        :queued="ev?.waitlistSeats ?? 0"
         :note="
           queueOnly || !bookingMethod || ['free', 'subscription'].includes(bookingMethod.method)
             ? ''

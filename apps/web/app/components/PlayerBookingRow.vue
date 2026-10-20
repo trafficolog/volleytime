@@ -2,6 +2,7 @@
 import type { Booking, Event, Venue } from '@volley-time/db'
 import { formatTime, type EventPriceQuote, type EventPricingView } from '@volley-time/shared'
 
+import { offerDeadlineLabel } from '~/utils/booking-seats'
 import { eventPricingLabel, splitBookingPaymentLabel } from '~/utils/event-pricing-label'
 import { bookingPaymentChip } from '~/utils/player-event'
 import { quotePriceLabel } from '~/utils/player-price-view'
@@ -12,6 +13,11 @@ export type MyBooking = Booking & {
   /** Цена split из `quoteEventPrice` (как GET …/price, 20.4.6); `undefined` — источник не передан. */
   priceQuote?: (EventPriceQuote & { currency?: string }) | null
   event: Event & { venue: Venue | null }
+  /** Место в очереди и действующее предложение — только свои (20.4.11, D-03). */
+  waitPos?: number | null
+  offer?: { id: number; seats: number; expiresAt: string } | null
+  /** Игрок не попал: событие закрыто, прошло или отменено, пока он стоял в очереди (20.4.11). */
+  missed?: boolean
 }
 
 /**
@@ -88,7 +94,10 @@ const paymentChip = computed(() => bookingPaymentChip(b.value.status, b.value.pr
           class="mt-1 block text-xs text-vt-mute-2"
           >{{ splitBookingPaymentLabel(b.pricing, b.status)?.description }}</span
         >
-        <span v-if="waitlisted" class="mt-1 block text-xs text-vt-mute-2"
+        <span v-if="b.offer" class="mt-1 block text-xs font-semibold text-vt-amber-ink">{{
+          offerDeadlineLabel(b.offer.expiresAt, tz)
+        }}</span>
+        <span v-else-if="waitlisted" class="mt-1 block text-xs text-vt-mute-2"
           >Вы в очереди · уведомим, когда освободится место</span
         >
         <span class="mt-2 flex flex-wrap gap-1.5">

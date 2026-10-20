@@ -10,6 +10,7 @@ import { eventPricingLabel, splitBookingPaymentLabel } from '~/utils/event-prici
 import { formatPrice } from '~/utils/labels'
 import { bookingPaymentChip } from '~/utils/player-event'
 import { quotePriceLabel } from '~/utils/player-price-view'
+import { waitlistPeopleLabel } from '~/utils/status-model'
 
 export interface EventListItem {
   id: number
@@ -29,7 +30,12 @@ export interface EventListItem {
   currency: string
   taken: number
   waitlist: number
-  myBooking: { id: number; status: string } | null
+  myBooking: {
+    id: number
+    status: string
+    waitPos?: number | null
+    waitlistSeats?: number | null
+  } | null
   venue: { name: string } | null
   locationText: string | null
 }
@@ -154,9 +160,9 @@ const splitWaitlistNote = computed(() =>
       </div>
       <div class="mt-2 flex items-center gap-2">
         <VtSeatsMini :taken="event.taken" :capacity="event.capacity" :event="event" :width="96" />
-        <span v-if="event.waitlist" class="text-[11.5px] text-vt-mute-2"
-          >ожидают {{ event.waitlist }}</span
-        >
+        <span v-if="event.waitlist" class="text-[11.5px] text-vt-mute-2">{{
+          waitlistPeopleLabel(event.waitlist)
+        }}</span>
       </div>
       <div class="mt-2 flex flex-wrap items-center gap-1.5">
         <VtMyChip :booking="event.myBooking" />

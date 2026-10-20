@@ -8,6 +8,7 @@ import {
   overlapsOf,
   participationOf,
   pendingLabel,
+  waitlistPeopleLabel,
   pendingVerb,
   pendingOf,
   seatsOf,
@@ -33,10 +34,43 @@ describe('participationOf', () => {
     expect(participationOf({ status: 'waitlisted', waitPos: 0 })?.label).toBe('В очереди')
   })
 
+  it('main seats plus queued seats: «Иду · +N в очереди · M-й» (20.4.11, c)', () => {
+    expect(participationOf({ status: 'confirmed', waitlistSeats: 1, waitPos: 2 })).toEqual({
+      key: 'going',
+      label: 'Иду · +1 в очереди · 2-й',
+      icon: 'check',
+    })
+    expect(
+      participationOf({ status: 'pending_payment', waitlistSeats: 2, waitPos: 1 })?.label,
+    ).toBe('Иду · +2 в очереди · 1-й')
+    // очередь уже не движется (позиции нет) или мест в очереди нет — просто «Иду»
+    expect(participationOf({ status: 'confirmed', waitlistSeats: 1, waitPos: null })?.label).toBe(
+      'Иду',
+    )
+    expect(participationOf({ status: 'confirmed', waitlistSeats: 0, waitPos: 3 })?.label).toBe(
+      'Иду',
+    )
+    expect(participationOf({ status: 'confirmed' })?.label).toBe('Иду')
+  })
+
+  it('an explicit null position on the waitlist means the player did not get in («Не попали», d)', () => {
+    expect(participationOf({ status: 'waitlisted', waitPos: null })).toEqual({
+      key: 'missed',
+      label: 'Не попали',
+      icon: 'clock',
+    })
+  })
+
   it.each(['cancelled', 'no_show', 'attended'])('%s and no booking give no chip', (status) => {
     expect(participationOf({ status })).toBeNull()
     expect(participationOf(null)).toBeNull()
     expect(participationOf(undefined)).toBeNull()
+  })
+})
+
+describe('waitlistPeopleLabel', () => {
+  it('counts people, not seats', () => {
+    expect(waitlistPeopleLabel(3)).toBe('в очереди 3 чел.')
   })
 })
 

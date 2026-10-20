@@ -62,6 +62,13 @@ describe('waitlist offers and booking opening over HTTP (20.3.1)', () => {
     expect(card.status).toBe(200)
     expect(JSON.stringify(card.body)).toContain(`"offer":{"id":${offer!.id}`)
 
+    // «Мои записи»: позиция и предложение без bookingId (20.4.11)
+    const mineRes = await request('GET', `${base()}/bookings/my`, { user: b })
+    const mine = (mineRes.body as { bookings: Array<{ waitPos: number | null; offer: unknown }> })
+      .bookings[0]!
+    expect(mine.waitPos).toBe(1)
+    expect(mine.offer).toEqual({ id: offer!.id, seats: 1, expiresAt: expect.any(String) })
+
     const url = `${base()}/waitlist-offers/${offer!.id}/accept`
     const foreign = await request('POST', url, { user: c, body: {} })
     expect(foreign.status).toBe(404)
@@ -114,6 +121,13 @@ describe('waitlist offers and booking opening over HTTP (20.3.1)', () => {
       (e) => e.id === ev.id,
     )
     expect(row?.myBooking).toMatchObject({ id: bb.id, waitPos: 1 })
+
+    const dash = await request('GET', `${base()}/dashboard`, { user: c })
+    const dashRow = (
+      dash.body as { upcoming: Array<{ id: number; myBooking: { waitPos: number | null } | null }> }
+    ).upcoming.find((e) => e.id === ev.id)
+    expect(dashRow?.myBooking?.waitPos).toBe(2)
+    expect(JSON.stringify(dash.body)).not.toContain('Waitnik-Bravo')
 
     const mine = await request('GET', `${base()}/bookings/my`, { user: c })
     const bookingsBody = (mine.body as { bookings: Array<{ id: number; waitPos: number | null }> })

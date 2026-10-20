@@ -3,6 +3,7 @@ import {
   closeDb,
   db,
   eq,
+  events,
   organizations,
   users,
   waitlistOffers,
@@ -191,6 +192,93 @@ describe('waitlist position (20.4.11, PostgreSQL)', { timeout: 60_000 }, () => {
       .set({ offeredAt: new Date(Date.now() - 3600_000), expiresAt: new Date(Date.now() - 1000) })
       .where(eq(waitlistOffers.eventId, ev.id))
     expect(await posOf(q2, ev.id)).toBe(1)
+    // сам игрок с истёкшим предложением позиции не имеет: он покидает очередь (одно правило в обоих ответах)
+    expect(await posOf(q1, ev.id)).toBeNull()
+  })
+
+  it('has no position once the queue stops moving: started, closed by schedule, cancelled, settled (d)', async () => {
+    const make = async () => {
+      const ev = await makeEvent(1)
+      const [main, w] = [await player(), await player()]
+      await bookingService.book({ userId: main }, orgId, ev.id, { method: 'free' })
+      await bookingService.book({ userId: w }, orgId, ev.id, { method: 'free' })
+      expect(await posOf(w, ev.id)).toBe(1)
+      return { ev, w }
+    }
+    const started = await make()
+    await db
+      .update(events)
+      .set({ startsAt: new Date(Date.now() - 3600_000), endsAt: new Date(Date.now() + 3600_000) })
+      .where(eq(events.id, started.ev.id))
+    expect(await posOf(started.w, started.ev.id)).toBeNull()
+
+    const cancelled = await make()
+    await db.update(events).set({ status: 'cancelled' }).where(eq(events.id, cancelled.ev.id))
+    expect(await posOf(cancelled.w, cancelled.ev.id)).toBeNull()
+
+    const settled = await make()
+    await db
+      .update(events)
+      .set({
+        priceMode: 'split',
+        targetAmount: 1000,
+        pricingSettledAt: new Date(),
+        pricingParticipantCount: 1,
+      })
+      .where(eq(events.id, settled.ev.id))
+    expect(await posOf(settled.w, settled.ev.id)).toBeNull()
+
+    // закрыто по расписанию (планировщик включён, момент закрытия наступил)
+    vi.stubEnv('SCHEDULER_ENABLED', 'true')
+    const closed = await make()
+    await db
+      .update(events)
+      .set({ startsAt: new Date(Date.now() + 30 * 60_000), closeBeforeMinutes: 120 })
+      .where(eq(events.id, closed.ev.id))
+    expect(await posOf(closed.w, closed.ev.id)).toBeNull()
+  })
+
+  it('keeps position 1 after a partial promotion of a 2-seat booking (scheduler off)', async () => {
+    const ev = await makeEvent(2)
+    const [main, other, w2, w3] = [await player(), await player(), await player(), await player()]
+    const mainBooking = await bookingService.book({ userId: main }, orgId, ev.id, {
+      method: 'free',
+    })
+    await bookingService.book({ userId: other }, orgId, ev.id, { method: 'free' })
+    const two = await bookingService.book({ userId: w2 }, orgId, ev.id, {
+      method: 'free',
+      seats: 2,
+    })
+    await bookingService.book({ userId: w3 }, orgId, ev.id, { method: 'free' })
+    expect(two.status).toBe('waitlisted')
+    await bookingService.cancel({ userId: main }, mainBooking.id)
+    // одно место освободилось: двухместная запись продвинута частично, второе место ждёт в очереди
+    expect(await reload(two.id)).toMatchObject({ status: 'confirmed', seats: 1, waitlistSeats: 1 })
+    expect(await posOf(w2, ev.id)).toBe(1)
+    expect(await posOf(w3, ev.id)).toBe(2)
+    const chip = (await eventService.statsFor({ userId: w2 }, [ev.id])).get(ev.id)!.myBooking
+    expect(chip).toMatchObject({ status: 'confirmed', waitlistSeats: 1, waitPos: 1 })
+  })
+
+  it('offers a partial seat to a main booking with queued seats and keeps its position (scheduler on)', async () => {
+    vi.stubEnv('SCHEDULER_ENABLED', 'true')
+    const ev = await makeEvent(2)
+    const [a, b, c] = [await player(), await player(), await player()]
+    const bb = await bookingService.book({ userId: b }, orgId, ev.id, { method: 'free' })
+    const partial = await bookingService.book({ userId: a }, orgId, ev.id, {
+      method: 'free',
+      seats: 2,
+      allowWaitlist: true,
+    })
+    expect(partial).toMatchObject({ status: 'confirmed', seats: 1, waitlistSeats: 1 })
+    await bookingService.book({ userId: c }, orgId, ev.id, { method: 'free' })
+    await bookingService.cancel({ userId: b }, bb.id)
+    const [offer] = await db.select().from(waitlistOffers).where(eq(waitlistOffers.eventId, ev.id))
+    expect(offer).toMatchObject({ bookingId: partial.id, seats: 1 })
+    const mine = (await eventService.statsFor({ userId: a }, [ev.id])).get(ev.id)!.myBooking
+    expect(mine).toMatchObject({ waitlistSeats: 1, waitPos: 1 })
+    expect(mine?.offer).toMatchObject({ id: offer!.id, seats: 1 })
+    expect(await posOf(c, ev.id)).toBe(2)
   })
 
   it('counts a main booking with queued seats once, at its own place in the queue', async () => {
@@ -218,7 +306,8 @@ describe('waitlist position (20.4.11, PostgreSQL)', { timeout: 60_000 }, () => {
     const b2 = await bookingService.book({ userId: w2 }, orgId, ev.id, { method: 'free' })
 
     const stats = (await eventService.statsFor({ userId: w2 }, [ev.id])).get(ev.id)!
-    expect(stats.waitlist).toBe(2) // агрегат
+    expect(stats.waitlist).toBe(2) // агрегат: людей в очереди
+    expect(stats.waitlistSeats).toBe(2)
     expect(stats.myBooking?.id).toBe(b2.id)
     expect(JSON.stringify(stats)).not.toContain(`"userId":${w1}`)
     expect(JSON.stringify(stats)).not.toContain(`"id":${b1.id},`)

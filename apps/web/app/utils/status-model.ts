@@ -7,7 +7,7 @@
  * Только представление: серверные статусы не меняются.
  */
 
-export type ParticipationKey = 'going' | 'waitlist'
+export type ParticipationKey = 'going' | 'waitlist' | 'missed'
 export interface Participation {
   key: ParticipationKey
   label: string
@@ -18,16 +18,29 @@ export interface Participation {
  * Участие игрока по статусу его записи.
  * `pending_payment` — место за игроком, оплата — отдельная ось, поэтому «Иду».
  * `attended` / `no_show` — итог уже прошедшего события, не «участие»: чипа нет.
- * `waitPos` — позиция в очереди (20.4.11): сервер отдаёт её только самому игроку; без неё «В очереди».
+ * `waitPos` — позиция в очереди (20.4.11): сервер отдаёт её только самому игроку; без поля «В очереди»,
+ * `null` у записи в очереди — «Не попали» (очередь уже не движется).
  */
 export function participationOf(
-  booking: { status: string; waitPos?: number | null } | null | undefined,
+  booking:
+    { status: string; waitPos?: number | null; waitlistSeats?: number | null } | null | undefined,
 ): Participation | null {
   if (!booking) return null
-  if (booking.status === 'confirmed' || booking.status === 'pending_payment')
-    return { key: 'going', label: 'Иду', icon: 'check' }
+  if (booking.status === 'confirmed' || booking.status === 'pending_payment') {
+    // места в основе и ещё места в очереди (20.1.2): «Иду · +1 в очереди · 2-й» (решение 2026-10-20)
+    const queued = booking.waitlistSeats ?? 0
+    const pos = booking.waitPos
+    return {
+      key: 'going',
+      label: queued > 0 && pos && pos > 0 ? `Иду · +${queued} в очереди · ${pos}-й` : 'Иду',
+      icon: 'check',
+    }
+  }
   if (booking.status === 'waitlisted') {
     const pos = booking.waitPos
+    // явный null — сервер не отдаёт позицию, потому что очередь уже не движется (событие закрыто,
+    // началось, отменено, рассчитано): игрок не попал; нет поля — позиция неизвестна
+    if (pos === null) return { key: 'missed', label: 'Не попали', icon: 'clock' }
     return {
       key: 'waitlist',
       label: pos && pos > 0 ? `В очереди · ${pos}-й` : 'В очереди',
@@ -115,6 +128,9 @@ export function pendingVerb(count: number): 'ждёт' | 'ждут' {
   return n % 10 === 1 && n % 100 !== 11 ? 'ждёт' : 'ждут'
 }
 export const pendingLabel = (count: number): string => `${count} ${pendingVerb(count)}`
+
+/** Размер очереди для всех игроков: людей (записей), не мест, без имён (решение 2026-10-20). */
+export const waitlistPeopleLabel = (count: number): string => `в очереди ${count} чел.`
 
 /** Сколько записей ждёт оплаты. */
 export const pendingOf = (bookings: readonly { status: string }[]): number =>

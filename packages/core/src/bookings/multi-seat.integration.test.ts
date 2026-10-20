@@ -165,7 +165,7 @@ describe('multi-seat booking (20.1.2, PostgreSQL)', () => {
     expect(await livePayments(queued.id)).toHaveLength(0)
 
     const stats = (await eventService.statsFor({ userId: b }, [ev.id])).get(ev.id)!
-    expect(stats).toMatchObject({ taken: 4, players: 2, waitlist: 3 })
+    expect(stats).toMatchObject({ taken: 4, players: 2, waitlist: 2, waitlistSeats: 3 })
     expect(stats.myBooking).toMatchObject({ seats: 2, waitlistSeats: 1 })
   })
 

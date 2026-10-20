@@ -74,6 +74,8 @@ describe('player bookings: queue position and offer deadline (20.4.11)', () => {
         }),
         booking(3, { status: 'confirmed', waitPos: null }),
         booking(4, {}),
+        booking(5, { waitPos: null }),
+        booking(6, { status: 'pending_payment', waitlistSeats: 1, waitPos: 2 }),
       ],
     })
     const wrapper = mount(BookingsHost, {
@@ -83,6 +85,7 @@ describe('player bookings: queue position and offer deadline (20.4.11)', () => {
           VtMiniHeader: true,
           VtChip: { template: '<span><slot /></span>' },
           VtMyChip: MyChip,
+          VtIcon: true,
           SkeletonList: true,
           ErrorState: true,
           EmptyState: true,
@@ -99,6 +102,11 @@ describe('player bookings: queue position and offer deadline (20.4.11)', () => {
     expect(row(3)).toContain('Иду')
     expect(row(4)).toContain('В очереди')
     expect(row(4)).not.toContain('-й')
+    expect(row(5)).toContain('Не попали')
+    expect(row(6)).toContain('Иду · +1 в очереди · 2-й')
+    // с предложением вместо «уведомим…» — срок подтверждения
+    expect(row(2)).not.toContain('уведомим')
+    expect(row(1)).toContain('уведомим')
     wrapper.unmount()
   })
 })
