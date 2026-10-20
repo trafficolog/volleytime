@@ -19,5 +19,5 @@ export async function sendMenu(ctx: BotContext): Promise<void> {
 }
 
 export function registerMenuHandler(bot: Bot<BotContext>): void {
-  bot.command('menu', sendMenu)
+  bot.chatType('private').command('menu', sendMenu)
 }

@@ -1,9 +1,11 @@
 import { createBot } from './client'
 import { env } from './env'
-import { BOT_COMMANDS, registerHelpHandler } from './handlers/help'
+import { BOT_COMMANDS, GROUP_ADMIN_COMMANDS, registerHelpHandler } from './handlers/help'
 import { registerCallbackHandler } from './handlers/callbacks'
+import { registerChatLinkHandler } from './handlers/chat-link'
 import { registerFallbackHandler } from './handlers/fallback'
 import { registerGamesHandler } from './handlers/games'
+import { registerGroupHintHandler } from './handlers/group-hint'
 import { registerMenuHandler } from './handlers/menu'
 import { registerMyChatMemberHandler } from './handlers/my-chat-member'
 import { registerMyHandler } from './handlers/my'
@@ -32,6 +34,8 @@ async function main(): Promise<void> {
   registerMyHandler(bot)
   registerMenuHandler(bot)
   registerCallbackHandler(bot)
+  registerChatLinkHandler(bot)
+  registerGroupHintHandler(bot)
   registerMyChatMemberHandler(bot)
   registerFallbackHandler(bot) // последним: прочие сообщения
   registerErrorHandler(bot)
@@ -40,7 +44,18 @@ async function main(): Promise<void> {
   const servers = [startInternalServer(bot, env.INTERNAL_PORT)]
   setupGracefulShutdown({ bot, servers })
 
-  await withRetries(() => bot.api.setMyCommands(BOT_COMMANDS), { label: 'setMyCommands' })
+  // команды личного чата и команда привязки для администраторов групп; общий список (без области)
+  // убираем, чтобы личные команды не показывались в группах (20.3.4)
+  await withRetries(
+    () => bot.api.setMyCommands(BOT_COMMANDS, { scope: { type: 'all_private_chats' } }),
+    { label: 'setMyCommands' },
+  )
+  await withRetries(
+    () =>
+      bot.api.setMyCommands(GROUP_ADMIN_COMMANDS, { scope: { type: 'all_chat_administrators' } }),
+    { label: 'setMyCommands (group admins)' },
+  )
+  await withRetries(() => bot.api.deleteMyCommands(), { label: 'deleteMyCommands' })
 
   if (env.BOT_MODE === 'webhook') {
     console.log('[bot] starting in webhook mode…')

@@ -4,13 +4,18 @@ import { makeTestBot, messageUpdate, myChatMemberUpdate } from '../test-bot'
 import { callWeb, markUserReachable } from '../web-client'
 
 import { registerGamesHandler } from './games'
+import { GROUP_HINT_TEXT, GROUP_START_HINT_TEXT, registerGroupHintHandler } from './group-hint'
 import { registerHelpHandler } from './help'
 import { registerMenuHandler } from './menu'
 import { registerMyChatMemberHandler } from './my-chat-member'
 import { registerMyHandler } from './my'
 import { registerStartHandler } from './start'
 
-vi.mock('../web-client', () => ({ callWeb: vi.fn(), markUserReachable: vi.fn() }))
+vi.mock('../web-client', () => ({
+  callWeb: vi.fn(),
+  markUserReachable: vi.fn(),
+  syncChatMembership: vi.fn(),
+}))
 const web = vi.mocked(callWeb)
 const reachable = vi.mocked(markUserReachable)
 
@@ -22,6 +27,7 @@ function setup() {
   registerMyHandler(t.bot)
   registerMenuHandler(t.bot)
   registerMyChatMemberHandler(t.bot)
+  registerGroupHintHandler(t.bot)
   return t
 }
 const sent = (calls: { method: string; payload: Record<string, unknown> }[]) =>
@@ -119,5 +125,74 @@ describe('/games, /my, menu (20.3.3)', () => {
     await bot.handleUpdate(myChatMemberUpdate('kicked'))
     await bot.handleUpdate(myChatMemberUpdate('member', { chatType: 'supergroup' }))
     expect(reachable).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('private-only commands in group chats (20.3.4)', () => {
+  beforeEach(() => {
+    web.mockReset()
+    reachable.mockReset()
+  })
+
+  it.each([
+    '/start',
+    '/start event_5',
+    '/games',
+    '/my',
+    '/menu',
+    '/help',
+    '/games@volleytime_test_bot',
+  ])(
+    '%s in a supergroup gives one hint line: no web call, no web_app, no reply keyboard',
+    async (text) => {
+      const { bot, calls } = setup()
+      await bot.handleUpdate(
+        messageUpdate(text, { chatId: -1001234567890, chatType: 'supergroup' }),
+      )
+      expect(web).not.toHaveBeenCalled()
+      expect(reachable).not.toHaveBeenCalled()
+      const messages = sent(calls)
+      expect(messages).toHaveLength(1)
+      expect(messages[0]!.text).toBe(
+        text.startsWith('/start') ? GROUP_START_HINT_TEXT : GROUP_HINT_TEXT,
+      )
+      expect(messages[0]!.reply_markup).toBeUndefined()
+      expect(JSON.stringify(calls)).not.toContain('web_app')
+      expect(JSON.stringify(calls)).not.toContain('keyboard')
+    },
+  )
+
+  it('/start@bot in a group points the administrator to /link <код>', async () => {
+    const { bot, calls } = setup()
+    await bot.handleUpdate(
+      messageUpdate('/start@volleytime_test_bot', { chatId: -100555, chatType: 'group' }),
+    )
+    expect(sent(calls).map((m) => m.text)).toEqual([GROUP_START_HINT_TEXT])
+    expect(GROUP_START_HINT_TEXT).toContain('/link')
+  })
+
+  it('the same commands in a plain group are hint-only as well', async () => {
+    const { bot, calls } = setup()
+    await bot.handleUpdate(messageUpdate('/my', { chatId: -100555, chatType: 'group' }))
+    expect(web).not.toHaveBeenCalled()
+    expect(sent(calls).map((m) => m.text)).toEqual([GROUP_HINT_TEXT])
+  })
+
+  it('the reply-menu texts typed in a group do nothing', async () => {
+    const { bot, calls } = setup()
+    for (const text of ['Расписание', 'Мои записи', 'Помощь'])
+      await bot.handleUpdate(
+        messageUpdate(text, { chatId: -1001234567890, chatType: 'supergroup' }),
+      )
+    expect(web).not.toHaveBeenCalled()
+    expect(sent(calls)).toHaveLength(0)
+  })
+
+  it('private chats keep working as before', async () => {
+    web.mockResolvedValue({ games: [] })
+    const { bot, calls } = setup()
+    await bot.handleUpdate(messageUpdate('/games'))
+    expect(web).toHaveBeenCalledOnce()
+    expect(sent(calls)).toHaveLength(1)
   })
 })

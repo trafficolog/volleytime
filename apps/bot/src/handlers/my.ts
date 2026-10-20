@@ -64,7 +64,7 @@ export async function sendMy(ctx: BotContext): Promise<void> {
 }
 
 export function registerMyHandler(bot: Bot<BotContext>): void {
-  bot.command('my', sendMy)
+  bot.chatType('private').command('my', sendMy)
   bot.hears(MENU_MY, async (ctx) => {
     if (ctx.chat.type === 'private') await sendMy(ctx)
   })

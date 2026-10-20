@@ -40,3 +40,42 @@ export async function callWeb<T>(path: string, opts: WebCallOptions = {}): Promi
 export async function markUserReachable(telegramId: number | string): Promise<void> {
   await callWeb('reachable', { method: 'POST', body: { telegramId: String(telegramId) } })
 }
+
+/**
+ * Код прозвучал в групповом чате. `admin` — отправитель проверен как администратор чата (creator/
+ * administrator по `getChatMember`); `rejected` — не администратор, анонимный администратор или
+ * проверить не удалось: web сжигает код без привязки (решение владельца 2026-10-20).
+ */
+export type ChatLinkClaim =
+  | {
+      verdict: 'admin'
+      code: string
+      chatId: string
+      chatType: 'group' | 'supergroup'
+      title: string
+      botCanPost: boolean
+      confirmedByTelegramId: string
+    }
+  | { verdict: 'rejected'; code: string; chatId: string }
+
+export type ChatLinkOutcome =
+  | { outcome: 'linked'; organizationName: string; botCanPost: boolean }
+  | { outcome: 'code_invalid' | 'chat_taken' | 'group_has_chat' | 'rejected' }
+
+/** Привязать групповой чат по коду организатора (20.3.4). Недоступный web — `null`. */
+export async function claimChatLink(body: ChatLinkClaim): Promise<ChatLinkOutcome | null> {
+  return callWeb<ChatLinkOutcome>('chat-link', { method: 'POST', body })
+}
+
+export interface ChatMembershipChange {
+  chatId: string
+  chatType: 'group' | 'supergroup'
+  title?: string
+  status: string
+  canPost: boolean
+}
+
+/** Статус бота в групповом чате изменился (`my_chat_member`, 20.3.4). Сбой не критичен. */
+export async function syncChatMembership(body: ChatMembershipChange): Promise<void> {
+  await callWeb('chat-member', { method: 'POST', body })
+}

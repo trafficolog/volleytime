@@ -22,6 +22,46 @@ describe('internal notify — payload validation', () => {
   })
 })
 
+describe('internal notify — group chats take only url buttons (20.3.4)', () => {
+  const group = '-1001234567890'
+  const link = { text: 'Записаться', url: 'https://t.me/volleytime_bot?startapp=event_5' }
+
+  it('accepts an announcement with url deeplinks', () => {
+    expect(isValidPayload({ telegramId: group, text: 'hi', keyboard: [[link], [link]] })).toBe(true)
+    expect(isValidPayload({ telegramId: group, text: 'hi' })).toBe(true)
+  })
+
+  it('rejects web_app and action buttons in a group chat, even if web sent them', () => {
+    const webApp = [[{ text: 'Открыть', webAppUrl: 'https://vt.by/m/' }]]
+    const action = [[{ text: 'Не смогу', callbackData: 'cx:5' }]]
+    const mixed = [[link, { text: 'Открыть', webAppUrl: 'https://vt.by/m/' }]]
+    for (const keyboard of [webApp, action, mixed])
+      expect(isValidPayload({ telegramId: group, text: 'hi', keyboard })).toBe(false)
+  })
+
+  it('rejects non-https and missing urls in a group chat', () => {
+    for (const keyboard of [
+      [[{ text: 'x', url: 'http://t.me/b' }]],
+      [[{ text: 'x', url: 'javascript:alert(1)' }]],
+      [[{ text: 'x' }]],
+    ])
+      expect(isValidPayload({ telegramId: group, text: 'hi', keyboard })).toBe(false)
+  })
+
+  it('private chats keep web_app and action buttons (20.3.3)', () => {
+    expect(
+      isValidPayload({
+        telegramId: '42',
+        text: 'hi',
+        keyboard: [
+          [{ text: 'Открыть', webAppUrl: 'https://vt.by/m/' }],
+          [{ text: 'x', callbackData: 'cx:5' }],
+        ],
+      }),
+    ).toBe(true)
+  })
+})
+
 describe('internal notify — keyboard conversion', () => {
   it('returns undefined for no keyboard', () => {
     expect(toInlineKeyboard(undefined)).toBeUndefined()

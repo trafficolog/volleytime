@@ -85,6 +85,15 @@ describe('deliveryErrorFromStatus', () => {
     expect(limited.retryAfterMs).toBe(7000)
   })
 
+  it('carries only a known group-chat failure reason on 410 (20.3.4)', () => {
+    expect(deliveryErrorFromStatus(410, undefined, 'no_rights').reason).toBe('no_rights')
+    expect(deliveryErrorFromStatus(410, undefined, 'migrated').reason).toBe('migrated')
+    expect(deliveryErrorFromStatus(410, undefined, 'bot_removed').reason).toBe('bot_removed')
+    expect(deliveryErrorFromStatus(410, undefined, 'something else').reason).toBeUndefined()
+    expect(deliveryErrorFromStatus(410).reason).toBeUndefined()
+    expect(deliveryErrorFromStatus(500, undefined, 'no_rights').reason).toBeUndefined()
+  })
+
   it('bounds retry-after and defaults it when missing', () => {
     expect(deliveryErrorFromStatus(429).retryAfterMs).toBe(30_000)
     expect(deliveryErrorFromStatus(429, 0).retryAfterMs).toBe(1000)

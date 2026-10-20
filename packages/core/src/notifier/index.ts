@@ -9,7 +9,12 @@ export {
   type KeyboardButton,
 } from './templates'
 export type { NotifierTransport, NotifyPayload } from './types'
-export { DeliveryError, deliveryErrorFromStatus, type DeliveryErrorKind } from './delivery-error'
+export {
+  DeliveryError,
+  deliveryErrorFromStatus,
+  type ChatFailureReason,
+  type DeliveryErrorKind,
+} from './delivery-error'
 export { quietHoursEnd } from './quiet-hours'
 export { FEED_TYPE, isCriticalNotification, type FeedType } from './feed-types'
 export {

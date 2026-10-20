@@ -27,7 +27,16 @@ export default defineNitroPlugin(() => {
             e as { response?: { headers?: { get?: (n: string) => string | null } } }
           )?.response?.headers?.get?.('retry-after'),
         )
-        throw deliveryErrorFromStatus(status, Number.isNaN(retryAfter) ? undefined : retryAfter)
+        // причина недоступности группового чата (20.3.4): бот исключён, нет прав, чат перенесён
+        const reason =
+          (
+            e as { response?: { headers?: { get?: (n: string) => string | null } } }
+          )?.response?.headers?.get?.('x-failure-reason') ?? undefined
+        throw deliveryErrorFromStatus(
+          status,
+          Number.isNaN(retryAfter) ? undefined : retryAfter,
+          reason,
+        )
       }
     },
   })

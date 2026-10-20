@@ -1,7 +1,12 @@
 import { formatEventDate } from '@volley-time/shared'
 import { db, eq, organizations, users } from '@volley-time/db'
 
-import { renderMessage, type NotificationType, type TemplateParams } from './templates'
+import {
+  renderMessage,
+  type NotificationType,
+  type RenderedMessage,
+  type TemplateParams,
+} from './templates'
 import type { NotifierTransport, NotifyPayload } from './types'
 
 /** Транспорт по умолчанию — no-op (переопределяется в web/bot). */
@@ -79,6 +84,15 @@ export const notifierService = {
       keyboard: rendered.keyboard,
     })
     return true
+  },
+
+  /**
+   * Сообщение в групповой чат (20.3.4): `chatId` — Telegram id чата. Ошибка доставки пробрасывается
+   * (`DeliveryError` с причиной недоступности чата): вызывающий отвечает организатору и помечает
+   * привязку недействительной.
+   */
+  async sendToChat(chatId: string, message: RenderedMessage): Promise<void> {
+    await transport.send({ telegramId: chatId, text: message.text, keyboard: message.keyboard })
   },
 
   /**

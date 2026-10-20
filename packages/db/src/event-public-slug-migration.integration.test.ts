@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { DB } from './client'
 import { runMigrations } from './migrate'
+import { rollbackTelegramChatLink } from './migration-test-helpers'
 import { rollbackLastMigration } from './rollback'
 import * as schema from './schema'
 import { seedDemo } from './seed-demo'
@@ -58,6 +59,7 @@ describe('migration 0030 event public slug (integration)', { timeout: 60_000 }, 
     try {
       await runMigrations(url)
       expect(await objects(sql)).toBe(2)
+      await rollbackTelegramChatLink(url) // 20.3.4: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await objects(sql)).toBe(0)
       await runMigrations(url)
@@ -71,6 +73,7 @@ describe('migration 0030 event public slug (integration)', { timeout: 60_000 }, 
     const { url, sql } = await scratchDb()
     try {
       await runMigrations(url)
+      await rollbackTelegramChatLink(url) // 20.3.4: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG) // теперь БД на 0029
       const [user] = await sql<{ id: number }[]>`
         INSERT INTO users (email) VALUES ('v028@example.com') RETURNING id`
@@ -105,6 +108,7 @@ describe('migration 0030 event public slug (integration)', { timeout: 60_000 }, 
       ).rejects.toThrow(/events_public_slug_uniq/)
 
       // откат запрещён, пока есть живые события; транзакция ничего не меняет
+      await rollbackTelegramChatLink(url) // 20.3.4: новая миграция откатывается первой
       await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0030 refused/)
       expect(await objects(sql)).toBe(2)
 
@@ -118,6 +122,7 @@ describe('migration 0030 event public slug (integration)', { timeout: 60_000 }, 
 
       await runMigrations(url)
       expect(await objects(sql)).toBe(2)
+      await rollbackTelegramChatLink(url) // 20.3.4: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await rollbackLastMigration(url)).toBe(TAG29)
     } finally {
@@ -140,6 +145,7 @@ describe('migration 0030 event public slug (integration)', { timeout: 60_000 }, 
       expect(total).toBeGreaterThan(0)
       expect(n).toBe(total)
       // демо-сид содержит живые события: откат отказывает, события не затронуты
+      await rollbackTelegramChatLink(url) // 20.3.4: новая миграция откатывается первой
       await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0030 refused/)
       await sql`UPDATE events SET status = 'finished' WHERE status IN ('published', 'closed')`
       expect(await rollbackLastMigration(url)).toBe(TAG)
