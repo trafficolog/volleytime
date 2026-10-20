@@ -31,6 +31,7 @@ const splitEvent = (over: Record<string, unknown> = {}) => ({
   taken: 8,
   players: 6,
   waitlist: 2,
+  waitlistSeats: 3,
   currency: 'BYN',
   price: 0,
   level: null,
@@ -260,7 +261,7 @@ describe('W-05: состав', () => {
     expect(rows[1]!.find('.vt-roster-row__level').exists()).toBe(false)
     // без ответа для участников группы уровня нет вовсе
     expect(rows[2]!.find('.vt-roster-row__level').exists()).toBe(false)
-    expect(wrapper.get('#desktop-waitlist-title').text()).toContain('2 места')
+    expect(wrapper.get('#desktop-waitlist-title').text()).toContain('2 чел. · 3 места')
     wrapper.unmount()
   })
 

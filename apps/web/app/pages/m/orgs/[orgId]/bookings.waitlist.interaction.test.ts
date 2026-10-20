@@ -103,6 +103,7 @@ describe('player bookings: queue position and offer deadline (20.4.11)', () => {
     expect(row(4)).toContain('В очереди')
     expect(row(4)).not.toContain('-й')
     expect(row(5)).toContain('Не попали')
+    expect(row(5)).not.toContain('уведомим')
     expect(row(6)).toContain('Иду · +1 в очереди · 2-й')
     // с предложением вместо «уведомим…» — срок подтверждения
     expect(row(2)).not.toContain('уведомим')

@@ -45,6 +45,7 @@ tags: [reference-v3]
 - **Сбор суммой** — Цена считается в одном месте и одинаково показывается везде. С этим связаны: [P-03 → 20.1.1](20-1-1-pricing.md), [M-07 → 20.4.6](20-4-6-split-price-event.md), [W-04 → 20.5.5](20-5-5-event-create.md), [P-17 → 20.6.1](20-6-1-public-event-pages.md), [P-04 → 20.3.1](20-3-1-event-jobs.md). [Подробнее](../design/reference-v3/specs/links.md#split)
 - **Баланс событий** — Списания организатора и начисления админа — один журнал. С этим связаны: [P-08 → 20.2.1](20-2-1-event-balance.md), [W-01 → 20.5.3](20-5-3-cabinet-shell.md), [W-12 → 21.2.8](21-2-8-balance-billing.md), [P-06 → 20.2.2](20-2-2-event-series.md), [R-02 → 22.2.1](22-2-1-balance-tariffs.md), [R-03 → 22.2.2](22-2-2-grant-balance.md), [R-04 → 22.2.3](22-2-3-subscriptions-payouts.md), [R-08 → 19.1.4](19-1-4-rename-credits.md). [Подробнее](../design/reference-v3/specs/links.md#balance)
 - **Перенесено из 20.1.2 (решение владельца 2026-10-14, [D-03, уточнение](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-03)):** «+N» в составе кабинета (`seats`, `waitlistSeats` в `GET …/events/{id}/bookings`; `taken`/`players`/`waitlist` в статистике события) и визуальная сверка (4-cabinet/04-screen.png). Включение `EVENT_MULTI_SEAT_ENABLED` требует этой карточки, 20.4.5, 20.4.8 и п. 6 карточки 20.7.1.
+- **Счётчики очереди (20.4.11):** `waitlist` — люди, `waitlistSeats` — места; организатору в Mini App и в кабинете одна подпись «N чел. · M мест» (при равенстве — «N чел.»).
 
 ## Что должно быть сделано
 
