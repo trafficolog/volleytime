@@ -8,6 +8,7 @@ import {
   overlapsOf,
   participationOf,
   pendingLabel,
+  waitlistOrganizerLabel,
   waitlistPeopleLabel,
   pendingVerb,
   pendingOf,
@@ -71,6 +72,14 @@ describe('participationOf', () => {
 describe('waitlistPeopleLabel', () => {
   it('counts people, not seats', () => {
     expect(waitlistPeopleLabel(3)).toBe('в очереди 3 чел.')
+  })
+})
+
+describe('waitlistOrganizerLabel', () => {
+  it('shows people and seats when they differ, people only otherwise', () => {
+    expect(waitlistOrganizerLabel(2, 3)).toBe('2 чел. · 3 места')
+    expect(waitlistOrganizerLabel(2, 2)).toBe('2 чел.')
+    expect(waitlistOrganizerLabel(2, undefined)).toBe('2 чел.')
   })
 })
 

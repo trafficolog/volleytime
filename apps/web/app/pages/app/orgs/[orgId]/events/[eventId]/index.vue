@@ -23,7 +23,7 @@ import {
   seatsWordRu,
 } from '~/utils/organizer-roster'
 import { levelTitle, type PlayerLevelView } from '~/utils/player-level'
-import { pendingLabel } from '~/utils/status-model'
+import { pendingLabel, waitlistOrganizerLabel } from '~/utils/status-model'
 
 definePageMeta({ layout: 'desktop-org', middleware: ['auth'] })
 
@@ -567,7 +567,7 @@ async function resolvePayment(booking: EventBookingRow, action: 'confirm' | 'rej
               role="group"
             >
               <h3 id="desktop-waitlist-title" class="vt-cap">
-                Лист ожидания · {{ seatsWordRu(event.waitlistSeats ?? event.waitlist) }}
+                Лист ожидания · {{ waitlistOrganizerLabel(event.waitlist, event.waitlistSeats) }}
               </h3>
               <ol v-if="waitlist.length">
                 <li v-for="booking in waitlist" :key="booking.id">

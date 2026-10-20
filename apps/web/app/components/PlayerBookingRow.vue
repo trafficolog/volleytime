@@ -16,8 +16,6 @@ export type MyBooking = Booking & {
   /** Место в очереди и действующее предложение — только свои (20.4.11, D-03). */
   waitPos?: number | null
   offer?: { id: number; seats: number; expiresAt: string } | null
-  /** Игрок не попал: событие закрыто, прошло или отменено, пока он стоял в очереди (20.4.11). */
-  missed?: boolean
 }
 
 /**
@@ -97,7 +95,7 @@ const paymentChip = computed(() => bookingPaymentChip(b.value.status, b.value.pr
         <span v-if="b.offer" class="mt-1 block text-xs font-semibold text-vt-amber-ink">{{
           offerDeadlineLabel(b.offer.expiresAt, tz)
         }}</span>
-        <span v-else-if="waitlisted" class="mt-1 block text-xs text-vt-mute-2"
+        <span v-else-if="waitlisted && b.waitPos !== null" class="mt-1 block text-xs text-vt-mute-2"
           >Вы в очереди · уведомим, когда освободится место</span
         >
         <span class="mt-2 flex flex-wrap gap-1.5">

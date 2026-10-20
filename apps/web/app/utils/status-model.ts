@@ -7,6 +7,8 @@
  * Только представление: серверные статусы не меняются.
  */
 
+import { seatsLabel } from './booking-seats'
+
 export type ParticipationKey = 'going' | 'waitlist' | 'missed'
 export interface Participation {
   key: ParticipationKey
@@ -131,6 +133,12 @@ export const pendingLabel = (count: number): string => `${count} ${pendingVerb(c
 
 /** Размер очереди для всех игроков: людей (записей), не мест, без имён (решение 2026-10-20). */
 export const waitlistPeopleLabel = (count: number): string => `в очереди ${count} чел.`
+
+/** Очередь для организатора: «N чел. · M мест», когда места и люди расходятся, иначе «N чел.». */
+export const waitlistOrganizerLabel = (people: number, seats?: number): string =>
+  seats !== undefined && seats !== people
+    ? `${people} чел. · ${seatsLabel(seats)}`
+    : `${people} чел.`
 
 /** Сколько записей ждёт оплаты. */
 export const pendingOf = (bookings: readonly { status: string }[]): number =>

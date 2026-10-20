@@ -157,6 +157,14 @@ afterEach(() => {
 })
 
 describe('event management interactions', () => {
+  it('shows the queue as people and seats, like the desktop card (20.4.11)', async () => {
+    eventData = ref({
+      event: { ...event, waitlist: 2, waitlistSeats: 3 },
+    }) as typeof eventData
+    const wrapper = await renderManage()
+    expect(wrapper.text()).toContain('2 чел. · 3 места')
+    wrapper.unmount()
+  })
   it('shows persisted settlement time in the organization timezone and no provisional marker', async () => {
     eventData = ref({
       event: {
