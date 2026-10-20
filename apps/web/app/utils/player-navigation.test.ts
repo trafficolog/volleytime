@@ -18,6 +18,8 @@ describe('player Mini App navigation', () => {
     const tabs = playerTabs('/m/orgs/2', { showMenu: true })
     expect(tabs.map((tab) => tab.label)).toEqual(['Главная', 'Абонементы', 'Профиль'])
     expect(tabs[1]?.to).toBe('/m/orgs/2/subscriptions')
+    // вкладка остаётся активной на экране покупки `/subscriptions/buy`
+    expect(tabs[1]).toMatchObject({ prefix: true })
     expect(tabs.some((tab) => tab.to.endsWith('/bookings'))).toBe(false)
   })
 })

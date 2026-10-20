@@ -209,13 +209,16 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
           <span v-if="org?.city" class="block text-xs text-vt-mute-2 truncate">{{ org.city }}</span>
         </span>
       </button>
-      <NuxtLink
-        to="/m/orgs"
-        class="vt-btn vt-btn--ghost vt-btn--sm vt-hit-44"
-        aria-label="Мои группы"
-      >
-        <VtIcon name="users" :size="18" />
-      </NuxtLink>
+      <div class="flex shrink-0 items-center gap-2">
+        <NotificationBell v-if="org" :org-id="orgId" />
+        <NuxtLink
+          to="/m/orgs"
+          class="vt-btn vt-btn--ghost vt-btn--sm vt-hit-44"
+          aria-label="Мои группы"
+        >
+          <VtIcon name="users" :size="18" />
+        </NuxtLink>
+      </div>
     </header>
 
     <main class="px-4 py-4 space-y-6">

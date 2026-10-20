@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Organization, OrganizationMember } from '@volley-time/db'
 
+import { groupMonogram } from '~/utils/group-monogram'
 import { playerHomeAccess } from '~/utils/player-home'
 import { levelTitle, type PlayerLevelView } from '~/utils/player-level'
 import { playerGroupOptions, playerProfileFields } from '~/utils/player-navigation'
@@ -40,6 +41,20 @@ const organization = computed(() =>
 const { data: levelsData } = await useFetch<{ levels: PlayerLevelView[] }>('/api/levels', {
   key: 'player-levels',
 })
+const activityRows = computed(() => [
+  {
+    to: `${base.value}/bookings`,
+    icon: 'calendar',
+    title: 'Мои записи',
+    sub: 'предстоящие и прошедшие',
+  },
+  {
+    to: `${base.value}/notifications`,
+    icon: 'bell',
+    title: 'Уведомления',
+    sub: 'лента группы',
+  },
+])
 const levelCode = computed(() => data.value?.myMember?.level ?? null)
 const levelName = computed(() => levelTitle(levelCode.value, levelsData.value?.levels ?? []))
 const levelDescription = computed(
@@ -93,45 +108,58 @@ const access = computed(() =>
         <NuxtLink to="/m/orgs" class="vt-btn vt-btn--ghost mt-4">Мои группы</NuxtLink>
       </div>
       <template v-else>
-        <section>
-          <div class="flex items-center gap-3">
-            <VtAvatar
-              v-if="user?.name || user?.image"
-              size="lg"
-              :name="user?.name ?? ''"
-              :src="user?.image ?? null"
-            />
-            <span v-else class="vt-avi vt-avi--lg" aria-hidden="true"
-              ><VtIcon name="users" :size="22"
-            /></span>
-            <div class="min-w-0">
-              <h2 class="!normal-case text-[19px] leading-[1.1]">
-                {{ user?.name?.trim() || 'Профиль' }}
-              </h2>
-              <p v-if="organization" class="text-sm text-vt-mute-2 mt-1 truncate">
-                {{ organization.name }}
-              </p>
-            </div>
+        <section class="flex items-center gap-3.5 px-1 pb-1 pt-1.5">
+          <VtAvatar
+            v-if="user?.name || user?.image"
+            size="lg"
+            :name="user?.name ?? ''"
+            :src="user?.image ?? null"
+          />
+          <span v-else class="vt-avi vt-avi--lg" aria-hidden="true"
+            ><VtIcon name="users" :size="22"
+          /></span>
+          <div class="min-w-0 flex-1">
+            <h2 class="font-display !normal-case text-lg font-bold leading-[1.1] break-words">
+              {{ user?.name?.trim() || 'Профиль' }}
+            </h2>
+            <p
+              v-if="user?.telegramUsername || levelName"
+              class="mt-1 flex items-center gap-1 text-sm text-vt-mute-2"
+            >
+              <VtIcon v-if="user?.telegramUsername" name="tg" :size="12" aria-hidden="true" />
+              <span class="truncate"
+                >{{ user?.telegramUsername ? `@${user.telegramUsername.replace(/^@/, '')}` : ''
+                }}{{ user?.telegramUsername && levelName ? ' · ' : ''
+                }}{{ levelName ? `уровень ${levelName}` : '' }}</span
+              >
+            </p>
+            <p v-else-if="organization" class="mt-1 truncate text-sm text-vt-mute-2">
+              {{ organization.name }}
+            </p>
           </div>
-          <dl v-if="fields.length" class="mt-5 space-y-3">
+        </section>
+
+        <section aria-labelledby="profile-data-title">
+          <h2 id="profile-data-title" class="vt-cap mb-2 px-1 text-vt-mute-2">Личные данные</h2>
+          <dl v-if="fields.length" class="vt-card space-y-3 p-4">
             <div
               v-for="field in fields"
               :key="field.label"
               class="flex justify-between gap-3 text-sm"
             >
               <dt class="text-vt-mute-2">{{ field.label }}</dt>
-              <dd class="font-semibold text-right break-all">{{ field.value }}</dd>
+              <dd class="break-all text-right font-semibold">{{ field.value }}</dd>
             </div>
           </dl>
-          <p v-else class="text-sm text-vt-mute-2 mt-5">Личные данные пока не указаны.</p>
+          <p v-else class="vt-card p-4 text-sm text-vt-mute-2">Личные данные пока не указаны.</p>
         </section>
 
-        <section aria-labelledby="profile-level-title" class="space-y-3">
-          <h2 id="profile-level-title" class="vt-cap">Уровень в группе</h2>
+        <section aria-labelledby="profile-level-title">
+          <h2 id="profile-level-title" class="vt-cap mb-2 px-1 text-vt-mute-2">Уровень в группе</h2>
           <div class="vt-card p-4">
             <template v-if="levelCode">
               <VtChip tone="solid">{{ levelName ?? 'Уровень назначен' }}</VtChip>
-              <p v-if="levelDescription" class="text-sm text-vt-mute-2 mt-2">
+              <p v-if="levelDescription" class="mt-2 text-sm text-vt-mute-2">
                 {{ levelDescription }}
               </p>
             </template>
@@ -139,48 +167,68 @@ const access = computed(() =>
           </div>
         </section>
 
-        <section class="space-y-3">
-          <h2 class="text-xl">Мои группы</h2>
+        <section aria-labelledby="profile-groups-title" class="space-y-2">
+          <h2 id="profile-groups-title" class="vt-cap px-1 text-vt-mute-2">Мои группы</h2>
           <SkeletonList v-if="groupsLoading" :count="2" />
           <ErrorState v-else-if="groupsError" :message="groupsError" @retry="loadGroups" />
-          <ul v-else-if="groupOptions.length" class="space-y-3">
+          <ul v-else-if="groupOptions.length" class="space-y-2">
             <li v-for="group in groupOptions" :key="group.id">
               <NuxtLink
                 :to="group.to"
-                class="vt-card p-4 flex items-center justify-between gap-3 min-h-11"
+                class="vt-card !flex min-h-11 items-center gap-3 !px-3.5 !py-3"
+                :class="group.selectable ? '' : 'grayscale'"
                 :aria-current="group.selected ? 'true' : undefined"
                 @click="chooseGroup(group)"
               >
-                <span class="min-w-0">
-                  <span class="block font-semibold truncate">{{ group.name }}</span>
+                <span
+                  data-monogram
+                  aria-hidden="true"
+                  class="font-display flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold"
+                  :class="groupMonogram(group.name).className"
+                  >{{ groupMonogram(group.name).initials }}</span
+                >
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-[15px] font-semibold">{{ group.name }}</span>
                   <span
                     v-if="group.statusLabel || group.city"
-                    class="block text-xs text-vt-mute-2 mt-1"
+                    class="mt-0.5 block truncate text-xs text-vt-mute-2"
                   >
                     {{ group.statusLabel ?? group.city }}
                   </span>
                 </span>
-                <VtIcon name="chevron-r" :size="18" />
+                <VtChip v-if="group.selected" tone="grass" dot>актив.</VtChip>
               </NuxtLink>
             </li>
           </ul>
           <EmptyState v-else icon="users" title="Группы пока не найдены" />
-          <NuxtLink to="/m/orgs" class="vt-btn vt-btn--ghost vt-btn--full"
-            >Открыть все группы</NuxtLink
+          <NuxtLink
+            to="/m/orgs"
+            class="vt-btn vt-btn--ghost vt-btn--full !justify-start gap-2.5 !px-3.5 !py-3"
           >
-          <NuxtLink to="/m/orgs" class="vt-btn vt-btn--ghost vt-btn--full justify-start">
-            <VtIcon name="plus" :size="18" /> Вступить по приглашению
+            <VtIcon name="plus" :size="16" /> Вступить по приглашению
+          </NuxtLink>
+          <NuxtLink
+            to="/m/orgs/create"
+            class="vt-btn vt-btn--ghost vt-btn--full !justify-start gap-2.5 !px-3.5 !py-3"
+          >
+            <VtIcon name="plus" :size="16" /> Создать группу
           </NuxtLink>
         </section>
 
-        <section class="space-y-3">
-          <h2 class="text-xl">Активность</h2>
-          <NuxtLink
-            :to="`${base}/bookings`"
-            class="vt-card p-4 flex items-center justify-between gap-3 min-h-11"
-          >
-            <span class="font-semibold">Мои записи</span><VtIcon name="chevron-r" :size="18" />
-          </NuxtLink>
+        <section aria-labelledby="profile-settings-title">
+          <h2 id="profile-settings-title" class="vt-cap mb-2 px-1 text-vt-mute-2">Активность</h2>
+          <ul class="vt-card divide-y divide-vt-stroke overflow-hidden">
+            <li v-for="row in activityRows" :key="row.to">
+              <NuxtLink :to="row.to" class="flex min-h-11 items-center gap-3 px-3.5 py-3">
+                <VtIcon :name="row.icon" :size="16" class="text-vt-mute-2" aria-hidden="true" />
+                <span class="min-w-0 flex-1">
+                  <span class="block text-[15px] font-medium">{{ row.title }}</span>
+                  <span class="mt-0.5 block text-xs text-vt-mute-2">{{ row.sub }}</span>
+                </span>
+                <VtIcon name="chevron-r" :size="14" class="text-vt-mute-2" aria-hidden="true" />
+              </NuxtLink>
+            </li>
+          </ul>
         </section>
       </template>
     </main>

@@ -536,6 +536,10 @@ describe('player Home bento v3 (20.4.4)', () => {
           VtMyChip: MyChip,
           VtStateChip: StateChip,
           VtSeatsMini: SeatsMini,
+          NotificationBell: {
+            props: ['orgId'],
+            template: '<a data-bell :href="`/m/orgs/${orgId}/notifications`">bell</a>',
+          },
           EmptyState: { props: ['title'], template: '<p>{{ title }}</p>' },
         },
       },
@@ -543,6 +547,12 @@ describe('player Home bento v3 (20.4.4)', () => {
     await flushPromises()
     return wrapper
   }
+
+  it('shows the notification bell in the player header (20.4.9)', async () => {
+    const w = await mountPlayer({ upcoming: [] })
+    expect(w.get('[data-bell]').attributes('href')).toBe('/m/orgs/30/notifications')
+    w.unmount()
+  })
 
   it('greets the player and shows hero, sessions and bookings tiles with the schedule link', async () => {
     const w = await mountPlayer({

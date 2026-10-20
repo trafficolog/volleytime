@@ -56,7 +56,7 @@ async function renderProfile() {
         VtIcon: { template: '<span />' },
         VtAvatar: { template: '<span />' },
         VtChip: { template: '<span><slot /></span>' },
-        NuxtLink: { template: '<a><slot /></a>' },
+        NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
       },
     },
   })
@@ -85,5 +85,23 @@ describe('Mini App player profile level', () => {
     const page = await renderProfile()
     expect(page.text()).toContain('Уровень пока не назначен')
     expect(page.text()).not.toContain('В2')
+  })
+
+  it('links to bookings, the notification feed, joining and creating a group (20.4.9)', async () => {
+    stubPage('v1')
+    const page = await renderProfile()
+    const hrefs = page.findAll('a').map((a) => a.attributes('href'))
+    expect(page.text()).toContain('Мои записи')
+    expect(page.text()).toContain('Уведомления')
+    expect(page.text()).toContain('Создать группу')
+    expect(page.text()).toContain('Вступить по приглашению')
+    expect(hrefs).toEqual(
+      expect.arrayContaining([
+        '/m/orgs/30/bookings',
+        '/m/orgs/30/notifications',
+        '/m/orgs/create',
+        '/m/orgs',
+      ]),
+    )
   })
 })
