@@ -67,7 +67,7 @@ useHead(() => ({
     <a class="vt-desktop__skip" href="#desktop-main">К содержимому</a>
 
     <template v-if="!isLoading && access === 'ready' && organization">
-      <aside class="vt-desktop__sidebar">
+      <aside class="vt-desktop__sidebar" aria-label="Боковая панель кабинета">
         <NuxtLink to="/app" class="vt-desktop__brand">
           <img src="/logo/vt-mark-color.svg" alt="" width="32" height="32" />
           <span>Volley Time</span>
@@ -77,8 +77,16 @@ useHead(() => ({
           <VtIcon name="chevron-r" :size="16" />
         </NuxtLink>
         <nav class="vt-desktop__nav" aria-label="Навигация по группе">
-          <template v-for="section in sections" :key="section.key">
-            <div class="vt-desktop__nav-heading">{{ section.heading }}</div>
+          <div
+            v-for="section in sections"
+            :key="section.key"
+            class="vt-desktop__nav-group"
+            role="group"
+            :aria-labelledby="`cabinet-nav-${section.key}`"
+          >
+            <div :id="`cabinet-nav-${section.key}`" class="vt-desktop__nav-heading">
+              {{ section.heading }}
+            </div>
             <NuxtLink
               v-for="item in section.items"
               :key="item.key"
@@ -88,7 +96,7 @@ useHead(() => ({
               <VtIcon :name="cabinetNavIcon(item.key)" :size="18" />
               {{ item.label }}
             </NuxtLink>
-          </template>
+          </div>
         </nav>
         <DesktopCabinetBalanceCard :org-id="organization.id" />
       </aside>
@@ -111,15 +119,6 @@ useHead(() => ({
               :org-id="organization.id"
               :time-zone="organization.defaultTimezone"
             />
-            <button
-              type="button"
-              class="vt-btn vt-btn--ghost vt-btn--sm"
-              aria-label="Уведомления"
-              title="Лента уведомлений появится позже"
-              disabled
-            >
-              <VtIcon name="bell" :size="18" />
-            </button>
           </div>
           <NuxtLink to="/app?choose=1" class="vt-btn vt-btn--ghost vt-btn--sm"
             >Сменить группу</NuxtLink

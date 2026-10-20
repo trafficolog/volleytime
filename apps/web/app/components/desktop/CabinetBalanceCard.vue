@@ -13,13 +13,13 @@ const { data, error } = useFetch<{ eventBalance: Balance }>(
   { key: () => `cabinet-event-balance-${props.orgId}`, lazy: true, server: false },
 )
 const card = computed(() =>
-  eventBalanceCard(error.value ? null : (data.value?.eventBalance ?? null)),
+  error.value ? eventBalanceCard(null, true) : eventBalanceCard(data.value?.eventBalance ?? null),
 )
 </script>
 
 <template>
   <section class="vt-card vt-card--hero vt-cabinet-balance" aria-labelledby="cabinet-balance-title">
-    <h2 id="cabinet-balance-title" class="vt-cabinet-balance__title">Баланс событий</h2>
+    <p id="cabinet-balance-title" class="vt-cabinet-balance__title">Баланс событий</p>
     <p class="vt-cabinet-balance__figure">
       <span class="vt-mono vt-cabinet-balance__value">{{ card.value }}</span>
       <span class="vt-cabinet-balance__caption">{{ card.caption }}</span>

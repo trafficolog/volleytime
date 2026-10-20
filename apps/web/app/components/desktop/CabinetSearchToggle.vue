@@ -27,7 +27,24 @@ function closeSearch(returnFocus = true) {
   if (returnFocus) nextTick(() => trigger.value?.focus())
 }
 
+function isEditable(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null
+  if (!el || !('tagName' in el)) return false
+  return (
+    ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) ||
+    el.isContentEditable ||
+    el.getAttribute('contenteditable') === 'true'
+  )
+}
+
+/** Esc в два шага: сначала закрывается выдача (это делает CabinetSearch), затем само поле. */
+function onEsc() {
+  if (root.value?.querySelector('#cabinet-search-panel')) return
+  closeSearch()
+}
+
 function onGlobalKey(e: KeyboardEvent) {
+  if (isEditable(e.target)) return
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
     e.preventDefault()
     void openSearch()
@@ -53,18 +70,13 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div
-    ref="root"
-    class="vt-cabinet-search-toggle"
-    :data-expanded="expanded"
-    @keydown.esc="closeSearch()"
-  >
+  <div ref="root" class="vt-cabinet-search-toggle" :data-expanded="expanded" @keydown.esc="onEsc">
     <button
       ref="trigger"
       type="button"
       class="vt-btn vt-btn--ghost vt-btn--sm vt-cabinet-search-toggle__trigger"
-      aria-label="Открыть поиск"
-      aria-controls="cabinet-search-slot"
+      :aria-label="expanded ? 'Закрыть поиск' : 'Открыть поиск'"
+      :aria-controls="expanded ? 'cabinet-search-slot' : undefined"
       title="Поиск (Ctrl K)"
       :aria-expanded="expanded"
       @click="expanded ? closeSearch() : openSearch()"

@@ -2,7 +2,7 @@
 import type { DesktopDashboardView } from '~/utils/desktop-dashboard'
 import { formatMoneyRu } from '~/utils/labels'
 
-defineProps<{ view: DesktopDashboardView }>()
+defineProps<{ view: DesktopDashboardView; orgId: number }>()
 </script>
 
 <template>
@@ -19,6 +19,7 @@ defineProps<{ view: DesktopDashboardView }>()
       <h2 id="desktop-pending-title" class="vt-cap">Ждут подтверждения</h2>
       <p class="vt-desktop-dashboard__pending-count vt-mono">{{ view.pendingCount }}</p>
       <p>{{ formatMoneyRu(view.pendingAmount, view.balance.currency) }} в валюте группы</p>
+      <DesktopAllPaymentsLink :org-id="orgId" />
     </section>
   </div>
 </template>

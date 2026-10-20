@@ -37,7 +37,7 @@ const view = computed(() => desktopDashboardView(data.value ?? null))
       @retry="refresh()"
     />
     <template v-else>
-      <DesktopDashboardCards :view="view" />
+      <DesktopDashboardCards :view="view" :org-id="orgId" />
 
       <section
         class="vt-card vt-desktop-dashboard__upcoming"

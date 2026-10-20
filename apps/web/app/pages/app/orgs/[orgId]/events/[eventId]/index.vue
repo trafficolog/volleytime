@@ -653,6 +653,7 @@ async function resolvePayment(booking: EventBookingRow, action: 'confirm' | 'rej
               <span class="vt-mono"
                 >{{ payments.paid + payments.subscription }} / {{ payments.total }} мест</span
               >
+              <DesktopAllPaymentsLink :org-id="orgId" />
             </div>
             <div
               class="vt-desktop-event-detail__segments"

@@ -42,6 +42,15 @@ describe('sidebar event balance card (20.5.3)', () => {
     error.value = new Error('503')
     const wrapper = mount(CabinetBalanceCard, { props: { orgId: 12 } })
     expect(wrapper.text()).toContain('—')
+    expect(wrapper.text()).toContain('нет данных')
     expect(wrapper.text()).not.toContain('заканчивается')
+  })
+
+  it('does not put a heading before the page h1', () => {
+    const wrapper = mount(CabinetBalanceCard, { props: { orgId: 12 } })
+    expect(wrapper.find('h1, h2, h3').exists()).toBe(false)
+    const section = wrapper.get('section')
+    const label = wrapper.get(`#${section.attributes('aria-labelledby')}`)
+    expect(label.text()).toBe('Баланс событий')
   })
 })

@@ -54,7 +54,6 @@ describe('desktop navigation', () => {
       'events',
       'members',
       'plans',
-      'payments',
       'cashbox',
       'settings',
     ])
@@ -62,15 +61,12 @@ describe('desktop navigation', () => {
       'overview',
       'events',
       'members',
-      'payments',
       'cashbox',
       'settings',
     ])
     expect(desktopNavItems(7, false)[0]?.to).toBe('/app/orgs/7')
     for (const enabled of [true, false]) {
-      expect(desktopNavItems(8, enabled).find((item) => item.key === 'payments')?.to).toBe(
-        '/app/orgs/8/payments',
-      )
+      expect(desktopNavItems(8, enabled).some((item) => item.key === 'payments')).toBe(false)
       expect(desktopNavItems(8, enabled).find((item) => item.key === 'cashbox')?.to).toBe(
         '/app/orgs/8/cashbox',
       )
