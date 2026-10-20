@@ -89,8 +89,11 @@ describe('cabinet search (20.5.2)', () => {
     await vi.advanceTimersByTimeAsync(300)
     await flushPromises()
     expect(apiFetch).toHaveBeenCalledTimes(1)
-    expect(apiFetch).toHaveBeenCalledWith('/api/organizations/30/search', { query: { q: 'оль' } })
-    const headings = wrapper.findAll('h2').map((h) => h.text())
+    expect(apiFetch).toHaveBeenCalledWith('/api/organizations/30/search', {
+      query: { q: 'оль' },
+      signal: expect.any(AbortSignal),
+    })
+    const headings = wrapper.findAll('[role="group"]').map((g) => g.get('p').text())
     expect(headings).toEqual(['Игроки', 'События'])
     const hrefs = wrapper.findAll('a').map((a) => a.attributes('href'))
     expect(hrefs).toEqual(['/app/orgs/30/members', '/app/orgs/30/events/71'])
@@ -138,5 +141,102 @@ describe('cabinet search (20.5.2)', () => {
     expect(wrapper.find('#cabinet-search-panel').exists()).toBe(false)
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))
     expect(document.activeElement).toBe(wrapper.get('input').element)
+  })
+
+  it('keeps one status live region mounted and reports the count', async () => {
+    apiFetch.mockResolvedValue(result())
+    const wrapper = mountSearch()
+    expect(wrapper.findAll('[role="status"]')).toHaveLength(1)
+    expect(wrapper.get('[role="status"]').text()).toBe('')
+    await type(wrapper, 'ол')
+    expect(wrapper.findAll('[role="status"]')).toHaveLength(1)
+    expect(wrapper.get('[role="status"]').text()).toBe('Найдено: 2')
+    apiFetch.mockResolvedValue(result({ players: empty, events: empty }))
+    await type(wrapper, 'зз')
+    expect(wrapper.get('[role="status"]').text()).toBe('Ничего не найдено')
+  })
+
+  it('has no aria-expanded on the search input', () => {
+    expect(mountSearch().get('input').attributes('aria-expanded')).toBeUndefined()
+  })
+
+  it('Escape returns focus to the input and does not reach outer handlers', async () => {
+    apiFetch.mockResolvedValue(result())
+    const outer = vi.fn()
+    const host = document.createElement('div')
+    host.addEventListener('keydown', outer)
+    document.body.appendChild(host)
+    const wrapper = mount(CabinetSearch, {
+      props: { orgId: 30, timeZone: 'Europe/Minsk' },
+      global: { stubs },
+      attachTo: host,
+    })
+    await type(wrapper, 'ол')
+    await wrapper.get('a').trigger('keydown', { key: 'Escape' })
+    expect(wrapper.find('#cabinet-search-panel').exists()).toBe(false)
+    expect(document.activeElement).toBe(wrapper.get('input').element)
+    expect(outer).not.toHaveBeenCalled()
+  })
+
+  it('closes when focus moves outside the search', async () => {
+    apiFetch.mockResolvedValue(result())
+    const wrapper = mountSearch()
+    await type(wrapper, 'ол')
+    const outside = document.createElement('button')
+    document.body.appendChild(outside)
+    await wrapper.trigger('focusout', { relatedTarget: wrapper.get('a').element })
+    expect(wrapper.find('#cabinet-search-panel').exists()).toBe(true)
+    await wrapper.trigger('focusout', { relatedTarget: outside })
+    expect(wrapper.find('#cabinet-search-panel').exists()).toBe(false)
+  })
+
+  it('Ctrl+K does not steal focus from another editable field', () => {
+    mountSearch()
+    const other = document.createElement('textarea')
+    document.body.appendChild(other)
+    other.focus()
+    other.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }))
+    expect(document.activeElement).toBe(other)
+  })
+
+  it('typing during an in-flight request shows no error and keeps "Ищем…"', async () => {
+    apiFetch.mockImplementation(
+      (_u: string, o: { signal: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          o.signal.addEventListener('abort', () =>
+            reject(new DOMException('aborted', 'AbortError')),
+          )
+        }),
+    )
+    const wrapper = mountSearch()
+    await type(wrapper, 'ол')
+    expect(apiFetch).toHaveBeenCalledTimes(1)
+    await wrapper.get('input').setValue('оль')
+    await flushPromises()
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(wrapper.get('#cabinet-search-panel').text()).toContain('Ищем…')
+    // «Ищем…» не озвучивается: live-область объявляет только результат
+    expect(wrapper.get('[role="status"]').text()).toBe('')
+    await vi.advanceTimersByTimeAsync(300)
+    await flushPromises()
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(wrapper.get('#cabinet-search-panel').text()).toContain('Ищем…')
+  })
+
+  it('aborts the in-flight request when the query changes or the component unmounts', async () => {
+    const signals: AbortSignal[] = []
+    apiFetch.mockImplementation((_u: string, o: { signal: AbortSignal }) => {
+      signals.push(o.signal)
+      return new Promise(() => undefined)
+    })
+    const wrapper = mountSearch()
+    await type(wrapper, 'ол')
+    await wrapper.get('input').setValue('оль')
+    expect(signals[0]!.aborted).toBe(true)
+    await vi.advanceTimersByTimeAsync(300)
+    expect(signals).toHaveLength(2)
+    expect(signals[1]!.aborted).toBe(false)
+    wrapper.unmount()
+    expect(signals[1]!.aborted).toBe(true)
   })
 })

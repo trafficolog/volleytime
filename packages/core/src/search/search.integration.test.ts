@@ -1,6 +1,7 @@
 import {
   closeDb,
   db,
+  events,
   organizationMembers,
   organizations,
   payments,
@@ -185,7 +186,7 @@ describe('cabinet search (integration, 20.5.2)', () => {
     expect(short.players.items).toEqual([])
   })
 
-  it('answers in under 300 ms on a group of 2000 players', async () => {
+  it('answers in under 300 ms (worst of 3) on 2000 players, 2000 events and 10k payments', async () => {
     const perfOrg = (await organizationService.create({ userId: owner.id }, { name: 'Perf' })).id
     const rows = Array.from({ length: 2000 }, (_, i) => ({
       email: `perf-${i}@search.test`,
@@ -198,17 +199,41 @@ describe('cabinet search (integration, 20.5.2)', () => {
       .values(
         created.map((u) => ({ organizationId: perfOrg, userId: u.id, status: 'active' as const })),
       )
-    await searchService.search({ userId: owner.id }, perfOrg, { isManager: true }, 'иванов')
-    const started = performance.now()
-    const res = await searchService.search(
-      { userId: owner.id },
-      perfOrg,
-      { isManager: true },
-      'иванов',
+    const day = 86_400_000
+    await db.insert(events).values(
+      Array.from({ length: 2000 }, (_, i) => ({
+        organizationId: perfOrg,
+        createdByUserId: owner.id,
+        title: `Игра ${i} ${i % 5 === 0 ? 'Иванов' : 'Петров'}`,
+        startsAt: new Date(Date.now() + (i - 1000) * day),
+        endsAt: new Date(Date.now() + (i - 1000) * day + 7_200_000),
+        capacity: 12,
+        price: 1500,
+      })),
     )
-    const elapsed = performance.now() - started
+    await db.insert(payments).values(
+      Array.from({ length: 10_000 }, (_, i) => ({
+        organizationId: perfOrg,
+        userId: created[i % created.length]!.id,
+        amount: 1500,
+        method: 'cash' as const,
+      })),
+    )
+    const run = () =>
+      searchService.search({ userId: owner.id }, perfOrg, { isManager: true }, 'иванов')
+    await run() // прогрев
+    const timings: number[] = []
+    let res = await run()
+    for (let i = 0; i < 3; i++) {
+      const started = performance.now()
+      res = await run()
+      timings.push(performance.now() - started)
+    }
+    console.info(`search perf (ms): ${timings.map((t) => t.toFixed(1)).join(', ')}`)
     expect(res.players.items).toHaveLength(8)
     expect(res.players.more).toBe(true)
-    expect(elapsed).toBeLessThan(300)
-  }, 60_000)
+    expect(res.events.more).toBe(true)
+    expect(res.payments!.more).toBe(true)
+    expect(Math.max(...timings)).toBeLessThan(300)
+  }, 120_000)
 })
