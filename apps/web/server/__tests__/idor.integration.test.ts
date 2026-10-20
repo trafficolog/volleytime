@@ -200,6 +200,8 @@ const ROUTES: OrgRouteTable = {
     access: 'manager',
     body: () => ({ from: SERIES_START }),
   },
+  // 20.5.2: поиск кабинета — member; платежи и черновики в выдаче — только manager
+  'GET /api/organizations/:orgId/search': { access: 'member', query: '?q=secret' },
   'GET /api/organizations/:orgId/settings': { access: 'manager' },
   'PATCH /api/organizations/:orgId/settings': {
     access: 'owner',
@@ -431,6 +433,38 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
       expect(await snapshot(A.ids.orgId)).toBe(before)
     },
   )
+
+  // 20.5.2: поиск по маркеру чужой группы ничего не находит, по своему — находит; игрок не видит платежи
+  it('search: finds only own-group data and keeps payments manager-only', async () => {
+    const own = await request('GET', `/api/organizations/${A.ids.orgId}/search?q=${A.marker}`, {
+      user: A.owner,
+    })
+    expect(own.status).toBe(200)
+    const ownData = own.body as { events: { items: unknown[] }; payments: unknown }
+    expect(ownData.events.items.length).toBeGreaterThan(0)
+    expect(ownData.payments).not.toBeNull()
+    const foreign = await request('GET', `/api/organizations/${A.ids.orgId}/search?q=${B.marker}`, {
+      user: A.owner,
+    })
+    expect(foreign.status).toBe(200)
+    const foreignData = foreign.body as {
+      players: { items: unknown[] }
+      events: { items: unknown[] }
+      payments: { items: unknown[] }
+    }
+    expect(foreignData.players.items).toEqual([])
+    expect(foreignData.events.items).toEqual([])
+    expect(foreignData.payments.items).toEqual([])
+    const asPlayer = await request(
+      'GET',
+      `/api/organizations/${A.ids.orgId}/search?q=${A.marker}`,
+      {
+        user: A.player,
+      },
+    )
+    expect(asPlayer.status).toBe(200)
+    expect((asPlayer.body as { payments: unknown }).payments).toBeNull()
+  })
 
   it.each([
     [

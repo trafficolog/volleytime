@@ -93,6 +93,7 @@ Mini App и Login Widget сходятся в одну Telegram-личность:
 | Касса            | `GET /ledger`, `POST /ledger/income\|expense`                    | manager | `eventId` из тела — только своей группы                     |
 | Журнал           | `GET /audit`                                                     | manager |                                                             |
 | Дашборд          | `GET /dashboard`                                                 | member  | денежные блоки — manager                                    |
+| Поиск кабинета   | `GET /search?q=`                                                 | member  | 20.5.2; платежи, черновики, заявки и гости — только manager |
 
 Вне tenant-префикса: `GET/POST /api/organizations` — auth (свои группы, создание); `GET /api/invites/{token}`, `POST /api/invites/{token}/redeem` — auth; `GET /api/events/{id}/locate` — member группы события, иначе 404; `/api/internal/**` — общий секрет бота, не пользовательская сессия.
 
