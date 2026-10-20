@@ -104,6 +104,18 @@
       "referenceCrop": { "x": 546, "y": 94, "width": 328, "height": 692 }
     },
     {
+      "id": "player-event-invite-invited-link",
+      "title": "Игрок: событие по приглашению — вы приглашены по личной ссылке (M-08, D-06)",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "event": { "title": "Открытая игра", "status": "published" },
+      "inviteState": "invited-link",
+      "path": "/m/orgs/{org}/events/{event}",
+      "references": ["3-miniapp-player/m08-invite-invited.jpg"],
+      "referenceCrop": { "x": 546, "y": 94, "width": 328, "height": 692 }
+    },
+    {
       "id": "player-event-invite-expired",
       "title": "Игрок: событие по приглашению — ссылка просрочена (M-08, D-06)",
       "viewport": "miniapp",

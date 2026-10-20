@@ -142,11 +142,12 @@ export function pickEvent(events, { title, status }, now = new Date()) {
   return matches.find((e) => new Date(e.startsAt) >= now) ?? matches[matches.length - 1]
 }
 
-export const INVITE_STATES = ['none', 'requested', 'invited', 'expired']
+export const INVITE_STATES = ['none', 'requested', 'invited', 'invited-link', 'expired']
 
 /**
  * Что нужно в локальной БД для состояния M-08 (20.4.7, D-06): запрос игрока и срок приглашения.
- * `invited` — приглашение до начала события; `expired` — приглашение, истёкшее сутки назад.
+ * `invited` — одобренный запрос и приглашение до начала события; `invited-link` — приглашение без
+ * запроса, игрок открывает его по личной ссылке (токен — в хранилище сессии); `expired` — приглашение, истёкшее сутки назад.
  */
 export function inviteFixturePlan(state, { now, startsAt }) {
   switch (state) {
@@ -156,6 +157,8 @@ export function inviteFixturePlan(state, { now, startsAt }) {
       return { request: 'pending', inviteExpiresAt: null }
     case 'invited':
       return { request: 'approved', inviteExpiresAt: startsAt }
+    case 'invited-link':
+      return { request: null, inviteExpiresAt: startsAt, link: true }
     case 'expired':
       return { request: 'approved', inviteExpiresAt: new Date(now.getTime() - 86_400_000) }
     default:

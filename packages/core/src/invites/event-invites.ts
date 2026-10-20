@@ -299,6 +299,25 @@ function toView(
 }
 
 /**
+ * Кто решает по запросам: автор события, пока он активный владелец или организатор группы
+ * (автора могли понизить или снять), иначе активный владелец группы.
+ */
+async function organizerIdOf(db: Db, ev: Event): Promise<number | null> {
+  const managers = await db
+    .select({ userId: organizationMembers.userId, role: organizationMembers.role })
+    .from(organizationMembers)
+    .where(
+      and(
+        eq(organizationMembers.organizationId, ev.organizationId),
+        eq(organizationMembers.status, 'active'),
+        inArray(organizationMembers.role, ['owner', 'organizer']),
+      ),
+    )
+  if (managers.some((m) => m.userId === ev.createdByUserId)) return ev.createdByUserId
+  return managers.find((m) => m.role === 'owner')?.userId ?? null
+}
+
+/**
  * Состояние «приглашения» для экрана игрока (POST …/events/{id}/invite-access, member). Только
  * чтение: токен не расходуется и не возвращается; логика источников повторяет
  * `consumeEventInvite` — «приглашён» означает, что запись пройдёт. Чужой, неизвестный, отозванный
@@ -418,7 +437,7 @@ async function readInviteAccess(
           inviter: await person(shown.inv.createdByUserId),
         }
       : null,
-    organizer: await person(ev.createdByUserId),
+    organizer: await person(await organizerIdOf(db, ev)),
   }
 }
 
@@ -511,8 +530,8 @@ export const eventInviteRequestService = {
 
   /**
    * Отозвать свой ожидающий запрос (POST …/invite-requests/{id}/cancel, member, 20.4.7). Только
-   * автор и только из `pending` — условным UPDATE под тем же lock события, что и решение
-   * организатора: гонка «отзыв / ответ» даёт ровно один исход. Чужой запрос, запрос другого
+   * автор и только из `pending` — условным UPDATE строки запроса (как и решение организатора):
+   * гонка «отзыв / ответ» даёт ровно один исход, второй получает `invite_request.not_pending`. Чужой запрос, запрос другого
    * события или группы неотличим от несуществующего. Игрок может запросить снова.
    */
   async cancel(
@@ -653,12 +672,25 @@ async function notifyOrganizers(
         inArray(organizationMembers.role, ['owner', 'organizer']),
       ),
     )
+  // «раунд» = число уже принятых решений организатора по этому игроку и событию: цепочка
+  // запрос → отзыв → запрос внутри раунда даёт одно уведомление, после ответа — новое
+  const [counted] = await db
+    .select({ decided: sql<number>`count(*)::int` })
+    .from(eventInviteRequests)
+    .where(
+      and(
+        eq(eventInviteRequests.eventId, ev.id),
+        eq(eventInviteRequests.userId, created.userId),
+        inArray(eventInviteRequests.status, ['approved', 'declined']),
+      ),
+    )
+  const round = counted?.decided ?? 0
   for (const m of managers) {
     if (m.userId === created.userId) continue
     collectNotification(ctx, {
       userId: m.userId,
       type: 'invite_request_organizer',
-      dedupKey: `invite_request_organizer:request:${created.id}:user:${m.userId}`,
+      dedupKey: `invite_request_organizer:invite_request:event:${ev.id}:player:${created.userId}:round:${round}:user:${m.userId}`,
       params: {
         eventId: ev.id,
         organizationId: ev.organizationId,
