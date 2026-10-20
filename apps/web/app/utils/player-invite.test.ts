@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   clearStashedInviteToken,
+  compactRoster,
   inviteBookingToken,
   inviteChip,
   inviteExpiryLabel,
@@ -115,6 +116,23 @@ describe('booking token', () => {
     expect(() => stashInviteToken(1, 'abc', broken)).not.toThrow()
     expect(readStashedInviteToken(1, broken)).toBeNull()
     expect(() => clearStashedInviteToken(1, broken)).not.toThrow()
+  })
+})
+
+describe('compact roster (owner decision 2026-10-20)', () => {
+  it('is used while the invite gate is shown, not for open events or after booking', () => {
+    expect(inviteGate({ ...base, access: access() }).show).toBe(true)
+    expect(inviteGate({ ...base, joinMode: 'open', access: null }).show).toBe(false)
+    expect(inviteGate({ ...base, hasBooking: true, access: access() }).show).toBe(false)
+  })
+
+  it('shows up to five avatars and «и ещё N · M мест свободно»', () => {
+    expect(compactRoster(11, 3)).toEqual({ shown: 5, rest: 6, text: 'и ещё 6 · 3 места свободно' })
+    expect(compactRoster(3, 5)).toEqual({ shown: 3, rest: 0, text: '5 мест свободно' })
+    expect(compactRoster(7, 1).text).toBe('и ещё 2 · 1 место свободно')
+    expect(compactRoster(5, 0).text).toBe('мест нет')
+    expect(compactRoster(0, 4)).toEqual({ shown: 0, rest: 0, text: '4 места свободно' })
+    expect(compactRoster(9, 0).text).toBe('и ещё 4 · мест нет')
   })
 })
 

@@ -36,6 +36,7 @@ import {
 import { playerHomeAccess } from '~/utils/player-home'
 import {
   clearStashedInviteToken,
+  compactRoster,
   inviteBookingToken,
   inviteChip,
   inviteGate,
@@ -197,6 +198,12 @@ const gate = computed(() =>
     loaded: inviteLoaded.value,
     access: inviteAccess.value,
   }),
+)
+const compact = computed(() =>
+  compactRoster(
+    roster.value.length,
+    eventView.value?.freeSeats ?? Math.max(0, (ev.value?.capacity ?? 0) - (ev.value?.taken ?? 0)),
+  ),
 )
 const inviteChipView = computed(() => (gate.value.state ? inviteChip(gate.value.state) : null))
 const bookable = computed(
@@ -1067,7 +1074,26 @@ async function cancelMine() {
           {{ ev.players }} {{ playersWord(ev.players) }} заняли {{ seatsLabel(ev.taken) }} — кто-то
           приводит гостей
         </p>
-        <ul v-if="roster.length" class="mt-3 grid grid-cols-2 gap-1.5">
+        <!-- без записи на событие «по приглашению»: стопка аватаров, как на макете M-08 (2026-10-20) -->
+        <div
+          v-if="gate.show && roster.length"
+          class="mt-3 flex items-center gap-2.5"
+          data-compact-roster
+        >
+          <span class="flex -space-x-1.5 shrink-0" aria-hidden="true">
+            <VtAvatar
+              v-for="r in roster.slice(0, compact.shown)"
+              :key="r.user.id"
+              size="sm"
+              class="compact-avatar"
+              data-compact-avatar
+              :name="displayName(r.user)"
+              :src="r.user.image"
+            />
+          </span>
+          <span class="text-xs text-vt-mute-2">{{ compact.text }}</span>
+        </div>
+        <ul v-else-if="roster.length" class="mt-3 grid grid-cols-2 gap-1.5" data-roster-list>
           <li
             v-for="r in roster"
             :key="r.user.id"
@@ -1245,6 +1271,11 @@ async function cancelMine() {
 </template>
 
 <style scoped>
+.compact-avatar {
+  border-radius: 9999px;
+  box-shadow: 0 0 0 2px var(--vt-paper);
+}
+
 .event-hero {
   background: var(--vt-ink);
   color: var(--vt-paper);

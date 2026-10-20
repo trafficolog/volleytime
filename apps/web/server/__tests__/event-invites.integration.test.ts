@@ -272,6 +272,29 @@ describe('event join mode and invites API (HTTP integration)', () => {
     // токен — только в теле: строка запроса его не принимает
     expect((await access(playerId, { inviteToken: 1 })).status).toBe(422)
 
+    // организатор открыл отозванный запрос: ответить на него нельзя (409), приглашение не выдаётся
+    const withdrawn = (
+      await request('POST', `${url}/invite-requests`, { user: playerId, body: {} })
+    ).body as { request: { id: number } }
+    await request('POST', `${url}/invite-requests/${withdrawn.request.id}/cancel`, {
+      user: playerId,
+      body: {},
+    })
+    for (const action of ['approve', 'decline']) {
+      const late = await request(
+        'POST',
+        `${url}/invite-requests/${withdrawn.request.id}/${action}`,
+        {
+          user: ownerId,
+          body: {},
+        },
+      )
+      expect(late.status, action).toBe(409)
+      expect(code(late), action).toBe('invite_request.not_pending')
+    }
+    const issued = await db.select().from(inviteLinks).where(eq(inviteLinks.eventId, ev.event.id))
+    expect(issued).toHaveLength(1) // только личная ссылка, созданная выше
+
     const open = (await createEvent({ joinMode: 'open' })).body as { event: { id: number } }
     const notNeeded = await request('POST', `${base()}/events/${open.event.id}/invite-access`, {
       user: playerId,
