@@ -5,7 +5,7 @@ epic: '20.5'
 status: done
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
+last_reviewed: 2026-10-20
 status_note: 'Реализовано в PR #167 (поиск, ревью Opus: merge); замечания ревью закрыты в PR close-out trafficolog/fix/20.5.2-close (перф-тест на 2000 игроков + 2000 событий + 10k платежей, a11y поиска). Без миграции. Follow-up для больших групп: pg_trgm и индекс payments (organization_id, created_at).'
 ref_id: 'P-13'
 complexity: M

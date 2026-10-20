@@ -36,19 +36,21 @@ const empty = computed(
 const liveText = computed(() => {
   if (!open.value) return ''
   if (tooShort.value) return `Введите минимум ${CABINET_SEARCH_MIN} символа`
-  if (loading.value) return 'Ищем…'
+  // «Ищем…» не озвучиваем: объявляется только результат
+  if (loading.value) return ''
   if (error.value) return ''
   if (empty.value) return 'Ничего не найдено'
   return data.value?.searched ? `Найдено: ${found.value}` : ''
 })
 
+/** Отмена текущего запроса; поколение растёт, чтобы его ответ или отказ ничего не менял. */
 function abortInFlight() {
   controller?.abort()
   controller = undefined
+  generation++
 }
 
 async function run() {
-  const token = ++generation
   const orgId = props.orgId
   const q = query.value
   if (!shouldSearch(q)) {
@@ -60,6 +62,7 @@ async function run() {
   loading.value = true
   error.value = ''
   abortInFlight()
+  const token = generation
   const ctl = new AbortController()
   controller = ctl
   try {
@@ -71,11 +74,11 @@ async function run() {
     if (token !== generation || orgId !== props.orgId) return
     data.value = result
   } catch (e) {
-    if (token !== generation) return
+    if (token !== generation || ctl.signal.aborted) return
     data.value = null
     error.value = apiErrorMessage(e, 'Не удалось выполнить поиск')
   } finally {
-    if (token === generation) loading.value = false
+    if (token === generation && !ctl.signal.aborted) loading.value = false
   }
 }
 
@@ -186,7 +189,7 @@ onBeforeUnmount(() => {
         placeholder="Поиск или Ctrl K"
         autocomplete="off"
         maxlength="64"
-        aria-controls="cabinet-search-panel"
+        :aria-controls="open ? 'cabinet-search-panel' : undefined"
         @input="schedule"
         @focus="onFocus"
       />

@@ -199,6 +199,30 @@ describe('cabinet search (20.5.2)', () => {
     expect(document.activeElement).toBe(other)
   })
 
+  it('typing during an in-flight request shows no error and keeps "Ищем…"', async () => {
+    apiFetch.mockImplementation(
+      (_u: string, o: { signal: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          o.signal.addEventListener('abort', () =>
+            reject(new DOMException('aborted', 'AbortError')),
+          )
+        }),
+    )
+    const wrapper = mountSearch()
+    await type(wrapper, 'ол')
+    expect(apiFetch).toHaveBeenCalledTimes(1)
+    await wrapper.get('input').setValue('оль')
+    await flushPromises()
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(wrapper.get('#cabinet-search-panel').text()).toContain('Ищем…')
+    // «Ищем…» не озвучивается: live-область объявляет только результат
+    expect(wrapper.get('[role="status"]').text()).toBe('')
+    await vi.advanceTimersByTimeAsync(300)
+    await flushPromises()
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(wrapper.get('#cabinet-search-panel').text()).toContain('Ищем…')
+  })
+
   it('aborts the in-flight request when the query changes or the component unmounts', async () => {
     const signals: AbortSignal[] = []
     apiFetch.mockImplementation((_u: string, o: { signal: AbortSignal }) => {
