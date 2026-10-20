@@ -1,5 +1,6 @@
 import { formatTime } from '@volley-time/shared'
 
+import { seatsLabel } from './booking-seats'
 import { displayName } from './labels'
 
 /**
@@ -66,6 +67,22 @@ export function inviteChip(state: InviteState): {
     case 'expired':
       return { text: 'ссылка просрочена', tone: 'rose', dot: true }
   }
+}
+
+const COMPACT_AVATARS = 5
+
+/**
+ * Сжатый состав для игрока без записи на событие «по приглашению» (решение владельца 2026-10-20):
+ * стопка аватаров и «и ещё N · M мест свободно», как на утверждённом макете.
+ */
+export function compactRoster(
+  players: number,
+  freeSeats: number,
+): { shown: number; rest: number; text: string } {
+  const shown = Math.min(players, COMPACT_AVATARS)
+  const rest = players - shown
+  const free = freeSeats > 0 ? `${seatsLabel(freeSeats)} свободно` : 'мест нет'
+  return { shown, rest, text: rest > 0 ? `и ещё ${rest} · ${free}` : free }
 }
 
 /** Токен личной ссылки уходит в запись только если приглашение пришло по ней. */

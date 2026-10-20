@@ -278,6 +278,64 @@ describe('event page: invite-only booking (M-08)', () => {
     expect(readStashedInviteToken(71)).toBeNull()
   })
 
+  describe('compact roster (owner decision 2026-10-20)', () => {
+    const players = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({
+        user: { id: i + 1, name: `Игрок ${i + 1}`, telegramUsername: null, image: null },
+        paid: true,
+      }))
+
+    it.each(['none', 'requested', 'invited', 'expired'] as const)(
+      '%s: avatar stack and «и ещё N · M мест свободно» instead of the full list',
+      async (state) => {
+        data.value.roster = players(11)
+        inviteAccess = access({
+          state,
+          request:
+            state === 'requested'
+              ? { id: 9, status: 'pending', createdAt: '2027-10-03T09:30:00Z' }
+              : null,
+          invite:
+            state === 'invited' || state === 'expired'
+              ? linkInvite(state === 'expired' ? '2027-10-02T14:00:00Z' : undefined)
+              : null,
+        })
+        wrapper = await render()
+        const compact = wrapper.get('[data-compact-roster]')
+        expect(compact.text()).toBe('и ещё 6 · 5 мест свободно')
+        expect(compact.findAll('[data-compact-avatar]')).toHaveLength(5)
+        expect(wrapper.find('[data-roster-list]').exists()).toBe(false)
+      },
+    )
+
+    it('open events and managers keep the full roster', async () => {
+      data.value.roster = players(4)
+      data.value.event.joinMode = 'open'
+      wrapper = await render()
+      expect(wrapper.find('[data-compact-roster]').exists()).toBe(false)
+      expect(wrapper.findAll('[data-roster-list] li')).toHaveLength(4)
+      wrapper.unmount()
+      data.value.event.joinMode = 'invite'
+      org.value = orgFixture('organizer')
+      wrapper = await render()
+      expect(wrapper.find('[data-compact-roster]').exists()).toBe(false)
+      expect(wrapper.findAll('[data-roster-list] li')).toHaveLength(4)
+    })
+
+    it('after booking the full roster returns', async () => {
+      data.value.roster = players(4)
+      ;(data.value.event as { myBooking: unknown }).myBooking = {
+        id: 5,
+        status: 'confirmed',
+        method: 'free',
+        paymentId: null,
+      }
+      wrapper = await render()
+      expect(wrapper.find('[data-compact-roster]').exists()).toBe(false)
+      expect(wrapper.findAll('[data-roster-list] li')).toHaveLength(4)
+    })
+  })
+
   it('a stashed token that gave no link invite (revoked, used, foreign, expired) is cleared (m-1)', async () => {
     stashInviteToken(71, 'dead-token-0123456789')
     inviteAccess = access({ state: 'none' })

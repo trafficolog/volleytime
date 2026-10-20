@@ -12,6 +12,7 @@ import {
   isNotNull,
   isNull,
   ne,
+  notifications,
   or,
   organizationMembers,
   sql,
@@ -33,6 +34,7 @@ import {
 } from '../bookings/errors'
 import { EventJoinModeOpenError, EventNotFoundError } from '../events/errors'
 import { collectNotification } from '../notifier/collect'
+import { feedKeyOf } from '../notifier/feed-types'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
 
 import {
@@ -562,6 +564,16 @@ export const eventInviteRequestService = {
         if (exists) throw new InviteRequestNotPendingError()
         throw new InviteRequestNotFoundError()
       }
+      // лента организатора: запрос больше не актуален — «Запрос отозван» и прочитано; сообщение
+      // бота не трогаем. Без миграции: флаг в `payload`, ключ записи — по раунду (20.4.7)
+      const round = await requestRound(db, eventId, ctx.userId)
+      await db
+        .update(notifications)
+        .set({
+          readAt: sql`coalesce(${notifications.readAt}, now())`,
+          payload: sql`jsonb_set(${notifications.payload}, '{params,inviteRequestWithdrawn}', 'true'::jsonb)`,
+        })
+        .where(eq(notifications.dedupKey, inviteRequestFeedKey(eventId, ctx.userId, round)))
       await auditService.record(tx, {
         organizationId: orgId,
         action: AUDIT_ACTIONS.EVENT_INVITE_REQUEST_CANCELLED,
@@ -649,6 +661,31 @@ export const eventInviteRequestService = {
   },
 }
 
+/**
+ * «Раунд» запроса = число уже принятых решений организатора по этому игроку и событию: цепочка
+ * запрос → отзыв → запрос внутри раунда даёт одно уведомление, после ответа — новое.
+ */
+async function requestRound(db: Db, eventId: number, userId: number): Promise<number> {
+  const [counted] = await db
+    .select({ decided: sql<number>`count(*)::int` })
+    .from(eventInviteRequests)
+    .where(
+      and(
+        eq(eventInviteRequests.eventId, eventId),
+        eq(eventInviteRequests.userId, userId),
+        inArray(eventInviteRequests.status, ['approved', 'declined']),
+      ),
+    )
+  return counted?.decided ?? 0
+}
+
+const inviteRequestJobKey = (eventId: number, playerId: number, round: number, userId: number) =>
+  `invite_request_organizer:invite_request:event:${eventId}:player:${playerId}:round:${round}:user:${userId}`
+
+/** Ключ записи ленты организатора (один на раунд, одинаков у всех получателей). */
+const inviteRequestFeedKey = (eventId: number, playerId: number, round: number) =>
+  feedKeyOf('invite_request_organizer', inviteRequestJobKey(eventId, playerId, round, 0))
+
 /** Владельцам и организаторам группы (кроме самого игрока) — запрос приглашения, в ленту и в бот. */
 async function notifyOrganizers(
   ctx: ServiceContext,
@@ -672,25 +709,21 @@ async function notifyOrganizers(
         inArray(organizationMembers.role, ['owner', 'organizer']),
       ),
     )
-  // «раунд» = число уже принятых решений организатора по этому игроку и событию: цепочка
-  // запрос → отзыв → запрос внутри раунда даёт одно уведомление, после ответа — новое
-  const [counted] = await db
-    .select({ decided: sql<number>`count(*)::int` })
-    .from(eventInviteRequests)
-    .where(
-      and(
-        eq(eventInviteRequests.eventId, ev.id),
-        eq(eventInviteRequests.userId, created.userId),
-        inArray(eventInviteRequests.status, ['approved', 'declined']),
-      ),
-    )
-  const round = counted?.decided ?? 0
+  const round = await requestRound(db, ev.id, created.userId)
+  // запрос → отзыв → запрос внутри раунда: запись ленты та же, она снова актуальна
+  await db
+    .update(notifications)
+    .set({
+      readAt: null,
+      payload: sql`${notifications.payload} #- '{params,inviteRequestWithdrawn}'`,
+    })
+    .where(eq(notifications.dedupKey, inviteRequestFeedKey(ev.id, created.userId, round)))
   for (const m of managers) {
     if (m.userId === created.userId) continue
     collectNotification(ctx, {
       userId: m.userId,
       type: 'invite_request_organizer',
-      dedupKey: `invite_request_organizer:invite_request:event:${ev.id}:player:${created.userId}:round:${round}:user:${m.userId}`,
+      dedupKey: inviteRequestJobKey(ev.id, created.userId, round, m.userId),
       params: {
         eventId: ev.id,
         organizationId: ev.organizationId,

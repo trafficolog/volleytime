@@ -87,7 +87,6 @@
       "event": { "title": "Открытая игра", "status": "published" },
       "inviteState": "requested",
       "path": "/m/orgs/{org}/events/{event}",
-      "steps": [{ "scroll": "bottom" }],
       "references": ["3-miniapp-player/m08-invite-requested.jpg"],
       "referenceCrop": { "x": 546, "y": 94, "width": 328, "height": 692 }
     },
@@ -124,7 +123,6 @@
       "event": { "title": "Открытая игра", "status": "published" },
       "inviteState": "expired",
       "path": "/m/orgs/{org}/events/{event}",
-      "steps": [{ "scroll": "bottom" }],
       "references": ["3-miniapp-player/m08-invite-expired.jpg"],
       "referenceCrop": { "x": 546, "y": 94, "width": 328, "height": 692 }
     },

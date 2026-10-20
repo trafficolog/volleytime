@@ -460,6 +460,91 @@ describe('invite access for the Mini App (20.4.7, PostgreSQL)', () => {
       expect(await feedFor(organizerId)).toBe(2)
     })
 
+    it('withdrawal marks the organizers feed items «отозван» and read; a repeated request in the round reopens them', async () => {
+      const ev = await makeEvent()
+      const p = await player('Соня')
+      const c = collector()
+      const first = await eventInviteRequestService.request(c.ctx(p), orgId, ev.id)
+      await enqueueNotifications(
+        db,
+        c.notifications.map((n) => ({
+          type: n.type,
+          dedupKey: n.dedupKey!,
+          userId: n.userId,
+          params: n.params,
+          organizationId: n.params.organizationId ?? null,
+          eventId: n.params.eventId ?? null,
+        })),
+      )
+      const feed = async (userId: number) =>
+        db.select().from(notifications).where(eq(notifications.recipientUserId, userId))
+      const params = (row: { payload: unknown }) =>
+        (row.payload as { params: Record<string, unknown> }).params
+      for (const u of [ownerId, organizerId]) {
+        const [row] = await feed(u)
+        expect(params(row!).inviteRequestWithdrawn).toBeUndefined()
+        expect(row!.readAt).toBeNull()
+      }
+
+      await eventInviteRequestService.cancel({ userId: p }, orgId, ev.id, first.id)
+      for (const u of [ownerId, organizerId]) {
+        const rows = await feed(u)
+        expect(rows).toHaveLength(1)
+        expect(params(rows[0]!)).toMatchObject({
+          inviteRequest: true,
+          inviteRequestWithdrawn: true,
+        })
+        expect(rows[0]!.readAt).not.toBeNull()
+      }
+
+      // тот же раунд: запрос снова актуален, нового уведомления нет
+      await eventInviteRequestService.request({ userId: p }, orgId, ev.id)
+      for (const u of [ownerId, organizerId]) {
+        const rows = await feed(u)
+        expect(rows).toHaveLength(1)
+        expect(params(rows[0]!).inviteRequestWithdrawn).toBeUndefined()
+        expect(rows[0]!.readAt).toBeNull()
+      }
+    })
+
+    it('withdrawal touches only that player request, not other players or other events', async () => {
+      const ev = await makeEvent()
+      const other = await makeEvent()
+      const p = await player('Соня')
+      const q = await player('Паша')
+      const c = collector()
+      const mine = await eventInviteRequestService.request(c.ctx(p), orgId, ev.id)
+      await eventInviteRequestService.request(c.ctx(q), orgId, ev.id)
+      await eventInviteRequestService.request(c.ctx(p), orgId, other.id)
+      await enqueueNotifications(
+        db,
+        c.notifications.map((n) => ({
+          type: n.type,
+          dedupKey: n.dedupKey!,
+          userId: n.userId,
+          params: n.params,
+          organizationId: n.params.organizationId ?? null,
+          eventId: n.params.eventId ?? null,
+        })),
+      )
+      await eventInviteRequestService.cancel({ userId: p }, orgId, ev.id, mine.id)
+      const rows = await db
+        .select()
+        .from(notifications)
+        .where(eq(notifications.recipientUserId, organizerId))
+      const flagged = rows.filter(
+        (r) =>
+          (r.payload as { params: { inviteRequestWithdrawn?: boolean } }).params
+            .inviteRequestWithdrawn,
+      )
+      expect(rows).toHaveLength(3)
+      expect(flagged).toHaveLength(1)
+      expect(flagged[0]!.eventId).toBe(ev.id)
+      expect((flagged[0]!.payload as { params: { playerName: string } }).params.playerName).toBe(
+        'Соня',
+      )
+    })
+
     it('the answer goes to the player; withdrawal and failed requests notify nobody', async () => {
       const ev = await makeEvent()
       const p = await player()
