@@ -190,6 +190,23 @@ describe('player event view state', () => {
     ).toBe(false)
   })
 
+  it('hides self-cancellation when the group policy snapshot forbids it (D-02)', () => {
+    const mine = { ...event, myBooking: { status: 'confirmed' } }
+    expect(projectPlayerEvent({ ...mine, cancellationAllowed: false }, access, now).canCancel).toBe(
+      false,
+    )
+    expect(projectPlayerEvent({ ...mine, cancellationAllowed: true }, access, now).canCancel).toBe(
+      true,
+    )
+  })
+
+  it('exposes the cancellation deadline for «Отменить можно до …»', () => {
+    const view = projectPlayerEvent({ ...event, myBooking: { status: 'confirmed' } }, access, now)
+    expect(view.cancelDeadline?.toISOString()).toBe('2026-09-25T06:00:00.000Z')
+    const open = projectPlayerEvent({ ...event, cancellationDeadlineHours: null }, access, now)
+    expect(open.cancelDeadline).toBeNull()
+  })
+
   it('locks only an allocated split booking after settlement', () => {
     const pricing: EventPricingView = {
       mode: 'split',

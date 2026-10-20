@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import PlayerBookingRow, { type MyBooking } from '~/components/PlayerBookingRow.vue'
+import { cancelConfirmText } from '~/utils/player-booking-cancel'
 import {
   canCancelPlayerBooking,
   createPlayerBookingsLoader,
@@ -99,7 +100,8 @@ async function onCancel(b: MyBooking) {
   if (cancelling.value !== null || !canCancel(b)) return
   const confirmation = confirmationGuard.begin()
   actionError.value = ''
-  if (!(await confirm(`Отменить запись на «${b.event.title}»?`))) return
+  if (!(await confirm(cancelConfirmText(`Отменить запись на «${b.event.title}»?`, b.method))))
+    return
   if (!confirmation.isCurrent()) return
   const currentBooking = items.value.find((item) => item.id === b.id)
   if (!currentBooking || !canCancel(currentBooking)) return
@@ -123,7 +125,8 @@ async function onCancel(b: MyBooking) {
     actionError.value = apiErrorMessage(outcome.error, 'Не удалось отменить запись')
     if (request.isCurrent()) await load()
   } else if (outcome.kind === 'blocked') {
-    actionError.value = 'Отменить запись уже нельзя — прошёл дедлайн отмены.'
+    // дедлайн или политика группы (D-02): причину не угадываем, кнопка уже скрыта
+    actionError.value = 'Отменить запись уже нельзя.'
   }
   if (request.isCurrent()) cancelling.value = null
 }
@@ -137,6 +140,7 @@ function bookingPolicy(booking: MyBooking) {
     status: booking.status,
     startsAt: booking.event.startsAt,
     cancellationDeadlineHours: booking.event.cancellationDeadlineHours,
+    cancellationAllowed: booking.event.cancellationAllowed,
   }
 }
 

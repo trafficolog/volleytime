@@ -2,11 +2,11 @@
 id: '20.4.8'
 phase: '20'
 epic: '20.4'
-status: todo
+status: in_progress
 release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-12
-status_note: ''
+status_note: 'Реализация в PR (ветка trafficolog/feat/20.4.8-cancel-booking): снимок политики в UI, «Отменить можно до …», частичная отмена мест (PATCH), D-14 в подтверждении и после отмены, ошибка booking.cancellation_not_allowed. Визуальная сверка и ревью открыты, см. docs/operations/qa/2026-10-20-20-4-8-cancel-booking.md.'
 ref_id: 'M-09'
 complexity: S
 impl_model: claude-haiku-5-5
