@@ -222,4 +222,85 @@ describe('event join mode and invites API (HTTP integration)', () => {
     })
     expect(code(denied)).toBe('booking.invite_required')
   })
+
+  it('20.4.7: invite-access states, token in the body only, withdraw own request', async () => {
+    const ev = (await createEvent({ joinMode: 'invite' })).body as { event: { id: number } }
+    const url = `${base()}/events/${ev.event.id}`
+    const access = (user: number, body: unknown = {}) =>
+      request('POST', `${url}/invite-access`, { user, body })
+
+    const none = await access(playerId)
+    expect(none.status).toBe(200)
+    expect(none.body).toMatchObject({
+      access: { state: 'none', request: null, organizer: { name: 'owner' } },
+    })
+    expect(none.text).not.toContain('@t.by')
+
+    const asked = await request('POST', `${url}/invite-requests`, { user: playerId, body: {} })
+    const requestId = (asked.body as { request: { id: number } }).request.id
+    expect((await access(playerId)).body).toMatchObject({ access: { state: 'requested' } })
+
+    // чужой запрос отозвать нельзя: 404, запрос остаётся
+    const foreign = await request('POST', `${url}/invite-requests/${requestId}/cancel`, {
+      user: secondId,
+      body: {},
+    })
+    expect(foreign.status).toBe(404)
+    expect(code(foreign)).toBe('invite_request.not_found')
+    const cancelled = await request('POST', `${url}/invite-requests/${requestId}/cancel`, {
+      user: playerId,
+      body: {},
+    })
+    expect(cancelled.status).toBe(200)
+    expect(cancelled.body).toMatchObject({ request: { status: 'cancelled' } })
+    const twice = await request('POST', `${url}/invite-requests/${requestId}/cancel`, {
+      user: playerId,
+      body: {},
+    })
+    expect(twice.status).toBe(409)
+    expect(code(twice)).toBe('invite_request.not_pending')
+    expect((await access(playerId)).body).toMatchObject({ access: { state: 'none' } })
+
+    // личная ссылка: срок и имя пригласившего, токен не возвращается
+    const { invite } = (await request('POST', `${url}/invites`, { user: ownerId, body: {} }))
+      .body as { invite: { token: string } }
+    const invited = await access(playerId, { inviteToken: invite.token })
+    expect(invited.body).toMatchObject({
+      access: { state: 'invited', invite: { source: 'link', inviter: { name: 'owner' } } },
+    })
+    expect(invited.text).not.toContain(invite.token)
+    // токен — только в теле: строка запроса его не принимает
+    expect((await access(playerId, { inviteToken: 1 })).status).toBe(422)
+
+    // организатор открыл отозванный запрос: ответить на него нельзя (409), приглашение не выдаётся
+    const withdrawn = (
+      await request('POST', `${url}/invite-requests`, { user: playerId, body: {} })
+    ).body as { request: { id: number } }
+    await request('POST', `${url}/invite-requests/${withdrawn.request.id}/cancel`, {
+      user: playerId,
+      body: {},
+    })
+    for (const action of ['approve', 'decline']) {
+      const late = await request(
+        'POST',
+        `${url}/invite-requests/${withdrawn.request.id}/${action}`,
+        {
+          user: ownerId,
+          body: {},
+        },
+      )
+      expect(late.status, action).toBe(409)
+      expect(code(late), action).toBe('invite_request.not_pending')
+    }
+    const issued = await db.select().from(inviteLinks).where(eq(inviteLinks.eventId, ev.event.id))
+    expect(issued).toHaveLength(1) // только личная ссылка, созданная выше
+
+    const open = (await createEvent({ joinMode: 'open' })).body as { event: { id: number } }
+    const notNeeded = await request('POST', `${base()}/events/${open.event.id}/invite-access`, {
+      user: playerId,
+      body: {},
+    })
+    expect(notNeeded.status).toBe(409)
+    expect(code(notNeeded)).toBe('event.join_mode_open')
+  })
 })

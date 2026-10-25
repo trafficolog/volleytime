@@ -47,6 +47,10 @@ interface Params {
   currency?: string
   refunded?: boolean
   target?: string
+  /** Запрос приглашения на событие (20.4.7), а не заявка на оплату. */
+  inviteRequest?: boolean
+  /** Игрок отозвал запрос: запись ленты уже не требует действия (20.4.7). */
+  inviteRequestWithdrawn?: boolean
 }
 
 function paramsOf(payload: unknown): Params {
@@ -164,6 +168,15 @@ export function notificationView(n: FeedNotification, base: string): Notificatio
         to,
       }
     case 'organizer_action_required':
+      if (p.inviteRequest) {
+        return {
+          title: p.inviteRequestWithdrawn ? 'Запрос отозван' : 'Запрос приглашения',
+          body: joinText(p.playerName && `${p.playerName} ·`, event),
+          icon: 'users',
+          tone: p.inviteRequestWithdrawn ? 'ink' : 'amber',
+          to,
+        }
+      }
       return {
         title: 'Заявка на оплату',
         body: joinText(p.playerName, p.planName ? `· «${p.planName}»` : `· ${event}`),

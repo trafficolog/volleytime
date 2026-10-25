@@ -21,6 +21,8 @@ export const FEED_TYPE: Partial<Record<NotificationType, FeedType>> = {
   payment_confirmed: 'payment_confirmed',
   payment_rejected: 'payment_rejected',
   payment_pending_organizer: 'organizer_action_required',
+  // запрос приглашения — действие организатора; ответ игроку в ленту не пишется (прямая отправка)
+  invite_request_organizer: 'organizer_action_required',
   event_cancelled: 'event_cancelled',
 }
 

@@ -3,6 +3,7 @@ import { resolveStartParam } from '@volley-time/shared'
 
 import { botLink } from '../../utils/auth-flow'
 import { enterMiniApp } from '../../utils/mini-auth-state'
+import { stashInviteToken } from '../../utils/player-invite'
 definePageMeta({ layout: 'miniapp' })
 
 /**
@@ -22,6 +23,8 @@ async function targetRoute(): Promise<string> {
   const target = resolveStartParam(startParam.value)
   if (target.kind === 'invite') return `/m/invite/${encodeURIComponent(target.token)}`
   if (target.kind === 'event') {
+    // личная ссылка-приглашение (20.1.3): токен ждёт экран события, в адрес он не попадает (20.4.7)
+    if (target.inviteToken) stashInviteToken(target.eventId, target.inviteToken)
     try {
       const { orgId, eventId } = await $fetch<{ orgId: number; eventId: number }>(
         `/api/events/${target.eventId}/locate`,

@@ -14,6 +14,16 @@ describe('player booking request', () => {
     expect(bookingPayload('subscription', 7)).toEqual({ method: 'subscription', subscriptionId: 7 })
   })
 
+  it('carries the personal invite token only when given (20.4.7)', () => {
+    expect(bookingPayload('free', undefined, { inviteToken: 'tok' })).toEqual({
+      method: 'free',
+      inviteToken: 'tok',
+    })
+    expect(bookingPayload('cash', undefined, { inviteToken: undefined })).toEqual({
+      method: 'cash',
+    })
+  })
+
   it('does not submit a subscription without a selected positive ID', () => {
     expect(() => bookingPayload('subscription')).toThrow()
     expect(() => bookingPayload('subscription', 0)).toThrow()

@@ -40,6 +40,7 @@ const PATHS: Record<string, string> = {
   mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
   search: '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>',
   alert: '<path d="M12 3 2 21h20Z"/><path d="M12 10v5M12 18h.01"/>',
+  lock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
 }
 
 const svg = computed(() => PATHS[props.name] ?? '')
