@@ -11,7 +11,7 @@ import {
 
 import { displayName, formatPrice, formatMoneyRu } from '~/utils/labels'
 import { pendingPaymentsForEvent } from '~/utils/organizer-miniapp'
-import { pendingVerb, waitlistOrganizerLabel } from '~/utils/status-model'
+import { pendingVerb, waitlistCaption } from '~/utils/status-model'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
 interface PendingPayment {
@@ -380,9 +380,11 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
         </div>
         <div class="vt-card p-2.5">
           <div class="vt-mono font-bold text-lg">
-            {{ waitlistOrganizerLabel(ev.waitlist, ev.waitlistSeats) }}
+            {{ ev.waitlist }}
           </div>
-          <div class="vt-cap !text-[10px]">в ожидании</div>
+          <div class="vt-cap !text-[10px]">
+            {{ waitlistCaption(ev.waitlist, ev.waitlistSeats) }}
+          </div>
         </div>
       </div>
 
