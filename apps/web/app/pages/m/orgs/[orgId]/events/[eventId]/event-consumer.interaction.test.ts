@@ -404,6 +404,52 @@ describe('self-cancellation policy, deadline and partial seats (20.4.8)', () => 
     expect(wrapper.text()).toContain('Отменить можно до')
   })
 
+  describe('caption «Занятие вернётся на абонемент»', () => {
+    const subscriptionBooking = (over: Record<string, unknown> = {}) => {
+      data.value.event.cancellationAllowed = true
+      data.value.event.cancellationDeadlineHours = null
+      data.value.event.price = 5000
+      data.value.event.pricing = { ...data.value.event.pricing, mode: 'fixed' }
+      data.value.event.myBooking = {
+        id: 5,
+        status: 'confirmed',
+        method: 'subscription',
+        paymentId: null,
+        seats: 1,
+        waitlistSeats: 0,
+        ...over,
+      } as unknown as typeof data.value.event.myBooking
+    }
+
+    it('is shown under the cancel button for a confirmed subscription booking', async () => {
+      subscriptionBooking()
+      wrapper = await render()
+      expect(wrapper.text()).toContain('Занятие вернётся на абонемент')
+    })
+
+    it('is not shown when the policy forbids cancelling or the deadline has passed', async () => {
+      subscriptionBooking()
+      data.value.event.cancellationAllowed = false
+      wrapper = await render()
+      expect(wrapper.text()).not.toContain('Занятие вернётся на абонемент')
+      wrapper.unmount()
+      subscriptionBooking()
+      data.value.event.cancellationDeadlineHours = 100000
+      wrapper = await render()
+      expect(wrapper.text()).not.toContain('Занятие вернётся на абонемент')
+    })
+
+    it('is not shown for cash bookings or for a waitlisted subscription booking', async () => {
+      subscriptionBooking({ method: 'cash', paymentId: 9 })
+      wrapper = await render()
+      expect(wrapper.text()).not.toContain('Занятие вернётся на абонемент')
+      wrapper.unmount()
+      subscriptionBooking({ status: 'waitlisted' })
+      wrapper = await render()
+      expect(wrapper.text()).not.toContain('Занятие вернётся на абонемент')
+    })
+  })
+
   it('removes part of the seats with PATCH, warns about paid seats and keeps the rest', async () => {
     data.value.event.cancellationAllowed = true
     data.value.event.cancellationDeadlineHours = null

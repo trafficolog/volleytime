@@ -26,6 +26,8 @@ import {
   cancelConfirmText,
   cancelMayReleasePaidSeats,
   seatsCancelConfirmText,
+  sessionReturnsOnCancel,
+  SUBSCRIPTION_RETURN_NOTE,
 } from '~/utils/player-booking-cancel'
 import {
   bookingPaymentChip,
@@ -294,6 +296,10 @@ const cancelDeadline = computed(() => {
   )
 })
 const canCancel = computed(() => eventView.value?.canCancel === true)
+/** Подпись «Занятие вернётся на абонемент» — только пока отмена открыта и ядро реально вернёт занятие. */
+const returnsSession = computed(
+  () => canCancel.value && !!my.value && sessionReturnsOnCancel(my.value, ev.value?.pricing.mode),
+)
 const noCancelExplanation = computed(() => {
   if (ev.value?.pricing.mode === 'split' && ev.value.pricing.myAllocatedAmount !== null)
     return 'Доля зафиксирована — для отмены напишите организатору.'
@@ -980,7 +986,14 @@ async function reduceMySeats(kept: number) {
 </script>
 
 <template>
-  <div class="min-h-screen" :class="showActionBar ? 'pb-44' : 'pb-24'">
+  <div
+    class="min-h-screen"
+    :class="
+      showActionBar
+        ? 'pb-44'
+        : 'pb-[calc(var(--player-dock-height,58px)+38px+var(--vt-safe-bottom))]'
+    "
+  >
     <VtMiniHeader
       :title="ev?.title ?? 'Событие'"
       :sub="ev ? `${formatDay(ev.startsAt, tz)} · ${formatTime(ev.startsAt, tz)}` : undefined"
@@ -1249,6 +1262,9 @@ async function reduceMySeats(kept: number) {
           class="text-xs text-vt-mute-2 mt-3"
         >
           {{ noCancelExplanation }}
+        </p>
+        <p v-if="returnsSession" class="text-xs text-vt-mute-2 mt-2 text-center">
+          {{ SUBSCRIPTION_RETURN_NOTE }}
         </p>
         <p v-if="canCancel && eventView?.cancelDeadline" class="text-xs text-vt-mute-2 mt-2">
           Отменить можно до {{ formatDay(eventView.cancelDeadline, tz) }},

@@ -6,7 +6,7 @@ release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-10-12
 status_note: ''
-estimated_hours: '36-72'
+estimated_hours: '40-80'
 depends_on:
   [
     '19.1.2',
@@ -49,6 +49,7 @@ depends_on:
 | [21.1.5](../tasks/21-1-5-org-miniapp-collections-notifications.md) | Mini App организатора: сборы, уведомления                 | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
 | [21.1.6](../tasks/21-1-6-player-collections.md)                    | Сборы игрока: список, сбор, взнос                         | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
 | [21.1.7](../tasks/21-1-7-group-creation-wizard.md)                 | Мастер создания группы (3 шага)                           | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
+| [21.1.8](../tasks/21-1-8-player-payment-status-api.md)             | Статус оплаты в API игрока                                | —        | M      | `claude-sonnet-5-5` | `claude-sonnet-5-5` |
 
 ## Не делать
 
