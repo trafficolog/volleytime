@@ -2,6 +2,7 @@
 
 - Дата прогона: 2026-10-20
 - Ветка: `trafficolog/feat/20.4.7-invite-booking`
+- Утверждение владельца: 2026-10-25 владелец утвердил скриншоты приложения (5 состояний, светлая и тёмная темы), PR #174 ([журнал решений](../decisions/2026-10-12-reference-v3-decisions.md#d-06)).
 - Роль: исполнитель 20.4.7 (`claude-sonnet-5-5`); независимое ревью — отдельным агентом по карточке; утверждение скриншотов приложения — владелец, до merge (D-06)
 - Команда: `pnpm qa:visual --base http://127.0.0.1:3207 --routes player-event-invite-none,player-event-invite-requested,player-event-invite-invited,player-event-invite-invited-link,player-event-invite-expired --diff`. В карту экранов добавлены пять экранов с полем `inviteState` (харнесс готовит состояние игрока `sonya` в локальной БД).
 - Окружение: отдельный PostgreSQL 16 `vt-pg-20-4-7` (база `volleytime_dev`), миграции, `pnpm db:seed:demo`, `nuxt dev` на порту 3207 с тестовым токеном бота `111111:visual-harness-test` и `EVENT_INVITE_MODE_ENABLED=true`. Реальные учётные данные не использовались; сервер остановлен, контейнер удалён.
