@@ -63,6 +63,10 @@ tags: [reference-v3]
 - ✅ Отчёт визуальной сверки по экранам из `reference.screens` без открытых расхождений Critical/Important
 - ✅ Пять gates CODING_STANDARDS на tested revision; ревью `claude-opus-5-5` без Critical/Important
 
+## Follow-up (ревью PR #174, Minor)
+
+- Окно между коммитом запроса и записью строки ленты: отзыв в этом окне оставляет организатору активный пункт; вариант — check доставки в `NotifyJobInput`.
+
 ## Подсказки
 
 - Скриншоты: [3-miniapp-player/07-screen.png](../design/reference-v3/screenshots/3-miniapp-player/07-screen.png) (окно 924×540 — ориентир; размеры и отступы брать из исходников).
