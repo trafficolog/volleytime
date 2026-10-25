@@ -25,6 +25,7 @@ describe('server-backed player mutation', () => {
     expect(shouldRefreshPlayerEventAfterRejection('booking.event_not_bookable')).toBe(true)
     expect(shouldRefreshPlayerEventAfterRejection('booking.not_cancellable')).toBe(true)
     expect(shouldRefreshPlayerEventAfterRejection('booking.deadline_passed')).toBe(true)
+    expect(shouldRefreshPlayerEventAfterRejection('booking.cancellation_not_allowed')).toBe(true)
     expect(shouldRefreshPlayerEventAfterRejection('booking.already_booked')).toBe(true)
     expect(shouldRefreshPlayerEventAfterRejection('booking.method_not_allowed')).toBe(true)
     expect(shouldRefreshPlayerEventAfterRejection('event.not_found')).toBe(true)

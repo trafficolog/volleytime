@@ -27,6 +27,8 @@ const CODE_MESSAGES: Record<string, string> = {
   'booking.deadline_passed': 'Отменить запись уже нельзя — прошёл дедлайн отмены',
   'booking.not_cancellable': 'Эту запись нельзя отменить',
   'booking.cannot_cancel_others': 'Нельзя отменить чужую запись',
+  'booking.cancellation_not_allowed':
+    'Организатор запретил отменять запись самостоятельно. Напишите организатору',
   'booking.seats_over_limit': 'Столько мест в одной записи взять нельзя',
   'booking.not_enough_seats': 'Свободных мест меньше, чем вы выбрали',
   'booking.not_open_yet': 'Запись на это событие ещё не открыта',

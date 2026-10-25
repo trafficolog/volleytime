@@ -111,6 +111,8 @@ export function projectPlayerEvent(
     status: string
     startsAt: string | Date
     cancellationDeadlineHours: number | null
+    /** Снимок политики группы (D-02): `false` — игрок сам отменить не может (решает сервер, 19.2.2). */
+    cancellationAllowed?: boolean
     capacity: number
     taken: number
     price: number
@@ -179,6 +181,7 @@ export function projectPlayerEvent(
       : new Date(new Date(event.startsAt).getTime() - event.cancellationDeadlineHours * 3600_000)
   const canCancel =
     context.memberActive &&
+    event.cancellationAllowed !== false &&
     !(split && event.pricing?.myAllocatedAmount !== null) &&
     !started &&
     ['confirmed', 'pending_payment', 'waitlisted'].includes(bookingStatus ?? '') &&
@@ -209,6 +212,8 @@ export function projectPlayerEvent(
         : bookingCard,
     hasBooking,
     canCancel,
+    /** Срок «Отменить можно до …»; `null` — без срока. */
+    cancelDeadline: deadline,
     freeSeats,
     opensAt,
     closedBySchedule,

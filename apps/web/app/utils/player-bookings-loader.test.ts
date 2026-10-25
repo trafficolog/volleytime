@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { createPlayerBookingsLoader, runPlayerBookingCancellation } from './player-bookings-loader'
+import {
+  canCancelPlayerBooking,
+  createPlayerBookingsLoader,
+  runPlayerBookingCancellation,
+} from './player-bookings-loader'
 
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -11,6 +15,19 @@ function deferred<T>() {
 }
 
 describe('player bookings list', () => {
+  it('does not allow self-cancellation when the event policy forbids it (D-02)', () => {
+    const booking = {
+      id: 4,
+      status: 'confirmed',
+      startsAt: '2026-09-26T18:00:00Z',
+      cancellationDeadlineHours: null,
+    }
+    const now = new Date('2026-09-24T12:00:00Z')
+    expect(canCancelPlayerBooking({ ...booking, cancellationAllowed: false }, now)).toBe(false)
+    expect(canCancelPlayerBooking({ ...booking, cancellationAllowed: true }, now)).toBe(true)
+    expect(canCancelPlayerBooking(booking, now)).toBe(true)
+  })
+
   it('keeps B/past when A/upcoming resolves after switching group and filter', async () => {
     let orgId = 1
     let filter: 'upcoming' | 'past' = 'upcoming'

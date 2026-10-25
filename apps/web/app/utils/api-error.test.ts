@@ -24,3 +24,11 @@ describe('apiErrorMessage: события и серии (20.5.5)', () => {
     expect(message).not.toBe('fallback')
   })
 })
+
+describe('apiErrorMessage: отмена записи (19.2.2, 20.4.8)', () => {
+  it('explains that the group policy forbids self-cancellation', () => {
+    const message = apiErrorMessage(apiError('booking.cancellation_not_allowed', 422), 'fallback')
+    expect(message).toContain('организатор')
+    expect(message).not.toBe('fallback')
+  })
+})

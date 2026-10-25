@@ -22,6 +22,12 @@ import {
 import { eventPricingLabel, splitBookingPaymentLabel } from '~/utils/event-pricing-label'
 import { displayName, formatMoneyRu } from '~/utils/labels'
 import {
+  CANCEL_REFUND_NOTE,
+  cancelConfirmText,
+  cancelMayReleasePaidSeats,
+  seatsCancelConfirmText,
+} from '~/utils/player-booking-cancel'
+import {
   bookingPaymentChip,
   playerEventLoadErrorNotice,
   playerEventPageState,
@@ -136,6 +142,10 @@ const isManager = computed(() => {
 const subscriptionsEnabled = computed(() => organization.value?.subscriptionsEnabled ?? null)
 
 const my = computed(() => ev.value?.myBooking ?? null)
+/** Все места моей записи: основа и очередь (как в PATCH …/bookings/{id}). */
+const myTotalSeats = computed(() =>
+  my.value ? (my.value.seats ?? 1) + (my.value.waitlistSeats ?? 0) : 0,
+)
 const priceLabel = computed(() =>
   ev.value ? eventPricingLabel(ev.value.pricing, ev.value.currency) : null,
 )
@@ -263,6 +273,8 @@ const noCancelExplanation = computed(() => {
 const sheetOpen = ref(false)
 const submitting = ref(false)
 const actionError = ref('')
+/** D-14: после отмены с оплатой деньгами — что оплаченные места не возвращаются (до перезагрузки). */
+const refundNotice = ref('')
 const loadErrorNotice = computed(() =>
   playerEventLoadErrorNotice(apiErrorStatus(loadError.value), actionError.value),
 )
@@ -710,7 +722,8 @@ async function cancelMine() {
   const requestedOrgId = orgId.value
   const confirmation = confirmationGuard.begin()
   const bookingId = my.value.id
-  if (!(await confirm('Отменить запись на тренировку?'))) return
+  const method = my.value.method
+  if (!(await confirm(cancelConfirmText('Отменить запись на тренировку?', method)))) return
   if (
     !alive ||
     !confirmation.isCurrent() ||
@@ -723,6 +736,7 @@ async function cancelMine() {
   const request = routeGuard.begin()
   submitting.value = true
   actionError.value = ''
+  refundNotice.value = ''
   const outcome = await runPlayerEventAction(
     () =>
       $fetch<void>(`/api/organizations/${requestedOrgId}/bookings/${bookingId}/cancel` as string, {
@@ -737,9 +751,61 @@ async function cancelMine() {
   )
   if (outcome.kind === 'success') {
     haptic('success')
+    if (cancelMayReleasePaidSeats(method)) refundNotice.value = CANCEL_REFUND_NOTE
   } else if (outcome.kind === 'error') {
     haptic('error')
     actionError.value = apiErrorMessage(outcome.error, 'Не удалось отменить запись')
+    if (
+      request.isCurrent() &&
+      shouldRefreshPlayerEventAfterRejection(apiErrorCode(outcome.error))
+    ) {
+      await retryPage()
+    }
+  }
+  if (request.isCurrent()) submitting.value = false
+}
+
+/** Частичная отмена мест (PATCH …/bookings/{id} {seats}, 20.1.2): сервер снимает очередь, затем основу. */
+async function reduceMySeats(kept: number) {
+  const booking = my.value
+  if (!alive || currentViewKey === null || submitting.value || !booking || !canCancel.value) return
+  const total = myTotalSeats.value
+  if (kept < 1 || kept >= total) return
+  const requestedOrgId = orgId.value
+  const confirmation = confirmationGuard.begin()
+  if (!(await confirm(seatsCancelConfirmText(total - kept, kept, booking.method)))) return
+  if (
+    !alive ||
+    !confirmation.isCurrent() ||
+    submitting.value ||
+    !canCancel.value ||
+    requestedOrgId !== orgId.value ||
+    booking.id !== my.value?.id
+  )
+    return
+  const request = routeGuard.begin()
+  submitting.value = true
+  actionError.value = ''
+  refundNotice.value = ''
+  const outcome = await runPlayerEventAction(
+    () =>
+      $fetch<void>(`/api/organizations/${requestedOrgId}/bookings/${booking.id}`, {
+        method: 'PATCH',
+        body: { seats: kept },
+      }),
+    request.isCurrent,
+    async () => {
+      await refresh()
+      if (!request.isCurrent()) return
+      await refreshNuxtData(`org-nav-balances-${requestedOrgId}`)
+    },
+  )
+  if (outcome.kind === 'success') {
+    haptic('success')
+    if (cancelMayReleasePaidSeats(booking.method)) refundNotice.value = CANCEL_REFUND_NOTE
+  } else if (outcome.kind === 'error') {
+    haptic('error')
+    actionError.value = apiErrorMessage(outcome.error, 'Не удалось отменить места')
     if (
       request.isCurrent() &&
       shouldRefreshPlayerEventAfterRejection(apiErrorCode(outcome.error))
@@ -970,7 +1036,20 @@ async function cancelMine() {
         >
           {{ noCancelExplanation }}
         </p>
+        <p v-if="canCancel && eventView?.cancelDeadline" class="text-xs text-vt-mute-2 mt-2">
+          Отменить можно до {{ formatDay(eventView.cancelDeadline, tz) }},
+          {{ formatTime(eventView.cancelDeadline, tz) }}.
+        </p>
+        <PlayerSeatsCancel
+          v-if="canCancel && my"
+          :total="myTotalSeats"
+          :disabled="submitting"
+          @reduce="reduceMySeats"
+        />
       </section>
+      <p v-if="refundNotice" class="text-sm text-vt-mute-2 mt-3" role="status">
+        {{ refundNotice }}
+      </p>
 
       <p v-if="cancelDeadline && !eventView?.hasBooking && bookable" class="text-xs text-vt-mute-2">
         Отменить запись можно до {{ formatDay(cancelDeadline, tz) }},
