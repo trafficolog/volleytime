@@ -2,11 +2,11 @@
 id: '20.4.7'
 phase: '20'
 epic: '20.4'
-status: in_progress
+status: done
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-20
-status_note: 'D-06 закрыт 2026-10-20: владелец утвердил 4 экрана M-08. Реализация в ветке trafficolog/feat/20.4.7-invite-booking; без миграций (invite-access, отзыв запроса, шаблоны уведомлений). Утверждение скриншотов приложения владельцем — до merge.'
+last_reviewed: 2026-10-25
+status_note: 'PR #174 смёржен (ревью Opus — merge, CI green на 32340c7), закрытие — PR docs/20.4.7-close. Состояния M-08 из атомов v3, бэкенд без миграций (invite-access, отзыв запроса, шаблоны уведомлений); владелец утвердил скриншоты приложения 2026-10-25 (журнал решений, D-06). Follow-up (Minor): окно между коммитом запроса и записью строки ленты.'
 ref_id: 'M-08'
 complexity: M
 impl_model: claude-sonnet-5-5
@@ -59,7 +59,7 @@ tags: [reference-v3]
 
 ## Критерии приёмки
 
-- ✅ Четыре состояния собраны из атомов v3, скриншоты утверждены владельцем до merge (D-06)
+- ✅ Четыре состояния собраны из атомов v3, скриншоты утверждены владельцем до merge (D-06; утверждено 2026-10-25, см. [журнал решений](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-06))
 - ✅ Отчёт визуальной сверки по экранам из `reference.screens` без открытых расхождений Critical/Important
 - ✅ Пять gates CODING_STANDARDS на tested revision; ревью `claude-opus-5-5` без Critical/Important
 
