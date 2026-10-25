@@ -221,6 +221,9 @@
 .vt-popover--left {
   left: 0;
 }
+.vt-popover--fixed {
+  position: fixed;
+}
 .vt-popover__item {
   display: flex;
   align-items: center;
@@ -250,6 +253,18 @@
 }
 .vt-popover__label {
   flex: 1;
+}
+.vt-popover__hint {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-2xs);
+  font-weight: 400;
+  color: var(--vt-mute-2);
+}
+.vt-popover__sep {
+  height: 1px;
+  margin: 6px 4px;
+  background: var(--vt-stroke);
 }
 .vt-popover__shortcut {
   font-family: var(--f-mono);

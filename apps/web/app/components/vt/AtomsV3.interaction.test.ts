@@ -301,6 +301,68 @@ describe('VtPopover', () => {
     expect(open.value).toBe(false)
     expect(document.querySelector('[role="menu"]')).toBeNull()
   })
+
+  it('renders a separator before an item and a hint under a disabled one; arrows skip the disabled item (20.5.8)', async () => {
+    const wrapper = mount(Popover, {
+      props: {
+        modelValue: true,
+        label: 'Действия',
+        items: [
+          { key: 'open', label: 'Открыть' },
+          { key: 'chat', label: 'В чат группы', disabled: true, hint: 'Чат не привязан' },
+          { key: 'cancel', label: 'Отменить', tone: 'danger', separator: true },
+        ],
+      },
+      attachTo: document.body,
+    })
+    await flush()
+    const menu = document.querySelector('[role="menu"]')!
+    expect([...menu.children].map((c) => c.getAttribute('role'))).toEqual([
+      'menuitem',
+      'menuitem',
+      'separator',
+      'menuitem',
+    ])
+    const chat = menu.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')[1]!
+    expect(chat.disabled).toBe(true)
+    expect(chat.textContent).toContain('Чат не привязан')
+    const [open, , cancel] = menu.querySelectorAll<HTMLElement>('[role="menuitem"]')
+    open!.focus()
+    key(open!, 'ArrowDown')
+    expect(document.activeElement).toBe(cancel)
+    wrapper.unmount()
+  })
+
+  it('fixed menu is placed from the trigger and closes when the page scrolls or resizes (20.5.8)', async () => {
+    const open = ref(false)
+    const host = defineComponent({
+      setup: () => () =>
+        h(
+          Popover,
+          {
+            modelValue: open.value,
+            'onUpdate:modelValue': (v: boolean) => (open.value = v),
+            items: [{ key: 'a', label: 'A' }],
+            fixed: true,
+          },
+          { trigger: ({ attrs }: { attrs: Record<string, unknown> }) => h('button', attrs, 'Ещё') },
+        ),
+    })
+    const wrapper = mount(host, { attachTo: document.body })
+    open.value = true
+    await flush()
+    const menu = document.querySelector<HTMLElement>('[role="menu"]')!
+    expect(menu.classList.contains('vt-popover--fixed')).toBe(true)
+    expect(menu.style.top).toMatch(/px$/)
+    expect(menu.style.right).toMatch(/px$/)
+    // прокрутка внутри самого меню его не закрывает
+    menu.dispatchEvent(new Event('scroll'))
+    expect(open.value).toBe(true)
+    window.dispatchEvent(new Event('resize'))
+    await flush()
+    expect(open.value).toBe(false)
+    wrapper.unmount()
+  })
 })
 
 describe('VtAlert', () => {

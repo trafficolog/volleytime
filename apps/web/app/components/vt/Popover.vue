@@ -8,12 +8,26 @@ export interface VtPopoverItem {
   tone?: 'danger'
   shortcut?: string
   disabled?: boolean
+  /** Разделитель перед пунктом: опасное действие отделено от остальных (20.5.8). */
+  separator?: boolean
+  /** Пояснение под названием, например почему пункт недоступен. */
+  hint?: string
 }
 
 const open = defineModel<boolean>({ default: false })
-withDefaults(defineProps<{ items: VtPopoverItem[]; label?: string; align?: 'left' | 'right' }>(), {
-  align: 'right',
-})
+const props = withDefaults(
+  defineProps<{
+    items: VtPopoverItem[]
+    label?: string
+    align?: 'left' | 'right'
+    /**
+     * Меню поверх окна (`position: fixed`), а не в потоке: в таблице с прокруткой `overflow` обрезал бы
+     * его. Закрывается при прокрутке и изменении размера окна; снизу не помещается — открывается вверх.
+     */
+    fixed?: boolean
+  }>(),
+  { align: 'right', fixed: false },
+)
 const emit = defineEmits<{ select: [item: VtPopoverItem] }>()
 
 const uid = useId()
@@ -26,6 +40,29 @@ const triggerAttrs = computed(() => ({
   'aria-expanded': open.value,
   'aria-controls': open.value ? menuId : undefined,
 }))
+
+const fixedStyle = ref<Record<string, string>>({})
+
+function place() {
+  const anchor = root.value?.getBoundingClientRect()
+  if (!props.fixed || !anchor) return
+  const height = menu.value?.offsetHeight ?? 0
+  const below = anchor.bottom + 6
+  const flip = below + height > window.innerHeight && anchor.top - 6 - height >= 0
+  fixedStyle.value = {
+    top: `${flip ? anchor.top - 6 - height : below}px`,
+    ...(props.align === 'right'
+      ? { right: `${document.documentElement.clientWidth - anchor.right}px` }
+      : { left: `${anchor.left}px` }),
+  }
+}
+
+function onViewportChange(event?: Event) {
+  if (!open.value || !props.fixed) return
+  // прокрутка самого меню (длинный список) его не закрывает
+  if (event?.target instanceof Node && menu.value?.contains(event.target)) return
+  close(false)
+}
 
 function entries(): HTMLElement[] {
   return [...(menu.value?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])') ?? [])]
@@ -70,12 +107,22 @@ function onDocPointer(event: MouseEvent) {
 
 watch(open, async (isOpen) => {
   if (!isOpen) return
+  place()
   await nextTick()
+  place()
   entries()[0]?.focus()
 })
 
-onMounted(() => document.addEventListener('mousedown', onDocPointer))
-onBeforeUnmount(() => document.removeEventListener('mousedown', onDocPointer))
+onMounted(() => {
+  document.addEventListener('mousedown', onDocPointer)
+  window.addEventListener('scroll', onViewportChange, true)
+  window.addEventListener('resize', onViewportChange)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('mousedown', onDocPointer)
+  window.removeEventListener('scroll', onViewportChange, true)
+  window.removeEventListener('resize', onViewportChange)
+})
 </script>
 
 <template>
@@ -86,24 +133,29 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocPointer))
       :id="menuId"
       ref="menu"
       class="vt-popover"
-      :class="`vt-popover--${align}`"
+      :class="[`vt-popover--${align}`, { 'vt-popover--fixed': fixed }]"
+      :style="fixed ? fixedStyle : undefined"
       role="menu"
       :aria-label="label"
       @keydown="onKeydown"
     >
-      <button
-        v-for="item in items"
-        :key="item.key"
-        type="button"
-        class="vt-popover__item"
-        :class="{ 'vt-popover__item--danger': item.tone === 'danger' }"
-        role="menuitem"
-        :disabled="item.disabled"
-        @click="pick(item)"
-      >
-        <span class="vt-popover__label">{{ item.label }}</span>
-        <span v-if="item.shortcut" class="vt-popover__shortcut">{{ item.shortcut }}</span>
-      </button>
+      <template v-for="item in items" :key="item.key">
+        <div v-if="item.separator" class="vt-popover__sep" role="separator" />
+        <button
+          type="button"
+          class="vt-popover__item"
+          :class="{ 'vt-popover__item--danger': item.tone === 'danger' }"
+          role="menuitem"
+          :disabled="item.disabled"
+          @click="pick(item)"
+        >
+          <span class="vt-popover__label">
+            {{ item.label }}
+            <span v-if="item.hint" class="vt-popover__hint">{{ item.hint }}</span>
+          </span>
+          <span v-if="item.shortcut" class="vt-popover__shortcut">{{ item.shortcut }}</span>
+        </button>
+      </template>
     </div>
   </div>
 </template>
