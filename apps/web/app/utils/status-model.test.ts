@@ -8,6 +8,7 @@ import {
   overlapsOf,
   participationOf,
   pendingLabel,
+  waitlistCaption,
   waitlistOrganizerLabel,
   waitlistPeopleLabel,
   pendingVerb,
@@ -219,5 +220,13 @@ describe('overlapsOf', () => {
   const c = { id: 3, startsAt: '2026-10-20T18:00:00Z', endsAt: '2026-10-20T19:00:00Z' }
   it('finds real overlaps and ignores touching intervals and itself', () => {
     expect(overlapsOf(a, [a, b, c]).map((e) => e.id)).toEqual([2])
+  })
+})
+
+describe('waitlistCaption', () => {
+  it('puts seats into the caption only when they differ from people', () => {
+    expect(waitlistCaption(2, 3)).toBe('в ожидании · 3 места')
+    expect(waitlistCaption(2, 2)).toBe('в ожидании')
+    expect(waitlistCaption(2)).toBe('в ожидании')
   })
 })

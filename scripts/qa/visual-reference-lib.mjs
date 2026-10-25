@@ -7,7 +7,7 @@ export const THEMES = ['light', 'dark']
 export const ROLES = ['anonymous', 'player', 'organizer', 'owner']
 
 const ID_RE = /^[a-z0-9][a-z0-9-]*$/
-const REFERENCE_RE = /^[\w-][\w.-]*\/[\w-][\w.-]*\.png$/
+const REFERENCE_RE = /^[\w-][\w.-]*\/[\w-][\w.-]*\.(png|jpe?g)$/
 
 const isObj = (v) => typeof v === 'object' && v !== null && !Array.isArray(v)
 const isPosInt = (v) => Number.isInteger(v) && v > 0
@@ -60,7 +60,9 @@ export function validateMap(map) {
     else
       s.references.forEach((r) => {
         if (typeof r !== 'string' || !REFERENCE_RE.test(r))
-          errors.push(`${at}: reference "${r}" — путь вида 3-miniapp-player/01-screen.png`)
+          errors.push(
+            `${at}: reference "${r}" — путь вида 3-miniapp-player/01-screen.png (png/jpg)`,
+          )
       })
     const path = typeof s.path === 'string' ? s.path : ''
     if (path.includes('{org}') && !(typeof s.org === 'string' && s.org in orgs))
@@ -83,9 +85,13 @@ export function validateMap(map) {
     if (s.steps !== undefined) {
       if (
         !Array.isArray(s.steps) ||
-        s.steps.some((st) => !isObj(st) || typeof st.click !== 'string')
+        s.steps.some(
+          (st) => !isObj(st) || !(typeof st.click === 'string' || st.scroll === 'bottom'),
+        )
       )
-        errors.push(`${at}: steps — массив вида { "click": "<selector>" }`)
+        errors.push(
+          `${at}: steps — массив вида { "click": "<selector>" } или { "scroll": "bottom" }`,
+        )
     }
     if (s.referenceCrop !== undefined) {
       const c = s.referenceCrop
@@ -94,6 +100,12 @@ export function validateMap(map) {
     }
     if (s.referenceTheme !== undefined && !THEMES.includes(s.referenceTheme))
       errors.push(`${at}: referenceTheme — light или dark`)
+    if (s.inviteState !== undefined) {
+      if (!INVITE_STATES.includes(s.inviteState))
+        errors.push(`${at}: inviteState — одно из ${INVITE_STATES.join(', ')}`)
+      if (s.role !== 'player' || !path.includes('{event}'))
+        errors.push(`${at}: inviteState — экран игрока с {event}`)
+    }
     if (s.fullPage !== undefined && typeof s.fullPage !== 'boolean')
       errors.push(`${at}: fullPage — boolean`)
   })
@@ -128,6 +140,30 @@ export function pickEvent(events, { title, status }, now = new Date()) {
     .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
   if (matches.length === 0) return null
   return matches.find((e) => new Date(e.startsAt) >= now) ?? matches[matches.length - 1]
+}
+
+export const INVITE_STATES = ['none', 'requested', 'invited', 'invited-link', 'expired']
+
+/**
+ * Что нужно в локальной БД для состояния M-08 (20.4.7, D-06): запрос игрока и срок приглашения.
+ * `invited` — одобренный запрос и приглашение до начала события; `invited-link` — приглашение без
+ * запроса, игрок открывает его по личной ссылке (токен — в хранилище сессии); `expired` — приглашение, истёкшее сутки назад.
+ */
+export function inviteFixturePlan(state, { now, startsAt }) {
+  switch (state) {
+    case 'none':
+      return { request: null, inviteExpiresAt: null }
+    case 'requested':
+      return { request: 'pending', inviteExpiresAt: null }
+    case 'invited':
+      return { request: 'approved', inviteExpiresAt: startsAt }
+    case 'invited-link':
+      return { request: null, inviteExpiresAt: startsAt, link: true }
+    case 'expired':
+      return { request: 'approved', inviteExpiresAt: new Date(now.getTime() - 86_400_000) }
+    default:
+      throw new Error(`inviteState: одно из ${INVITE_STATES.join(', ')}`)
+  }
 }
 
 /** Выбор экранов: ids (--routes a,b) и/или имя viewport; без фильтров — все. */

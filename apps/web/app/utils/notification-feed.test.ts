@@ -63,6 +63,38 @@ describe('notificationView', () => {
     expect(v.to).toBe('/m/orgs/7/payments')
   })
 
+  it('запрос приглашения организатору (20.4.7) — не «заявка на оплату», ведёт на событие', () => {
+    const v = notificationView(
+      item(
+        { type: 'organizer_action_required', eventId: 5 },
+        { playerName: 'Соня', eventTitle: 'Основа', inviteRequest: true },
+      ),
+      '/m/orgs/7',
+    )
+    expect(v.title).toBe('Запрос приглашения')
+    expect(v.body).toBe('Соня · Основа')
+    expect(v.to).toBe('/m/orgs/7/events/5')
+  })
+
+  it('отозванный запрос приглашения помечен «Запрос отозван» и не выглядит актуальным', () => {
+    const v = notificationView(
+      item(
+        { type: 'organizer_action_required', eventId: 5 },
+        {
+          playerName: 'Соня',
+          eventTitle: 'Основа',
+          inviteRequest: true,
+          inviteRequestWithdrawn: true,
+        },
+      ),
+      '/m/orgs/7',
+    )
+    expect(v.title).toBe('Запрос отозван')
+    expect(v.body).toBe('Соня · Основа')
+    expect(v.tone).toBe('ink')
+    expect(v.to).toBe('/m/orgs/7/events/5')
+  })
+
   it('без названия события — безопасный текст, без undefined', () => {
     const v = notificationView(item({ type: 'booking_opened' }), '/m/orgs/7')
     expect(v.body).not.toContain('undefined')

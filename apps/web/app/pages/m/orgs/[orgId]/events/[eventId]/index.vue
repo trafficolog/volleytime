@@ -26,6 +26,8 @@ import {
   cancelConfirmText,
   cancelMayReleasePaidSeats,
   seatsCancelConfirmText,
+  sessionReturnsOnCancel,
+  SUBSCRIPTION_RETURN_NOTE,
 } from '~/utils/player-booking-cancel'
 import {
   bookingPaymentChip,
@@ -40,6 +42,15 @@ import {
   shouldRefreshPlayerEventAfterRejection,
 } from '~/utils/player-event-action'
 import { playerHomeAccess } from '~/utils/player-home'
+import {
+  clearStashedInviteToken,
+  compactRoster,
+  inviteBookingToken,
+  inviteChip,
+  inviteGate,
+  readStashedInviteToken,
+  type InviteAccessView,
+} from '~/utils/player-invite'
 import { levelTitle, type PlayerLevelView } from '~/utils/player-level'
 import { playerSplitViewOf, quotePriceLabel } from '~/utils/player-price-view'
 import { createPlayerRequestGuard } from '~/utils/player-request-guard'
@@ -54,6 +65,8 @@ type EventDetails = Event & {
   waitlist: number
   /** Мест в очереди (для листа записи); `waitlist` — люди (20.4.11). */
   waitlistSeats?: number
+  /** Режим записи (20.1.3): `invite` — только по приглашению организатора. */
+  joinMode?: 'open' | 'invite'
   /** Свободные места для новой записи с учётом удерживаемых предложениями (20.3.1). */
   freeSeats?: number
   myBooking: {
@@ -185,7 +198,29 @@ const eventView = computed(() =>
       )
     : null,
 )
-const bookable = computed(() => eventView.value?.action !== 'none' && !!eventView.value)
+// событие «по приглашению» (20.4.7, D-06): запись открыта только приглашённому; владелец и
+// организатор записывают себя без приглашения (D-06 C). Пока состояние не получено — закрыта.
+const inviteAccess = ref<InviteAccessView | null>(null)
+const inviteLoaded = ref(false)
+const gate = computed(() =>
+  inviteGate({
+    joinMode: ev.value?.joinMode ?? 'open',
+    isManager: isManager.value,
+    hasBooking: eventView.value?.hasBooking ?? false,
+    loaded: inviteLoaded.value,
+    access: inviteAccess.value,
+  }),
+)
+const compact = computed(() =>
+  compactRoster(
+    roster.value.length,
+    eventView.value?.freeSeats ?? Math.max(0, (ev.value?.capacity ?? 0) - (ev.value?.taken ?? 0)),
+  ),
+)
+const inviteChipView = computed(() => (gate.value.state ? inviteChip(gate.value.state) : null))
+const bookable = computed(
+  () => eventView.value?.action !== 'none' && !!eventView.value && gate.value.canBook,
+)
 // шкала и действие считают занятость одинаково: места под предложениями из очереди заняты (M4)
 const occupiedSeats = computed(() =>
   ev.value
@@ -261,6 +296,10 @@ const cancelDeadline = computed(() => {
   )
 })
 const canCancel = computed(() => eventView.value?.canCancel === true)
+/** Подпись «Занятие вернётся на абонемент» — только пока отмена открыта и ядро реально вернёт занятие. */
+const returnsSession = computed(
+  () => canCancel.value && !!my.value && sessionReturnsOnCancel(my.value, ev.value?.pricing.mode),
+)
 const noCancelExplanation = computed(() => {
   if (ev.value?.pricing.mode === 'split' && ev.value.pricing.myAllocatedAmount !== null)
     return 'Доля зафиксирована — для отмены напишите организатору.'
@@ -371,6 +410,116 @@ const splitLabel = computed(() =>
     : null,
 )
 
+// состояние приглашения (20.4.7): токен личной ссылки — из хранилища сессии, в теле, не в адресе
+let inviteRequestSeq = 0
+async function loadInviteAccess() {
+  const request = ++inviteRequestSeq
+  const current = ev.value
+  if (
+    !current ||
+    current.joinMode !== 'invite' ||
+    isManager.value ||
+    access.value !== 'active' ||
+    my.value?.status === 'confirmed' ||
+    my.value?.status === 'pending_payment'
+  ) {
+    inviteAccess.value = null
+    inviteLoaded.value = false
+    return
+  }
+  const key = route.fullPath
+  try {
+    const stashed = readStashedInviteToken(current.id)
+    const res = await $fetch<{ access: InviteAccessView }>(
+      `/api/organizations/${current.organizationId}/events/${current.id}/invite-access`,
+      { method: 'POST', body: stashed ? { inviteToken: stashed } : {} },
+    )
+    if (!alive || request !== inviteRequestSeq || key !== route.fullPath) return
+    inviteAccess.value = res.access
+    inviteLoaded.value = true
+    // токен не дал приглашения по ссылке (отозван, использован, чужой, просрочен): больше не нужен
+    if (stashed && !(res.access.state === 'invited' && res.access.invite?.source === 'link'))
+      clearStashedInviteToken(current.id)
+  } catch {
+    if (!alive || request !== inviteRequestSeq || key !== route.fullPath) return
+    // состояние неизвестно: запись остаётся закрытой, сервер проверит приглашение сам
+    inviteAccess.value = null
+    inviteLoaded.value = false
+  }
+}
+watch(
+  () =>
+    [
+      ev.value?.id,
+      ev.value?.joinMode,
+      isManager.value,
+      access.value,
+      my.value?.id,
+      my.value?.status,
+    ] as const,
+  () => void loadInviteAccess(),
+  { immediate: true },
+)
+
+const inviteBusy = ref(false)
+async function requestInvite() {
+  if (!alive || currentViewKey === null || inviteBusy.value || !ev.value) return
+  const requestedOrgId = orgId.value
+  const requestedEventId = eventId.value
+  const request = routeGuard.begin()
+  inviteBusy.value = true
+  actionError.value = ''
+  const outcome = await runPlayerEventAction(
+    () =>
+      $fetch<void>(
+        `/api/organizations/${requestedOrgId}/events/${requestedEventId}/invite-requests` as string,
+        { method: 'POST', body: {} },
+      ),
+    request.isCurrent,
+    async () => {
+      await Promise.all([refresh(), loadInviteAccess()])
+    },
+  )
+  if (outcome.kind === 'success') {
+    haptic('success')
+  } else if (outcome.kind === 'error') {
+    haptic('error')
+    actionError.value = apiErrorMessage(outcome.error, 'Не удалось отправить запрос')
+    if (request.isCurrent()) await Promise.all([loadInviteAccess(), refresh()])
+  }
+  if (request.isCurrent()) inviteBusy.value = false
+}
+
+async function withdrawInvite() {
+  const requestId = inviteAccess.value?.request?.id
+  if (!alive || currentViewKey === null || inviteBusy.value || !requestId) return
+  const requestedOrgId = orgId.value
+  const requestedEventId = eventId.value
+  const request = routeGuard.begin()
+  inviteBusy.value = true
+  actionError.value = ''
+  const outcome = await runPlayerEventAction(
+    () =>
+      $fetch<void>(
+        `/api/organizations/${requestedOrgId}/events/${requestedEventId}/invite-requests/${requestId}/cancel` as string,
+        { method: 'POST', body: {} },
+      ),
+    request.isCurrent,
+    async () => {
+      await Promise.all([refresh(), loadInviteAccess()])
+    },
+  )
+  if (outcome.kind === 'success') {
+    haptic('success')
+  } else if (outcome.kind === 'error') {
+    haptic('error')
+    actionError.value = apiErrorMessage(outcome.error, 'Не удалось отозвать запрос')
+    // организатор мог ответить раньше: показать актуальное состояние
+    if (request.isCurrent()) await Promise.all([loadInviteAccess(), refresh()])
+  }
+  if (request.isCurrent()) inviteBusy.value = false
+}
+
 watch(sourcesReady, (ready) => {
   if (ready) return
   optionsGuard.invalidate()
@@ -469,6 +618,11 @@ async function doBook(
             // число мест уходит только из степпера; согласие — только при частичной очереди
             seats: sheetOpen.value && maxSeats.value > 1 ? seats.value : 1,
             allowWaitlist: sheetOpen.value && plan.value.needsConsent && consent.value,
+            // токен личной ссылки — только если приглашение пришло по ней (20.4.7)
+            inviteToken: inviteBookingToken(
+              inviteAccess.value,
+              readStashedInviteToken(requestedEventId),
+            ),
           }),
         },
       ),
@@ -482,9 +636,13 @@ async function doBook(
   if (outcome.kind === 'success') {
     haptic('success')
     sheetOpen.value = false
+    // однократная ссылка израсходована: токен больше не нужен
+    clearStashedInviteToken(requestedEventId)
   } else if (outcome.kind === 'error') {
     haptic('error')
     actionError.value = apiErrorMessage(outcome.error, 'Не удалось записаться')
+    // приглашение могло истечь или быть использовано, пока экран был открыт
+    if (request.isCurrent()) void loadInviteAccess()
     if (
       request.isCurrent() &&
       shouldRefreshPlayerEventAfterRejection(apiErrorCode(outcome.error))
@@ -685,6 +843,16 @@ watch(
   },
 )
 
+// подпись основной кнопки записи; приглашённому — с ценой, как на утверждённом экране (D-06)
+const bookLabel = computed(() => {
+  if (eventView.value?.action === 'waitlist') return 'Встать в лист ожидания'
+  const price =
+    gate.value.state === 'invited' && ev.value?.pricing.mode === 'fixed' && ev.value.price > 0
+      ? priceLabel.value?.text
+      : null
+  return price ? `Записаться · ${price}` : 'Записаться'
+})
+
 // MainButton Telegram: одно основное действие экрана — лист записи, предложение или открытие листа (20.4.1)
 const mainButtonState = computed(() => {
   if (!isTelegram.value) return null
@@ -694,7 +862,7 @@ const mainButtonState = computed(() => {
     return { text: offerDeadlineLabel(offer.value.expiresAt, tz.value), loading: submitting.value }
   if (bookable.value)
     return {
-      text: eventView.value?.action === 'waitlist' ? 'Встать в лист ожидания' : 'Записаться',
+      text: bookLabel.value,
       disabled: submitting.value,
     }
   return null
@@ -818,7 +986,14 @@ async function reduceMySeats(kept: number) {
 </script>
 
 <template>
-  <div class="min-h-screen" :class="showActionBar ? 'pb-44' : 'pb-24'">
+  <div
+    class="min-h-screen"
+    :class="
+      showActionBar
+        ? 'pb-44'
+        : 'pb-[calc(var(--player-dock-height,58px)+38px+var(--vt-safe-bottom))]'
+    "
+  >
     <VtMiniHeader
       :title="ev?.title ?? 'Событие'"
       :sub="ev ? `${formatDay(ev.startsAt, tz)} · ${formatTime(ev.startsAt, tz)}` : undefined"
@@ -894,6 +1069,15 @@ async function reduceMySeats(kept: number) {
           <div class="flex shrink-0 flex-col items-end gap-1">
             <VtMyChip :booking="my" />
             <VtStateChip :event="ev" />
+            <VtChip
+              v-if="inviteChipView"
+              :tone="inviteChipView.tone"
+              :dot="inviteChipView.dot"
+              data-invite-chip
+            >
+              <VtIcon v-if="!inviteChipView.dot" name="lock" :size="10" aria-hidden="true" />
+              {{ inviteChipView.text }}
+            </VtChip>
             <VtChip v-if="paymentChip" :tone="paymentChip.tone">{{ paymentChip.text }}</VtChip>
           </div>
         </div>
@@ -928,6 +1112,17 @@ async function reduceMySeats(kept: number) {
         </div>
       </section>
 
+      <PlayerInviteCard
+        v-if="gate.show && gate.state && inviteAccess"
+        part="card"
+        :state="gate.state"
+        :access="inviteAccess"
+        :tz="tz"
+        :now="now"
+        :busy="inviteBusy"
+        :events-href="`/m/orgs/${orgId}/events`"
+      />
+
       <PlayerSplitPriceCard v-if="splitView" :view="splitView" />
       <p
         v-else-if="splitMode && ev.status !== 'cancelled' && priceFailed"
@@ -958,7 +1153,26 @@ async function reduceMySeats(kept: number) {
           {{ ev.players }} {{ playersWord(ev.players) }} заняли {{ seatsLabel(ev.taken) }} — кто-то
           приводит гостей
         </p>
-        <ul v-if="roster.length" class="mt-3 grid grid-cols-2 gap-1.5">
+        <!-- без записи на событие «по приглашению»: стопка аватаров, как на макете M-08 (2026-10-20) -->
+        <div
+          v-if="gate.show && roster.length"
+          class="mt-3 flex items-center gap-2.5"
+          data-compact-roster
+        >
+          <span class="flex -space-x-1.5 shrink-0" aria-hidden="true">
+            <VtAvatar
+              v-for="r in roster.slice(0, compact.shown)"
+              :key="r.user.id"
+              size="sm"
+              class="compact-avatar"
+              data-compact-avatar
+              :name="displayName(r.user)"
+              :src="r.user.image"
+            />
+          </span>
+          <span class="text-xs text-vt-mute-2">{{ compact.text }}</span>
+        </div>
+        <ul v-else-if="roster.length" class="mt-3 grid grid-cols-2 gap-1.5" data-roster-list>
           <li
             v-for="r in roster"
             :key="r.user.id"
@@ -988,6 +1202,19 @@ async function reduceMySeats(kept: number) {
           }}
         </p>
       </section>
+
+      <PlayerInviteCard
+        v-if="gate.show && gate.state && inviteAccess"
+        part="actions"
+        :state="gate.state"
+        :access="inviteAccess"
+        :tz="tz"
+        :now="now"
+        :busy="inviteBusy"
+        :events-href="`/m/orgs/${orgId}/events`"
+        @request="requestInvite"
+        @withdraw="withdrawInvite"
+      />
 
       <WaitlistOfferCard
         v-if="offer"
@@ -1036,6 +1263,9 @@ async function reduceMySeats(kept: number) {
         >
           {{ noCancelExplanation }}
         </p>
+        <p v-if="returnsSession" class="text-xs text-vt-mute-2 mt-2 text-center">
+          {{ SUBSCRIPTION_RETURN_NOTE }}
+        </p>
         <p v-if="canCancel && eventView?.cancelDeadline" class="text-xs text-vt-mute-2 mt-2">
           Отменить можно до {{ formatDay(eventView.cancelDeadline, tz) }},
           {{ formatTime(eventView.cancelDeadline, tz) }}.
@@ -1076,7 +1306,7 @@ async function reduceMySeats(kept: number) {
           :disabled="submitting"
           @click="openBooking"
         >
-          {{ eventView?.action === 'waitlist' ? 'Встать в лист ожидания' : 'Записаться' }}
+          {{ bookLabel }}
         </button>
       </div>
       <p
@@ -1136,6 +1366,11 @@ async function reduceMySeats(kept: number) {
 </template>
 
 <style scoped>
+.compact-avatar {
+  border-radius: 9999px;
+  box-shadow: 0 0 0 2px var(--vt-paper);
+}
+
 .event-hero {
   background: var(--vt-ink);
   color: var(--vt-paper);
