@@ -103,7 +103,11 @@ async function loadChat() {
 const busyId = ref<number | null>(null)
 const cancelTarget = ref<EventListItem | null>(null)
 const cancelOpen = ref(false)
-const cancelLines = cancelConsequencesOf(null).lines
+// состав в списке не загружен: общие последствия отмены без счёта по местам (D-09, D-13, D-14)
+const cancelLines = [
+  'Все записи, включая лист ожидания, будут отменены, игроки получат уведомление.',
+  ...cancelConsequencesOf(null).lines.slice(1),
+]
 
 async function runAction(
   event: EventListItem,
