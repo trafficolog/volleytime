@@ -140,6 +140,13 @@ export const waitlistOrganizerLabel = (people: number, seats?: number): string =
     ? `${people} чел. · ${seatsLabel(seats)}`
     : `${people} чел.`
 
+/**
+ * Подпись плитки очереди на узком экране (Mini App организатора): число людей — в крупной цифре,
+ * места — в подписи «в ожидании · 3 места», когда места и люди расходятся.
+ */
+export const waitlistCaption = (people: number, seats?: number): string =>
+  seats !== undefined && seats !== people ? `в ожидании · ${seatsLabel(seats)}` : 'в ожидании'
+
 /** Сколько записей ждёт оплаты. */
 export const pendingOf = (bookings: readonly { status: string }[]): number =>
   bookings.filter((b) => b.status === 'pending_payment').length

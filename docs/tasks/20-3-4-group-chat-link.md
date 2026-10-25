@@ -2,11 +2,11 @@
 id: '20.3.4'
 phase: '20'
 epic: '20.3'
-status: in_progress
+status: done
 release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-20
-status_note: 'Реализация в ветке trafficolog/feat/20.3.4-group-chat-link (миграция 0031, привязка кодом, my_chat_member в группах, анонс с url-диплинками); решение владельца 2026-10-20 снимает неоднозначность пункта 4 (код выдаёт организатор, принимает администратор чата, подтверждения владельцем нет); ждёт ревью claude-opus-5-5 и CI. Блокирует кнопку «В чат группы» в 20.5.8.'
+status_note: 'PR #168 смёржен (миграция 0031, привязка кодом, my_chat_member в группах, анонс с url-диплинками; ревью claude-opus-5-5: merge, CI зелёный) + PR закрытия trafficolog/fix/20.3.4-close. Принято: при потерянной гонке отвязки повторный вызов возвращает идемпотентное {unlinked:true} (nit ревью). Проверка на устройстве и production-подключение — владелец, см. 20.7.1 п. 11.'
 ref_id: ''
 complexity: L
 impl_model: claude-sonnet-5-5

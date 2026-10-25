@@ -157,12 +157,27 @@ afterEach(() => {
 })
 
 describe('event management interactions', () => {
-  it('shows the queue as people and seats, like the desktop card (20.4.11)', async () => {
+  it('keeps the queue tile number short: people in the big number, seats in the caption (20.4.11)', async () => {
     eventData = ref({
       event: { ...event, waitlist: 2, waitlistSeats: 3 },
     }) as typeof eventData
     const wrapper = await renderManage()
-    expect(wrapper.text()).toContain('2 чел. · 3 места')
+    const caption = wrapper.findAll('.vt-cap').find((c) => c.text().startsWith('в ожидании'))!
+    expect(caption.text()).toBe('в ожидании · 3 места')
+    // крупное число — только людей: на 390 px подпись «чел. · места» в text-lg переносилась
+    const big = caption.element.previousElementSibling as HTMLElement
+    expect(big.textContent!.trim()).toBe('2')
+    expect(wrapper.text()).not.toContain('2 чел. · 3 места')
+    wrapper.unmount()
+  })
+  it('shows only "в ожидании" when queued people and seats match', async () => {
+    eventData = ref({
+      event: { ...event, waitlist: 2, waitlistSeats: 2 },
+    }) as typeof eventData
+    const wrapper = await renderManage()
+    const caption = wrapper.findAll('.vt-cap').find((c) => c.text().startsWith('в ожидании'))!
+    expect(caption.text()).toBe('в ожидании')
+    expect((caption.element.previousElementSibling as HTMLElement).textContent!.trim()).toBe('2')
     wrapper.unmount()
   })
   it('shows persisted settlement time in the organization timezone and no provisional marker', async () => {
