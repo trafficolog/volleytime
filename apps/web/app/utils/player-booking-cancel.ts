@@ -17,11 +17,6 @@ export function cancelConfirmText(question: string, method: string | null | unde
   return cancelMayReleasePaidSeats(method) ? `${question} ${CANCEL_REFUND_NOTE}` : question
 }
 
-/** Варианты «оставить N мест» при частичной отмене: от одного до общего числа минус один. */
-export function partialCancelTargets(total: number): number[] {
-  return Array.from({ length: Math.max(0, total - 1) }, (_, i) => i + 1)
-}
-
 /** Подтверждение частичной отмены: сколько снимается, сколько остаётся, пояснение D-14. */
 export function seatsCancelConfirmText(
   removed: number,
@@ -30,4 +25,26 @@ export function seatsCancelConfirmText(
 ): string {
   const question = `Снять ${seatsLabel(removed)}? Останется ${seatsLabel(kept)}.`
   return cancelMayReleasePaidSeats(method) ? `${question} ${CANCEL_REFUND_NOTE}` : question
+}
+
+/** Подпись под кнопкой отмены записи на абонементе (M-09, решение владельца 2026-10-25). */
+export const SUBSCRIPTION_RETURN_NOTE = 'Занятие вернётся на абонемент'
+
+/**
+ * Вернёт ли самоотмена занятие на абонемент. Повторяет правила ядра (`bookingService.cancel`):
+ * занятия возвращаются только за места основы с занятиями абонемента — запись `confirmed` по абонементу
+ * на событии с фиксированной ценой и без оплаты по месту (`paymentId`: места, продвинутые из очереди,
+ * оплачены наличными). Запись в очереди (занятия не списаны) и split (абонементом не оплачивается) — нет.
+ * Срок и политика отмены проверяет вызывающий: после срока кнопки отмены нет и подпись не нужна.
+ */
+export function sessionReturnsOnCancel(
+  booking: { status: string; method: string; paymentId: number | null },
+  pricingMode: string | null | undefined,
+): boolean {
+  return (
+    booking.method === 'subscription' &&
+    booking.status === 'confirmed' &&
+    booking.paymentId == null &&
+    pricingMode !== 'split'
+  )
 }

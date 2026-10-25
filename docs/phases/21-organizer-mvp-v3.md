@@ -4,8 +4,8 @@ status: todo
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-10-12
-status_note: 'Референс v3 Ф2 (без Root Admin). 25 задач.'
-estimated_hours: '132-264'
+status_note: 'Референс v3 Ф2 (без Root Admin). 26 задач.'
+estimated_hours: '136-272'
 depends_on: []
 ---
 
@@ -29,11 +29,11 @@ depends_on: []
 
 | ID                                               | Эпик                          | Задач |  Часов |
 | ------------------------------------------------ | ----------------------------- | ----: | -----: |
-| [21.1](../epics/21-1-org-miniapp-collections.md) | Mini App: организатор и сборы |     7 |  36-72 |
+| [21.1](../epics/21-1-org-miniapp-collections.md) | Mini App: организатор и сборы |     8 |  40-80 |
 | [21.2](../epics/21-2-cabinet-sections.md)        | Кабинет: разделы              |    17 | 88-176 |
 | [21.3](../epics/21-3-release-v0-3-0.md)          | Релиз v0.3.0                  |     1 |   8-16 |
 
-**Итого:** 3 эпиков, 25 задач, 132-264 ч. Модели реализации: `claude-haiku-5-5` — 2, `claude-opus-5-5` — 3, `claude-sonnet-5-5` — 20.
+**Итого:** 3 эпиков, 26 задач, 136-272 ч. Модели реализации: `claude-haiku-5-5` — 2, `claude-opus-5-5` — 3, `claude-sonnet-5-5` — 21.
 
 ## Технические заметки
 
