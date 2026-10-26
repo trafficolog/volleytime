@@ -2,11 +2,11 @@
 id: '20.7.1'
 phase: '20'
 epic: '20.7'
-status: todo
+status: in_progress
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-10-26
+status_note: 'Часть A (репозиторий, без выкладки): флаги п. 5–7, 9 проведены в render-production-env и deploy.yml (решение владельца 2026-10-26), capability-labels образов, quiescent-guard отката расширен предикатами мест, приглашений и планировщика, разделы deploy runbook (п. 5–9, 11). Открыто: часть B (визуальная и Telegram QA), п. 1–4 и проверки на кандидате (п. 8, 9, 11).'
 ref_id: ''
 complexity: L
 impl_model: claude-opus-5-5

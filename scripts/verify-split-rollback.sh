@@ -19,17 +19,59 @@ else
   web="$1"; bot="$2"; snapshot="$3"
 fi
 
+# Data semantics a runtime must understand before it may run on existing rows, in vector order:
+# split pricing (R0.7), multi-seat bookings, invite join mode and scheduler (v0.2.0, task 20.7.1;
+# ADR v3 compatibility rule 4). An image supports a capability only through its exact label "1".
+capability_names=(split multi-seat invite-mode scheduler)
+# Each schema query answers t/f; a partially present capability schema is unproven (empty result).
+capability_schema=(
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='events' AND column_name='price_mode');"
+  "SELECT CASE count(*) WHEN 0 THEN 'f' WHEN 2 THEN 't' END FROM information_schema.columns WHERE table_schema='public' AND table_name='bookings' AND column_name IN ('seats', 'waitlist_seats');"
+  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='events' AND column_name='join_mode');"
+  "SELECT CASE (SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='events' AND column_name='booking_opens_at') + (SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='waitlist_offers') WHEN 0 THEN 'f' WHEN 2 THEN 't' END;"
+)
+# Rows a runtime without the capability misreads; predicates match the owning task cards.
+capability_rows=(
+  "SELECT EXISTS (SELECT 1 FROM public.events WHERE price_mode='split');"
+  "SELECT EXISTS (SELECT 1 FROM bookings WHERE seats > 1 OR waitlist_seats > 0);"
+  "SELECT EXISTS (SELECT 1 FROM events WHERE join_mode = 'invite' AND status NOT IN ('cancelled', 'finished')) OR EXISTS (SELECT 1 FROM invite_links WHERE type = 'event_join' AND NOT is_revoked AND (expires_at IS NULL OR expires_at > now()) AND (max_uses IS NULL OR uses_count < max_uses));"
+  "SELECT EXISTS (SELECT 1 FROM waitlist_offers WHERE status = 'offered') OR EXISTS (SELECT 1 FROM events WHERE booking_opens_at > now() AND status IN ('draft', 'published', 'closed'));"
+)
+
 image_identity() {
-  local image="$1" service="$2" identity id revision split
-  identity="$(docker image inspect --format '{{.Id}}|{{index .Config.Labels "org.opencontainers.image.revision"}}|{{index .Config.Labels "org.volleytime.event-split-pricing"}}' "$image")" || return 1
-  IFS='|' read -r id revision split <<< "$identity"
+  local image="$1" service="$2" identity id revision split multi invite scheduler value capabilities=''
+  identity="$(docker image inspect --format '{{.Id}}|{{index .Config.Labels "org.opencontainers.image.revision"}}|{{index .Config.Labels "org.volleytime.event-split-pricing"}}|{{index .Config.Labels "org.volleytime.event-multi-seat"}}|{{index .Config.Labels "org.volleytime.event-invite-mode"}}|{{index .Config.Labels "org.volleytime.event-scheduler"}}' "$image")" || return 1
+  IFS='|' read -r id revision split multi invite scheduler <<< "$identity"
   [[ "$id" =~ ^sha256:[0-9a-f]{64}$ ]] && [[ "$revision" =~ ^[0-9a-f]{40}$ ]] || return 1
   if [[ "$image" != sha256:* ]]; then
     [[ "$image" =~ ^(volleytime-|ghcr\.io/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/)$service:([0-9a-f]{40})$ ]] || return 1
     [ "$revision" = "${BASH_REMATCH[2]}" ] || return 1
   fi
-  [ "$split" = 1 ] || split=0
-  printf '%s|%s|%s' "$id" "$revision" "$split"
+  for value in "$split" "$multi" "$invite" "$scheduler"; do
+    if [ "$value" = 1 ]; then capabilities+=1; else capabilities+=0; fi
+  done
+  printf '%s|%s|%s' "$id" "$revision" "$capabilities"
+}
+# Capabilities supported by every given vector.
+common_capabilities() {
+  local common=1111 vector index next
+  for vector in "$@"; do
+    [[ "$vector" =~ ^[01]{4}$ ]] || vector=0000
+    next=''
+    for index in 0 1 2 3; do
+      if [ "${common:index:1}${vector:index:1}" = 11 ]; then next+=1; else next+=0; fi
+    done
+    common="$next"
+  done
+  printf '%s' "$common"
+}
+# Names of capabilities the data requires ($1) but the runtime does not support ($2).
+missing_capabilities() {
+  local index names=''
+  for index in 0 1 2 3; do
+    if [ "${1:index:1}${2:index:1}" = 10 ]; then names+="${names:+ }${capability_names[$index]}"; fi
+  done
+  printf '%s' "$names"
 }
 
 writers() {
@@ -74,31 +116,35 @@ drained() {
   result="$("${compose[@]}" exec -T postgres psql -U volley -d volleytime -v ON_ERROR_STOP=1 -Atc "SELECT NOT EXISTS(SELECT 1 FROM pg_stat_activity WHERE datname=current_database() AND $predicate AND pid<>pg_backend_pid());")" || return 1
   [ "$result" = t ]
 }
-data_safe() {
-  local schema rows
-  schema="$("${compose[@]}" exec -T postgres psql -U volley -d volleytime -v ON_ERROR_STOP=1 -Atc "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='events' AND column_name='price_mode');")" || return 2
-  case "$schema" in
-    f) return 0 ;;
-    t) ;;
-    *) return 2 ;;
-  esac
-  rows="$("${compose[@]}" exec -T postgres psql -U volley -d volleytime -v ON_ERROR_STOP=1 -Atc "SELECT EXISTS (SELECT 1 FROM public.events WHERE price_mode='split');")" || return 2
-  case "$rows" in f) return 0 ;; t) return 1 ;; *) return 2 ;; esac
+# Prints the capability vector existing data requires. Any error or malformed result is unproven.
+required_capabilities() {
+  local index schema rows required=''
+  for index in 0 1 2 3; do
+    schema="$("${compose[@]}" exec -T postgres psql -U volley -d volleytime -v ON_ERROR_STOP=1 -Atc "${capability_schema[$index]}")" || return 2
+    case "$schema" in
+      f) required+=0; continue ;;
+      t) ;;
+      *) return 2 ;;
+    esac
+    rows="$("${compose[@]}" exec -T postgres psql -U volley -d volleytime -v ON_ERROR_STOP=1 -Atc "${capability_rows[$index]}")" || return 2
+    case "$rows" in f) required+=0 ;; t) required+=1 ;; *) return 2 ;; esac
+  done
+  printf '%s' "$required"
 }
 
 recover() {
-  local id image ref service revision split identity running actual_image actual_ref actual_project actual_service all_split=1 ids network_snapshot
+  local id image ref service revision capabilities identity running actual_image actual_ref actual_project actual_service supported=1111 required ids network_snapshot
   local -a captured=()
   load_snapshot || return 1
   # Validate every captured identity before starting any writer; a tag alone is insufficient.
-  while IFS='|' read -r id image ref service revision split; do
+  while IFS='|' read -r id image ref service revision capabilities; do
     [ "$id" != captured ] || break
     [[ "$id" =~ ^[0-9a-f]{64}$ ]] || return 1
     identity="$(docker inspect --format '{{.State.Running}}|{{.Image}}|{{.Config.Image}}|{{index .Config.Labels "com.docker.compose.project"}}|{{index .Config.Labels "com.docker.compose.service"}}' "$id")" || return 1
     IFS='|' read -r running actual_image actual_ref actual_project actual_service <<< "$identity"
     [ "$image|$ref|$project|$service" = "$actual_image|$actual_ref|$actual_project|$actual_service" ] || return 1
-    [ "$(image_identity "$image" "$service")" = "$image|$revision|$split" ] || return 1
-    [ "$split" = 1 ] || all_split=0
+    [ "$(image_identity "$image" "$service")" = "$image|$revision|$capabilities" ] || return 1
+    supported="$(common_capabilities "$supported" "$capabilities")"
     captured+=("$id")
   done < <(tail -n +2 "$snapshot")
   [ "${#captured[@]}" -gt 0 ] || return 1
@@ -118,7 +164,11 @@ recover() {
     [ ! -e "$network_snapshot" ] || drained "$network_snapshot" || return 1
   done
   drained "${snapshot}.network" || return 1
-  if [ "$all_split" != 1 ]; then data_safe || return 1; fi
+  # A captured writer without a capability restarts only after a quiescent query proves no such rows.
+  if [ "$supported" != 1111 ]; then
+    required="$(required_capabilities)" || return 1
+    [ -z "$(missing_capabilities "$required" "$supported")" ] || return 1
+  fi
   quiescent || return 1
   drained "${snapshot}.network" || return 1
   docker start "${captured[@]}" >/dev/null || return 1
@@ -139,7 +189,7 @@ fi
 # Read-only image/data preflight cannot authorize a fixed-only downgrade.
 target_web="$(image_identity "$web" web)" || fail "web image revision/identity preflight failed"
 target_bot="$(image_identity "$bot" bot)" || fail "bot image revision/identity preflight failed"
-data_safe || { result=$?; [ "$result" != 2 ] || fail "preflight query failed"; }
+required_capabilities > /dev/null || fail "preflight query failed"
 project="$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' vt_web)" || fail "project identity unavailable"
 [[ "$project" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || fail "invalid project identity"
 [ "$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' vt_bot)" = "$project" ] || fail "web/bot project identity mismatch"
@@ -160,9 +210,9 @@ while read -r id; do
   immutable="$(image_identity "$image" "$service")" || fail "captured current image identity is unproven"
   referenced="$(image_identity "$ref" "$service")" || fail "captured current reference is unproven"
   [ "$immutable" = "$referenced" ] || fail "captured image reference changed"
-  IFS='|' read -r actual_image revision split <<< "$immutable"
+  IFS='|' read -r actual_image revision capabilities <<< "$immutable"
   [ "$actual_image" = "$image" ] || fail "captured immutable image mismatch"
-  printf '%s|%s|%s|%s|%s|%s\n' "$id" "$image" "$ref" "$service" "$revision" "$split" >> "$temp"
+  printf '%s|%s|%s|%s|%s|%s\n' "$id" "$image" "$ref" "$service" "$revision" "$capabilities" >> "$temp"
   captured+=("$id")
   if [ "$service" = web ]; then web_count=$((web_count + 1)); else bot_count=$((bot_count + 1)); fi
 done <<< "$ids"
@@ -181,11 +231,9 @@ deny() {
 docker stop "${captured[@]}" >/dev/null || deny "writer stop failed"
 quiescent || deny "writers are running after stop"
 drained "${snapshot}.network" || deny "writer PostgreSQL sessions are not drained after stop"
-if data_safe; then :; else
-  result=$?
-  [ "$result" != 2 ] || deny "authoritative query failed"
-  [[ "$target_web" = *'|1' && "$target_bot" = *'|1' ]] || deny "split rows require compatible web and bot images"
-fi
+required="$(required_capabilities)" || deny "authoritative query failed"
+missing="$(missing_capabilities "$required" "$(common_capabilities "${target_web##*|}" "${target_bot##*|}")")"
+[ -z "$missing" ] || deny "$missing rows require compatible web and bot images"
 quiescent || deny "writers are running before switch"
 drained "${snapshot}.network" || deny "writer PostgreSQL sessions are not drained before switch"
 echo "split rollback: authoritative guard passed; keep writers stopped through activation"
