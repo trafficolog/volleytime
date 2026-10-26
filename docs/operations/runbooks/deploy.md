@@ -177,15 +177,16 @@ A controlled backup failure does not advance Git. Controlled migration, activati
 
 Release task 20.7.1 (items 5–9, 11) wires the v0.2.0 capabilities the same way as `EVENT_SPLIT_PRICING_ENABLED`. Every flag is a **nonsecret GitHub repository variable**; the Deploy step «Prepare production env» passes it from `vars.*` (owner decision 2026-10-26, [decision log](../decisions/2026-10-12-reference-v3-decisions.md)) and `scripts/render-production-env.mjs` writes it into `.env.production`. Web and bot receive it through `env_file: .env`; Compose does not change.
 
-| Repository variable         | Rendered value                                                                                   | Enables (owning task)                                                 | Image capability label             |
-| --------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- | ---------------------------------- |
-| `EVENT_BALANCE_ENFORCED`    | exact `true`, otherwise `false`                                                                  | debiting the event balance on publish (20.2.1)                        | none (ADR v3 compatibility rule 5) |
-| `EVENT_MULTI_SEAT_ENABLED`  | exact `true`, otherwise `false`                                                                  | bookings with more than one seat (20.1.2)                             | `org.volleytime.event-multi-seat`  |
-| `EVENT_INVITE_MODE_ENABLED` | exact `true`, otherwise `false`                                                                  | `join_mode = 'invite'` for events and group defaults (20.1.3)         | `org.volleytime.event-invite-mode` |
-| `SCHEDULER_ENABLED`         | exact `true`, otherwise `false`                                                                  | scheduler loop, `booking_opens_at`, waitlist offers with TTL (20.3.1) | `org.volleytime.event-scheduler`   |
-| `SCHEDULER_INTERVAL_MS`     | unset → `15000`; an integer `1000`–`60000`; anything else stops the render before any VPS access | scheduler pass interval (read only while `SCHEDULER_ENABLED=true`)    | —                                  |
+| Repository variable             | Rendered value                                                                                   | Enables (owning task)                                                 | Image capability label             |
+| ------------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- | ---------------------------------- |
+| `EVENT_BALANCE_ENFORCED`        | exact `true`, otherwise `false`                                                                  | debiting the event balance on publish (20.2.1)                        | none (ADR v3 compatibility rule 5) |
+| `EVENT_MULTI_SEAT_ENABLED`      | exact `true`, otherwise `false`                                                                  | bookings with more than one seat (20.1.2)                             | `org.volleytime.event-multi-seat`  |
+| `EVENT_INVITE_MODE_ENABLED`     | exact `true`, otherwise `false`                                                                  | `join_mode = 'invite'` for events and group defaults (20.1.3)         | `org.volleytime.event-invite-mode` |
+| `SCHEDULER_ENABLED`             | exact `true`, otherwise `false`                                                                  | scheduler loop, `booking_opens_at`, waitlist offers with TTL (20.3.1) | `org.volleytime.event-scheduler`   |
+| `TELEGRAM_LOGIN_WIDGET_ENABLED` | exact `true`, otherwise `false`                                                                  | Telegram Login Widget on `/auth/login` (20.5.1, D-05)                 | none (no data, see below)          |
+| `SCHEDULER_INTERVAL_MS`         | unset → `15000`; an integer `1000`–`60000`; anything else stops the render before any VPS access | scheduler pass interval (read only while `SCHEDULER_ENABLED=true`)    | —                                  |
 
-The **first v0.2.0 rollout leaves all four flags unset (false)**: the release is deployed with balance debiting, multi-seat writes, invite mode and the scheduler off.
+The **first v0.2.0 rollout leaves all five flags unset (false)**: the release is deployed with balance debiting, multi-seat writes, invite mode, the scheduler and the Telegram Login Widget off.
 
 **Owner rollout rules (2026-10-26).** Flags are enabled **one at a time**, each with its own release commit on `main` and the owner's explicit confirmation. Once multi-seat, invite or scheduler data exists, an application rollback to v0.1.7 is refused and the only recovery is a roll-forward to a new release.
 
@@ -211,7 +212,7 @@ docker compose -f docker-compose.prod.yml --env-file .env --env-file .env.images
 ### Before Promote of v0.2.0
 
 - Item 7: `SELECT id FROM organizations WHERE default_join_mode = 'invite'` must return 0 rows. The column comes from migration `0021_group_settings_v3`; if `SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='organizations' AND column_name='default_join_mode')` returns `f`, the check passes trivially. Record the result with the release evidence.
-- Confirm that the repository variables `EVENT_BALANCE_ENFORCED`, `EVENT_MULTI_SEAT_ENABLED`, `EVENT_INVITE_MODE_ENABLED` and `SCHEDULER_ENABLED` are unset or not exactly `true` (`gh variable list --repo trafficolog/volleytime`; names and values are nonsecret).
+- Confirm that the repository variables `EVENT_BALANCE_ENFORCED`, `EVENT_MULTI_SEAT_ENABLED`, `EVENT_INVITE_MODE_ENABLED`, `SCHEDULER_ENABLED` and `TELEGRAM_LOGIN_WIDGET_ENABLED` are unset or not exactly `true` (`gh variable list --repo trafficolog/volleytime`; names and values are nonsecret).
 - After activation, inspect both runtime images and record the four capability labels with the image evidence: `docker image inspect --format '{{json .Config.Labels}}' "$(sed -n 's/^WEB_IMAGE=//p' .env.images)"` (same for `BOT_IMAGE`).
 
 ### Event balance (item 5, `EVENT_BALANCE_ENFORCED`)
@@ -237,6 +238,16 @@ There is no balance capability label and no guard extension (ADR v3 compatibilit
 ### Multi-seat bookings (item 6) and invite mode (item 7)
 
 Enable `EVENT_MULTI_SEAT_ENABLED` and `EVENT_INVITE_MODE_ENABLED` only after the full release is deployed and smoke-passed, and only after the rollback guard above has been verified on the candidate (CI fake-shell and real-PostgreSQL guard evidence plus the recorded image labels). The flags only gate writes; after the first such row exists the previous runtime is no longer a rollback target.
+
+### Telegram Login Widget (20.5.1, `TELEGRAM_LOGIN_WIDGET_ENABLED`)
+
+Wired by owner decision 2026-10-26 ([decision log](../decisions/2026-10-12-reference-v3-decisions.md)): `scripts/render-production-env.mjs` renders `TELEGRAM_LOGIN_WIDGET_ENABLED="true"` only for the exact value `true` (otherwise `"false"`; `1`, `TRUE` and padded values render `false`), and the Deploy step «Prepare production env» passes it from `vars.TELEGRAM_LOGIN_WIDGET_ENABLED`. It stays off until the owner explicitly decides to turn it on.
+
+- **Runtime, not build time.** Only the web process reads it, on every `GET /api/auth/login-options` request (`process.env` in the Nitro handler; the bot token's numeric prefix is the public `bot_id`) and at startup (`00.config-check`). It is not in Nuxt `runtimeConfig`, so no build argument or `NUXT_PUBLIC_*` variable is involved and the image is not rebuilt. Web receives it through `env_file: .env`; Compose does not change.
+- **Prerequisites.** BotFather `/setdomain` → production bot → `volleytime.by` (done by the owner, 2026-10-26). Caddy CSP already allows `https://telegram.org` and `https://oauth.telegram.org`.
+- **Turning it on.** Set the repository variable to exactly `true` (`gh variable set TELEGRAM_LOGIN_WIDGET_ENABLED --body true --repo trafficolog/volleytime`) immediately before the Promote of the next reviewed `main` SHA; as with the other flags (see «How a flag change takes effect») nothing happens until a Deploy of a **new** SHA recreates web with the rendered env. Do not edit `/opt/volleytime/.env` by hand.
+- **Checks after the Deploy is `smoke-passed`.** `curl -s https://volleytime.by/api/auth/login-options` returns `{"telegramWidget":{"botId":<number>}}` (no token; `null` means the flag did not arrive). `https://volleytime.by/auth/login` shows the «Войти через Telegram» button below the email form. Logging in with a real Telegram account opens the cabinet and the session survives a reload; the email-code login still works.
+- **Turning it off / rollback.** Delete the variable (or set it to anything but `true`) and Promote a new SHA: the endpoint returns `telegramWidget: null` and the button disappears. The flag has no stored data, no migration and no capability label. Rolling back to a runtime without the widget is harmless: the old runtime ignores the variable, and `verify-live-rollback-env.sh` compares the previous Compose rendering with the live env, where the key is present on both sides (contract cases in `live-rollback-env-contract.test.ts`).
 
 ### Scheduler (item 9, `SCHEDULER_ENABLED`)
 

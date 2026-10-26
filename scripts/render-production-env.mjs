@@ -34,6 +34,8 @@ const RELEASE_FLAGS = [
   'EVENT_MULTI_SEAT_ENABLED',
   'EVENT_INVITE_MODE_ENABLED',
   'SCHEDULER_ENABLED',
+  // Read by web per request (login-options), not at build time; 20.5.1, D-05.
+  'TELEGRAM_LOGIN_WIDGET_ENABLED',
 ]
 
 const DEFAULTS = {
