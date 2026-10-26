@@ -97,30 +97,45 @@ export function rowMenuItems(
   return items
 }
 
-/** +7 календарных дней в часовом поясе группы, то же местное время. */
-export function shiftWeek(iso: string, timeZone: string): string {
+const WEEK_MS = 7 * 86_400_000
+
+/** Сдвиг на `weeks` календарных недель в часовом поясе группы с тем же местным временем. */
+export function shiftWeeks(iso: string, timeZone: string, weeks: number): string {
   const [date, time] = dateToZonedInput(iso, timeZone).split('T') as [string, string]
-  const next = new Date(Date.parse(`${date}T00:00:00Z`) + 7 * 86_400_000).toISOString().slice(0, 10)
+  const next = new Date(Date.parse(`${date}T00:00:00Z`) + weeks * WEEK_MS)
+    .toISOString()
+    .slice(0, 10)
   return zonedInputToDate(`${next}T${time}`, timeZone).toISOString()
+}
+
+/** Сколько недель прибавить, чтобы начало копии оказалось в будущем (минимум одна). */
+export function weeksToFuture(startsAt: string, timeZone: string, now: Date): number {
+  let weeks = Math.max(1, Math.ceil((now.getTime() - new Date(startsAt).getTime()) / WEEK_MS))
+  // переход на летнее/зимнее время сдвигает момент на час: добираем недостающую неделю
+  while (new Date(shiftWeeks(startsAt, timeZone, weeks)) <= now) weeks++
+  return weeks
 }
 
 /**
  * Тело `POST …/events` для копии (карточка 20.5.8): название, зал, места, цена, режим записи,
- * то же время, дата +7 дней, черновик (баланс не списывается, D-04). Время открытия записи не
+ * то же местное время, дата +N недель (ближайшая в будущем, минимум +7 дней), валюта события, черновик (баланс не списывается, D-04). Время открытия записи не
  * переносится.
  */
 export function duplicateEventBody(
   event: EventListItem,
   timeZone: string,
+  now: Date = new Date(),
 ): Record<string, unknown> {
+  const weeks = weeksToFuture(event.startsAt, timeZone, now)
   const body: Record<string, unknown> = {
     type: event.type,
     title: event.title,
     description: event.description ?? undefined,
     venueId: event.venueId ?? undefined,
     locationText: event.locationText ?? undefined,
-    startsAt: shiftWeek(event.startsAt, timeZone),
-    endsAt: shiftWeek(event.endsAt, timeZone),
+    startsAt: shiftWeeks(event.startsAt, timeZone, weeks),
+    endsAt: shiftWeeks(event.endsAt, timeZone, weeks),
+    currency: event.currency,
     capacity: event.capacity,
     priceMode: event.priceMode,
     price: event.price,

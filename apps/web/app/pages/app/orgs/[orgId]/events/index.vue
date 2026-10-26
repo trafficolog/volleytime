@@ -69,14 +69,18 @@ async function loadPage(offset: number) {
 }
 
 /** Сброс списка и загрузка первой страницы заново: после действия из меню строки. */
-function reloadList() {
+const heading = ref<HTMLElement | null>(null)
+async function reloadList() {
   generation++
   events.value = []
   loading.value = false
   error.value = ''
   hasMore.value = false
-  void loadPage(0)
   if (view.value === 'calendar') void loadCalendar()
+  await loadPage(0)
+  // строка с меню исчезла из таблицы: фокус на заголовок страницы, а не на body
+  await nextTick()
+  heading.value?.focus()
 }
 
 // Привязка чата группы нужна пункту меню «В чат группы» (20.3.4).
@@ -141,7 +145,7 @@ function onRowAction(action: RowAction, event: EventListItem) {
           method: 'POST',
           body: duplicateEventBody(event, tz.value),
         })
-        if (orgId.value === targetOrgId) reloadList()
+        if (orgId.value === targetOrgId) await reloadList()
         return 'Черновик копии создан: откройте его и опубликуйте'
       },
       'Не удалось дублировать событие',
@@ -175,7 +179,7 @@ function confirmCancel() {
       await $fetch(`/api/organizations/${targetOrgId}/events/${event.id}/cancel`, {
         method: 'POST',
       })
-      if (orgId.value === targetOrgId) reloadList()
+      if (orgId.value === targetOrgId) await reloadList()
       return `Событие «${event.title}» отменено`
     },
     'Не удалось отменить событие',
@@ -254,7 +258,7 @@ onBeforeUnmount(() => {
     <header class="vt-desktop-dashboard__heading">
       <div>
         <p class="vt-cap">Управление группой</p>
-        <h1 tabindex="-1">События</h1>
+        <h1 ref="heading" tabindex="-1">События</h1>
         <p class="text-vt-mute-2">Все тренировки и игры организации</p>
       </div>
       <div class="vt-desktop-events__filters">

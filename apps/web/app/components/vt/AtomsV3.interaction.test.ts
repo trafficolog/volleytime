@@ -302,7 +302,7 @@ describe('VtPopover', () => {
     expect(document.querySelector('[role="menu"]')).toBeNull()
   })
 
-  it('renders a separator before an item and a hint under a disabled one; arrows skip the disabled item (20.5.8)', async () => {
+  it('renders a separator before an item and a hint under a disabled one that stays focusable (20.5.8)', async () => {
     const wrapper = mount(Popover, {
       props: {
         modelValue: true,
@@ -324,12 +324,37 @@ describe('VtPopover', () => {
       'menuitem',
     ])
     const chat = menu.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')[1]!
-    expect(chat.disabled).toBe(true)
+    expect(chat.getAttribute('aria-disabled')).toBe('true')
+    expect(chat.disabled).toBe(false)
     expect(chat.textContent).toContain('Чат не привязан')
     const [open, , cancel] = menu.querySelectorAll<HTMLElement>('[role="menuitem"]')
     open!.focus()
     key(open!, 'ArrowDown')
+    // недоступный пункт доступен с клавиатуры: подсказка читается скринридером
+    expect(document.activeElement).toBe(chat)
+    key(chat, 'ArrowDown')
     expect(document.activeElement).toBe(cancel)
+    wrapper.unmount()
+  })
+
+  it('an aria-disabled item is not selectable and keeps the menu open (20.5.8)', async () => {
+    const selected: string[] = []
+    const open = ref(true)
+    const wrapper = mount(Popover, {
+      props: {
+        modelValue: true,
+        'onUpdate:modelValue': (v: boolean) => (open.value = v),
+        items: [{ key: 'chat', label: 'В чат группы', disabled: true }],
+        onSelect: (i: { key: string }) => selected.push(i.key),
+      },
+      attachTo: document.body,
+    })
+    await flush()
+    const chat = document.querySelector<HTMLButtonElement>('[role="menuitem"]')!
+    chat.click()
+    await flush()
+    expect(selected).toEqual([])
+    expect(open.value).toBe(true)
     wrapper.unmount()
   })
 

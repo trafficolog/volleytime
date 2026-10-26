@@ -5,7 +5,8 @@ import {
   duplicateEventBody,
   paymentsCellOf,
   rowMenuItems,
-  shiftWeek,
+  shiftWeeks,
+  weeksToFuture,
 } from './event-row'
 
 import type { EventListItem } from '~/components/EventCard.vue'
@@ -140,16 +141,51 @@ describe('chatLinkStateOf', () => {
 })
 
 describe('duplicate', () => {
-  it('moves the date by +7 days keeping the local time', () => {
-    expect(shiftWeek('2026-05-28T17:00:00.000Z', 'Europe/Minsk')).toBe('2026-06-04T17:00:00.000Z')
+  const minsk = 'Europe/Minsk'
+  const startsAt = '2026-05-28T17:00:00.000Z'
+
+  it('moves the date by whole weeks keeping the local time', () => {
+    expect(shiftWeeks(startsAt, minsk, 1)).toBe('2026-06-04T17:00:00.000Z')
+    expect(shiftWeeks(startsAt, minsk, 3)).toBe('2026-06-18T17:00:00.000Z')
   })
 
   it('keeps the local time over a DST change of the zone', () => {
     // Europe/Berlin: 2026-03-25 20:00 CET (+1) → 2026-04-01 20:00 CEST (+2)
-    expect(shiftWeek('2026-03-25T19:00:00.000Z', 'Europe/Berlin')).toBe('2026-04-01T18:00:00.000Z')
+    expect(shiftWeeks('2026-03-25T19:00:00.000Z', 'Europe/Berlin', 1)).toBe(
+      '2026-04-01T18:00:00.000Z',
+    )
   })
 
-  it('copies the fields into a draft body', () => {
+  it('adds one week to an upcoming event and to an event from this week', () => {
+    expect(weeksToFuture(startsAt, minsk, new Date('2026-05-20T09:00:00Z'))).toBe(1)
+    expect(weeksToFuture(startsAt, minsk, new Date('2026-05-30T09:00:00Z'))).toBe(1)
+  })
+
+  it('adds weeks until the date is in the future for an event older than a week', () => {
+    // прошло 8 дней: +7 дней всё ещё в прошлом
+    const now = new Date('2026-06-05T09:00:00Z')
+    expect(weeksToFuture(startsAt, minsk, now)).toBe(2)
+    expect(shiftWeeks(startsAt, minsk, 2)).toBe('2026-06-11T17:00:00.000Z')
+  })
+
+  it('adds several weeks for an event older than several weeks; the same weekday and time', () => {
+    const now = new Date('2026-07-01T10:00:00Z')
+    expect(weeksToFuture(startsAt, minsk, now)).toBe(5)
+    expect(shiftWeeks(startsAt, minsk, 5)).toBe('2026-07-02T17:00:00.000Z')
+    // сегодня то же время уже прошло: следующая неделя
+    expect(weeksToFuture(startsAt, minsk, new Date('2026-07-02T18:00:00Z'))).toBe(6)
+  })
+
+  it('keeps the local time over DST when several weeks are added', () => {
+    const now = new Date('2026-04-20T00:00:00Z')
+    const weeks = weeksToFuture('2026-03-25T19:00:00.000Z', 'Europe/Berlin', now)
+    expect(weeks).toBe(4)
+    expect(shiftWeeks('2026-03-25T19:00:00.000Z', 'Europe/Berlin', weeks)).toBe(
+      '2026-04-22T18:00:00.000Z',
+    )
+  })
+
+  it('copies the fields into a draft body in the future, with the event currency', () => {
     const body = duplicateEventBody(
       {
         ...base,
@@ -162,7 +198,8 @@ describe('duplicate', () => {
         joinMode: 'invite',
         closeBeforeMinutes: 60,
       },
-      'Europe/Minsk',
+      minsk,
+      new Date('2026-05-20T09:00:00Z'),
     )
     expect(body).toEqual({
       type: 'training',
@@ -171,6 +208,7 @@ describe('duplicate', () => {
       venueId: 7,
       startsAt: '2026-06-04T17:00:00.000Z',
       endsAt: '2026-06-04T19:00:00.000Z',
+      currency: 'BYN',
       capacity: 14,
       priceMode: 'fixed',
       price: 1500,
@@ -181,12 +219,24 @@ describe('duplicate', () => {
     })
   })
 
+  it('duplicating an old event gives a future draft with the same duration', () => {
+    const body = duplicateEventBody(base, minsk, new Date('2026-07-01T10:00:00Z'))
+    expect(body.startsAt).toBe('2026-07-02T17:00:00.000Z')
+    expect(body.endsAt).toBe('2026-07-02T19:00:00.000Z')
+  })
+
   it('carries the split target and no extra fields for a minimal row', () => {
+    const now = new Date('2026-05-20T09:00:00Z')
     expect(
-      duplicateEventBody({ ...base, price: 0, priceMode: 'split', targetAmount: 10001 }, 'UTC'),
+      duplicateEventBody(
+        { ...base, price: 0, priceMode: 'split', targetAmount: 10001 },
+        'UTC',
+        now,
+      ),
     ).toMatchObject({ priceMode: 'split', price: 0, targetAmount: 10001, status: 'draft' })
-    expect(Object.keys(duplicateEventBody(base, 'UTC')).sort()).toEqual([
+    expect(Object.keys(duplicateEventBody(base, 'UTC', now)).sort()).toEqual([
       'capacity',
+      'currency',
       'endsAt',
       'price',
       'startsAt',

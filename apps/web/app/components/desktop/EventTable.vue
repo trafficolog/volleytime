@@ -105,7 +105,6 @@ const dimmed = (event: EventListItem) => eventStateOf(event, now.value) !== null
             <DesktopEventRowMenu
               :event="event"
               :chat="chat"
-              :now="now"
               :busy="busyId === event.id"
               @action="(action) => $emit('action', action, event)"
             />

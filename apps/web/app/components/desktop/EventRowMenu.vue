@@ -10,13 +10,17 @@ import { rowMenuItems, type ChatLinkState, type RowAction } from '~/utils/event-
 const props = defineProps<{
   event: EventListItem
   chat: ChatLinkState
-  now: Date
   busy?: boolean
 }>()
 const emit = defineEmits<{ action: [action: RowAction] }>()
 
 const open = ref(false)
-const items = computed(() => rowMenuItems(props.event, props.chat, props.now))
+// «сейчас» берём при открытии меню: событие могло начаться, пока страница была открыта
+const openedAt = ref(new Date())
+watch(open, (isOpen) => {
+  if (isOpen) openedAt.value = new Date()
+})
+const items = computed(() => rowMenuItems(props.event, props.chat, openedAt.value))
 </script>
 
 <template>

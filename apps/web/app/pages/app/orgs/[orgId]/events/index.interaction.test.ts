@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
 
 import DesktopEvents from './index.vue'
 
@@ -65,6 +65,7 @@ Object.entries({
   ref,
   watch,
   onBeforeUnmount,
+  nextTick,
   useRoute: () => route,
   definePageMeta: () => undefined,
   useOrgTimezone: () => ({ tz: ref('Europe/Minsk') }),
@@ -431,6 +432,9 @@ describe('cabinet events list: payments column and row menu (20.5.8)', () => {
       status: 'draft',
     })
     expect(useToast().current.value?.message).toContain('Черновик')
+    expect(options.body.currency).toBe('BYN')
+    // строка с меню исчезла после перезагрузки: фокус на заголовке, а не на body
+    expect(document.activeElement).toBe(wrapper.get('h1').element)
     const lists = apiFetch.mock.calls.filter(
       ([u, o]) => u.endsWith('/events') && !(o as { method?: string } | undefined)?.method,
     )
@@ -444,7 +448,7 @@ describe('cabinet events list: payments column and row menu (20.5.8)', () => {
     menuButton().click()
     await settle()
     const announce = item('В чат группы')
-    expect(announce.disabled).toBe(false)
+    expect(announce.getAttribute('aria-disabled')).toBeNull()
     announce.click()
     await settle()
     expect(mutations()[0]).toEqual([
@@ -470,7 +474,7 @@ describe('cabinet events list: payments column and row menu (20.5.8)', () => {
     menuButton().click()
     await settle()
     const announce = item('В чат группы')
-    expect(announce.disabled).toBe(true)
+    expect(announce.getAttribute('aria-disabled')).toBe('true')
     expect(announce.textContent).toContain(hint)
     announce.click()
     await settle()
@@ -525,13 +529,24 @@ describe('cabinet events list: payments column and row menu (20.5.8)', () => {
     wrapper.unmount()
   })
 
+  it('re-reads the current time when the menu opens: a started event cannot be announced', async () => {
+    const wrapper = render()
+    await flushPromises()
+    // событие 1 (25 мая 17:00Z) было будущим при отрисовке и началось, пока страница была открыта
+    vi.setSystemTime(new Date('2026-05-25T18:00:00Z'))
+    menuButton().click()
+    await settle()
+    expect(item('В чат группы').getAttribute('aria-disabled')).toBe('true')
+    wrapper.unmount()
+  })
+
   it('has no cancel item and no announcement for an already cancelled event', async () => {
     const wrapper = render()
     await flushPromises()
     menuButton(3).click()
     await settle()
     expect(items().map((i) => i.textContent!.trim())).not.toContain('Отменить событие')
-    expect(item('В чат группы').disabled).toBe(true)
+    expect(item('В чат группы').getAttribute('aria-disabled')).toBe('true')
     wrapper.unmount()
   })
 })
