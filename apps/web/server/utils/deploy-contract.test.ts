@@ -213,6 +213,7 @@ describe('fallback deployment contract', () => {
       'EVENT_MULTI_SEAT_ENABLED',
       'EVENT_INVITE_MODE_ENABLED',
       'SCHEDULER_ENABLED',
+      'TELEGRAM_LOGIN_WIDGET_ENABLED',
     ].flatMap((key) =>
       [undefined, '', 'false', 'TRUE', 'True', ' true', 'true ', '1', 'yes', 'true'].map(
         (value) => [key, value] as const,
@@ -242,6 +243,7 @@ describe('fallback deployment contract', () => {
       'EVENT_MULTI_SEAT_ENABLED',
       'EVENT_INVITE_MODE_ENABLED',
       'SCHEDULER_ENABLED',
+      'TELEGRAM_LOGIN_WIDGET_ENABLED',
       'SCHEDULER_INTERVAL_MS',
     ])
       delete env[key]
@@ -254,6 +256,7 @@ describe('fallback deployment contract', () => {
       'EVENT_MULTI_SEAT_ENABLED',
       'EVENT_INVITE_MODE_ENABLED',
       'SCHEDULER_ENABLED',
+      'TELEGRAM_LOGIN_WIDGET_ENABLED',
     ])
       expect(rendered).toContain(`\n${key}="false"\n`)
     expect(rendered).toContain('\nSCHEDULER_INTERVAL_MS="15000"\n')
@@ -298,6 +301,7 @@ describe('fallback deployment contract', () => {
       'EVENT_MULTI_SEAT_ENABLED',
       'EVENT_INVITE_MODE_ENABLED',
       'SCHEDULER_ENABLED',
+      'TELEGRAM_LOGIN_WIDGET_ENABLED',
       'SCHEDULER_INTERVAL_MS',
     ]) {
       expect(workflow).toContain(`          ${key}: \${{ vars.${key} }}\n`)

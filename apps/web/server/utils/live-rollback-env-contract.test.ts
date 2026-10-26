@@ -40,6 +40,7 @@ function fixture(failure = '') {
     EVENT_MULTI_SEAT_ENABLED: 'false',
     EVENT_INVITE_MODE_ENABLED: 'false',
     SCHEDULER_ENABLED: 'false',
+    TELEGRAM_LOGIN_WIDGET_ENABLED: 'false',
     SCHEDULER_INTERVAL_MS: '15000',
   }
   const configured: Record<string, string> = {
@@ -52,6 +53,9 @@ function fixture(failure = '') {
   if (failure === 'missing runtime key') configured.EXTRA = 'rendered-secret'
   // A flag flipped in .env without recreating the containers is not rollback evidence.
   if (failure === 'release flag changed without restart') configured.EVENT_BALANCE_ENFORCED = 'true'
+  // The Login Widget flag (20.5.1) is read by web at runtime: same proof, no restart means no pass.
+  if (failure === 'login widget flag changed without restart')
+    configured.TELEGRAM_LOGIN_WIDGET_ENABLED = 'true'
   const runtime = [
     'PATH=/old-image',
     'NODE_VERSION=22',
@@ -157,6 +161,7 @@ describe('live rollback environment proof', () => {
     'changed secret',
     'missing runtime key',
     'release flag changed without restart',
+    'login widget flag changed without restart',
     'release flag missing from live runtime',
     'extra runtime key',
     'changed image default',
