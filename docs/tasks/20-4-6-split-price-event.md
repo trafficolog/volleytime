@@ -6,7 +6,7 @@ status: done
 release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-26
-status_note: 'PR #164 смёржен (ревью Opus — merge, CI green на 65adc05; два раунда правок), закрытие — PR trafficolog/docs/phase-20-closeouts. Цена split на экране события, Главной, в списке событий и «Мои записи» — из quoteEventPrice (GET …/price, priceQuote); сверка — docs/operations/qa/2026-10-19-20-4-6-split-price-visual.md (Critical/Important нет). Отклонения и follow-up — в разделе «Follow-up».'
+status_note: 'PR #164 смёржен (ревью Opus — merge, CI green на 65adc05; два раунда правок), закрытие — PR #182. Цена split на экране события, Главной, в списке событий и «Мои записи» — из quoteEventPrice (GET …/price, priceQuote); сверка — docs/operations/qa/2026-10-19-20-4-6-split-price-visual.md (Critical/Important нет). Отклонения и follow-up — в разделе «Follow-up».'
 ref_id: 'M-07'
 complexity: L
 impl_model: claude-sonnet-5-5

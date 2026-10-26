@@ -6,7 +6,7 @@ status: done
 release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-26
-status_note: 'PR #166 смёржен (ревью Sonnet — merge, CI green на 6975ec2), закрытие — PR trafficolog/docs/phase-20-closeouts. Абонементы и покупка, мои записи, лента и колокольчик уведомлений, профиль; сверка — docs/operations/qa/2026-10-19-20-4-9-player-screens-visual.md (Critical/Important нет). «Сборы» — 21.1.6; остальное не вошедшее — в разделе «Follow-up».'
+status_note: 'PR #166 смёржен (ревью Sonnet — merge, CI green на 6975ec2), закрытие — PR #182. Абонементы и покупка, мои записи, лента и колокольчик уведомлений, профиль; сверка — docs/operations/qa/2026-10-19-20-4-9-player-screens-visual.md (Critical/Important нет). «Сборы» — 21.1.6; остальное не вошедшее — в разделе «Follow-up».'
 ref_id: 'M-13'
 complexity: M
 impl_model: claude-sonnet-5-5
