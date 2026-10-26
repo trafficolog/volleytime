@@ -65,7 +65,7 @@ function onViewportChange(event?: Event) {
 }
 
 function entries(): HTMLElement[] {
-  return [...(menu.value?.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])') ?? [])]
+  return [...(menu.value?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])]
 }
 
 function close(refocus = true) {
@@ -74,6 +74,8 @@ function close(refocus = true) {
 }
 
 function pick(item: VtPopoverItem) {
+  // недоступный пункт остаётся в порядке фокуса (aria-disabled), но не выбирается
+  if (item.disabled) return
   emit('select', item)
   close()
 }
@@ -146,7 +148,7 @@ onBeforeUnmount(() => {
           class="vt-popover__item"
           :class="{ 'vt-popover__item--danger': item.tone === 'danger' }"
           role="menuitem"
-          :disabled="item.disabled"
+          :aria-disabled="item.disabled ? 'true' : undefined"
           @click="pick(item)"
         >
           <span class="vt-popover__label">
