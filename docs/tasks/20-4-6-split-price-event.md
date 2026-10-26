@@ -2,11 +2,11 @@
 id: '20.4.6'
 phase: '20'
 epic: '20.4'
-status: in_progress
+status: done
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-19
-status_note: 'Реализовано, правки по ревью Opus (PR #164, раунд 2). Цена split на экране события, Главной, в списке событий и «Мои записи» — из quoteEventPrice (GET …/price, поле priceQuote, общий readPlayerPriceQuote); подписи «если запишетесь»; сверка — docs/operations/qa/2026-10-19-20-4-6-split-price-visual.md. Принятое отклонение: шкала «как меняется цена» из 4 строк. Follow-up: слабый контраст тона grass у VtChip на серой карточке (общий атом).'
+last_reviewed: 2026-10-26
+status_note: 'PR #164 смёржен (ревью Opus — merge, CI green на 65adc05; два раунда правок), закрытие — PR #182. Цена split на экране события, Главной, в списке событий и «Мои записи» — из quoteEventPrice (GET …/price, priceQuote); сверка — docs/operations/qa/2026-10-19-20-4-6-split-price-visual.md (Critical/Important нет). Отклонения и follow-up — в разделе «Follow-up».'
 ref_id: 'M-07'
 complexity: L
 impl_model: claude-sonnet-5-5
@@ -61,6 +61,13 @@ tags: [reference-v3]
 - ✅ Цена и прогноз берутся из `GET …/events/{id}/price` (`quoteEventPrice`, 20.1.1), а не из `readEventPricing`/`previewSplitAmount`; тест доказывает совпадение показанной цены с ответом эндпоинта для тех же мест (перенесено из 20.1.1, [решение владельца 2026-10-14](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-01))
 - ✅ Визуальная сверка включает блок цены split (прогноз «от … до …», итоговая доля) по `3-miniapp-player/02-screen.png` (перенесено из 20.1.1)
 - ✅ Пять gates CODING_STANDARDS на tested revision; ревью `claude-opus-5-5` без Critical/Important
+
+## Follow-up (бэклог, не блокирует закрытие)
+
+- **Принятое отклонение — валюта:** «BYN» вместо «Br» макета (решение владельца 2026-10-19, общее соглашение `formatMoneyRu`).
+- **Принятое отклонение — шкала «как меняется цена»:** до 4 строк (текущее, +2, +4, вместимость) вместо трёх строк макета.
+- **Не снято в сверке (покрыто тестами, не снимками):** hero и расписание Главной с ценой split (в демо-сиде нет подходящего события), лист записи с суммой за несколько мест, состояния «мест нет» и «событие отменено». Chromium only: Firefox, Safari, safe-area, reduced motion не проверялись. Передаётся в визуальную сверку релиза [20.7.1](20-7-1-release-v0-2-0-qa.md) (п. 13).
+- **Minor, вне карточки:** тон grass у `VtChip` («зафиксировано», «оплачено») на серой карточке читается слабо — общий атом, правка токена вне этой задачи; бэклог без даты, владелец не назначен (решение координатора 2026-10-26), привязать к ближайшему изменению атомов дизайн-системы.
 
 ## Подсказки
 
