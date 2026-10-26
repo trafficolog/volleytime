@@ -64,17 +64,18 @@ if [ "$1 $2" = 'image inspect' ] && [[ "\${3:-}" = --format && "$4" == *'org.vol
   ref="\${@: -1}"
   sha="\${ref##*:}"
   if [[ "$ref" == sha256:* ]]; then sha="\${sha:0:40}"; fi
-  split=1
-  if [ "\${FAKE_FIXED_TARGET:-0}" = 1 ] && [ "$sha" = "$OLD_SHA" ]; then split=0; fi
-  printf '%s|%s|%s' "$(rollback_image "$sha")" "$sha" "$split"
+  # split, multi-seat, invite-mode, scheduler labels; a fixed-only target has none of them
+  capabilities='1|1|1|1'
+  if [ "\${FAKE_FIXED_TARGET:-0}" = 1 ] && [ "$sha" = "$OLD_SHA" ]; then capabilities='0|0|0|0'; fi
+  printf '%s|%s|%s' "$(rollback_image "$sha")" "$sha" "$capabilities"
   exit 0
 fi
 if [ "$1" = compose ] && [[ "$*" == *' exec -T postgres psql '* ]]; then
   if [[ "$*" == *pg_stat_activity* ]]; then printf t; exit 0; fi
   if [ -f "$ROOT_PATH/.deploy/writers-stopped" ] && [ "\${FAKE_ROLLBACK_DB_ERROR:-0}" = 1 ]; then exit 17; fi
-  if [[ "$*" == *information_schema* ]]; then printf t; else
-    if [ "\${FAKE_SPLIT_ROWS:-0}" = 1 ]; then printf t; else printf f; fi
-  fi
+  if [[ "$*" == *information_schema* ]]; then printf t
+  elif [[ "$*" == *"price_mode='split'"* ]] && [ "\${FAKE_SPLIT_ROWS:-0}" = 1 ]; then printf t
+  else printf f; fi
   exit 0
 fi
 `

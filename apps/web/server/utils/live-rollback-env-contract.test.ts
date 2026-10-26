@@ -33,19 +33,37 @@ function fixture(failure = '') {
     `WEB_IMAGE=volleytime-web:${sha}\nBOT_IMAGE=volleytime-bot:${sha}\nMIGRATOR_IMAGE=volleytime-migrator:${sha}\nRELEASE_VERSION=${sha}\n`,
   )
   const image = ['PATH=/old-image', 'NODE_VERSION=22', 'OVERRIDE=image-default']
+  // v0.2.0 release flags (20.7.1) reach web/bot through `env_file: .env` like any other key.
+  const releaseFlags = {
+    EVENT_SPLIT_PRICING_ENABLED: 'true',
+    EVENT_BALANCE_ENFORCED: 'false',
+    EVENT_MULTI_SEAT_ENABLED: 'false',
+    EVENT_INVITE_MODE_ENABLED: 'false',
+    SCHEDULER_ENABLED: 'false',
+    SCHEDULER_INTERVAL_MS: '15000',
+  }
   const configured: Record<string, string> = {
     SECRET: 'live-secret',
     OVERRIDE: 'compose=value',
     SMOKE_TG_ID: 'new-smoke',
+    ...releaseFlags,
   }
   if (failure === 'changed secret') configured.SECRET = 'rendered-secret'
   if (failure === 'missing runtime key') configured.EXTRA = 'rendered-secret'
+  // A flag flipped in .env without recreating the containers is not rollback evidence.
+  if (failure === 'release flag changed without restart') configured.EVENT_BALANCE_ENFORCED = 'true'
   const runtime = [
     'PATH=/old-image',
     'NODE_VERSION=22',
     'SECRET=live-secret',
     'OVERRIDE=compose=value',
     'SMOKE_TG_ID=old-smoke',
+    ...Object.entries(releaseFlags)
+      .filter(
+        ([key]) =>
+          failure !== 'release flag missing from live runtime' || key !== 'SCHEDULER_ENABLED',
+      )
+      .map(([key, value]) => `${key}=${value}`),
   ]
   if (failure === 'extra runtime key') runtime.push('EXTRA=live-secret')
   if (failure === 'changed image default') image[0] = 'PATH=/wrong-image'
@@ -138,6 +156,8 @@ describe('live rollback environment proof', () => {
   it.each([
     'changed secret',
     'missing runtime key',
+    'release flag changed without restart',
+    'release flag missing from live runtime',
     'extra runtime key',
     'changed image default',
     'duplicate runtime key',

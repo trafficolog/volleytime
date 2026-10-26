@@ -17,6 +17,26 @@ const shellPath = (path: string) =>
         .replaceAll('\\', '/')
     : path
 
+/** Image capability labels of the application rollback guard (split + v0.2.0, 20.7.1). */
+export const rollbackCapabilities = {
+  split: 'org.volleytime.event-split-pricing',
+  multiSeat: 'org.volleytime.event-multi-seat',
+  inviteMode: 'org.volleytime.event-invite-mode',
+  scheduler: 'org.volleytime.event-scheduler',
+} as const
+export type RollbackCapability = keyof typeof rollbackCapabilities
+type CapabilityLabels = Record<RollbackCapability, string>
+
+/** Classifies an authoritative data query by the capability whose rows it looks for. */
+export function rollbackQueryCapability(query: string): RollbackCapability | undefined {
+  if (query.includes('information_schema')) return undefined
+  if (query.includes("price_mode='split'")) return 'split'
+  if (query.includes('waitlist_seats > 0')) return 'multiSeat'
+  if (query.includes("join_mode = 'invite'")) return 'inviteMode'
+  if (query.includes("waitlist_offers WHERE status = 'offered'")) return 'scheduler'
+  return undefined
+}
+
 export async function splitRollbackFixture() {
   const root = mkdtempSync(join(tmpdir(), 'volleytime-split-rollback-'))
   const bin = join(root, 'bin')
@@ -33,10 +53,23 @@ export async function splitRollbackFixture() {
     ref: `volleytime-${service}:${currentSha}`,
     revision: currentSha,
     split: '1',
+    multiSeat: '1',
+    inviteMode: '1',
+    scheduler: '1',
   }))
+  // The old target lacks only split by default, so each capability is exercised in isolation.
+  const targets: Record<'web' | 'bot', CapabilityLabels> = {
+    web: { split: '<no value>', multiSeat: '1', inviteMode: '1', scheduler: '1' },
+    bot: { split: '<no value>', multiSeat: '1', inviteMode: '1', scheduler: '1' },
+  }
+  const rows: Record<RollbackCapability, boolean> = {
+    split: false,
+    multiSeat: false,
+    inviteMode: false,
+    scheduler: false,
+  }
   const calls: string[][] = []
   let schema = true
-  let splitRows = false
   let queryError = false
   let preflightError = false
   let writerAfterQuery = false
@@ -70,10 +103,21 @@ export async function splitRollbackFixture() {
       if (preflightError) return [1, '']
       const ref = args.at(-1)!
       const c = containers.find((c) => c.image === ref || c.ref === ref)
-      const revision = c?.revision ?? oldSha
+      const labels: Record<string, string> = {
+        'org.opencontainers.image.revision': c?.revision ?? oldSha,
+      }
+      const capabilities = c ?? targets[ref.includes('-bot:') ? 'bot' : 'web']
+      for (const [key, label] of Object.entries(rollbackCapabilities))
+        labels[label] = capabilities[key as RollbackCapability]
+      // Render exactly the requested template fields, like `docker image inspect --format`.
       return [
         0,
-        `${c?.image ?? `sha256:${'9'.repeat(64)}`}|${revision}|${c?.split ?? '<no value>'}`,
+        (args[3] ?? '')
+          .replaceAll('{{.Id}}', c?.image ?? `sha256:${'9'.repeat(64)}`)
+          .replace(
+            /\{\{index \.Config\.Labels "([^"]+)"\}\}/g,
+            (_match, label: string) => labels[label] ?? '<no value>',
+          ),
       ]
     }
     if (args[0] === 'inspect') {
@@ -200,7 +244,9 @@ export async function splitRollbackFixture() {
       if (queryError && containers.every((c) => !c.running)) return [1, '']
       if (args.at(-1)?.includes('information_schema')) return [0, schema ? 't' : 'f']
       if (writerAfterQuery && containers.every((c) => !c.running)) containers[2]!.running = true
-      return [0, splitRows ? 't' : 'f']
+      const capability = rollbackQueryCapability(args.at(-1)!)
+      if (!capability) return [90, `Unclassified fake rollback query: ${args.at(-1)}`]
+      return [0, rows[capability] ? 't' : 'f']
     }
     return [90, `Unexpected fake Docker call: ${args.join(' ')}`]
   }
@@ -354,6 +400,8 @@ exit "$code"
     currentSha,
     oldSha,
     run,
+    targets,
+    rows,
     set options(value: {
       schema?: boolean
       splitRows?: boolean
@@ -366,7 +414,7 @@ exit "$code"
       ambiguousOtherPostgresAlias?: boolean
     }) {
       schema = value.schema ?? schema
-      splitRows = value.splitRows ?? splitRows
+      rows.split = value.splitRows ?? rows.split
       queryError = value.queryError ?? queryError
       preflightError = value.preflightError ?? preflightError
       writerAfterQuery = value.writerAfterQuery ?? writerAfterQuery

@@ -1,8 +1,225 @@
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
-import { splitRollbackFixture } from '../../../../packages/core/src/__tests__/split-rollback-shell-fixture'
+import {
+  rollbackCapabilities,
+  splitRollbackFixture,
+  splitRollbackScript,
+} from '../../../../packages/core/src/__tests__/split-rollback-shell-fixture'
+
+// v0.2.0 data predicates for a runtime without the capability (task 20.7.1, items 6, 7, 9).
+const v020Capabilities = [
+  {
+    key: 'multiSeat',
+    name: 'multi-seat',
+    predicate: 'SELECT EXISTS (SELECT 1 FROM bookings WHERE seats > 1 OR waitlist_seats > 0)',
+  },
+  {
+    key: 'inviteMode',
+    name: 'invite-mode',
+    predicate:
+      "SELECT EXISTS (SELECT 1 FROM events WHERE join_mode = 'invite' AND status NOT IN ('cancelled', 'finished')) OR EXISTS (SELECT 1 FROM invite_links WHERE type = 'event_join' AND NOT is_revoked AND (expires_at IS NULL OR expires_at > now()) AND (max_uses IS NULL OR uses_count < max_uses))",
+  },
+  {
+    key: 'scheduler',
+    name: 'scheduler',
+    predicate:
+      "SELECT EXISTS (SELECT 1 FROM waitlist_offers WHERE status = 'offered') OR EXISTS (SELECT 1 FROM events WHERE booking_opens_at > now() AND status IN ('draft', 'published', 'closed'))",
+  },
+] as const
+
+describe('v0.2.0 capability labels and data guard (20.7.1)', { timeout: 35_000 }, () => {
+  it('web and bot runtime images carry every capability label the guard inspects', () => {
+    const guard = readFileSync(splitRollbackScript, 'utf8')
+    for (const app of ['web', 'bot']) {
+      const dockerfile = readFileSync(
+        fileURLToPath(new URL(`../../../${app}/Dockerfile`, import.meta.url)),
+        'utf8',
+      )
+      const runtime = dockerfile.slice(dockerfile.lastIndexOf('\nFROM '))
+      expect(runtime).toContain(' AS runtime')
+      for (const label of Object.values(rollbackCapabilities)) {
+        expect(runtime, `${app} runtime stage`).toContain(`LABEL ${label}="1"`)
+        expect(guard).toContain(`{{index .Config.Labels "${label}"}}`)
+      }
+    }
+  })
+  it.each(v020Capabilities)(
+    'checks the $name schema and exact data predicate only after writers stop',
+    async ({ predicate }) => {
+      const f = await splitRollbackFixture()
+      try {
+        const result = await f.run()
+        expect(result.status, result.stderr).toBe(0)
+        const stop = f.calls.findIndex((args) => args[0] === 'stop')
+        const query = f.calls.findIndex(
+          (args, index) => index > stop && args.at(-1)?.includes(predicate),
+        )
+        expect(query, 'authoritative query after stop').toBeGreaterThan(stop)
+      } finally {
+        await f.close()
+      }
+    },
+  )
+  it.each(
+    v020Capabilities.flatMap((capability) =>
+      (['both', 'web', 'bot'] as const).map((missing) => ({ ...capability, missing })),
+    ),
+  )(
+    'existing $name data denies a target without the label on $missing and recovers current writers',
+    async ({ key, name, missing }) => {
+      const f = await splitRollbackFixture()
+      try {
+        f.rows[key] = true
+        if (missing !== 'bot') f.targets.web[key] = '<no value>'
+        if (missing !== 'web') f.targets.bot[key] = '<no value>'
+        const result = await f.run()
+        expect(result.status).toBe(1)
+        expect(result.stderr).toContain(`${name} rows require compatible web and bot images`)
+        expect(f.containers.every((c) => c.running)).toBe(true)
+        expect(f.calls.filter((c) => c[0] === 'start').flat()).toEqual(
+          expect.arrayContaining(f.containers.map((c) => c.id)),
+        )
+      } finally {
+        await f.close()
+      }
+    },
+  )
+  it.each(v020Capabilities)(
+    'existing $name data passes when both target images carry the label',
+    async ({ key }) => {
+      const f = await splitRollbackFixture()
+      try {
+        f.rows[key] = true
+        const result = await f.run()
+        expect(result.status, result.stderr).toBe(0)
+        expect(f.containers.every((c) => !c.running)).toBe(true)
+      } finally {
+        await f.close()
+      }
+    },
+  )
+  it('a target without any v0.2.0 label passes while no such data exists', async () => {
+    const f = await splitRollbackFixture()
+    try {
+      for (const { key } of v020Capabilities) {
+        f.targets.web[key] = '<no value>'
+        f.targets.bot[key] = '<no value>'
+      }
+      const result = await f.run()
+      expect(result.status, result.stderr).toBe(0)
+      expect(f.containers.every((c) => !c.running)).toBe(true)
+    } finally {
+      await f.close()
+    }
+  })
+  it('a schema without the v0.2.0 migrations needs no labels and reads no rows', async () => {
+    const f = await splitRollbackFixture()
+    try {
+      f.options = { schema: false }
+      for (const { key } of v020Capabilities) {
+        f.rows[key] = true
+        f.targets.web[key] = '<no value>'
+        f.targets.bot[key] = '<no value>'
+      }
+      const result = await f.run()
+      expect(result.status, result.stderr).toBe(0)
+      for (const { predicate } of v020Capabilities)
+        expect(f.calls.some((args) => args.at(-1)?.includes(predicate))).toBe(false)
+    } finally {
+      await f.close()
+    }
+  })
+  it('lists every missing capability that existing data requires', async () => {
+    const f = await splitRollbackFixture()
+    try {
+      f.options = { splitRows: true }
+      f.rows.scheduler = true
+      f.targets.bot.scheduler = '<no value>'
+      const result = await f.run()
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('split scheduler rows require compatible web and bot images')
+    } finally {
+      await f.close()
+    }
+  })
+  it.each(v020Capabilities)(
+    'an invalid $name result after stop fails closed and recovers current writers',
+    async ({ predicate }) => {
+      const f = await splitRollbackFixture()
+      try {
+        f.hook = async (args) =>
+          f.containers.every((c) => !c.running) && args.at(-1)?.includes(predicate)
+            ? 'maybe'
+            : undefined
+        const result = await f.run()
+        expect(result.status).toBe(1)
+        expect(result.stderr).toContain('authoritative query failed')
+        expect(f.containers.every((c) => c.running)).toBe(true)
+      } finally {
+        await f.close()
+      }
+    },
+  )
+  it.each(v020Capabilities)(
+    'an unproven $name schema result fails closed before any writer stops',
+    async ({ predicate }) => {
+      const f = await splitRollbackFixture()
+      try {
+        const schemaQuery = (query: string) =>
+          query.includes('information_schema') &&
+          (predicate.includes('waitlist_seats')
+            ? query.includes("'waitlist_seats'")
+            : predicate.includes('join_mode')
+              ? query.includes("'join_mode'")
+              : query.includes("'booking_opens_at'"))
+        f.hook = async (args) => (schemaQuery(args.at(-1) ?? '') ? '' : undefined)
+        const result = await f.run()
+        expect(result.status).toBe(1)
+        expect(result.stderr).toContain('preflight query failed')
+        expect(f.calls.some((c) => c[0] === 'stop')).toBe(false)
+      } finally {
+        await f.close()
+      }
+    },
+  )
+  it.each(v020Capabilities)(
+    'recovery never restarts a captured writer without $name support while such data exists',
+    async ({ key }) => {
+      const f = await splitRollbackFixture()
+      try {
+        f.containers[0]![key] = '<no value>'
+        f.targets.web[key] = '<no value>'
+        f.rows[key] = true
+        const result = await f.run()
+        expect(result.status).toBe(1)
+        expect(f.calls.some((c) => c[0] === 'start')).toBe(false)
+        expect(f.containers.every((c) => !c.running)).toBe(true)
+      } finally {
+        await f.close()
+      }
+    },
+  )
+  it('recovery restarts a captured writer without a capability when no such data exists', async () => {
+    const f = await splitRollbackFixture()
+    try {
+      f.containers[0]!.multiSeat = '<no value>'
+      expect((await f.run()).status).toBe(0)
+      const boundary = f.calls.length
+      const result = await f.run('recover')
+      expect(
+        f.calls.slice(boundary).some((args) => args.at(-1)?.includes('waitlist_seats > 0')),
+        'a captured writer without multi-seat support needs the authoritative query',
+      ).toBe(true)
+      expect(result.status, result.stderr).toBe(0)
+      expect(f.containers.every((c) => c.running)).toBe(true)
+    } finally {
+      await f.close()
+    }
+  }, 60_000)
+})
 
 describe('split rollback boundary (fake Docker shell evidence)', { timeout: 35_000 }, () => {
   it.each(['postgres:172.20.0.1', 'postgres:host-gateway', 'POSTGRES:fd00::1'])(
