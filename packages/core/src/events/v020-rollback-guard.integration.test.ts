@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+
 import {
   bookings,
   closeDb,
@@ -16,6 +18,7 @@ import { postgresTestTransport } from '../__tests__/split-rollback-postgres-tran
 import {
   type RollbackCapability,
   splitRollbackFixture,
+  splitRollbackScript,
 } from '../__tests__/split-rollback-shell-fixture'
 import { organizationService } from '../organizations/service'
 
@@ -94,8 +97,9 @@ const cases: Array<{
   },
 ]
 
+afterAll(closeDb)
+
 describe('v0.2.0 rollback data guard (real PostgreSQL schema)', { timeout: 30_000 }, () => {
-  afterAll(closeDb)
   it.each(cases)(
     '$data denies a target without $name support',
     async ({ capability, name, seed }) => {
@@ -138,5 +142,158 @@ describe('v0.2.0 rollback data guard (real PostgreSQL schema)', { timeout: 30_00
       }
     },
     35_000,
+  )
+})
+
+// The exact data predicates the guard runs, read from the script (vector order of the guard).
+const guardRows = (() => {
+  const script = readFileSync(splitRollbackScript, 'utf8')
+  const start = script.indexOf('capability_rows=(')
+  const block = script.slice(start, script.indexOf('\n)', start))
+  return [...block.matchAll(/^ {2}"(.+)"$/gm)].map((match) => match[1]!)
+})()
+const vectorIndex: Record<RollbackCapability, number> = {
+  split: 0,
+  multiSeat: 1,
+  inviteMode: 2,
+  scheduler: 3,
+}
+type Ids = { org: number; user: number; event: number }
+// Boundary rows that must NOT require the capability, each paired with the minimal change that does.
+const boundaries: Array<{
+  name: string
+  capability: RollbackCapability
+  negative: (ids: Ids) => string
+  positive: (ids: Ids) => string
+}> = [
+  {
+    name: 'fixed-price event',
+    capability: 'split',
+    negative: () => 'SELECT 1',
+    positive: ({ event }) =>
+      `UPDATE events SET price_mode = 'split', price = 0, target_amount = 10001 WHERE id = ${event}`,
+  },
+  {
+    name: 'booking with one seat and no waitlisted seats',
+    capability: 'multiSeat',
+    negative: ({ org, user, event }) =>
+      `INSERT INTO bookings (event_id, user_id, organization_id, status, method, seats, waitlist_seats) VALUES (${event}, ${user}, ${org}, 'confirmed', 'cash', 1, 0)`,
+    positive: ({ event }) => `UPDATE bookings SET seats = 2 WHERE event_id = ${event}`,
+  },
+  ...(['cancelled', 'finished'] as const).map((status) => ({
+    name: `${status} invite-only event`,
+    capability: 'inviteMode' as const,
+    negative: ({ event }: Ids) =>
+      `UPDATE events SET join_mode = 'invite', status = '${status}' WHERE id = ${event}`,
+    positive: ({ event }: Ids) => `UPDATE events SET status = 'published' WHERE id = ${event}`,
+  })),
+  ...[
+    ['revoked', 'is_revoked = true', 'is_revoked = false'],
+    ['expired', "expires_at = now() - interval '1 hour'", "expires_at = now() + interval '1 hour'"],
+    ['exhausted', 'max_uses = 2, uses_count = 2', 'uses_count = 1'],
+    ['over-used', 'max_uses = 2, uses_count = 3', 'max_uses = NULL'],
+  ].map(([state, negative, positive]) => ({
+    name: `${state} event_join link`,
+    capability: 'inviteMode' as const,
+    negative: ({ org, user, event }: Ids) =>
+      `INSERT INTO invite_links (token, organization_id, event_id, type, created_by_user_id, default_member_status) VALUES ('${state}', ${org}, ${event}, 'event_join', ${user}, 'pending'); UPDATE invite_links SET ${negative} WHERE token = '${state}'`,
+    positive: () => `UPDATE invite_links SET ${positive} WHERE token = '${state}'`,
+  })),
+  {
+    name: 'organization_join link',
+    capability: 'inviteMode',
+    negative: ({ org, user }) =>
+      `INSERT INTO invite_links (token, organization_id, type, created_by_user_id) VALUES ('org-join', ${org}, 'organization_join', ${user})`,
+    positive: ({ org, user, event }) =>
+      `INSERT INTO invite_links (token, organization_id, event_id, type, created_by_user_id) VALUES ('event-join', ${org}, ${event}, 'event_join', ${user})`,
+  },
+  {
+    name: 'booking_opens_at in the past',
+    capability: 'scheduler',
+    negative: ({ event }) =>
+      `UPDATE events SET booking_opens_at = now() - interval '1 hour' WHERE id = ${event}`,
+    positive: ({ event }) =>
+      `UPDATE events SET booking_opens_at = now() + interval '1 hour' WHERE id = ${event}`,
+  },
+  ...(['cancelled', 'finished'] as const).map((status) => ({
+    name: `future booking_opens_at on a ${status} event`,
+    capability: 'scheduler' as const,
+    negative: ({ event }: Ids) =>
+      `UPDATE events SET booking_opens_at = now() + interval '1 hour', status = '${status}' WHERE id = ${event}`,
+    positive: ({ event }: Ids) => `UPDATE events SET status = 'draft' WHERE id = ${event}`,
+  })),
+  ...(['accepted', 'declined', 'expired', 'revoked'] as const).map((status) => ({
+    name: `${status} waitlist offer`,
+    capability: 'scheduler' as const,
+    negative: ({ org, user, event }: Ids) =>
+      `WITH b AS (INSERT INTO bookings (event_id, user_id, organization_id, status, method) VALUES (${event}, ${user}, ${org}, 'waitlisted', 'cash') RETURNING id) INSERT INTO waitlist_offers (organization_id, event_id, booking_id, seats, status, expires_at) SELECT ${org}, ${event}, b.id, 1, '${status}', now() + interval '30 minutes' FROM b`,
+    positive: ({ event }: Ids) =>
+      `UPDATE waitlist_offers SET status = 'offered' WHERE event_id = ${event}`,
+  })),
+]
+
+class Rollback extends Error {}
+
+describe('v0.2.0 rollback data guard boundaries (real PostgreSQL)', () => {
+  it('reads exactly the four guard predicates from the script', () => {
+    expect(guardRows).toHaveLength(4)
+    expect(guardRows[vectorIndex.multiSeat]).toContain('waitlist_seats > 0')
+  })
+  it.each(boundaries)(
+    '$name does not require $capability; the paired change does',
+    async ({ capability, negative, positive }) => {
+      await db
+        .transaction(async (tx) => {
+          const vector = async () => {
+            let result = ''
+            for (const query of guardRows) {
+              const [row] = await tx.execute<Record<string, boolean>>(sql.raw(query))
+              const value = Object.values(row!)[0]
+              expect(typeof value).toBe('boolean')
+              result += value ? 't' : 'f'
+            }
+            return result
+          }
+          // Clean slate inside the transaction only: rows of other suites cannot leak in or out.
+          await tx.execute(
+            sql.raw('TRUNCATE events, bookings, invite_links, waitlist_offers CASCADE'),
+          )
+          const [user] = await tx
+            .insert(users)
+            .values({ email: `v020-boundary-${crypto.randomUUID()}@test.by` })
+            .returning()
+          const [org] = await tx
+            .insert(organizations)
+            .values({
+              slug: `v020-boundary-${crypto.randomUUID()}`.slice(0, 64),
+              name: 'v0.2.0 guard boundary',
+              ownerUserId: user!.id,
+            })
+            .returning()
+          const [event] = await tx
+            .insert(events)
+            .values({
+              organizationId: org!.id,
+              createdByUserId: user!.id,
+              title: 'v0.2.0 guard boundary',
+              startsAt: new Date(Date.now() + 2 * 86400000),
+              endsAt: new Date(Date.now() + 2 * 86400000 + 7200000),
+              capacity: 4,
+            })
+            .returning()
+          const ids = { org: org!.id, user: user!.id, event: event!.id }
+          expect(await vector(), 'clean slate').toBe('ffff')
+          for (const statement of negative(ids).split('; ')) await tx.execute(sql.raw(statement))
+          expect(await vector(), 'boundary row').toBe('ffff')
+          await tx.execute(sql.raw(positive(ids)))
+          const expected = ['f', 'f', 'f', 'f']
+          expected[vectorIndex[capability]] = 't'
+          expect(await vector(), 'paired positive row').toBe(expected.join(''))
+          throw new Rollback()
+        })
+        .catch((error: unknown) => {
+          if (!(error instanceof Rollback)) throw error
+        })
+    },
   )
 })

@@ -30,9 +30,11 @@ capability_schema=(
   "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='events' AND column_name='join_mode');"
   "SELECT CASE (SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='events' AND column_name='booking_opens_at') + (SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='waitlist_offers') WHEN 0 THEN 'f' WHEN 2 THEN 't' END;"
 )
-# Rows a runtime without the capability misreads; predicates match the owning task cards.
+# Rows a runtime without the capability misreads; predicates match the owning task cards verbatim.
+# Tables are unqualified, like the migration rollback scripts: they resolve in the default search_path
+# of the volley role, whose public schema the queries above pin.
 capability_rows=(
-  "SELECT EXISTS (SELECT 1 FROM public.events WHERE price_mode='split');"
+  "SELECT EXISTS (SELECT 1 FROM events WHERE price_mode='split');"
   "SELECT EXISTS (SELECT 1 FROM bookings WHERE seats > 1 OR waitlist_seats > 0);"
   "SELECT EXISTS (SELECT 1 FROM events WHERE join_mode = 'invite' AND status NOT IN ('cancelled', 'finished')) OR EXISTS (SELECT 1 FROM invite_links WHERE type = 'event_join' AND NOT is_revoked AND (expires_at IS NULL OR expires_at > now()) AND (max_uses IS NULL OR uses_count < max_uses));"
   "SELECT EXISTS (SELECT 1 FROM waitlist_offers WHERE status = 'offered') OR EXISTS (SELECT 1 FROM events WHERE booking_opens_at > now() AND status IN ('draft', 'published', 'closed'));"
