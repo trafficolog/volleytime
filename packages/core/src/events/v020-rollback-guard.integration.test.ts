@@ -234,10 +234,46 @@ const boundaries: Array<{
 
 class Rollback extends Error {}
 
+// A guard query is `SET search_path ...; SELECT ...`: postgres.js returns one row set per statement.
+type Row = Record<string, unknown>
+function lastResult(result: unknown): Row[] {
+  const sets = result as unknown[]
+  return (Array.isArray(sets[0]) ? sets.at(-1) : sets) as Row[]
+}
+
 describe('v0.2.0 rollback data guard boundaries (real PostgreSQL)', () => {
   it('reads exactly the four guard predicates from the script', () => {
     expect(guardRows).toHaveLength(4)
     expect(guardRows[vectorIndex.multiSeat]).toContain('waitlist_seats > 0')
+  })
+  it('a schema shadowing public earlier in the session search_path cannot answer the guard', async () => {
+    await db
+      .transaction(async (tx) => {
+        await tx.execute(
+          sql.raw('TRUNCATE events, bookings, invite_links, waitlist_offers CASCADE'),
+        )
+        // Every shadow table holds exactly the row each predicate looks for.
+        for (const statement of [
+          'CREATE SCHEMA vt_guard_shadow',
+          "CREATE TABLE vt_guard_shadow.events AS SELECT 'split'::text AS price_mode, 'invite'::text AS join_mode, 'published'::text AS status, now() + interval '1 hour' AS booking_opens_at",
+          'CREATE TABLE vt_guard_shadow.bookings AS SELECT 2 AS seats, 0 AS waitlist_seats',
+          "CREATE TABLE vt_guard_shadow.invite_links AS SELECT 'event_join'::text AS type, false AS is_revoked, NULL::timestamptz AS expires_at, NULL::int AS max_uses, 0 AS uses_count",
+          "CREATE TABLE vt_guard_shadow.waitlist_offers AS SELECT 'offered'::text AS status",
+          'SET LOCAL search_path TO vt_guard_shadow, public',
+        ])
+          await tx.execute(sql.raw(statement))
+        let vector = ''
+        for (const query of guardRows) {
+          const [row] = lastResult(await tx.execute(sql.raw(query)))
+          vector += Object.values(row!)[0] ? 't' : 'f'
+        }
+        // The guard reads only public, which is clean: the shadow rows neither deny nor allow.
+        expect(vector).toBe('ffff')
+        throw new Rollback()
+      })
+      .catch((error: unknown) => {
+        if (!(error instanceof Rollback)) throw error
+      })
   })
   it.each(boundaries)(
     '$name does not require $capability; the paired change does',
@@ -247,7 +283,7 @@ describe('v0.2.0 rollback data guard boundaries (real PostgreSQL)', () => {
           const vector = async () => {
             let result = ''
             for (const query of guardRows) {
-              const [row] = await tx.execute<Record<string, boolean>>(sql.raw(query))
+              const [row] = lastResult(await tx.execute(sql.raw(query)))
               const value = Object.values(row!)[0]
               expect(typeof value).toBe('boolean')
               result += value ? 't' : 'f'

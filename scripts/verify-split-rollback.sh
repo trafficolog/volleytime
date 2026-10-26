@@ -25,19 +25,20 @@ fi
 capability_names=(split multi-seat invite-mode scheduler)
 # Each schema query answers t/f; a partially present capability schema is unproven (empty result).
 capability_schema=(
-  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='events' AND column_name='price_mode');"
-  "SELECT CASE count(*) WHEN 0 THEN 'f' WHEN 2 THEN 't' END FROM information_schema.columns WHERE table_schema='public' AND table_name='bookings' AND column_name IN ('seats', 'waitlist_seats');"
-  "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='events' AND column_name='join_mode');"
-  "SELECT CASE (SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='events' AND column_name='booking_opens_at') + (SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='waitlist_offers') WHEN 0 THEN 'f' WHEN 2 THEN 't' END;"
+  "SET search_path TO pg_catalog, public; SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='events' AND column_name='price_mode');"
+  "SET search_path TO pg_catalog, public; SELECT CASE count(*) WHEN 0 THEN 'f' WHEN 2 THEN 't' END FROM information_schema.columns WHERE table_schema='public' AND table_name='bookings' AND column_name IN ('seats', 'waitlist_seats');"
+  "SET search_path TO pg_catalog, public; SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='events' AND column_name='join_mode');"
+  "SET search_path TO pg_catalog, public; SELECT CASE (SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='events' AND column_name='booking_opens_at') + (SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='waitlist_offers') WHEN 0 THEN 'f' WHEN 2 THEN 't' END;"
 )
 # Rows a runtime without the capability misreads; predicates match the owning task cards verbatim.
-# Tables are unqualified, like the migration rollback scripts: they resolve in the default search_path
-# of the volley role, whose public schema the queries above pin.
+# Tables are unqualified, like the migration rollback scripts; every schema and data query first pins
+# search_path to pg_catalog, public, so a "$user" or other earlier schema cannot shadow these tables.
+# psql prints that SET's command tag on its own line before the answer; required_capabilities strips exactly that one line.
 capability_rows=(
-  "SELECT EXISTS (SELECT 1 FROM events WHERE price_mode='split');"
-  "SELECT EXISTS (SELECT 1 FROM bookings WHERE seats > 1 OR waitlist_seats > 0);"
-  "SELECT EXISTS (SELECT 1 FROM events WHERE join_mode = 'invite' AND status NOT IN ('cancelled', 'finished')) OR EXISTS (SELECT 1 FROM invite_links WHERE type = 'event_join' AND NOT is_revoked AND (expires_at IS NULL OR expires_at > now()) AND (max_uses IS NULL OR uses_count < max_uses));"
-  "SELECT EXISTS (SELECT 1 FROM waitlist_offers WHERE status = 'offered') OR EXISTS (SELECT 1 FROM events WHERE booking_opens_at > now() AND status IN ('draft', 'published', 'closed'));"
+  "SET search_path TO pg_catalog, public; SELECT EXISTS (SELECT 1 FROM events WHERE price_mode='split');"
+  "SET search_path TO pg_catalog, public; SELECT EXISTS (SELECT 1 FROM bookings WHERE seats > 1 OR waitlist_seats > 0);"
+  "SET search_path TO pg_catalog, public; SELECT EXISTS (SELECT 1 FROM events WHERE join_mode = 'invite' AND status NOT IN ('cancelled', 'finished')) OR EXISTS (SELECT 1 FROM invite_links WHERE type = 'event_join' AND NOT is_revoked AND (expires_at IS NULL OR expires_at > now()) AND (max_uses IS NULL OR uses_count < max_uses));"
+  "SET search_path TO pg_catalog, public; SELECT EXISTS (SELECT 1 FROM waitlist_offers WHERE status = 'offered') OR EXISTS (SELECT 1 FROM events WHERE booking_opens_at > now() AND status IN ('draft', 'published', 'closed'));"
 )
 
 image_identity() {
@@ -123,12 +124,14 @@ required_capabilities() {
   local index schema rows required=''
   for index in 0 1 2 3; do
     schema="$("${compose[@]}" exec -T postgres psql -U volley -d volleytime -v ON_ERROR_STOP=1 -Atc "${capability_schema[$index]}")" || return 2
+    schema="${schema#$'SET\n'}"
     case "$schema" in
       f) required+=0; continue ;;
       t) ;;
       *) return 2 ;;
     esac
     rows="$("${compose[@]}" exec -T postgres psql -U volley -d volleytime -v ON_ERROR_STOP=1 -Atc "${capability_rows[$index]}")" || return 2
+    rows="${rows#$'SET\n'}"
     case "$rows" in f) required+=0 ;; t) required+=1 ;; *) return 2 ;; esac
   done
   printf '%s' "$required"

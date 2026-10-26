@@ -242,11 +242,13 @@ export async function splitRollbackFixture() {
     if (args[0] === 'compose' && args.includes('psql')) {
       if (args.at(-1)?.includes('pg_stat_activity')) return [0, 't']
       if (queryError && containers.every((c) => !c.running)) return [1, '']
-      if (args.at(-1)?.includes('information_schema')) return [0, schema ? 't' : 'f']
+      // Like real psql without -q, a leading SET statement prints its command tag first.
+      const tag = args.at(-1)?.startsWith('SET ') ? 'SET\n' : ''
+      if (args.at(-1)?.includes('information_schema')) return [0, `${tag}${schema ? 't' : 'f'}`]
       if (writerAfterQuery && containers.every((c) => !c.running)) containers[2]!.running = true
       const capability = rollbackQueryCapability(args.at(-1)!)
       if (!capability) return [90, `Unclassified fake rollback query: ${args.at(-1)}`]
-      return [0, rows[capability] ? 't' : 'f']
+      return [0, `${tag}${rows[capability] ? 't' : 'f'}`]
     }
     return [90, `Unexpected fake Docker call: ${args.join(' ')}`]
   }
