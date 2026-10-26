@@ -7,10 +7,18 @@ import {
   monthOfInstant,
   type EventFilterKey,
 } from '~/utils/desktop-calendar'
+import { cancelConsequencesOf } from '~/utils/event-cancel'
+import {
+  chatLinkStateOf,
+  duplicateEventBody,
+  type ChatLinkState,
+  type RowAction,
+} from '~/utils/event-row'
 
 definePageMeta({ layout: 'desktop-org', middleware: ['auth'] })
 
 const route = useRoute()
+const toast = useToast()
 const orgId = computed(() => Number(route.params.orgId))
 const base = computed(() => `/app/orgs/${orgId.value}`)
 const { tz } = useOrgTimezone(orgId)
@@ -58,6 +66,120 @@ async function loadPage(offset: number) {
   } finally {
     if (token === generation) loading.value = false
   }
+}
+
+/** Сброс списка и загрузка первой страницы заново: после действия из меню строки. */
+function reloadList() {
+  generation++
+  events.value = []
+  loading.value = false
+  error.value = ''
+  hasMore.value = false
+  void loadPage(0)
+  if (view.value === 'calendar') void loadCalendar()
+}
+
+// Привязка чата группы нужна пункту меню «В чат группы» (20.3.4).
+const chat = ref<ChatLinkState>({ kind: 'unknown' })
+let chatGeneration = 0
+async function loadChat() {
+  const token = ++chatGeneration
+  const targetOrgId = orgId.value
+  chat.value = { kind: 'unknown' }
+  let next: ChatLinkState
+  try {
+    next = chatLinkStateOf(
+      await $fetch<{ link: { status: string; invalidReason?: string | null } | null }>(
+        `/api/organizations/${targetOrgId}/telegram-chat`,
+      ),
+    )
+  } catch {
+    next = chatLinkStateOf(null)
+  }
+  if (token === chatGeneration && orgId.value === targetOrgId) chat.value = next
+}
+
+// Действия меню строки (20.5.8): одно за раз, результат — тост; ответ чужой группы игнорируется.
+const busyId = ref<number | null>(null)
+const cancelTarget = ref<EventListItem | null>(null)
+const cancelOpen = ref(false)
+// состав в списке не загружен: общие последствия отмены без счёта по местам (D-09, D-13, D-14)
+const cancelLines = [
+  'Все записи, включая лист ожидания, будут отменены, игроки получат уведомление.',
+  ...cancelConsequencesOf(null).lines.slice(1),
+]
+
+async function runAction(
+  event: EventListItem,
+  work: (targetOrgId: number) => Promise<string>,
+  failure: string,
+) {
+  if (busyId.value !== null) return
+  const targetOrgId = orgId.value
+  busyId.value = event.id
+  try {
+    const message = await work(targetOrgId)
+    if (orgId.value === targetOrgId) toast.show(message)
+  } catch (cause) {
+    if (orgId.value === targetOrgId) toast.show(apiErrorMessage(cause, failure), 'danger')
+  } finally {
+    busyId.value = null
+  }
+}
+
+function onRowAction(action: RowAction, event: EventListItem) {
+  if (action === 'open') {
+    void navigateTo(`${base.value}/events/${event.id}`)
+  } else if (action === 'cancel') {
+    cancelTarget.value = event
+    cancelOpen.value = true
+  } else if (action === 'duplicate') {
+    void runAction(
+      event,
+      async (targetOrgId) => {
+        await $fetch(`/api/organizations/${targetOrgId}/events`, {
+          method: 'POST',
+          body: duplicateEventBody(event, tz.value),
+        })
+        if (orgId.value === targetOrgId) reloadList()
+        return 'Черновик копии создан: откройте его и опубликуйте'
+      },
+      'Не удалось дублировать событие',
+    )
+  } else {
+    void runAction(
+      event,
+      async (targetOrgId) => {
+        try {
+          await $fetch(`/api/organizations/${targetOrgId}/events/${event.id}/telegram-announce`, {
+            method: 'POST',
+          })
+        } catch (cause) {
+          // чат мог стать недействительным: обновляем подсказку пункта
+          if (orgId.value === targetOrgId) void loadChat()
+          throw cause
+        }
+        return 'Анонс отправлен в чат группы'
+      },
+      'Не удалось отправить анонс в чат',
+    )
+  }
+}
+
+function confirmCancel() {
+  const event = cancelTarget.value
+  if (!event) return
+  void runAction(
+    event,
+    async (targetOrgId) => {
+      await $fetch(`/api/organizations/${targetOrgId}/events/${event.id}/cancel`, {
+        method: 'POST',
+      })
+      if (orgId.value === targetOrgId) reloadList()
+      return `Событие «${event.title}» отменено`
+    },
+    'Не удалось отменить событие',
+  )
 }
 
 /** Календарь грузит выбранный месяц целиком (диапазон from/to), а не страницу списка. */
@@ -111,6 +233,7 @@ watch(
 watch(orgId, () => {
   calendarEvents.value = []
 })
+watch(orgId, loadChat, { immediate: true })
 // Сетка не очищается на время перезагрузки: старые данные остаются до прихода новых.
 watch(
   [orgId, filter, month, view],
@@ -168,7 +291,15 @@ onBeforeUnmount(() => {
             >
           </template>
         </EmptyState>
-        <DesktopEventTable v-else :events="events" :time-zone="tz" :base="base" />
+        <DesktopEventTable
+          v-else
+          :events="events"
+          :time-zone="tz"
+          :base="base"
+          :chat="chat"
+          :busy-id="busyId"
+          @action="onRowAction"
+        />
         <ErrorState
           v-if="error && events.length"
           :message="error"
@@ -185,5 +316,20 @@ onBeforeUnmount(() => {
         </button>
       </template>
     </template>
+
+    <VtAlert
+      v-model="cancelOpen"
+      wide
+      danger
+      :title="`Отменить событие${cancelTarget ? ` «${cancelTarget.title}»` : ''}?`"
+      confirm-label="Отменить событие"
+      cancel-label="Не отменять"
+      @confirm="confirmCancel"
+    >
+      <ul class="vt-desktop-event-detail__consequences">
+        <li v-for="line in cancelLines" :key="line">{{ line }}</li>
+      </ul>
+    </VtAlert>
+    <VtToast />
   </div>
 </template>

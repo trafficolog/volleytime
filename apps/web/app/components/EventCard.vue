@@ -28,6 +28,20 @@ export interface EventListItem {
    */
   priceQuote?: (EventPriceQuote & { currency?: string }) | null
   currency: string
+  /**
+   * Поля строки события для кабинета (20.5.8): денежные агрегаты приходят только управляющему;
+   * остальные — копия события для «Дублировать» (приходят как есть из строки события).
+   */
+  paymentTotals?: { paid: number; pending: number; currency: string }
+  splitShareQuote?: (EventPriceQuote & { currency?: string }) | null
+  type?: string
+  description?: string | null
+  venueId?: number | null
+  priceMode?: 'fixed' | 'split'
+  targetAmount?: number | null
+  level?: string | null
+  joinMode?: 'open' | 'invite'
+  closeBeforeMinutes?: number
   taken: number
   waitlist: number
   myBooking: {

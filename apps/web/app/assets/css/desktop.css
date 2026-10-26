@@ -668,6 +668,26 @@
   color: var(--vt-mute-2);
 }
 
+/* Колонка «Оплаты» (20.5.8): оплачено и «+ждёт оплаты» янтарём */
+.vt-desktop-table__paid {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.vt-desktop-table__pending {
+  margin-inline-start: 0.25rem;
+  font-size: var(--fs-2xs);
+  color: var(--vt-amber-ink);
+}
+
+/* Последняя колонка — меню строки ⋯ */
+.vt-desktop-table .vt-desktop-table__actions {
+  width: 1%;
+  padding-inline-start: 0;
+  text-align: end;
+}
+
 .vt-desktop-calendar {
   padding: clamp(1rem, 2vw, 1.5rem);
 }
