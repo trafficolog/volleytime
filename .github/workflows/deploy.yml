@@ -172,6 +172,11 @@ jobs:
           WEB_URL: ${{ secrets.WEB_URL }}
           BOT_MODE: ${{ vars.PRODUCTION_BOT_MODE }}
           EVENT_SPLIT_PRICING_ENABLED: ${{ vars.EVENT_SPLIT_PRICING_ENABLED }}
+          EVENT_BALANCE_ENFORCED: ${{ vars.EVENT_BALANCE_ENFORCED }}
+          EVENT_MULTI_SEAT_ENABLED: ${{ vars.EVENT_MULTI_SEAT_ENABLED }}
+          EVENT_INVITE_MODE_ENABLED: ${{ vars.EVENT_INVITE_MODE_ENABLED }}
+          SCHEDULER_ENABLED: ${{ vars.SCHEDULER_ENABLED }}
+          SCHEDULER_INTERVAL_MS: ${{ vars.SCHEDULER_INTERVAL_MS }}
           SENTRY_DSN_WEB: ${{ secrets.SENTRY_DSN_WEB }}
           SENTRY_DSN_BOT: ${{ secrets.SENTRY_DSN_BOT }}
           S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}

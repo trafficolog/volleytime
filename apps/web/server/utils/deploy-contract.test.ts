@@ -206,6 +206,105 @@ describe('fallback deployment contract', () => {
       )
     },
   )
+  // v0.2.0 release flags (20.7.1, items 5, 6, 7, 9): same exact-`true` contract as split pricing.
+  it.each(
+    [
+      'EVENT_BALANCE_ENFORCED',
+      'EVENT_MULTI_SEAT_ENABLED',
+      'EVENT_INVITE_MODE_ENABLED',
+      'SCHEDULER_ENABLED',
+    ].flatMap((key) =>
+      [undefined, '', 'false', 'TRUE', 'True', ' true', 'true ', '1', 'yes', 'true'].map(
+        (value) => [key, value] as const,
+      ),
+    ),
+  )('renders %s as true only for exact true: %j', (key, value) => {
+    const dir = mkdtempSync(join(tmpdir(), 'volleytime-release-flag-'))
+    dirs.push(dir)
+    const output = join(dir, '.env.production')
+    const env: NodeJS.ProcessEnv = { ...process.env, ...requiredEnv }
+    delete env[key]
+    if (value !== undefined) env[key] = value
+    const result = spawnSync(process.execPath, [rendererPath, output], { env, encoding: 'utf8' })
+    expect(result.status, result.stderr).toBe(0)
+    expect(readFileSync(output, 'utf8')).toContain(
+      `\n${key}="${value === 'true' ? 'true' : 'false'}"\n`,
+    )
+  })
+  it('renders every release flag false when no repository variable is set', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'volleytime-release-flags-off-'))
+    dirs.push(dir)
+    const output = join(dir, '.env.production')
+    const env: NodeJS.ProcessEnv = { ...process.env, ...requiredEnv }
+    for (const key of [
+      'EVENT_SPLIT_PRICING_ENABLED',
+      'EVENT_BALANCE_ENFORCED',
+      'EVENT_MULTI_SEAT_ENABLED',
+      'EVENT_INVITE_MODE_ENABLED',
+      'SCHEDULER_ENABLED',
+      'SCHEDULER_INTERVAL_MS',
+    ])
+      delete env[key]
+    const result = spawnSync(process.execPath, [rendererPath, output], { env, encoding: 'utf8' })
+    expect(result.status, result.stderr).toBe(0)
+    const rendered = readFileSync(output, 'utf8')
+    for (const key of [
+      'EVENT_SPLIT_PRICING_ENABLED',
+      'EVENT_BALANCE_ENFORCED',
+      'EVENT_MULTI_SEAT_ENABLED',
+      'EVENT_INVITE_MODE_ENABLED',
+      'SCHEDULER_ENABLED',
+    ])
+      expect(rendered).toContain(`\n${key}="false"\n`)
+    expect(rendered).toContain('\nSCHEDULER_INTERVAL_MS="15000"\n')
+  })
+  it.each([
+    [undefined, '15000'],
+    ['', '15000'],
+    ['1000', '1000'],
+    ['15000', '15000'],
+    ['60000', '60000'],
+  ] as const)('renders SCHEDULER_INTERVAL_MS %j as %s', (value, expected) => {
+    const dir = mkdtempSync(join(tmpdir(), 'volleytime-scheduler-interval-'))
+    dirs.push(dir)
+    const output = join(dir, '.env.production')
+    const env: NodeJS.ProcessEnv = { ...process.env, ...requiredEnv }
+    delete env.SCHEDULER_INTERVAL_MS
+    if (value !== undefined) env.SCHEDULER_INTERVAL_MS = value
+    const result = spawnSync(process.execPath, [rendererPath, output], { env, encoding: 'utf8' })
+    expect(result.status, result.stderr).toBe(0)
+    expect(readFileSync(output, 'utf8')).toContain(`\nSCHEDULER_INTERVAL_MS="${expected}"\n`)
+  })
+  it.each(['999', '60001', '0', '-1000', '15000.5', '1e4', ' 15000', '15s', 'abc'])(
+    'fails before writing for SCHEDULER_INTERVAL_MS outside 1–60 s: %j',
+    (value) => {
+      const dir = mkdtempSync(join(tmpdir(), 'volleytime-scheduler-interval-'))
+      dirs.push(dir)
+      const output = join(dir, '.env.production')
+      const result = spawnSync(process.execPath, [rendererPath, output], {
+        env: { ...process.env, ...requiredEnv, SCHEDULER_INTERVAL_MS: value },
+        encoding: 'utf8',
+      })
+      expect(result.status).not.toBe(0)
+      expect(result.stderr).toContain('SCHEDULER_INTERVAL_MS')
+      expect(existsSync(output)).toBe(false)
+    },
+  )
+  it('passes every release flag to the renderer only from nonsecret repository variables', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    for (const key of [
+      'EVENT_SPLIT_PRICING_ENABLED',
+      'EVENT_BALANCE_ENFORCED',
+      'EVENT_MULTI_SEAT_ENABLED',
+      'EVENT_INVITE_MODE_ENABLED',
+      'SCHEDULER_ENABLED',
+      'SCHEDULER_INTERVAL_MS',
+    ]) {
+      expect(workflow).toContain(`          ${key}: \${{ vars.${key} }}\n`)
+      expect(workflow).not.toContain(`secrets.${key}`)
+      expect(workflow.split(`${key}:`)).toHaveLength(2)
+    }
+  })
   it('rejects production deployment from every ref except prod', () => {
     const runGuard = (ref: string) =>
       spawnSync(process.execPath, [productionSourceGuardPath], {

@@ -23,7 +23,11 @@ RUN pnpm --filter @volley-time/web build
 
 # ---- Runtime ----
 FROM node:22-alpine AS runtime
+# Rollback capability labels (deploy runbook, «Exact application rollback»; 20.7.1)
 LABEL org.volleytime.event-split-pricing="1"
+LABEL org.volleytime.event-multi-seat="1"
+LABEL org.volleytime.event-invite-mode="1"
+LABEL org.volleytime.event-scheduler="1"
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
