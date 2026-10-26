@@ -202,6 +202,39 @@ describe('v0.2.0 capability labels and data guard (20.7.1)', { timeout: 35_000 }
       }
     },
   )
+  it('every schema and data guard query pins search_path before reading (review of PR #183)', async () => {
+    const f = await splitRollbackFixture()
+    try {
+      const result = await f.run()
+      expect(result.status, result.stderr).toBe(0)
+      const guardQueries = f.calls
+        .filter((args) => args.includes('psql') && !args.at(-1)?.includes('pg_stat_activity'))
+        .map((args) => args.at(-1)!)
+      // preflight and authoritative pass, each four schema probes and four data predicates
+      expect(guardQueries).toHaveLength(16)
+      for (const query of guardQueries)
+        expect(query.startsWith('SET search_path TO pg_catalog, public; '), query).toBe(true)
+    } finally {
+      await f.close()
+    }
+  })
+  it.each([
+    ['a second command tag', 'SET\nSET\nf'],
+    ['a stray line before the SET tag', 'x\nSET\nf'],
+    ['a bare SET tag without an answer', 'SET'],
+  ])('a guard answer with %s fails closed before any writer stops', async (_name, output) => {
+    const f = await splitRollbackFixture()
+    try {
+      f.hook = async (args) =>
+        args.at(-1)?.includes("column_name='join_mode'") ? output : undefined
+      const result = await f.run()
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('preflight query failed')
+      expect(f.calls.some((c) => c[0] === 'stop')).toBe(false)
+    } finally {
+      await f.close()
+    }
+  })
   it('recovery restarts a captured writer without a capability when no such data exists', async () => {
     const f = await splitRollbackFixture()
     try {
