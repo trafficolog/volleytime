@@ -2,11 +2,11 @@
 id: '20.7.1'
 phase: '20'
 epic: '20.7'
-status: in_progress
+status: done
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-26
-status_note: 'Часть A (репозиторий, без выкладки): флаги п. 5–7, 9 проведены в render-production-env и deploy.yml (решение владельца 2026-10-26), capability-labels образов, quiescent-guard отката расширен предикатами мест, приглашений и планировщика, разделы deploy runbook (п. 5–9, 11). Владелец 2026-10-26 одобрил diff deploy.yml и схему отката (данные мест/приглашений/планировщика → откат на v0.1.7 запрещён, только roll-forward; флаги по одному, отдельным релизным коммитом через Promote с подтверждением владельца). Часть B (2026-10-26, без выкладки): пять gates на main f4c6c81 (Windows-only 14 падений deploy-image-bundle-contract, tar; CI 40337580088 на том же SHA зелёный); сводная сверка 19.0.2 по 49 экранам, обе темы — Critical/Important нет, новые Minor записаны (docs/operations/qa/2026-10-26-20-7-1-release-visual.md); п. 10 и локальная часть п. 13 сняты; п. 8 и 11 — прежний runtime b056806 на схеме 0031 локально читает, правит и отменяет даты серии и работает при пустых и заполненных таблицах привязки чата; п. 9 — флаг выключен локально (цикл не стартует, 409 event.scheduler_disabled). Guard отката: каждый запрос закрепляет search_path (pg_catalog, public). Чеклист владельца: docs/operations/qa/2026-10-26-20-7-1-owner-checklist.md. Открыто: Telegram QA на устройствах (п. 2, 11, 13), Promote с backup/smoke/проверкой отката и проверки на кандидате (п. 3, 8, 9, 11), тег и записи (п. 4), включение флагов по одному. Для владельца: флаг Login Widget (20.5.1) `TELEGRAM_LOGIN_WIDGET_ENABLED` проведён в render-production-env и deploy.yml (решение 2026-10-26, выключен), `/setdomain` выполнен, включение — шагом 5 раздела 6 чеклиста; код привязки чата в v0.2.0 выдаётся только через API (UI — 21.2.15).'
+last_reviewed: 2026-10-27
+status_note: 'Выпущено и принято владельцем 2026-10-27. PR #183 (проводка флагов, quiescent-guard), #184 (QA релиза, чеклист владельца), #185 (проводка флага виджета входа, после релизного SHA). Тег v0.2.0 (аннотированный) на 6143f4256b9da555a90249aeb7de2ccac022521e; main CI 40349167990 all4 success; Promote 40355567669 отказал (workflows в диапазоне, PROMOTE_TOKEN не задан) — ручной git push origin 6143f42:prod 2026-10-26, подтверждён владельцем; Deploy 40355995553 success (миграции 0021–0031, smoke-passed, health release=6143f42). Приёмка владельца: «есть небольшие огрехи, но исправим их позже»; огрехи не перечислены, будут отдельными задачами. Флаги выключены, кроме EVENT_SPLIT_PRICING_ENABLED. Хвосты — в разделе «Follow-up (после выпуска)». Evidence: docs/operations/qa/2026-10-27-v0-2-0-production-release.md; ранее: docs/operations/qa/2026-10-26-20-7-1-release-visual.md, docs/operations/qa/2026-10-26-20-7-1-owner-checklist.md.'
 ref_id: ''
 complexity: L
 impl_model: claude-opus-5-5
@@ -113,6 +113,16 @@ tags: [reference-v3]
 - ✅ Production health = release SHA
 - ✅ Пять gates CODING_STANDARDS на tested revision; ревью `claude-opus-5-5` без Critical/Important
 - ✅ RED→GREEN тесты на граничные случаи, деньги/доступ и конкурентность приложены к PR
+
+## Follow-up (после выпуска)
+
+Релиз принят 2026-10-27; ниже то, что не блокирует закрытие и остаётся за владельцем и новыми задачами. Evidence: [выпуск в production](../operations/qa/2026-10-27-v0-2-0-production-release.md).
+
+- **Флаги** (раздел 6 [чеклиста владельца](../operations/qa/2026-10-26-20-7-1-owner-checklist.md)): `EVENT_BALANCE_ENFORCED`, `EVENT_MULTI_SEAT_ENABLED`, `EVENT_INVITE_MODE_ENABLED`, `SCHEDULER_ENABLED` и `TELEGRAM_LOGIN_WIDGET_ENABLED` включаются по одному, каждый отдельным релизным коммитом на `main` с подтверждением владельца; переменная задаётся непосредственно перед Promote. `TELEGRAM_LOGIN_WIDGET_ENABLED` уже в `main` (PR #185) и придёт в production со следующим релизным коммитом.
+- **Огрехи владельца:** владелец принял релиз, указав на небольшие огрехи («исправим их позже»). Конкретные дефекты не перечислены; каждый оформляется отдельной задачей по получении списка.
+- **Root admin для reconcile баланса:** в production нет ни одного активного root admin (`SELECT email FROM users WHERE is_root_admin AND is_active` — 0 строк). Пока его нет, нельзя выполнить `pnpm db:event-balance reconcile --operator <root email>` и включить `EVENT_BALANCE_ENFORCED`. Открытый пункт владельца.
+- **Проверки на устройствах без отчёта владельца:** владелец принял релиз на устройстве (см. 20.4.1), но отдельно не сообщал о результатах п. 2, 11 и 13 (привязка чата и анонс, MainButton, бот на устройстве, `showConfirm` отмены, плитка «в ожидании · N места», подпись отмены по абонементу, живая отправка «В чат группы» и др.). Эти пункты не считаются подтверждёнными; нужные проверяются отдельно или войдут в задачи по огрехам.
+- **Секрет `PROMOTE_TOKEN`:** не задан, Promote с изменениями workflows отказывает; такие релизы идут ручным `git push origin <SHA>:prod` по runbook.
 
 ## Подсказки
 
