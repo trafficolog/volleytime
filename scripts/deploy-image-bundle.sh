@@ -5,12 +5,17 @@ umask 077
 fail() { echo "image-bundle: $*; manual recovery checkpoint" >&2; exit 1; }
 valid_sha() { [[ "$1" =~ ^[0-9a-f]{40}$ ]]; }
 
-[ "$#" -ge 2 ] || fail "usage: deploy-image-bundle.sh deploy STAGING_DIR FULL_SHA | rollback FULL_SHA | confirm-smoke FULL_SHA"
+[ "$#" -ge 2 ] || fail "usage: deploy-image-bundle.sh deploy STAGING_DIR FULL_SHA | rollback FULL_SHA | confirm-smoke FULL_SHA | prune-retained FULL_SHA [--dry-run]"
 mode="$1"
+dry_run=no
 case "$mode" in
   deploy) [ "$#" -eq 3 ] || fail "deploy needs staging directory and full SHA"; staging="$2"; wanted="$3" ;;
   rollback) [ "$#" -eq 2 ] || fail "rollback needs full SHA"; wanted="$2" ;;
   confirm-smoke) [ "$#" -eq 2 ] || fail "confirm-smoke needs full SHA"; wanted="$2" ;;
+  prune-retained)
+    { [ "$#" -eq 2 ] || { [ "$#" -eq 3 ] && [ "$3" = --dry-run ]; }; } || fail "prune-retained needs full SHA and optional --dry-run"
+    wanted="$2"
+    [ "$#" -eq 2 ] || dry_run=yes ;;
   *) fail "unknown mode" ;;
 esac
 valid_sha "$wanted" || fail "release SHA must be full lowercase SHA"
@@ -20,7 +25,11 @@ cd "$root"
 [ -f .env ] && [ -f docker-compose.prod.yml ] || fail "production env or Compose file is missing"
 [ -d .deploy ] || install -d -m 700 .deploy
 exec 9>.deploy/image-bundle.lock
-flock -n 9 || fail "another activation holds the lock"
+if ! flock -n 9; then
+  # Retention runs after a successful release; it never fails the deploy.
+  [ "$mode" != prune-retained ] || { echo 'image-bundle prune: warning: another activation holds the lock; nothing removed' >&2; exit 0; }
+  fail "another activation holds the lock"
+fi
 
 phase_file=.deploy/image-bundle-phase
 manifest=.env.images
@@ -284,6 +293,161 @@ rollback_to_previous() {
   mark rolled-back
 }
 
+# --- Planned release retention (Task 9.8.18) ---------------------------------
+# Successful releases, oldest first; appended only by confirm-smoke.
+release_history=.deploy/release-history
+retain_pins=.deploy/retain-pins
+retain_count_file=.deploy/retain-releases
+release_image_re='^volleytime-(web|bot|migrator):([0-9a-f]{40})$'
+
+record_release_history() {
+  local temp
+  if [ -f "$release_history" ] && grep -qxF "$wanted" "$release_history"; then return 0; fi
+  temp="$(mktemp .deploy/.release-history.XXXXXX)" || return 1
+  # awk 1 restores a missing final newline of a hand-seeded file.
+  if { if [ -f "$release_history" ]; then awk 1 "$release_history"; fi; printf '%s\n' "$wanted"; } > "$temp" &&
+    chmod 600 "$temp" && mv -f "$temp" "$release_history"; then
+    return 0
+  fi
+  rm -f -- "$temp"
+  return 1
+}
+
+prune_log() { echo "image-bundle prune: $*"; }
+prune_skip() { echo "image-bundle prune: warning: $*; nothing removed" >&2; }
+
+report_free_space() {
+  local label="$1" path docker_root
+  docker_root="$(docker info --format '{{.DockerRootDir}}' 2>/dev/null || true)"
+  for path in "$root" "$docker_root"; do
+    [ -n "$path" ] && [ -d "$path" ] || continue
+    df -Pk "$path" 2>/dev/null | awk -v label="$label" -v path="$path" \
+      'NR == 2 { printf "image-bundle prune: free %s: %s %s KiB available of %s KiB\n", label, path, $4, $2 }' || true
+  done
+}
+
+# Prints the keep set as "SHA reason" lines (one per reason) or fails closed.
+retained_releases() {
+  local phase="" phase_sha="" current previous count line sha entry snapshot
+  local -a history=()
+  if [ -f "$phase_file" ]; then read -r phase phase_sha < "$phase_file" || true; fi
+  [ "$phase $phase_sha" = "smoke-passed $wanted" ] || { prune_skip "phase is not smoke-passed $wanted"; return 1; }
+  current="$(read_manifest_sha "$manifest" || true)"
+  [ "$current" = "$wanted" ] && [ "$(git rev-parse HEAD 2>/dev/null || true)" = "$wanted" ] ||
+    { prune_skip "current release cannot be determined from manifest and checkout"; return 1; }
+  [ "$(inspect_runtime web 2>/dev/null || true)" = "$wanted" ] && [ "$(inspect_runtime bot 2>/dev/null || true)" = "$wanted" ] ||
+    { prune_skip "live web/bot do not run the current release"; return 1; }
+  previous="$(cat "$previous_pointer" 2>/dev/null || true)"
+  valid_sha "$previous" && [ "$(read_manifest_sha "$previous_manifest" || true)" = "$previous" ] ||
+    { prune_skip "previous release cannot be determined from pointer and manifest"; return 1; }
+  count=3
+  if [ -f "$retain_count_file" ]; then count="$(tr -d '[:space:]' < "$retain_count_file")"; fi
+  [[ "$count" =~ ^[1-9][0-9]?$ ]] || { prune_skip "$retain_count_file must hold a release count 1-99"; return 1; }
+  if [ -f "$release_history" ]; then
+    while IFS= read -r line || [ -n "$line" ]; do
+      [ -n "$line" ] || continue
+      valid_sha "$line" || { prune_skip "$release_history has a malformed line"; return 1; }
+      history+=("$line")
+    done < "$release_history"
+  fi
+  [ "${#history[@]}" -ge "$count" ] ||
+    { prune_skip "$release_history records ${#history[@]} of $count successful releases"; return 1; }
+  printf '%s current\n%s previous\n' "$wanted" "$previous"
+  for entry in "${history[@]: -$count}"; do printf '%s recent\n' "$entry"; done
+  if [ -f "$retain_pins" ]; then
+    while IFS= read -r line || [ -n "$line" ]; do
+      line="${line%%#*}"
+      read -r sha entry <<< "$line" || true
+      [ -n "$sha" ] || continue
+      valid_sha "$sha" && [ -z "$entry" ] || { prune_skip "$retain_pins must list one full SHA per line"; return 1; }
+      printf '%s pinned\n' "$sha"
+    done < "$retain_pins"
+  fi
+  for snapshot in .deploy/.split-recovery.*; do
+    [ -d "$snapshot" ] || continue
+    if [ -f "$snapshot/manifest" ]; then
+      sha="$(read_manifest_sha "$snapshot/manifest")" || { prune_skip "recovery snapshot $snapshot has an unreadable manifest"; return 1; }
+      printf '%s recovery\n' "$sha"
+    fi
+    if [ -f "$snapshot/git-sha" ]; then
+      sha="$(tr -d '[:space:]' < "$snapshot/git-sha")"
+      valid_sha "$sha" || { prune_skip "recovery snapshot $snapshot has an invalid Git SHA"; return 1; }
+      printf '%s recovery\n' "$sha"
+    fi
+  done
+  # Any container, running or stopped, pins its whole release.
+  local containers
+  containers="$(docker container ls --all --format '{{.Image}}')" || { prune_skip "cannot list containers"; return 1; }
+  while IFS= read -r line; do
+    if [[ "$line" =~ $release_image_re ]]; then printf '%s in-use\n' "${BASH_REMATCH[2]}"; fi
+  done <<< "$containers"
+}
+
+prune_retained() {
+  local keep_lines images line sha ref dir removed_images=0 removed_dirs=0 failures=0
+  local -A keep=() failed=()
+  local -a order=() remove_refs=() remove_dirs=()
+  report_free_space before
+  keep_lines="$(retained_releases)" || return 0
+  while read -r sha line; do
+    if [ -z "${keep[$sha]:-}" ]; then order+=("$sha"); keep[$sha]="$line"
+    else case ",${keep[$sha]}," in *",$line,"*) ;; *) keep[$sha]="${keep[$sha]},$line" ;; esac; fi
+  done <<< "$keep_lines"
+  for sha in "${order[@]}"; do prune_log "keep $sha (${keep[$sha]})"; done
+  images="$(docker image ls --format '{{.Repository}}:{{.Tag}}')" || { prune_skip "cannot list images"; return 0; }
+  # Only exact SHA tags of our three services that are older releases on prod.
+  while IFS= read -r ref; do
+    [[ "$ref" =~ $release_image_re ]] || continue
+    sha="${BASH_REMATCH[2]}"
+    [ -z "${keep[$sha]:-}" ] || continue
+    if [ "$sha" != "$wanted" ] && git merge-base --is-ancestor "$sha" "$wanted" 2>/dev/null; then
+      remove_refs+=("$ref")
+    else
+      prune_log "leave $ref (not an older release of prod)"
+    fi
+  done <<< "$images"
+  for dir in .deploy/incoming/*; do
+    sha="${dir##*/}"
+    valid_sha "$sha" && [ -d "$dir" ] && [ ! -L "$dir" ] || continue
+    [ -z "${keep[$sha]:-}" ] || continue
+    if [ "$sha" != "$wanted" ] && git merge-base --is-ancestor "$sha" "$wanted" 2>/dev/null; then
+      remove_dirs+=("$dir")
+    else
+      prune_log "leave staging $dir (not an older release of prod)"
+    fi
+  done
+  for ref in "${remove_refs[@]}"; do
+    if [ "$dry_run" = yes ]; then prune_log "would remove image $ref"; continue; fi
+    # No -f: Docker itself refuses to untag an image that a container uses.
+    if docker image rm "$ref" >/dev/null; then
+      removed_images=$((removed_images + 1)); prune_log "removed image $ref"
+    else
+      failures=$((failures + 1)); failed[${ref##*:}]=1
+      echo "image-bundle prune: warning: failed to remove image $ref; its release staging is kept" >&2
+    fi
+  done
+  for dir in "${remove_dirs[@]}"; do
+    if [ "$dry_run" = yes ]; then prune_log "would remove staging $dir"; continue; fi
+    [ -z "${failed[${dir##*/}]:-}" ] || { prune_log "keep staging $dir (image removal failed)"; continue; }
+    if rm -rf -- "$dir"; then
+      removed_dirs=$((removed_dirs + 1)); prune_log "removed staging $dir"
+    else
+      failures=$((failures + 1)); echo "image-bundle prune: warning: failed to remove staging $dir" >&2
+    fi
+  done
+  report_free_space after
+  if [ "$dry_run" = yes ]; then
+    prune_log "dry run: ${#remove_refs[@]} images and ${#remove_dirs[@]} staging directories would be removed"
+  else
+    prune_log "removed $removed_images images, $removed_dirs staging directories, $failures failures"
+  fi
+}
+
+if [ "$mode" = prune-retained ]; then
+  prune_retained || echo 'image-bundle prune: warning: retention stopped early' >&2
+  exit 0
+fi
+
 if [ "$mode" = rollback ]; then
   [ -f "$phase_file" ] || fail "activation phase is unknown"
   read -r phase phase_sha < "$phase_file"
@@ -304,6 +468,7 @@ if [ "$mode" = confirm-smoke ]; then
   [ "$(read_manifest_sha "$manifest" || true)" = "$wanted" ] || fail "manifest does not match synthetic smoke SHA"
   check_health "$wanted" || operation_failed "$?" "runtime no longer matches synthetic smoke SHA"
   mark smoke-passed
+  record_release_history || echo "image-bundle: warning: $release_history was not updated" >&2
   exit 0
 fi
 

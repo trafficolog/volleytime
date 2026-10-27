@@ -1,0 +1,57 @@
+name: VPS disk monitor
+
+# Task 9.8.18: read-only free-space check of the production VPS. A low disk or
+# an unreachable VPS fails the run, so GitHub notifies the owner about the
+# failed scheduled workflow. A Telegram alert through the existing bot is sent
+# only when the repository variable OPS_ALERT_TELEGRAM_CHAT_ID is set.
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vps-disk-monitor
+  cancel-in-progress: false
+
+jobs:
+  disk:
+    name: Check VPS free disk space
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read VPS disk usage
+        id: vps_disk
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: deploy
+          key: ${{ secrets.VPS_SSH_KEY }}
+          timeout: 2m
+          command_timeout: 1m
+          capture_stdout: true
+          script: |
+            df -Pk /opt/volleytime
+            df -Pk "$(docker info --format '{{.DockerRootDir}}')" || true
+
+      - name: Evaluate free space
+        env:
+          DF_OUTPUT: ${{ steps.vps_disk.outputs.stdout }}
+        run: printf '%s\n' "$DF_OUTPUT" | bash scripts/disk-status.sh --fail-on-low
+
+      - name: Alert owner in Telegram
+        if: ${{ failure() && vars.OPS_ALERT_TELEGRAM_CHAT_ID != '' }}
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ vars.OPS_ALERT_TELEGRAM_CHAT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 20 --output /dev/null \
+            --data-urlencode "chat_id=${CHAT_ID}" \
+            --data-urlencode "text=Volley Time: проверка свободного места на VPS не прошла (мало места или VPS недоступен). ${RUN_URL}" \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage"

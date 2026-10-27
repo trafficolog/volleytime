@@ -66,7 +66,7 @@ The `prod` update must be a reviewed fast-forward from the selected `main` revis
 
 Before the fast-forward, require the **Runner image build-export-import** CI job to succeed for both the reviewed PR head and the exact selected `main` SHA. This job builds all three images, exports their real Docker archive, verifies/imports it and records disk/memory/image-store capacity in the job log and summary, without deployment secrets, VPS access or publication. A PR run alone does not validate a new merge SHA. Inspect the exact SHA and successful job conclusion; pending, cancelled, missing or failed results block promotion. Record the CI run URL and capacity evidence with the release. This promotion gate is an operator requirement; the deploy workflow does not query prior main CI or configure branch protection.
 
-The runner uses a 12 GiB initial build floor and a separate measured archive/import reserve after packaging. If either capacity gate or the real build/export/import fails, retain the measured evidence and stop for redesign. Do not prune runner/VPS images to make a failing capacity gate pass. Local tests and local application builds do not substitute for this runner evidence; avoid local Docker export on the capacity-constrained Windows C: drive.
+The runner uses a 12 GiB initial build floor and a separate measured archive/import reserve after packaging. If either capacity gate or the real build/export/import fails, retain the measured evidence and stop for redesign. Blind pruning to make a failing capacity gate pass is forbidden: no `docker system prune`, `docker image prune` or forced image removal on the runner or the VPS. The planned [release retention](#release-retention-and-disk-monitoring-task-9818), which always keeps the rollback targets, is the only automatic VPS cleanup. Local tests and local application builds do not substitute for this runner evidence; avoid local Docker export on the capacity-constrained Windows C: drive.
 
 ### Promote workflow (default path, Task 9.8.17)
 
@@ -93,7 +93,7 @@ Set `PRODUCTION_BOT_MODE=webhook` only after a packet capture proves Telegram IP
 
 ## Path A — image-bundle (new workflow default)
 
-Before promotion, rerun the five repository gates with PostgreSQL, focused deployment contracts, shell/YAML checks and independent review. Before controlled deployment, recheck all three SSH keys, VPS health, disk capacity, old image availability, backup/manifest/pointer identity and absence of a running deployment. Historical free-space and health snapshots are not current evidence. If capacity fails, stop without Docker prune.
+Before promotion, rerun the five repository gates with PostgreSQL, focused deployment contracts, shell/YAML checks and independent review. Before controlled deployment, recheck all three SSH keys, VPS health, disk capacity, old image availability, backup/manifest/pointer identity and absence of a running deployment. Historical free-space and health snapshots are not current evidence. If capacity fails, stop without blind Docker pruning; free space only through the [retention policy](#release-retention-and-disk-monitoring-task-9818) (dry run first).
 
 A push to `prod`, or manual `deployment_mode=image-bundle` on `prod`, follows these stages:
 
@@ -113,6 +113,47 @@ bash .deploy/incoming/FULL_SHA/scripts/deploy-image-bundle.sh deploy .deploy/inc
 ```
 
 Transfer and activation each have a 30-minute command timeout (35-minute step bound), with separate 2-minute SSH connection bounds. External synthetic smoke has a five-minute timeout plus a 15-second prewait. A timeout or disconnected runner does not prove the remote process stopped.
+
+## Release retention and disk monitoring (Task 9.8.18)
+
+Every image-bundle release leaves three images (`volleytime-web|bot|migrator:FULL_SHA`, about 1.3–2 GB together) and its staging `.deploy/incoming/FULL_SHA` (about 240 MB). On 2026-10-27 the 28 GB disk reached 93% after three deploys in a row; the manual cleanup kept current, previous, `v0.2.0` (`6143f42`) and `v0.1.7` (`b056806`).
+
+**Policy.** After **Confirm synthetic smoke**, Deploy runs `deploy-image-bundle.sh prune-retained FULL_SHA` in its own step (**Prune retained releases over SSH**, `continue-on-error`, 10-minute bound). It takes `.deploy/image-bundle.lock` and acts only when the phase is `smoke-passed FULL_SHA`. The keep set is:
+
+- the current release: `.env.images`, checkout HEAD and live healthy web/bot all equal FULL_SHA;
+- the previous release: `.deploy/previous-git-sha` equal to `.env.images.previous` (the rollback target);
+- the N most recent successful releases from `.deploy/release-history` (N from `.deploy/retain-releases`, default 3, allowed 1–99);
+- pins from `.deploy/retain-pins`: one full 40-character SHA per line, `#` starts a comment (the VPS checkout has no tags, so pin a release tag by its SHA);
+- every release whose image any container uses (running or stopped) and every release named in a `.deploy/.split-recovery.*` snapshot.
+
+Only `volleytime-(web|bot|migrator):<SHA>` tags and `.deploy/incoming/<SHA>` directories outside the keep set whose SHA is an older ancestor of the current release are removed, with `docker image rm` (no `-f`). PostgreSQL, Caddy, GHCR images, `:latest`, untagged images, unknown SHAs, `ghcr-*` staging, backups, `.deploy/previous-env-*`, manifests and pointers are never touched; there is no `docker system prune` or `docker image prune`. If an image cannot be removed, its staging stays. The log lists the keep set with reasons, every removal and the free space before and after.
+
+**Fail-safe.** An unknown or unfinished phase, a disagreement between manifest, checkout and live runtime, a missing or mismatched previous pointer, a malformed history, pin file or N, a history shorter than N, a Docker listing failure or a held lock removes nothing: the step prints `image-bundle prune: warning: …; nothing removed` and exits 0. The deploy is already successful; retention never changes that.
+
+**History.** `confirm-smoke` appends the confirmed SHA to `.deploy/release-history` (mode 0600, no duplicates). Until the history holds N releases, retention removes nothing. To start immediately after the first rollout of this task, seed it once with the known successful releases, oldest first, and pin the release tags:
+
+```bash
+cd /opt/volleytime
+# successful releases only, oldest first; each must be a commit of the checkout
+for sha in FULL_SHA_OLDEST FULL_SHA_NEXT; do git cat-file -e "$sha^{commit}" && printf '%s\n' "$sha"; done >> .deploy/release-history
+printf '%s # %s\n' 6143f4256b9da555a90249aeb7de2ccac022521e v0.2.0 >> .deploy/retain-pins
+chmod 600 .deploy/release-history .deploy/retain-pins
+```
+
+Add the `v0.1.7` pin (`b056806`) by its full SHA only while the application rollback to it is still allowed (see [v0.2.0 rollback guard](#v020-release-flags-and-rollback-guard-task-2071)); remove a pin by deleting its line.
+
+**Manual cleanup.** Use the helper of the current release, always with a dry run first, and record the output:
+
+```bash
+cd /opt/volleytime
+current="$(sed -n 's/^RELEASE_VERSION=//p' .env.images)"
+bash ".deploy/incoming/$current/scripts/deploy-image-bundle.sh" prune-retained "$current" --dry-run
+bash ".deploy/incoming/$current/scripts/deploy-image-bundle.sh" prune-retained "$current"
+```
+
+The VPS does not build in the image-bundle path, so build cache appears only after a manual build; clean it then with `docker builder prune` after the dry-run review. Anything outside the policy (old GHCR or `:latest` images, `ghcr-*` staging) is removed only by a reviewed manual decision with the owner's approval.
+
+**Monitoring.** Deploy reads `df -Pk` on the VPS at the end of every run (**Read VPS disk usage**, read-only) and writes a table to the job summary (**Report VPS disk in job summary**, `scripts/disk-status.sh`); below 25% or 5 GiB free it adds a `::warning::` annotation. The scheduled workflow `vps-disk-monitor.yml` runs the same read-only check every 6 hours (and on `workflow_dispatch`) with the existing `VPS_HOST`/`VPS_SSH_KEY`, outside the `production` environment. Low space or an unreachable VPS fails the run, and GitHub notifies about the failed scheduled workflow. If the repository variable `OPS_ALERT_TELEGRAM_CHAT_ID` holds the owner's Telegram chat id, the run also sends an alert through the existing bot (`TELEGRAM_BOT_TOKEN`); the owner must have started the bot. On a warning: read the prune step log, check the keep set, then run the manual dry run above.
 
 ## Partial state and manual recovery checkpoint
 
