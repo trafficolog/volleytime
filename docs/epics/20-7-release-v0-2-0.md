@@ -1,11 +1,11 @@
 ---
 id: '20.7'
 phase: '20'
-status: todo
+status: done
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-10-27
+status_note: 'Все карточки эпика done; релиз [v0.2.0](../RELEASES.md#v020--reference-mvp-запись-и-ядро) выложен 2026-10-26, тег и приёмка владельца 2026-10-27 ([выпуск в production](../operations/qa/2026-10-27-v0-2-0-production-release.md)). Не блокирующие хвосты (флаги, огрехи владельца, проверки на устройствах, проверка отката, PROMOTE_TOKEN) — в разделе [20.7.1](../tasks/20-7-1-release-v0-2-0-qa.md#follow-up-после-выпуска).'
 estimated_hours: '8-16'
 depends_on:
   [

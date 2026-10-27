@@ -1,10 +1,10 @@
 ---
 id: '20'
-status: todo
+status: done
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: 'Референс v3 Ф1. 30 задач.'
+last_reviewed: 2026-10-27
+status_note: 'Референс v3 Ф1. 30 задач, все done; релиз [v0.2.0](../RELEASES.md#v020--reference-mvp-запись-и-ядро) выложен 2026-10-26, тег и приёмка 2026-10-27 ([выпуск в production](../operations/qa/2026-10-27-v0-2-0-production-release.md)). Не блокируют закрытие, см. [20.7.1](../tasks/20-7-1-release-v0-2-0-qa.md#follow-up-после-выпуска): включение флагов по одному (режим по приглашению, планировщик, виджет входа), огрехи владельца (список ожидается), проверки на устройствах без отчёта, проверка отката не исполнялась, PROMOTE_TOKEN не задан.'
 estimated_hours: '208-416'
 depends_on: []
 ---

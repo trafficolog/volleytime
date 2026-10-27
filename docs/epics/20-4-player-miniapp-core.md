@@ -1,11 +1,11 @@
 ---
 id: '20.4'
 phase: '20'
-status: todo
+status: done
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-10-27
+status_note: 'Все карточки эпика done; выпущено в [v0.2.0](../RELEASES.md#v020--reference-mvp-запись-и-ядро) (production 2026-10-26, тег и приёмка 2026-10-27).'
 estimated_hours: '48-96'
 depends_on:
   [

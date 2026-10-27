@@ -1,10 +1,10 @@
 ---
 id: '19'
-status: in_progress
+status: done
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: 'Референс v3 Ф0. 11 задач.'
+last_reviewed: 2026-10-27
+status_note: 'Референс v3 Ф0. 11 задач, все done; выпущено в [v0.2.0](../RELEASES.md#v020--reference-mvp-запись-и-ядро) (2026-10-26, тег и приёмка 2026-10-27).'
 estimated_hours: '66-132'
 depends_on: []
 ---
