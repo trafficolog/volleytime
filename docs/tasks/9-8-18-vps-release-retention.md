@@ -2,11 +2,11 @@
 id: '9.8.18'
 phase: '9'
 epic: '9.8'
-status: in_progress
+status: done
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-10-27
-status_note: 'PR #189 смержен (ревью Opus merge, CI green, diff workflows одобрен владельцем 2026-10-27); доработки по ревью — follow-up PR. Открыто: наблюдение prune на VPS после первой выкладки, посев истории и пинов.'
+status_note: 'PR #189 смержен (ревью Opus merge, CI green, diff workflows одобрен владельцем 2026-10-27); доработки по ревью — PR #190. Первая выкладка с ретенцией (Deploy 40506386690, e56fee2) наблюдалась 2026-10-27: шаги prune и диска успешны, история и пины засеяны, dry-run ничего не удаляет. Evidence: docs/operations/qa/2026-10-27-flag-rollout-balance-multiseat.md. Остаётся follow-up про закрепление appleboy-действий.'
 roles: [DEVOPS]
 depends_on: ['9.8.10', '9.8.17']
 complexity: L
@@ -71,7 +71,7 @@ tags: [ci, cd, deploy, vps, disk, retention, monitoring]
 - ✅ Пять gates, deploy contract tests, `bash -n`, shellcheck (если доступен), YAML валиден.
 - ✅ Владелец подтвердил diff `.github/workflows` в PR #189 (2026-10-27).
 - ✅ Релизы из `.deploy/ghcr-old-manifest-*` входят в keep set; нечитаемый снимок — ничего не удаляется (follow-up ревью, Minor 1).
-- ⬜ Первая выкладка после merge: шаг ретенции и summary диска наблюдались на VPS, история `.deploy/release-history` и пины `.deploy/retain-pins` засеяны по runbook, evidence в `docs/operations/qa/`.
+- ✅ Первая выкладка после merge: шаг ретенции и summary диска наблюдались на VPS ([Deploy 40506386690](https://github.com/trafficolog/volleytime/actions/runs/40506386690), `e56fee2`), история `.deploy/release-history` (`a10bdf1`, `0ef4841`, `e56fee2`) и пины `.deploy/retain-pins` (`6143f42`, `b056806`) засеяны, `prune-retained --dry-run` ничего не удаляет. Evidence: [флаги баланса и нескольких мест](../operations/qa/2026-10-27-flag-rollout-balance-multiseat.md).
 
 ## Решения владельца 2026-10-27
 
