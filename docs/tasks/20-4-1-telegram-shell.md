@@ -6,7 +6,7 @@ status: done
 release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-15
-status_note: 'Реализовано, ревью ожидается: плагин telegram-shell (тема, safe area, BackButton с историей и закрытием листа), MainButton на создании группы, haptics; полноэкранный режим не включается (решение владельца 2026-10-15: expand + insets), Back скрыта на корнях вкладок, проверка на реальном устройстве Telegram не выполнена — см. docs/operations/qa/2026-10-15-20-4-1-telegram-shell.md. Закрыто 2026-10-27: владелец принял релиз v0.2.0 на устройстве; найденные огрехи будут оформлены отдельными задачами (evidence: docs/operations/qa/2026-10-27-v0-2-0-production-release.md).'
+status_note: 'Реализовано, ревью ожидается: плагин telegram-shell (тема, safe area, BackButton с историей и закрытием листа), MainButton на создании группы, haptics; полноэкранный режим не включается (решение владельца 2026-10-15: expand + insets), Back скрыта на корнях вкладок, проверка на реальном устройстве Telegram не выполнена — см. docs/operations/qa/2026-10-15-20-4-1-telegram-shell.md. Закрыто 2026-10-27 на основании приёмки релиза: владелец принял выпуск v0.2.0 2026-10-27 («есть небольшие огрехи, но исправим их позже»); отдельного отчёта о проверке на телефоне нет — огрехи будут заведены отдельными задачами (evidence: docs/operations/qa/2026-10-27-v0-2-0-production-release.md).'
 ref_id: 'M-01'
 complexity: M
 impl_model: claude-sonnet-5-5
