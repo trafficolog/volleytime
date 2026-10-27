@@ -14,7 +14,18 @@ review_model: claude-opus-5-5
 review_gate: opus+tests
 roles: [QA, DEVOPS, SECURITY]
 depends_on:
-  ['22.1.1', '22.1.2', '22.1.3', '22.1.4', '22.2.1', '22.2.2', '22.2.3', '22.3.1', '21.3.1']
+  [
+    '22.1.1',
+    '22.1.2',
+    '22.1.3',
+    '22.1.4',
+    '22.2.1',
+    '22.2.2',
+    '22.2.3',
+    '22.3.1',
+    '21.3.1',
+    '21.4.3',
+  ]
 supersedes: []
 decisions: []
 estimated_hours: '4-8'
