@@ -17,12 +17,13 @@ const shellPath = (path: string) =>
         .replaceAll('\\', '/')
     : path
 
-/** Image capability labels of the application rollback guard (split + v0.2.0, 20.7.1). */
+/** Image capability labels of the application rollback guard (split + v0.2.0, 20.7.1; collections, 21.2.4). */
 export const rollbackCapabilities = {
   split: 'org.volleytime.event-split-pricing',
   multiSeat: 'org.volleytime.event-multi-seat',
   inviteMode: 'org.volleytime.event-invite-mode',
   scheduler: 'org.volleytime.event-scheduler',
+  collections: 'org.volleytime.collections',
 } as const
 export type RollbackCapability = keyof typeof rollbackCapabilities
 type CapabilityLabels = Record<RollbackCapability, string>
@@ -34,6 +35,7 @@ export function rollbackQueryCapability(query: string): RollbackCapability | und
   if (query.includes('waitlist_seats > 0')) return 'multiSeat'
   if (query.includes("join_mode = 'invite'")) return 'inviteMode'
   if (query.includes("waitlist_offers WHERE status = 'offered'")) return 'scheduler'
+  if (query.includes('collection_id IS NOT NULL')) return 'collections'
   return undefined
 }
 
@@ -56,17 +58,19 @@ export async function splitRollbackFixture() {
     multiSeat: '1',
     inviteMode: '1',
     scheduler: '1',
+    collections: '1',
   }))
   // The old target lacks only split by default, so each capability is exercised in isolation.
   const targets: Record<'web' | 'bot', CapabilityLabels> = {
-    web: { split: '<no value>', multiSeat: '1', inviteMode: '1', scheduler: '1' },
-    bot: { split: '<no value>', multiSeat: '1', inviteMode: '1', scheduler: '1' },
+    web: { split: '<no value>', multiSeat: '1', inviteMode: '1', scheduler: '1', collections: '1' },
+    bot: { split: '<no value>', multiSeat: '1', inviteMode: '1', scheduler: '1', collections: '1' },
   }
   const rows: Record<RollbackCapability, boolean> = {
     split: false,
     multiSeat: false,
     inviteMode: false,
     scheduler: false,
+    collections: false,
   }
   const calls: string[][] = []
   let schema = true

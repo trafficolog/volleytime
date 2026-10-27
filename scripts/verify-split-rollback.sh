@@ -20,15 +20,17 @@ else
 fi
 
 # Data semantics a runtime must understand before it may run on existing rows, in vector order:
-# split pricing (R0.7), multi-seat bookings, invite join mode and scheduler (v0.2.0, task 20.7.1;
-# ADR v3 compatibility rule 4). An image supports a capability only through its exact label "1".
-capability_names=(split multi-seat invite-mode scheduler)
+# split pricing (R0.7), multi-seat bookings, invite join mode and scheduler (v0.2.0, task 20.7.1),
+# collections (v0.3.0, task 21.2.4; ADR v3 compatibility rule 4). An image supports a capability
+# only through its exact label "1".
+capability_names=(split multi-seat invite-mode scheduler collections)
 # Each schema query answers t/f; a partially present capability schema is unproven (empty result).
 capability_schema=(
   "SET search_path TO pg_catalog, public; SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='events' AND column_name='price_mode');"
   "SET search_path TO pg_catalog, public; SELECT CASE count(*) WHEN 0 THEN 'f' WHEN 2 THEN 't' END FROM information_schema.columns WHERE table_schema='public' AND table_name='bookings' AND column_name IN ('seats', 'waitlist_seats');"
   "SET search_path TO pg_catalog, public; SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='events' AND column_name='join_mode');"
   "SET search_path TO pg_catalog, public; SELECT CASE (SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='events' AND column_name='booking_opens_at') + (SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='waitlist_offers') WHEN 0 THEN 'f' WHEN 2 THEN 't' END;"
+  "SET search_path TO pg_catalog, public; SELECT CASE (SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='payments' AND column_name='collection_id') + (SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='collections') WHEN 0 THEN 'f' WHEN 2 THEN 't' END;"
 )
 # Rows a runtime without the capability misreads; predicates match the owning task cards verbatim.
 # Tables are unqualified, like the migration rollback scripts; every schema and data query first pins
@@ -39,29 +41,30 @@ capability_rows=(
   "SET search_path TO pg_catalog, public; SELECT EXISTS (SELECT 1 FROM bookings WHERE seats > 1 OR waitlist_seats > 0);"
   "SET search_path TO pg_catalog, public; SELECT EXISTS (SELECT 1 FROM events WHERE join_mode = 'invite' AND status NOT IN ('cancelled', 'finished')) OR EXISTS (SELECT 1 FROM invite_links WHERE type = 'event_join' AND NOT is_revoked AND (expires_at IS NULL OR expires_at > now()) AND (max_uses IS NULL OR uses_count < max_uses));"
   "SET search_path TO pg_catalog, public; SELECT EXISTS (SELECT 1 FROM waitlist_offers WHERE status = 'offered') OR EXISTS (SELECT 1 FROM events WHERE booking_opens_at > now() AND status IN ('draft', 'published', 'closed'));"
+  "SET search_path TO pg_catalog, public; SELECT EXISTS (SELECT 1 FROM payments WHERE collection_id IS NOT NULL AND status = 'pending');"
 )
 
 image_identity() {
-  local image="$1" service="$2" identity id revision split multi invite scheduler value capabilities=''
-  identity="$(docker image inspect --format '{{.Id}}|{{index .Config.Labels "org.opencontainers.image.revision"}}|{{index .Config.Labels "org.volleytime.event-split-pricing"}}|{{index .Config.Labels "org.volleytime.event-multi-seat"}}|{{index .Config.Labels "org.volleytime.event-invite-mode"}}|{{index .Config.Labels "org.volleytime.event-scheduler"}}' "$image")" || return 1
-  IFS='|' read -r id revision split multi invite scheduler <<< "$identity"
+  local image="$1" service="$2" identity id revision split multi invite scheduler collections value capabilities=''
+  identity="$(docker image inspect --format '{{.Id}}|{{index .Config.Labels "org.opencontainers.image.revision"}}|{{index .Config.Labels "org.volleytime.event-split-pricing"}}|{{index .Config.Labels "org.volleytime.event-multi-seat"}}|{{index .Config.Labels "org.volleytime.event-invite-mode"}}|{{index .Config.Labels "org.volleytime.event-scheduler"}}|{{index .Config.Labels "org.volleytime.collections"}}' "$image")" || return 1
+  IFS='|' read -r id revision split multi invite scheduler collections <<< "$identity"
   [[ "$id" =~ ^sha256:[0-9a-f]{64}$ ]] && [[ "$revision" =~ ^[0-9a-f]{40}$ ]] || return 1
   if [[ "$image" != sha256:* ]]; then
     [[ "$image" =~ ^(volleytime-|ghcr\.io/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/)$service:([0-9a-f]{40})$ ]] || return 1
     [ "$revision" = "${BASH_REMATCH[2]}" ] || return 1
   fi
-  for value in "$split" "$multi" "$invite" "$scheduler"; do
+  for value in "$split" "$multi" "$invite" "$scheduler" "$collections"; do
     if [ "$value" = 1 ]; then capabilities+=1; else capabilities+=0; fi
   done
   printf '%s|%s|%s' "$id" "$revision" "$capabilities"
 }
 # Capabilities supported by every given vector.
 common_capabilities() {
-  local common=1111 vector index next
+  local common=11111 vector index next
   for vector in "$@"; do
-    [[ "$vector" =~ ^[01]{4}$ ]] || vector=0000
+    [[ "$vector" =~ ^[01]{5}$ ]] || vector=00000
     next=''
-    for index in 0 1 2 3; do
+    for index in 0 1 2 3 4; do
       if [ "${common:index:1}${vector:index:1}" = 11 ]; then next+=1; else next+=0; fi
     done
     common="$next"
@@ -71,7 +74,7 @@ common_capabilities() {
 # Names of capabilities the data requires ($1) but the runtime does not support ($2).
 missing_capabilities() {
   local index names=''
-  for index in 0 1 2 3; do
+  for index in 0 1 2 3 4; do
     if [ "${1:index:1}${2:index:1}" = 10 ]; then names+="${names:+ }${capability_names[$index]}"; fi
   done
   printf '%s' "$names"
@@ -122,7 +125,7 @@ drained() {
 # Prints the capability vector existing data requires. Any error or malformed result is unproven.
 required_capabilities() {
   local index schema rows required=''
-  for index in 0 1 2 3; do
+  for index in 0 1 2 3 4; do
     schema="$("${compose[@]}" exec -T postgres psql -U volley -d volleytime -v ON_ERROR_STOP=1 -Atc "${capability_schema[$index]}")" || return 2
     schema="${schema#$'SET\n'}"
     case "$schema" in
@@ -138,7 +141,7 @@ required_capabilities() {
 }
 
 recover() {
-  local id image ref service revision capabilities identity running actual_image actual_ref actual_project actual_service supported=1111 required ids network_snapshot
+  local id image ref service revision capabilities identity running actual_image actual_ref actual_project actual_service supported=11111 required ids network_snapshot
   local -a captured=()
   load_snapshot || return 1
   # Validate every captured identity before starting any writer; a tag alone is insufficient.
@@ -170,7 +173,7 @@ recover() {
   done
   drained "${snapshot}.network" || return 1
   # A captured writer without a capability restarts only after a quiescent query proves no such rows.
-  if [ "$supported" != 1111 ]; then
+  if [ "$supported" != 11111 ]; then
     required="$(required_capabilities)" || return 1
     [ -z "$(missing_capabilities "$required" "$supported")" ] || return 1
   fi

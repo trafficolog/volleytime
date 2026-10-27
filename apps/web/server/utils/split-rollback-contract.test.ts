@@ -28,6 +28,13 @@ const v020Capabilities = [
     predicate:
       "SELECT EXISTS (SELECT 1 FROM waitlist_offers WHERE status = 'offered') OR EXISTS (SELECT 1 FROM events WHERE booking_opens_at > now() AND status IN ('draft', 'published', 'closed'))",
   },
+  // сборы (21.2.4): прежний runtime подтверждает ожидающий взнос как payment_income
+  {
+    key: 'collections',
+    name: 'collections',
+    predicate:
+      "SELECT EXISTS (SELECT 1 FROM payments WHERE collection_id IS NOT NULL AND status = 'pending')",
+  },
 ] as const
 
 describe('v0.2.0 capability labels and data guard (20.7.1)', { timeout: 35_000 }, () => {
