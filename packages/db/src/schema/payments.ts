@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm'
 import {
   check,
+  foreignKey,
   index,
   integer,
   pgEnum,
@@ -8,10 +9,12 @@ import {
   serial,
   text,
   timestamp,
+  uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core'
 
 import { bookings } from './bookings'
+import { collections } from './collections'
 import { organizations } from './organizations'
 import { subscriptions } from './subscriptions'
 import { users } from './users'
@@ -40,6 +43,8 @@ export const payments = pgTable(
     subscriptionId: integer('subscription_id').references(() => subscriptions.id, {
       onDelete: 'set null',
     }),
+    // взнос в сбор (21.2.4): составной FK (collection_id, organization_id) — сбор своей группы
+    collectionId: integer('collection_id'),
     // воплощение записи на момент создания платежа (20.1.2): живые платежи записи —
     // booking_incarnation = bookings.incarnation, seat_released_at IS NULL, pending/succeeded
     bookingIncarnation: integer('booking_incarnation'),
@@ -62,6 +67,22 @@ export const payments = pgTable(
     index('payments_booking_idx').on(t.bookingId),
     index('payments_booking_incarnation_idx').on(t.bookingId, t.bookingIncarnation),
     index('payments_subscription_idx').on(t.subscriptionId),
+    index('payments_collection_idx').on(t.collectionId, t.status),
+    // NO ACTION, а не RESTRICT: удаление группы каскадом снимает и сборы, и их платежи одной командой
+    foreignKey({
+      name: 'payments_collection_org_fk',
+      columns: [t.collectionId, t.organizationId],
+      foreignColumns: [collections.id, collections.organizationId],
+    }),
+    // у платежа не больше одной цели: запись, абонемент или сбор (ADR v3 «Сборы»)
+    check(
+      'payments_single_target',
+      sql`num_nonnulls(${t.bookingId}, ${t.subscriptionId}, ${t.collectionId}) <= 1`,
+    ),
+    // одно ожидающее обещание игрока в сборе: повторный взнос меняет сумму, а не плодит строки
+    uniqueIndex('payments_collection_pending_uniq')
+      .on(t.collectionId, t.userId)
+      .where(sql`${t.collectionId} IS NOT NULL AND ${t.status} = 'pending'`),
     check('payments_amount_positive', sql`${t.amount} > 0`),
     // в одну сторону: ON DELETE SET NULL по booking_id оставляет воплощение как историю
     check(

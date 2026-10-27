@@ -18,6 +18,7 @@ const TABLES = [
   'payments',
   'ledger_entries',
   'event_series',
+  'collections',
 ] as const
 
 async function counts(): Promise<Record<string, number>> {
@@ -168,6 +169,15 @@ describe('seed-demo (integration)', () => {
       LEFT JOIN ledger_entries l ON l.payment_id = p.id AND l.type = 'income'
       WHERE (p.status = 'succeeded') <> (l.id IS NOT NULL) OR l.amount <> p.amount`)
     expect(income.n).toBe(0)
+
+    // сборы (21.2.4): подтверждённый взнос — доход кассы `contribution`, сумма сбора = касса по сбору
+    const contributions = await one<{ n: number; bad: number }>(sql`
+      SELECT count(*)::int AS n,
+             count(*) FILTER (WHERE p.status = 'succeeded' AND l.category <> 'contribution')::int AS bad
+      FROM payments p LEFT JOIN ledger_entries l ON l.payment_id = p.id AND l.type = 'income'
+      WHERE p.collection_id IS NOT NULL`)
+    expect(contributions.n).toBeGreaterThan(0)
+    expect(contributions.bad).toBe(0)
 
     const sessions = await one<{ n: number }>(sql`
       SELECT count(*)::int AS n FROM subscriptions s

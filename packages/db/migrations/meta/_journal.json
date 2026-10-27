@@ -225,6 +225,13 @@
       "when": 1792474369204,
       "tag": "0031_telegram_chat_link",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1793107976799,
+      "tag": "0032_collections",
+      "breakpoints": true
     }
   ]
 }
