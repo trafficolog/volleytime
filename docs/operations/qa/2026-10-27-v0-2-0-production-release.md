@@ -32,7 +32,7 @@
 
 ## Состояние флагов
 
-Все новые флаги выключены, кроме ранее включённого `EVENT_SPLIT_PRICING_ENABLED`. Их включают по одному после выпуска (раздел 6 [чеклиста владельца](2026-10-26-20-7-1-owner-checklist.md)). `TELEGRAM_LOGIN_WIDGET_ENABLED` проведён в `main` ([#185](https://github.com/trafficolog/volleytime/pull/185)) и попадёт в production со следующим релизным коммитом; на `6143f42` его нет.
+Все новые флаги выключены, кроме ранее включённого `EVENT_SPLIT_PRICING_ENABLED`. Их включают по одному после выпуска (раздел 6 [чеклиста владельца](2026-10-26-20-7-1-owner-checklist.md)). `TELEGRAM_LOGIN_WIDGET_ENABLED` проведён в `main` ([#185](https://github.com/trafficolog/volleytime/pull/185)); в production переменная пока отсутствует — появится со следующим релизным коммитом.
 
 ## Не проверено и открыто
 

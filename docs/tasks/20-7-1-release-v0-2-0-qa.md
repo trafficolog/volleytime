@@ -6,7 +6,7 @@ status: done
 release: 'v0.2.0'
 sync_state: synced
 last_reviewed: 2026-10-27
-status_note: 'Выпущено и принято владельцем 2026-10-27. PR #183 (проводка флагов, quiescent-guard), #184 (QA релиза, чеклист владельца), #185 (проводка флага виджета входа, после релизного SHA). Тег v0.2.0 (аннотированный, опубликован 2026-10-27) на 6143f4256b9da555a90249aeb7de2ccac022521e; main CI 40349167990 all4 success; Promote 40355567669 отказал (workflows в диапазоне, PROMOTE_TOKEN не задан) — ручной git push origin 6143f42:prod 2026-10-26, подтверждён владельцем; Deploy 40355995553 success (миграции 0021–0031, smoke-passed, health release=6143f42). Приёмка владельца: «есть небольшие огрехи, но исправим их позже»; огрехи не перечислены, будут отдельными задачами. Флаги выключены, кроме EVENT_SPLIT_PRICING_ENABLED. Хвосты — в разделе «Follow-up (после выпуска)». Evidence: docs/operations/qa/2026-10-27-v0-2-0-production-release.md; ранее: docs/operations/qa/2026-10-26-20-7-1-release-visual.md, docs/operations/qa/2026-10-26-20-7-1-owner-checklist.md.'
+status_note: 'Выложено 2026-10-26, тег и приёмка владельца 2026-10-27; п. 2 (Telegram QA на двух аккаунтах) и проверка отката не выполнены, перенесены в Follow-up. PR #183 (проводка флагов, quiescent-guard), #184 (QA релиза, чеклист владельца), #185 (проводка флага виджета входа, после релизного SHA). Тег v0.2.0 (аннотированный, опубликован 2026-10-27) на 6143f4256b9da555a90249aeb7de2ccac022521e; main CI 40349167990 all4 success; Promote 40355567669 отказал (workflows в диапазоне, PROMOTE_TOKEN не задан) — ручной git push origin 6143f42:prod 2026-10-26, подтверждён владельцем; Deploy 40355995553 success (миграции 0021–0031, smoke-passed, health release=6143f42). Приёмка владельца: «есть небольшие огрехи, но исправим их позже»; огрехи не перечислены, будут отдельными задачами. Флаги выключены, кроме EVENT_SPLIT_PRICING_ENABLED. Хвосты — в разделе «Follow-up (после выпуска)». Evidence: docs/operations/qa/2026-10-27-v0-2-0-production-release.md; ранее: docs/operations/qa/2026-10-26-20-7-1-release-visual.md, docs/operations/qa/2026-10-26-20-7-1-owner-checklist.md.'
 ref_id: ''
 complexity: L
 impl_model: claude-opus-5-5
@@ -80,8 +80,8 @@ tags: [reference-v3]
 ## Что должно быть сделано
 
 1. Пять gates на интегрированном main, отчёт 19.0.2 по всем экранам релиза
-2. Telegram QA на двух аккаунтах (Android/Desktop) по чек-листу
-3. Продвижение через Promote (9.8.17), backup до миграций, smoke, проверка отката с новыми миграциями
+2. ~~Telegram QA на двух аккаунтах (Android/Desktop) по чек-листу~~ — не выполнено, перенесено в «Follow-up (после выпуска)»
+3. Продвижение через Promote (9.8.17), backup до миграций, smoke — выполнено (ручной push `prod`, Deploy 40355995553); ~~проверка отката с новыми миграциями~~ — не выполнено, перенесено в «Follow-up (после выпуска)»
 4. Тег v0.2.0 и запись в RELEASES/current-state
 5. Баланс событий (20.2.1, ADR v3 правило совместимости 5): провести `EVENT_BALANCE_ENFORCED` в `scripts/render-production-env.mjs` (только точное `true`, иначе `false`, контрактный тест как у `EVENT_SPLIT_PRICING_ENABLED`) и в `deploy.yml` (repository variable); выкладка с выключенным списанием; перед включением выполнить `pnpm db:event-balance reconcile --operator <root email>` (без `--apply`, затем с `--apply` по решению) из migrator-контейнера и разобрать отчёт; включить переменную после выкладки полного релиза; проверить влияние новой переменной на guard `verify-live-rollback-env.sh` (сравнение env живых контейнеров с rollback-набором) и на откат к runtime без баланса
 6. Места в записи (20.1.2, ADR v3 правило совместимости 4): провести `EVENT_MULTI_SEAT_ENABLED` в `scripts/render-production-env.mjs` (только точное `true`, иначе `false`, контрактный тест как у `EVENT_SPLIT_PRICING_ENABLED`) и в `deploy.yml` (repository variable); выкладка с выключенной записью на несколько мест; расширить quiescent-guard отката (`scripts/verify-split-rollback.sh`) capability-label образа и запросом «нет данных нескольких мест» `SELECT EXISTS (SELECT 1 FROM bookings WHERE seats > 1 OR waitlist_seats > 0)` для runtime без поддержки мест; включить переменную только после выкладки полного релиза и проверки guard
@@ -122,6 +122,7 @@ tags: [reference-v3]
 - **Огрехи владельца:** владелец принял релиз, указав на небольшие огрехи («исправим их позже»). Конкретные дефекты не перечислены; каждый оформляется отдельной задачей по получении списка.
 - **Root admin для reconcile баланса:** в production нет ни одного активного root admin (`SELECT email FROM users WHERE is_root_admin AND is_active` — 0 строк). Пока его нет, нельзя выполнить `pnpm db:event-balance reconcile --operator <root email>` и включить `EVENT_BALANCE_ENFORCED`. Открытый пункт владельца.
 - **Проверки на устройствах без отчёта владельца:** владелец принял выпуск (см. 20.4.1), но отдельного отчёта о проверке на телефоне нет и отдельно не сообщал о результатах п. 2, 11 и 13 (привязка чата и анонс, MainButton, бот на устройстве, `showConfirm` отмены, плитка «в ожидании · N места», подпись отмены по абонементу, живая отправка «В чат группы» и др.). Эти пункты не считаются подтверждёнными; нужные проверяются отдельно или войдут в задачи по огрехам.
+- **Проверка отката:** проверка отката приложения на b056806 с новыми миграциями не исполнялась (guard-строки `f` на 2026-10-27; учебный откат на production не делается без отдельного решения).
 - **Секрет `PROMOTE_TOKEN`:** не задан, Promote с изменениями workflows отказывает; такие релизы идут ручным `git push origin <SHA>:prod` по runbook.
 
 ## Подсказки
