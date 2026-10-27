@@ -1,4 +1,5 @@
 import {
+  isCollectionsEnabled,
   isInviteModeEnabled,
   isMultiSeatEnabled,
   isSchedulerEnabled,
@@ -18,6 +19,8 @@ export default defineApiHandler((event) => {
       eventScheduler: isSchedulerEnabled(process.env.SCHEDULER_ENABLED),
       // запись на несколько мест (20.1.2): степпер мест в Mini App скрыт, пока флаг выключен (20.4.5)
       eventMultiSeat: isMultiSeatEnabled(process.env.EVENT_MULTI_SEAT_ENABLED),
+      // сборы (21.2.4): создание сборов и взносов скрыто, пока флаг выключен
+      collections: isCollectionsEnabled(process.env.COLLECTIONS_ENABLED),
     },
   }
 })
