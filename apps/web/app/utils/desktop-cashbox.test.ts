@@ -8,6 +8,10 @@ import {
   DESKTOP_INCOME_CATEGORIES,
   parseDesktopLedgerAmount,
   desktopLedgerFormTime,
+  balanceAfterEntry,
+  monthPeriod,
+  signedMoney,
+  validateLedgerComment,
 } from './desktop-cashbox'
 
 describe('desktop cashbox', () => {
@@ -80,5 +84,33 @@ describe('desktop cashbox', () => {
     expect(
       canSubmitDesktopLedgerAction('/app/orgs/1/cashbox', '/app/orgs/1/cashbox', 1, 1, true),
     ).toBe(false)
+  })
+
+  it('computes the month period in the group timezone with an exclusive upper bound', () => {
+    expect(monthPeriod('2026-05', 'Europe/Minsk')).toEqual({
+      from: '2026-04-30T21:00:00.000Z',
+      to: '2026-05-31T21:00:00.000Z',
+    })
+    expect(monthPeriod('2026-12', 'UTC')).toEqual({
+      from: '2026-12-01T00:00:00.000Z',
+      to: '2027-01-01T00:00:00.000Z',
+    })
+    expect(monthPeriod('', 'UTC')).toBeNull()
+    expect(monthPeriod('2026-13', 'UTC')).toBeNull()
+  })
+  it('previews the balance after an entry using the same minor units as the server', () => {
+    expect(balanceAfterEntry(24850, 'income', 1500)).toBe(26350)
+    expect(balanceAfterEntry(24850, 'expense', 4200)).toBe(20650)
+    expect(balanceAfterEntry(100, 'expense', 4200)).toBe(-4100)
+  })
+  it('signs money for the cash desk', () => {
+    expect(signedMoney(24850, 'BYN')).toBe('+248,50 BYN')
+    expect(signedMoney(-7000, 'BYN')).toBe('−70,00 BYN')
+    expect(signedMoney(0, 'BYN')).toBe('0,00 BYN')
+  })
+  it('requires a non-blank comment', () => {
+    expect(validateLedgerComment('')).toBe('Укажите комментарий к операции.')
+    expect(validateLedgerComment('   ')).toBe('Укажите комментарий к операции.')
+    expect(validateLedgerComment('Аренда')).toBe('')
   })
 })

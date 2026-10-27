@@ -491,10 +491,12 @@ describe('money races (integration)', { timeout: 30_000 }, () => {
     await ledgerService.addIncome({ userId: ownerId }, orgId, {
       category: 'contribution',
       amount: 1000,
+      description: 'Взнос',
     })
     await ledgerService.addIncome({ userId: ownerId }, orgId, {
       category: 'carryover',
       amount: 500,
+      description: 'Остаток',
     })
     const balance = await ledgerService.getBalance({ userId: ownerId }, orgId)
     expect(balance).toMatchObject({ currency: 'BYN', income: 4000, balance: 4000 })

@@ -234,7 +234,7 @@ describe('Phase 5 API security (integration)', () => {
     const evB = await makeEvent(orgB, ownerB)
     const foreign = await request('POST', `/api/organizations/${orgA}/ledger/expense`, {
       user: ownerA,
-      body: { category: 'rent', amount: 5000, eventId: evB.id },
+      body: { category: 'rent', amount: 5000, description: 'Аренда', eventId: evB.id },
     })
     expect(foreign.status).toBe(404)
     const ok = await request('POST', `/api/organizations/${orgA}/ledger/expense`, {

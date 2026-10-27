@@ -182,6 +182,10 @@ async function save() {
     formError.value = 'Введите сумму больше нуля'
     return
   }
+  if (!form.description.trim()) {
+    formError.value = 'Укажите комментарий к операции'
+    return
+  }
   saving.value = true
   try {
     await $fetch(`/api/organizations/${actionOrgId}/ledger/${kind}`, {
@@ -189,7 +193,7 @@ async function save() {
       body: {
         category: form.category,
         amount: toMinor(major),
-        description: form.description.trim() || undefined,
+        description: form.description.trim(),
         occurredAt: form.occurredAt
           ? zonedInputToDate(form.occurredAt, tz.value).toISOString()
           : undefined,
@@ -395,6 +399,7 @@ function entrySubtitle(e: Entry): string {
           <input
             id="lg-desc"
             v-model="form.description"
+            required
             class="vt-field"
             maxlength="500"
             placeholder="Аренда зала на май"

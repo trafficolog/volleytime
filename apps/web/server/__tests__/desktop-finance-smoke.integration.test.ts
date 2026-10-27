@@ -74,7 +74,7 @@ describe('desktop finance HTTP smoke', () => {
       (
         await request('POST', `${base}/ledger/income`, {
           user: owner,
-          body: { category: 'other_income', amount: 125 },
+          body: { category: 'other_income', amount: 125, description: 'Прочий доход' },
         })
       ).status,
     ).toBe(200)
@@ -82,7 +82,7 @@ describe('desktop finance HTTP smoke', () => {
       (
         await request('POST', `${base}/ledger/expense`, {
           user: owner,
-          body: { category: 'rent', amount: 25, eventId: event.id },
+          body: { category: 'rent', amount: 25, description: 'Аренда', eventId: event.id },
         })
       ).status,
     ).toBe(200)
@@ -105,7 +105,11 @@ describe('desktop finance HTTP smoke', () => {
         (
           await request('POST', `${base}/ledger/${action}`, {
             user: player,
-            body: { category: action === 'income' ? 'other_income' : 'rent', amount: 100 },
+            body: {
+              category: action === 'income' ? 'other_income' : 'rent',
+              amount: 100,
+              description: 'Комментарий',
+            },
           })
         ).status,
       ).toBe(403)

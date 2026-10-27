@@ -2,11 +2,11 @@
 id: '21.2.3'
 phase: '21'
 epic: '21.2'
-status: todo
+status: in_progress
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-10-12
-status_note: ''
+status_note: 'Реализация в PR (ветка trafficolog/feat/21.2.3-cabinet-cashbox); ждёт ревью Opus и CI. Без миграций: способ оплаты ручной записи и «по игрокам» — см. отчёт QA.'
 ref_id: 'W-07'
 complexity: M
 impl_model: claude-sonnet-5-5

@@ -5,6 +5,8 @@ import {
   desc,
   eq,
   events,
+  gte,
+  lt,
   ledgerEntries,
   payments,
   sql,
@@ -56,6 +58,18 @@ export interface CurrencyBalance {
 export interface Balance extends CurrencyBalance {
   currency: string
   byCurrency: Record<string, CurrencyBalance>
+}
+
+/** Предел строк выгрузки; при превышении кабинет просит сузить период. */
+export const EXPORT_MAX_ROWS = 5000
+
+export type LedgerHistoryEntry = Awaited<ReturnType<typeof listHistoryRows>>[number]
+
+/** Ждущие оплаты деньги группы («Долги» кассы): платежи `pending` в валюте группы. */
+export interface AwaitingMoney {
+  amount: number
+  count: number
+  currency: string
 }
 
 export const ledgerService = {
@@ -184,13 +198,75 @@ export const ledgerService = {
     opts: {
       type?: 'income' | 'expense'
       category?: LedgerCategory
+      /** Дата операции не раньше (включительно) */
+      from?: Date
+      /** Дата операции раньше (не включительно) */
+      to?: Date
       limit?: number
       offset?: number
     } = {},
   ) {
+    return listHistoryRows(ctx, orgId, opts)
+  },
+
+  /** Строки для CSV-выгрузки: те же фильтры, что у журнала, но до `EXPORT_MAX_ROWS` записей. */
+  async listForExport(
+    ctx: ServiceContext,
+    orgId: number,
+    opts: {
+      type?: 'income' | 'expense'
+      category?: LedgerCategory
+      from?: Date
+      to?: Date
+    } = {},
+  ) {
+    return listHistoryRows(ctx, orgId, { ...opts, limit: EXPORT_MAX_ROWS + 1 }, EXPORT_MAX_ROWS + 1)
+  },
+
+  /**
+   * Деньги, которые группа ещё ждёт: сумма и число платежей `pending` в валюте группы. Те же
+   * правила, что у «ждёт оплаты» в списке событий (`readEventListMoney`): отменённые и возвращённые
+   * не входят.
+   */
+  async getAwaiting(ctx: ServiceContext, orgId: number): Promise<AwaitingMoney> {
+    const currency = await resolveOrgCurrency(ctx, orgId)
+    const [row] = await getDb(ctx)
+      .select({
+        // bigint приходит строкой
+        amount: sql<string>`COALESCE(SUM(${payments.amount}), 0)`,
+        count: sql<number>`COUNT(*)::int`,
+      })
+      .from(payments)
+      .where(
+        and(
+          eq(payments.organizationId, orgId),
+          eq(payments.status, 'pending'),
+          eq(payments.currency, currency),
+        ),
+      )
+    return { amount: Number(row?.amount ?? 0), count: row?.count ?? 0, currency }
+  },
+}
+
+async function listHistoryRows(
+  ctx: ServiceContext,
+  orgId: number,
+  opts: {
+    type?: 'income' | 'expense'
+    category?: LedgerCategory
+    from?: Date
+    to?: Date
+    limit?: number
+    offset?: number
+  },
+  maxLimit = 200,
+) {
+  {
     const conds = [eq(ledgerEntries.organizationId, orgId)]
     if (opts.type) conds.push(eq(ledgerEntries.type, opts.type))
     if (opts.category) conds.push(eq(ledgerEntries.category, opts.category))
+    if (opts.from) conds.push(gte(ledgerEntries.occurredAt, opts.from))
+    if (opts.to) conds.push(lt(ledgerEntries.occurredAt, opts.to))
     const author = alias(users, 'author')
     const payer = alias(users, 'payer')
     const rows = await getDb(ctx)
@@ -201,6 +277,7 @@ export const ledgerService = {
         amount: ledgerEntries.amount,
         currency: ledgerEntries.currency,
         description: ledgerEntries.description,
+        method: payments.method,
         occurredAt: ledgerEntries.occurredAt,
         createdAt: ledgerEntries.createdAt,
         eventId: events.id,
@@ -219,7 +296,7 @@ export const ledgerService = {
       .leftJoin(payer, eq(payer.id, payments.userId))
       .where(and(...conds))
       .orderBy(desc(ledgerEntries.occurredAt), desc(ledgerEntries.id))
-      .limit(Math.min(opts.limit ?? 50, 200))
+      .limit(Math.min(opts.limit ?? 50, maxLimit))
       .offset(opts.offset ?? 0)
     return rows.map((r) => ({
       id: r.id,
@@ -228,6 +305,7 @@ export const ledgerService = {
       amount: r.amount,
       currency: r.currency,
       description: r.description,
+      method: r.method,
       occurredAt: r.occurredAt,
       createdAt: r.createdAt,
       event: r.eventId ? { id: r.eventId, title: r.eventTitle!, startsAt: r.eventStartsAt! } : null,
@@ -240,5 +318,5 @@ export const ledgerService = {
           ? { name: r.payerName, telegramUsername: r.payerUsername }
           : null,
     }))
-  },
+  }
 }

@@ -378,6 +378,20 @@
       "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
     },
     {
+      "id": "cabinet-cashbox-entry",
+      "title": "Кабинет: касса, новый расход",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/cashbox",
+      "steps": [
+        { "click": "button:has-text('Запись')" },
+        { "click": "[role='radio']:has-text('Расход')" }
+      ],
+      "references": ["4-cabinet/10-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
       "id": "cabinet-settings",
       "title": "Кабинет: настройки",
       "viewport": "cabinet",
