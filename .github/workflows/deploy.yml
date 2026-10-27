@@ -380,6 +380,7 @@ jobs:
           exit "$result"
 
       - name: Confirm synthetic smoke over SSH
+        id: confirm
         if: ${{ steps.activate.outcome == 'success' && steps.smoke.outcome == 'success' }}
         uses: appleboy/ssh-action@v1
         with:
@@ -392,6 +393,25 @@ jobs:
             set -euo pipefail
             cd /opt/volleytime
             bash .deploy/incoming/${{ github.sha }}/scripts/deploy-image-bundle.sh confirm-smoke ${{ github.sha }}
+
+      # Planned retention (Task 9.8.18): runs only after smoke-passed, under the
+      # deploy lock; keeps current, previous, recent and pinned releases. It
+      # cannot fail an already successful deploy.
+      - name: Prune retained releases over SSH
+        id: prune
+        if: ${{ steps.confirm.outcome == 'success' }}
+        continue-on-error: true
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: deploy
+          key: ${{ secrets.VPS_SSH_KEY }}
+          timeout: 2m
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            cd /opt/volleytime
+            bash .deploy/incoming/${{ github.sha }}/scripts/deploy-image-bundle.sh prune-retained ${{ github.sha }}
 
       - name: Rollback GHCR images on failed smoke
         id: ghcr_rollback
@@ -432,3 +452,26 @@ jobs:
         if: ${{ failure() && (github.event_name == 'push' || inputs.deployment_mode == 'image-bundle') && (steps.smoke.outputs.controlled_failure != 'true' || steps.rollback.outcome == 'failure') }}
         run: |
           echo 'Deployment state is uncertain; manual recovery checkpoint: inspect remote PID, lock, phase, images, containers, schema and exact health before any retry.' >&2
+
+      - name: Read VPS disk usage
+        id: vps_disk
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: deploy
+          key: ${{ secrets.VPS_SSH_KEY }}
+          timeout: 2m
+          command_timeout: 1m
+          capture_stdout: true
+          script: |
+            df -Pk /opt/volleytime
+            df -Pk "$(docker info --format '{{.DockerRootDir}}')" || true
+
+      - name: Report VPS disk in job summary
+        if: ${{ always() }}
+        continue-on-error: true
+        env:
+          DF_OUTPUT: ${{ steps.vps_disk.outputs.stdout }}
+        run: printf '%s\n' "$DF_OUTPUT" | bash scripts/disk-status.sh
