@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { DB } from './client'
 import { runMigrations } from './migrate'
+import { rollbackCollections } from './migration-test-helpers'
 import { rollbackLastMigration } from './rollback'
 import * as schema from './schema'
 import { seedDemo } from './seed-demo'
@@ -82,6 +83,7 @@ describe('migration 0031 telegram chat link (integration)', { timeout: 60_000 },
     try {
       await runMigrations(url)
       expect(await objects(sql)).toBe(3)
+      await rollbackCollections(url) // 21.2.4: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await objects(sql)).toBe(0)
       await runMigrations(url)
@@ -95,6 +97,7 @@ describe('migration 0031 telegram chat link (integration)', { timeout: 60_000 },
     const { url, sql } = await scratchDb()
     try {
       await runMigrations(url)
+      await rollbackCollections(url) // 21.2.4: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG) // теперь БД на 0030
       const a = await org(sql, 'chat-a')
       const b = await org(sql, 'chat-b')
@@ -181,6 +184,7 @@ describe('migration 0031 telegram chat link (integration)', { timeout: 60_000 },
     const { url, sql } = await scratchDb()
     try {
       await runMigrations(url)
+      await rollbackCollections(url) // 21.2.4: новая миграция откатывается первой
       const a = await org(sql, 'guard-a')
       await link(sql, a.o, -2001)
       await sql`
@@ -204,6 +208,7 @@ describe('migration 0031 telegram chat link (integration)', { timeout: 60_000 },
 
       await runMigrations(url)
       expect(await objects(sql)).toBe(3)
+      await rollbackCollections(url) // 21.2.4: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await rollbackLastMigration(url)).toBe(TAG30)
     } finally {
@@ -221,6 +226,7 @@ describe('migration 0031 telegram chat link (integration)', { timeout: 60_000 },
       const [orgs] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM organizations`
       expect(orgs!.n).toBeGreaterThan(0)
       expect(await sql`SELECT 1 FROM organization_telegram_chats`).toHaveLength(0)
+      await rollbackCollections(url) // 21.2.4: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await sql`SELECT 1 FROM organizations`).toHaveLength(orgs!.n)
       await runMigrations(url)
