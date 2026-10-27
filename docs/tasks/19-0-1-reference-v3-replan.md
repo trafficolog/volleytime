@@ -2,11 +2,11 @@
 id: '19.0.1'
 phase: '19'
 epic: '19.0'
-status: in_progress
+status: done
 release: 'v0.2.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: 'Документы подготовлены в PR; ждут review/CI и решений владельца из 19.0.3.'
+last_reviewed: 2026-10-27
+status_note: 'Смёржено в PR #98 (https://github.com/trafficolog/volleytime/pull/98, 2026-10-12), волновая синхронизация карточек — PR #109. Решения владельца D-01…D-11 приняты 2026-10-12 (19.0.3 done), журнал: docs/operations/decisions/2026-10-12-reference-v3-decisions.md. Фазы 19–20 выполнены поверх перепланирования и выпущены в v0.2.0.'
 ref_id: ''
 complexity: L
 impl_model: claude-opus-5-5
