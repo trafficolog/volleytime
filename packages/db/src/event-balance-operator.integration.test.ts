@@ -324,6 +324,164 @@ describe('event balance operator command (integration)', () => {
     expect(drifted.drift).toEqual([{ organizationId: pilot, balance: 7, journal: 48 }])
   })
 
+  describe('operator by user id (--operator-id)', () => {
+    async function telegramUser(patch: Partial<typeof users.$inferInsert>) {
+      const [u] = await db
+        .insert(users)
+        .values({
+          name: 'tg',
+          telegramUsername: `tg_${Math.random().toString(36).slice(2, 8)}`,
+          ...patch,
+        })
+        .returning()
+      return u!.id
+    }
+
+    it('accepts an active root admin by id; journal and audit_log carry that user id', async () => {
+      const id = await telegramUser({ isRootAdmin: true })
+      const entry = await grantEventBalance(db, {
+        organizationId: orgId,
+        units: 7,
+        operatorId: id,
+        comment: 'по id',
+      })
+      expect(entry.createdByUserId).toBe(id)
+      const [log] = await db.select().from(auditLog).where(eq(auditLog.userId, id))
+      expect(log).toMatchObject({ action: 'event_balance.granted', organizationId: orgId })
+    })
+
+    it('finds a root admin with no email by id and works for every command', async () => {
+      const id = await telegramUser({ isRootAdmin: true })
+      expect((await db.select().from(users).where(eq(users.id, id)))[0]!.email).toBeNull()
+      await grantEventBalance(db, {
+        organizationId: orgId,
+        units: 10,
+        operatorId: id,
+        comment: 'g',
+      })
+      await grantEventBalance(db, {
+        organizationId: orgId,
+        units: -3,
+        operatorId: id,
+        comment: 'c',
+        correction: true,
+      })
+      const approved = await approvePurchaseRequest(db, {
+        requestId: await newRequest(5),
+        operatorId: id,
+      })
+      expect(approved.request.decidedByUserId).toBe(id)
+      const rejected = await rejectPurchaseRequest(db, {
+        requestId: await newRequest(5),
+        operatorId: id,
+        comment: 'no',
+      })
+      expect(rejected.decidedByUserId).toBe(id)
+      const report = await reconcileEventBalance(db, { operatorId: id, apply: true })
+      expect(report.drift).toEqual([])
+      expect((await entriesOf()).every((e) => e.createdByUserId === id)).toBe(true)
+    })
+
+    it('refuses an id that is not a root admin, inactive or missing (forbidden.root_only)', async () => {
+      const plain = await telegramUser({})
+      const inactive = await telegramUser({ isRootAdmin: true, isActive: false })
+      for (const operatorId of [plain, inactive, 999_999_999]) {
+        await expect(
+          grantEventBalance(db, { organizationId: orgId, units: 5, operatorId, comment: 'x' }),
+        ).rejects.toMatchObject({ code: 'forbidden.root_only' })
+      }
+      expect(await entriesOf()).toHaveLength(0)
+    })
+
+    it('refuses an invalid id, both options or neither at the library level', async () => {
+      for (const operatorId of [0, -1, 1.5, Number.NaN]) {
+        await expect(
+          grantEventBalance(db, { organizationId: orgId, units: 5, operatorId, comment: 'x' }),
+        ).rejects.toMatchObject({ code: 'operator.invalid_id' })
+      }
+      await expect(
+        grantEventBalance(db, {
+          organizationId: orgId,
+          units: 5,
+          operator: rootEmail,
+          operatorId: 1,
+          comment: 'x',
+        }),
+      ).rejects.toMatchObject({ code: 'operator.ambiguous' })
+      await expect(
+        grantEventBalance(db, { organizationId: orgId, units: 5, comment: 'x' }),
+      ).rejects.toMatchObject({ code: 'operator.required' })
+      expect(await entriesOf()).toHaveLength(0)
+    })
+
+    it('caps ids at int4 in the parser and the library', async () => {
+      const parse = (v: string) => () => parseOperatorArgs(['reconcile', '--operator-id', v])
+      expect(parse('1e3')).toThrow(/--operator-id/)
+      expect(parse('01')()).toEqual({ command: 'reconcile', operatorId: 1 })
+      expect(parse('1 ')).toThrow(/--operator-id/)
+      expect(parse('2147483647')()).toMatchObject({ operatorId: 2147483647 })
+      expect(parse('2147483648')).toThrow(/--operator-id/)
+      expect(() =>
+        parseOperatorArgs(['grant', '--org', '2147483648', '--units', '1', '--operator', 'r@x']),
+      ).toThrow(/--org/)
+      expect(() =>
+        parseOperatorArgs(['approve', '--request', '2147483648', '--operator', 'r@x']),
+      ).toThrow(/--request/)
+      await expect(
+        grantEventBalance(db, {
+          organizationId: orgId,
+          units: 1,
+          operatorId: 2147483648,
+          comment: 'x',
+        }),
+      ).rejects.toMatchObject({ code: 'operator.invalid_id' })
+      await expect(
+        grantEventBalance(db, {
+          organizationId: 2147483648,
+          units: 1,
+          operator: rootEmail,
+          comment: 'x',
+        }),
+      ).rejects.toMatchObject({ code: 'organization.not_found' })
+      await expect(
+        approvePurchaseRequest(db, { requestId: 2147483648, operator: rootEmail }),
+      ).rejects.toMatchObject({ code: 'purchase_request.not_found' })
+    })
+
+    it('parses --operator-id for every command and rejects bad combinations', () => {
+      expect(parseOperatorArgs(['reconcile', '--operator-id', '12'])).toEqual({
+        command: 'reconcile',
+        operatorId: 12,
+      })
+      expect(
+        parseOperatorArgs([
+          'grant',
+          '--org',
+          '1',
+          '--units',
+          '2',
+          '--operator-id',
+          '3',
+          '--comment',
+          'c',
+        ]),
+      ).toEqual({ command: 'grant', org: 1, units: 2, operatorId: 3, comment: 'c' })
+      expect(parseOperatorArgs(['approve', '--request', '1', '--operator-id', '3'])).toMatchObject({
+        operatorId: 3,
+      })
+      for (const bad of ['0', '-1', 'abc', '1.5']) {
+        expect(() => parseOperatorArgs(['reconcile', '--operator-id', bad])).toThrow(
+          /--operator-id/,
+        )
+      }
+      expect(() =>
+        parseOperatorArgs(['reconcile', '--operator', 'r@x', '--operator-id', '1']),
+      ).toThrow(/exactly one/)
+      expect(() => parseOperatorArgs(['reconcile'])).toThrow(/exactly one/)
+      expect(() => parseOperatorArgs(['reconcile', '--apply'])).toThrow(/exactly one/)
+    })
+  })
+
   it('parses CLI arguments strictly', () => {
     expect(
       parseOperatorArgs([
