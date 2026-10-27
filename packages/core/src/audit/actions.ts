@@ -58,6 +58,13 @@ export const AUDIT_ACTIONS = {
   TELEGRAM_CHAT_ANNOUNCED: 'telegram_chat.event_announced',
   // баланс событий (20.2.1); начисления и решения root пишет операторская команда (packages/db)
   EVENT_BALANCE_PURCHASE_REQUESTED: 'event_balance.purchase_requested',
+  // сборы (21.2.4): жизненный цикл сбора и решения по взносам (платежам сбора)
+  COLLECTION_CREATED: 'collection.created',
+  COLLECTION_UPDATED: 'collection.updated',
+  COLLECTION_COMPLETED: 'collection.completed',
+  COLLECTION_CANCELLED: 'collection.cancelled',
+  COLLECTION_CONTRIBUTION_CONFIRMED: 'collection.contribution_confirmed',
+  COLLECTION_CONTRIBUTION_REJECTED: 'collection.contribution_rejected',
 } as const
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS]
@@ -77,3 +84,4 @@ export type AuditEntityType =
   | 'event_series'
   | 'waitlist_offer'
   | 'telegram_chat'
+  | 'collection'

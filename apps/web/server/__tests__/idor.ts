@@ -37,6 +37,10 @@ export interface OrgFixtureIds {
   seriesId: number
   /** Предложение места из листа ожидания (20.3.1). */
   offerId: number
+  /** Активный сбор группы (21.2.4). */
+  collectionId: number
+  /** Ожидающий взнос игрока в этот сбор (платёж сбора, 21.2.4). */
+  contributionId: number
 }
 
 export interface OrgRouteCase {

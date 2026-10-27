@@ -98,6 +98,17 @@ describe('templates ru formatting (8.8.5)', () => {
     expect(msg.text).toContain('Восемь занятий')
   })
 
+  it('contribution payments mention the collection, not an event (21.2.4)', () => {
+    const p = { amount: 1500, currency: 'BYN', collectionTitle: '<Мячи>', playerName: 'Лера' }
+    expect(renderMessage('payment_confirmed', p).text).toContain('Взнос в сбор «&lt;Мячи&gt;»')
+    const rejected = renderMessage('payment_rejected', p).text
+    expect(rejected).toContain('Взнос в сбор «&lt;Мячи&gt;» отклонён')
+    expect(rejected).not.toContain('Запись отменена')
+    const pending = renderMessage('payment_pending_organizer', p).text
+    expect(pending).toContain('Взнос в сбор «&lt;Мячи&gt;»')
+    expect(pending).not.toContain('событие')
+  })
+
   it('adds a button when miniAppUrl is present', () => {
     const msg = renderMessage('booking_confirmed', {
       eventTitle: 'Тренировка',
