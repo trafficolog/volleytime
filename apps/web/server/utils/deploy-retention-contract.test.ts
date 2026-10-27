@@ -317,6 +317,21 @@ describe('planned release retention (prune-retained)', () => {
   )
 
   it(
+    'keeps releases referenced by GHCR rollback snapshots',
+    () => {
+      const f = retentionFixture()
+      f.write(`.deploy/ghcr-old-manifest-${f.r3}`, manifest(f.r2))
+      const result = f.prune()
+      expect(result.status, result.stderr).toBe(0)
+      expect(result.stdout).toContain(`keep ${f.r2} (ghcr-recovery`)
+      for (const ref of refs(f.r2)) expect(f.imageStore()).toContain(ref)
+      expect(f.staged(f.r2)).toBe(true)
+      expect(f.staged(f.r1)).toBe(false)
+    },
+    TIMEOUT,
+  )
+
+  it(
     'a failed image removal is a warning: the run succeeds and that release staging stays',
     () => {
       const f = retentionFixture()
@@ -367,6 +382,10 @@ describe('planned release retention (prune-retained)', () => {
     [
       'a history shorter than N',
       (f) => (f.write('.deploy/release-history', `${f.r5}\n${f.r6}\n`), {}),
+    ],
+    [
+      'an unreadable GHCR rollback snapshot',
+      (f) => (f.write(`.deploy/ghcr-old-manifest-${f.r3}`, 'garbage\n'), {}),
     ],
     ['a malformed pin', (f) => (f.write('.deploy/retain-pins', 'v0.2.0\n'), {})],
     ['a zero release count', (f) => (f.write('.deploy/retain-releases', '0\n'), {})],

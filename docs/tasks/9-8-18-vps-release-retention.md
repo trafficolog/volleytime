@@ -6,7 +6,7 @@ status: in_progress
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-10-27
-status_note: 'Реализация и PR; изменения .github/workflows ждут подтверждения владельца по diff в PR. Наблюдение на VPS — после первой выкладки.'
+status_note: 'PR #189 смержен (ревью Opus merge, CI green, diff workflows одобрен владельцем 2026-10-27); доработки по ревью — follow-up PR. Открыто: наблюдение prune на VPS после первой выкладки, посев истории и пинов.'
 roles: [DEVOPS]
 depends_on: ['9.8.10', '9.8.17']
 complexity: L
@@ -46,7 +46,7 @@ tags: [ci, cd, deploy, vps, disk, retention, monitoring]
 
 1. `scripts/deploy-image-bundle.sh`:
    - режим `prune-retained FULL_SHA [--dry-run]` под `.deploy/image-bundle.lock`; занятый lock — предупреждение, код 0;
-   - keep set: текущий релиз (`.env.images`, HEAD и живые web/bot совпадают с SHA), предыдущий (`.deploy/previous-git-sha` совпадает с `.env.images.previous`), N последних из `.deploy/release-history` (N из `.deploy/retain-releases`, по умолчанию 3, допустимо 1–99), пины из `.deploy/retain-pins` (одна строка — один полный SHA, `#` — комментарий), SHA образов любых контейнеров (`docker container ls --all`), SHA снимков `.deploy/.split-recovery.*`;
+   - keep set: текущий релиз (`.env.images`, HEAD и живые web/bot совпадают с SHA), предыдущий (`.deploy/previous-git-sha` совпадает с `.env.images.previous`), N последних из `.deploy/release-history` (N из `.deploy/retain-releases`, по умолчанию 3, допустимо 1–99), пины из `.deploy/retain-pins` (одна строка — один полный SHA, `#` — комментарий), SHA образов любых контейнеров (`docker container ls --all`), SHA снимков `.deploy/.split-recovery.*` и GHCR-снимков отката `.deploy/ghcr-old-manifest-*` (нечитаемый снимок — ничего не удаляется);
    - удаляет только перечисленное в п. 4 решения; лог: keep set с причинами, каждое удаление или «would remove» при `--dry-run`, сбои, свободное место до и после;
    - `confirm-smoke` дописывает SHA в `.deploy/release-history`.
 2. `scripts/disk-status.sh`: читает вывод `df -Pk`, убирает дубли файловой системы, пишет таблицу в `GITHUB_STEP_SUMMARY` (или stdout), `::warning::` ниже порогов `DISK_MIN_FREE_PCT` (25) / `DISK_MIN_FREE_GIB` (5); код 1 при отсутствии данных; с `--fail-on-low` код 2 при низком месте.
@@ -69,8 +69,22 @@ tags: [ci, cd, deploy, vps, disk, retention, monitoring]
 - ✅ `disk-status.sh`: пороги 25% / 5 GiB, дубли, отсутствие данных, `--fail-on-low`.
 - ✅ Шаг ретенции в Deploy идёт после подтверждения smoke и не может сделать выкладку неуспешной; summary диска пишется при любом исходе.
 - ✅ Пять gates, deploy contract tests, `bash -n`, shellcheck (если доступен), YAML валиден.
-- ✅ Владелец подтвердил diff `.github/workflows` в PR.
-- ⬜ Первая выкладка после merge: шаг ретенции и summary диска наблюдались на VPS, evidence в `docs/operations/qa/`.
+- ✅ Владелец подтвердил diff `.github/workflows` в PR #189 (2026-10-27).
+- ✅ Релизы из `.deploy/ghcr-old-manifest-*` входят в keep set; нечитаемый снимок — ничего не удаляется (follow-up ревью, Minor 1).
+- ⬜ Первая выкладка после merge: шаг ретенции и summary диска наблюдались на VPS, история `.deploy/release-history` и пины `.deploy/retain-pins` засеяны по runbook, evidence в `docs/operations/qa/`.
+
+## Решения владельца 2026-10-27
+
+[Журнал](../operations/decisions/2026-10-12-reference-v3-decisions.md):
+
+- (a) diff `.github/workflows` в PR #189 одобрен;
+- (b) мониторинг диска использует полный deploy-ключ (`VPS_SSH_KEY`); отдельный ограниченный ключ не делается, принято для пилота;
+- (c) секреты VPS и бота пока остаются на уровне репозитория, в environment `production` не переносятся;
+- (d) GHCR-образы и `ghcr-*` staging чистятся вручную — принятое ограничение.
+
+## Follow-up
+
+- Minor, без владельца: закрепить `appleboy/ssh-action` и `appleboy/scp-action` на commit SHA во всех workflow репозитория (отдельным PR с diff для владельца).
 
 ## Не делать
 
