@@ -375,6 +375,12 @@ retained_releases() {
       printf '%s recovery\n' "$sha"
     fi
   done
+  # GHCR rollback snapshots (check_ghcr_checkpoint) name the release they restore.
+  for snapshot in .deploy/ghcr-old-manifest-*; do
+    [ -f "$snapshot" ] || continue
+    sha="$(read_manifest_sha "$snapshot")" || { prune_skip "GHCR rollback snapshot $snapshot is unreadable"; return 1; }
+    printf '%s ghcr-recovery\n' "$sha"
+  done
   # Any container, running or stopped, pins its whole release.
   local containers
   containers="$(docker container ls --all --format '{{.Image}}')" || { prune_skip "cannot list containers"; return 1; }
