@@ -7,24 +7,33 @@ import { seatsLabel } from './booking-seats'
 export const CANCEL_REFUND_NOTE =
   'Оплаченные места освободятся без возврата денег: возврат — отдельное действие организатора.'
 
-/** Оплата наличными или переводом: отмена может освободить оплаченные места (D-14). Только представление. */
-export function cancelMayReleasePaidSeats(method: string | null | undefined): boolean {
-  return method === 'cash' || method === 'transfer'
+/**
+ * Подтверждение полной отмены: вопрос и, если среди освобождаемых мест есть реально оплаченные,
+ * пояснение D-14. `paidSeats` — число оплаченных мест из API игрока (`seatPayments`, 21.1.8).
+ */
+export function cancelConfirmText(question: string, paidSeats: number): string {
+  return paidSeats > 0 ? `${question} ${CANCEL_REFUND_NOTE}` : question
 }
 
-/** Подтверждение полной отмены: вопрос и, для оплаты деньгами, пояснение D-14. */
-export function cancelConfirmText(question: string, method: string | null | undefined): string {
-  return cancelMayReleasePaidSeats(method) ? `${question} ${CANCEL_REFUND_NOTE}` : question
-}
-
-/** Подтверждение частичной отмены: сколько снимается, сколько остаётся, пояснение D-14. */
+/**
+ * Подтверждение частичной отмены: сколько снимается, сколько остаётся и, если среди снимаемых мест есть
+ * оплаченные, пояснение D-14. `paidReleased` — сколько оплаченных мест освободится (`paidSeatsReleasedByRemoving`).
+ */
 export function seatsCancelConfirmText(
   removed: number,
   kept: number,
-  method: string | null | undefined,
+  paidReleased: number,
 ): string {
   const question = `Снять ${seatsLabel(removed)}? Останется ${seatsLabel(kept)}.`
-  return cancelMayReleasePaidSeats(method) ? `${question} ${CANCEL_REFUND_NOTE}` : question
+  return paidReleased > 0 ? `${question} ${CANCEL_REFUND_NOTE}` : question
+}
+
+/** Строка истории: оплаченные места, освобождённые игроком без возврата (D-14, 21.1.8). */
+export function releasedPaidSeatsLabel(releasedPaidSeats: number): string | null {
+  if (releasedPaidSeats <= 0) return null
+  return releasedPaidSeats === 1
+    ? 'Оплачено, место освобождено'
+    : `Оплачено, места освобождены: ${seatsLabel(releasedPaidSeats)}`
 }
 
 /** Подпись под кнопкой отмены записи на абонементе (M-09, решение владельца 2026-10-25). */

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   CANCEL_REFUND_NOTE,
   cancelConfirmText,
-  cancelMayReleasePaidSeats,
+  releasedPaidSeatsLabel,
   SUBSCRIPTION_RETURN_NOTE,
   seatsCancelConfirmText,
   sessionReturnsOnCancel,
@@ -16,26 +16,22 @@ describe('player booking cancellation copy and seats', () => {
     )
   })
 
-  it('warns only for bookings paid in cash or by transfer', () => {
-    expect(cancelMayReleasePaidSeats('cash')).toBe(true)
-    expect(cancelMayReleasePaidSeats('transfer')).toBe(true)
-    expect(cancelMayReleasePaidSeats('free')).toBe(false)
-    expect(cancelMayReleasePaidSeats('subscription')).toBe(false)
-    expect(cancelMayReleasePaidSeats(null)).toBe(false)
-  })
-
-  it('appends the refund note to the cancel question for paid bookings only', () => {
-    expect(cancelConfirmText('Отменить запись?', 'cash')).toBe(
-      `Отменить запись? ${CANCEL_REFUND_NOTE}`,
-    )
-    expect(cancelConfirmText('Отменить запись?', 'free')).toBe('Отменить запись?')
+  it('appends the refund note to the cancel question only when paid seats are released', () => {
+    expect(cancelConfirmText('Отменить запись?', 2)).toBe(`Отменить запись? ${CANCEL_REFUND_NOTE}`)
+    expect(cancelConfirmText('Отменить запись?', 0)).toBe('Отменить запись?')
   })
 
   it('describes the partial cancellation with the removed and kept seats', () => {
-    expect(seatsCancelConfirmText(1, 2, 'free')).toBe('Снять 1 место? Останется 2 места.')
-    expect(seatsCancelConfirmText(2, 1, 'transfer')).toBe(
+    expect(seatsCancelConfirmText(1, 2, 0)).toBe('Снять 1 место? Останется 2 места.')
+    expect(seatsCancelConfirmText(2, 1, 1)).toBe(
       `Снять 2 места? Останется 1 место. ${CANCEL_REFUND_NOTE}`,
     )
+  })
+
+  it('labels the paid seats released by the player (history row)', () => {
+    expect(releasedPaidSeatsLabel(0)).toBeNull()
+    expect(releasedPaidSeatsLabel(1)).toBe('Оплачено, место освобождено')
+    expect(releasedPaidSeatsLabel(3)).toBe('Оплачено, места освобождены: 3 места')
   })
 
   describe('session return caption for subscription bookings', () => {

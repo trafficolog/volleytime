@@ -39,7 +39,9 @@ const loadView = createPlayerBookingsLoader<MyBooking>(
     ).bookings.filter(
       (booking) =>
         (booking.status !== 'cancelled' ||
-          (booking.pricing?.mode === 'split' && booking.pricing.myAllocatedAmount !== null)) &&
+          (booking.pricing?.mode === 'split' && booking.pricing.myAllocatedAmount !== null) ||
+          // оплачено, место освобождено без возврата (D-14, 21.1.8): строка остаётся в истории
+          (booking.seatPayments?.releasedPaidSeats ?? 0) > 0) &&
         booking.organizationId === requestedOrgId &&
         booking.event.organizationId === requestedOrgId,
     ),
@@ -100,7 +102,11 @@ async function onCancel(b: MyBooking) {
   if (cancelling.value !== null || !canCancel(b)) return
   const confirmation = confirmationGuard.begin()
   actionError.value = ''
-  if (!(await confirm(cancelConfirmText(`Отменить запись на «${b.event.title}»?`, b.method))))
+  if (
+    !(await confirm(
+      cancelConfirmText(`Отменить запись на «${b.event.title}»?`, b.seatPayments?.paidSeats ?? 0),
+    ))
+  )
     return
   if (!confirmation.isCurrent()) return
   const currentBooking = items.value.find((item) => item.id === b.id)

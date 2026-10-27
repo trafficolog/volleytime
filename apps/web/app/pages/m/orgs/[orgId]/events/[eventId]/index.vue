@@ -3,8 +3,10 @@ import type { Event, Organization, OrganizationMember, Subscription } from '@vol
 import {
   formatDay,
   formatTime,
+  paidSeatsReleasedByRemoving,
   type EventPriceQuote,
   type EventPricingView,
+  type SeatPaymentsView,
 } from '@volley-time/shared'
 
 import {
@@ -24,7 +26,6 @@ import { displayName, formatMoneyRu } from '~/utils/labels'
 import {
   CANCEL_REFUND_NOTE,
   cancelConfirmText,
-  cancelMayReleasePaidSeats,
   seatsCancelConfirmText,
   sessionReturnsOnCancel,
   SUBSCRIPTION_RETURN_NOTE,
@@ -76,6 +77,8 @@ type EventDetails = Event & {
     paymentId: number | null
     seats?: number
     waitlistSeats?: number
+    /** Статус оплаты мест своей записи (21.1.8, D-14): от него зависит предупреждение «без возврата». */
+    seatPayments?: SeatPaymentsView
     offer?: { id: number; seats: number; expiresAt: string } | null
     /** Место в очереди (1 — первый), только у своей записи в очереди (20.4.11). */
     waitPos?: number | null
@@ -890,8 +893,9 @@ async function cancelMine() {
   const requestedOrgId = orgId.value
   const confirmation = confirmationGuard.begin()
   const bookingId = my.value.id
-  const method = my.value.method
-  if (!(await confirm(cancelConfirmText('Отменить запись на тренировку?', method)))) return
+  // предупреждение D-14 — только если среди освобождаемых мест есть реально оплаченные (21.1.8)
+  const paidSeats = my.value.seatPayments?.paidSeats ?? 0
+  if (!(await confirm(cancelConfirmText('Отменить запись на тренировку?', paidSeats)))) return
   if (
     !alive ||
     !confirmation.isCurrent() ||
@@ -919,7 +923,7 @@ async function cancelMine() {
   )
   if (outcome.kind === 'success') {
     haptic('success')
-    if (cancelMayReleasePaidSeats(method)) refundNotice.value = CANCEL_REFUND_NOTE
+    if (paidSeats > 0) refundNotice.value = CANCEL_REFUND_NOTE
   } else if (outcome.kind === 'error') {
     haptic('error')
     actionError.value = apiErrorMessage(outcome.error, 'Не удалось отменить запись')
@@ -941,7 +945,17 @@ async function reduceMySeats(kept: number) {
   if (kept < 1 || kept >= total) return
   const requestedOrgId = orgId.value
   const confirmation = confirmationGuard.begin()
-  if (!(await confirm(seatsCancelConfirmText(total - kept, kept, booking.method)))) return
+  const paidReleased = paidSeatsReleasedByRemoving(
+    total - kept,
+    {
+      status: booking.status,
+      method: booking.method,
+      seats: booking.seats ?? 1,
+      waitlistSeats: booking.waitlistSeats ?? 0,
+    },
+    booking.seatPayments ?? { paidSeats: 0, pendingSeats: 0, releasedPaidSeats: 0 },
+  )
+  if (!(await confirm(seatsCancelConfirmText(total - kept, kept, paidReleased)))) return
   if (
     !alive ||
     !confirmation.isCurrent() ||
@@ -970,7 +984,7 @@ async function reduceMySeats(kept: number) {
   )
   if (outcome.kind === 'success') {
     haptic('success')
-    if (cancelMayReleasePaidSeats(booking.method)) refundNotice.value = CANCEL_REFUND_NOTE
+    if (paidReleased > 0) refundNotice.value = CANCEL_REFUND_NOTE
   } else if (outcome.kind === 'error') {
     haptic('error')
     actionError.value = apiErrorMessage(outcome.error, 'Не удалось отменить места')
