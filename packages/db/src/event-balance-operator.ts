@@ -24,7 +24,7 @@
  * Команды:
  *   grant     --org <id> --units <n> (--operator <root email> | --operator-id <users.id>) --comment "<причина>"
  *   correct   --org <id> --units <±n> (--operator <root email> | --operator-id <users.id>) --comment "<причина>"
- *   approve   --request <id> ((--operator <root email> | --operator-id <users.id>) | --operator-id <users.id>) [--comment "<комментарий>"]
+ *   approve   --request <id> (--operator <root email> | --operator-id <users.id>) [--comment "<комментарий>"]
  *   reject    --request <id> (--operator <root email> | --operator-id <users.id>) --comment "<причина>"
  *   reconcile (--operator <root email> | --operator-id <users.id>) [--apply] [--since <ISO-дата>]
  *
@@ -65,6 +65,10 @@ export class OperatorError extends Error {
 }
 
 const OPERATOR_SOURCE = 'operator-cli'
+/** Максимум int4: id вне диапазона не уходят в запрос к БД. */
+const INT4_MAX = 2_147_483_647
+const isDbId = (n: number) => Number.isSafeInteger(n) && n > 0 && n <= INT4_MAX
+
 /** Предел одной операции начисления/исправления: защита от опечатки в --units. */
 export const OPERATOR_MAX_UNITS = 1000
 
@@ -83,7 +87,7 @@ async function resolveOperator(db: DbOrTx, ref: OperatorRef): Promise<number> {
       'Specify exactly one of --operator <email> and --operator-id <users.id>',
     )
   }
-  if (hasId && !(Number.isSafeInteger(ref.operatorId) && ref.operatorId! > 0)) {
+  if (hasId && !isDbId(ref.operatorId!)) {
     throw new OperatorError('operator.invalid_id', '--operator-id must be a positive integer')
   }
   const [user] = await db
@@ -111,6 +115,9 @@ function requireComment(comment: string | undefined): string {
 }
 
 async function requireOrganization(db: DbOrTx, organizationId: number): Promise<void> {
+  if (!isDbId(organizationId)) {
+    throw new OperatorError('organization.not_found', `No organization ${organizationId}`)
+  }
   const [org] = await db
     .select({ id: organizations.id })
     .from(organizations)
@@ -206,6 +213,9 @@ async function lockPendingRequest(
   db: DbOrTx,
   requestId: number,
 ): Promise<EventBalancePurchaseRequest> {
+  if (!isDbId(requestId)) {
+    throw new OperatorError('purchase_request.not_found', `No purchase request ${requestId}`)
+  }
   const [request] = await db
     .select()
     .from(eventBalancePurchaseRequests)
@@ -415,7 +425,7 @@ export type OperatorArgs =
 
 const USAGE =
   'Usage: event-balance-operator <grant|correct|approve|reject|reconcile> ' +
-  '[--org <id>] [--units <n>] [--request <id>] ((--operator <root email> | --operator-id <users.id>) | --operator-id <users.id>) [--comment <text>] [--apply] [--since <ISO>]'
+  '[--org <id>] [--units <n>] [--request <id>] (--operator <root email> | --operator-id <users.id>) [--comment <text>] [--apply] [--since <ISO>]'
 
 const OPTIONS: Record<string, 'int' | 'string' | 'flag'> = {
   org: 'int',
@@ -454,13 +464,16 @@ export function parseOperatorArgs(argv: string[]): OperatorArgs {
       if (!/^-?\d+$/.test(value)) {
         throw new Error(
           name === 'operator-id'
-            ? '--operator-id must be a positive integer'
+            ? '--operator-id must be a positive integer up to 2147483647'
             : `--${name} must be an integer`,
         )
       }
       const n = Number(value)
-      if (name === 'operator-id' && !(Number.isSafeInteger(n) && n > 0)) {
-        throw new Error('--operator-id must be a positive integer')
+      if (name === 'operator-id' && !isDbId(n)) {
+        throw new Error('--operator-id must be a positive integer up to 2147483647')
+      }
+      if ((name === 'org' || name === 'request') && n > INT4_MAX) {
+        throw new Error(`--${name} must be an integer up to 2147483647`)
       }
       out[name === 'operator-id' ? 'operatorId' : name] = n
     } else {

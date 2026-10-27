@@ -414,6 +414,40 @@ describe('event balance operator command (integration)', () => {
       expect(await entriesOf()).toHaveLength(0)
     })
 
+    it('caps ids at int4 in the parser and the library', async () => {
+      const parse = (v: string) => () => parseOperatorArgs(['reconcile', '--operator-id', v])
+      expect(parse('1e3')).toThrow(/--operator-id/)
+      expect(parse('01')()).toEqual({ command: 'reconcile', operatorId: 1 })
+      expect(parse('1 ')).toThrow(/--operator-id/)
+      expect(parse('2147483647')()).toMatchObject({ operatorId: 2147483647 })
+      expect(parse('2147483648')).toThrow(/--operator-id/)
+      expect(() =>
+        parseOperatorArgs(['grant', '--org', '2147483648', '--units', '1', '--operator', 'r@x']),
+      ).toThrow(/--org/)
+      expect(() =>
+        parseOperatorArgs(['approve', '--request', '2147483648', '--operator', 'r@x']),
+      ).toThrow(/--request/)
+      await expect(
+        grantEventBalance(db, {
+          organizationId: orgId,
+          units: 1,
+          operatorId: 2147483648,
+          comment: 'x',
+        }),
+      ).rejects.toMatchObject({ code: 'operator.invalid_id' })
+      await expect(
+        grantEventBalance(db, {
+          organizationId: 2147483648,
+          units: 1,
+          operator: rootEmail,
+          comment: 'x',
+        }),
+      ).rejects.toMatchObject({ code: 'organization.not_found' })
+      await expect(
+        approvePurchaseRequest(db, { requestId: 2147483648, operator: rootEmail }),
+      ).rejects.toMatchObject({ code: 'purchase_request.not_found' })
+    })
+
     it('parses --operator-id for every command and rejects bad combinations', () => {
       expect(parseOperatorArgs(['reconcile', '--operator-id', '12'])).toEqual({
         command: 'reconcile',
