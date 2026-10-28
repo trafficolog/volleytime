@@ -6,6 +6,7 @@ import {
   readBookingAvailability,
   readEventPricing,
   readManualClose,
+  readMySeatPayments,
   readPricingFinancials,
   readPricingPermissions,
   requireOrgMember,
@@ -39,8 +40,25 @@ export default defineApiHandler(async (event) => {
     ev.joinMode === 'invite' ? await eventInviteRequestService.mine(ctx, ev.id) : null
   // Свободные места (с учётом предложений и очереди) и закрытие записи решает сервер (20.4.5, ревью #156).
   const availability = await readBookingAvailability(ctx, ev)
+  // статус оплаты мест своей записи (21.1.8, D-14): только счётчики, без сумм и чужих платежей
+  const myBooking = stats.myBooking
+    ? {
+        ...stats.myBooking,
+        seatPayments: (await readMySeatPayments(ctx, orgId, [stats.myBooking.id])).get(
+          stats.myBooking.id,
+        ),
+      }
+    : null
   return {
-    event: { ...ev, ...stats, ...availability, pricing, ...managerPricing, myInviteRequest },
+    event: {
+      ...ev,
+      ...stats,
+      myBooking,
+      ...availability,
+      pricing,
+      ...managerPricing,
+      myInviteRequest,
+    },
     roster,
     // Время сервера для отсчёта предложения места: часы телефона могут уходить (M2, ревью #156).
     serverNow: new Date().toISOString(),

@@ -1,15 +1,23 @@
 <script setup lang="ts">
 import type { Booking, Event, Venue } from '@volley-time/db'
-import { formatTime, type EventPriceQuote, type EventPricingView } from '@volley-time/shared'
+import {
+  formatTime,
+  type EventPriceQuote,
+  type EventPricingView,
+  type SeatPaymentsView,
+} from '@volley-time/shared'
 
 import { offerDeadlineLabel } from '~/utils/booking-seats'
 import { eventPricingLabel, splitBookingPaymentLabel } from '~/utils/event-pricing-label'
+import { releasedPaidSeatsLabel } from '~/utils/player-booking-cancel'
 import { bookingPaymentChip } from '~/utils/player-event'
 import { quotePriceLabel } from '~/utils/player-price-view'
 import { participationOf } from '~/utils/status-model'
 
 export type MyBooking = Booking & {
   pricing: EventPricingView
+  /** Статус оплаты мест своей записи (21.1.8, D-14): счётчики без сумм. */
+  seatPayments?: SeatPaymentsView
   /** Цена split из `quoteEventPrice` (как GET …/price, 20.4.6); `undefined` — источник не передан. */
   priceQuote?: (EventPriceQuote & { currency?: string }) | null
   event: Event & { venue: Venue | null }
@@ -65,6 +73,9 @@ const price = computed(() => {
   return { ...label, forecast: x.pricing.mode === 'split' && x.pricing.basis !== 'settled' }
 })
 const paymentChip = computed(() => bookingPaymentChip(b.value.status, b.value.pricing))
+const releasedLabel = computed(() =>
+  releasedPaidSeatsLabel(b.value.seatPayments?.releasedPaidSeats ?? 0),
+)
 </script>
 
 <template>
@@ -104,6 +115,7 @@ const paymentChip = computed(() => bookingPaymentChip(b.value.status, b.value.pr
           <VtChip v-else-if="b.status === 'no_show'">Не пришёл</VtChip>
           <VtChip v-if="paymentChip" :tone="paymentChip.tone">{{ paymentChip.text }}</VtChip>
           <VtChip v-else-if="b.status === 'cancelled'">Запись отменена</VtChip>
+          <VtChip v-if="releasedLabel" data-released-paid>{{ releasedLabel }}</VtChip>
         </span>
       </span>
     </NuxtLink>

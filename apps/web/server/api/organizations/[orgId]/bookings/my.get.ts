@@ -2,6 +2,7 @@ import {
   bookingService,
   canManageContent,
   readEventPricing,
+  readMySeatPayments,
   readPlayerPriceQuote,
   requireOrgMember,
 } from '@volley-time/core'
@@ -23,12 +24,19 @@ export default defineApiHandler(async (event) => {
     filter,
     { limit, offset },
   )
+  // статус оплаты мест — только своих записей (21.1.8, D-14): счётчики без сумм и чужих платежей
+  const seatPayments = await readMySeatPayments(
+    ctx,
+    event.context.organization!.id,
+    bookings.map((b) => b.id),
+  )
   return {
     bookings: await Promise.all(
       bookings.map(async (booking) => {
         const pricing = await readEventPricing(ctx, booking.eventId)
         return {
           ...booking,
+          seatPayments: seatPayments.get(booking.id),
           pricing,
           // цена split — единый расчёт GET …/price (20.4.6)
           priceQuote: await readPlayerPriceQuote(ctx, {

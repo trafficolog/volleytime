@@ -460,6 +460,7 @@ describe('self-cancellation policy, deadline and partial seats (20.4.8)', () => 
       paymentId: 9,
       seats: 3,
       waitlistSeats: 0,
+      seatPayments: { paidSeats: 3, pendingSeats: 0, releasedPaidSeats: 0 },
     } as unknown as typeof data.value.event.myBooking
     wrapper = await render()
     await button('Снять 1 место').trigger('click')
@@ -478,6 +479,55 @@ describe('self-cancellation policy, deadline and partial seats (20.4.8)', () => 
         .findAll('p[role="status"]')
         .some((p) => p.text().includes('Оплаченные места освободятся без возврата денег')),
     ).toBe(true)
+  })
+})
+
+describe('«без возврата» only for really paid seats (21.1.8, D-14)', () => {
+  const book = (seatPayments: Record<string, number>) => {
+    data.value.event.cancellationAllowed = true
+    data.value.event.cancellationDeadlineHours = null
+    data.value.event.myBooking = {
+      id: 5,
+      status: 'confirmed',
+      method: 'cash',
+      paymentId: 9,
+      seats: 2,
+      waitlistSeats: 0,
+      seatPayments,
+    } as unknown as typeof data.value.event.myBooking
+  }
+
+  it('does not warn when a cash booking has no paid seat yet (full and partial cancel)', async () => {
+    book({ paidSeats: 0, pendingSeats: 2, releasedPaidSeats: 0 })
+    wrapper = await render()
+    await button('Снять 1 место').trigger('click')
+    await flushPromises()
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('Останется 1 место'))
+    expect(confirm).not.toHaveBeenCalledWith(expect.stringContaining('без возврата'))
+    await button('Отменить запись').trigger('click')
+    await flushPromises()
+    expect(confirm).toHaveBeenCalledTimes(2)
+    expect(confirm).not.toHaveBeenCalledWith(expect.stringContaining('без возврата'))
+    expect(wrapper.findAll('p[role="status"]').some((p) => p.text().includes('без возврата'))).toBe(
+      false,
+    )
+  })
+
+  it('warns on full cancel when a seat is paid', async () => {
+    book({ paidSeats: 1, pendingSeats: 1, releasedPaidSeats: 0 })
+    wrapper = await render()
+    await button('Отменить запись').trigger('click')
+    await flushPromises()
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('без возврата денег'))
+  })
+
+  it('does not warn on partial cancel when only the unpaid seat is dropped', async () => {
+    book({ paidSeats: 1, pendingSeats: 1, releasedPaidSeats: 0 })
+    wrapper = await render()
+    await button('Снять 1 место').trigger('click')
+    await flushPromises()
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('Останется 1 место'))
+    expect(confirm).not.toHaveBeenCalledWith(expect.stringContaining('без возврата'))
   })
 })
 

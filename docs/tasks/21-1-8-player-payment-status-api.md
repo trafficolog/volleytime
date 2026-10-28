@@ -2,11 +2,11 @@
 id: '21.1.8'
 phase: '21'
 epic: '21.1'
-status: todo
+status: in_progress
 release: 'v0.3.0'
 sync_state: synced
-last_reviewed: 2026-10-25
-status_note: ''
+last_reviewed: 2026-10-27
+status_note: 'Реализовано, ждёт независимого ревью (PR trafficolog/feat/21.1.8-payment-status). Доказательства: unit shared/web и интеграционные core (доступ только владельцу записи, освобождённое оплаченное место) зелёные; lint, typecheck, format:check, test, build — см. описание PR. Миграций нет. Статус done — после ревью и merge.'
 ref_id: ''
 complexity: M
 impl_model: claude-sonnet-5-5

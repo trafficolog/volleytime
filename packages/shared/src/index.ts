@@ -17,6 +17,12 @@ export {
   type SeriesRule,
 } from './events/recurrence'
 
+export {
+  EMPTY_SEAT_PAYMENTS,
+  paidSeatsReleasedByRemoving,
+  seatPaymentsFromRows,
+  type SeatPaymentsView,
+} from './payments/seat-payments'
 export { formatMoney, toMajor, toMinor } from './money/money'
 export { slugify, uniqueSlug } from './slug/slug'
 export {
