@@ -14,6 +14,7 @@ import {
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { memberService } from '../members/service'
+import type { PendingNotification } from '../notifier/types'
 import { organizationService } from '../organizations/service'
 import { paymentService } from '../payments/service'
 
@@ -155,21 +156,62 @@ describe('collections (integration)', { timeout: 60_000 }, () => {
     })
     expect(first.replaced).toBe(false)
     expect(first.contribution).toMatchObject({ status: 'pending', amount: 1500 })
-    // повторный взнос до подтверждения меняет обещание, а не плодит строки
-    const changed = await collectionService.contribute(ctx(player), orgId, c.id, {
-      amount: 2000,
-      method: 'transfer',
-    })
+    // повторный взнос до подтверждения — новая заявка (решение владельца 2026-10-28): прежний
+    // платёж отменяется, сумма ожидающего платежа никогда не меняется
+    const notifications: PendingNotification[] = []
+    const changed = await collectionService.contribute(
+      { userId: player, notifications },
+      orgId,
+      c.id,
+      { amount: 2000, method: 'transfer' },
+    )
     expect(changed.replaced).toBe(true)
-    expect(changed.contribution.id).toBe(first.contribution.id)
-    expect(await db.select().from(payments).where(eq(payments.collectionId, c.id))).toHaveLength(1)
+    expect(changed.contribution.id).not.toBe(first.contribution.id)
+    expect(changed.contribution).toMatchObject({ status: 'pending', amount: 2000 })
+    const rows = await db
+      .select()
+      .from(payments)
+      .where(eq(payments.collectionId, c.id))
+      .orderBy(payments.id)
+    expect(rows.map((r) => [r.amount, r.status])).toEqual([
+      [1500, 'cancelled'],
+      [2000, 'pending'],
+    ])
+    // организаторы получают свежую заявку на новый платёж
+    expect(
+      notifications.filter(
+        (n) =>
+          n.type === 'payment_pending_organizer' &&
+          n.dedupKey?.includes(`payment:${changed.contribution.id}:`),
+      ).length,
+    ).toBeGreaterThan(0)
+    const [replacedAudit] = await db
+      .select()
+      .from(auditLog)
+      .where(
+        and(
+          eq(auditLog.action, 'collection.contribution_replaced'),
+          eq(auditLog.entityId, first.contribution.id),
+        ),
+      )
+    expect(replacedAudit?.newValue).toMatchObject({ replacedBy: changed.contribution.id })
+    // устаревшее решение по старому id — 409 на обоих маршрутах, ничего не меняется
+    await expect(
+      collectionService.confirmContribution(ctx(owner), orgId, c.id, first.contribution.id),
+    ).rejects.toMatchObject({ code: 'payment.not_pending' })
+    await expect(
+      paymentService.confirm(ctx(owner), first.contribution.id, { orgId }),
+    ).rejects.toMatchObject({ code: 'payment.not_pending' })
+    await expect(
+      collectionService.rejectContribution(ctx(owner), orgId, c.id, first.contribution.id),
+    ).rejects.toMatchObject({ code: 'payment.not_pending' })
     expect(await collectionIncome(c.id)).toMatchObject({ income: 0, entries: 0 })
 
-    await collectionService.confirmContribution(ctx(owner), orgId, c.id, first.contribution.id)
+    await collectionService.confirmContribution(ctx(owner), orgId, c.id, changed.contribution.id)
     const [entry] = await db
       .select()
       .from(ledgerEntries)
-      .where(eq(ledgerEntries.paymentId, first.contribution.id))
+      .where(eq(ledgerEntries.paymentId, changed.contribution.id))
     expect(entry).toMatchObject({
       type: 'income',
       category: 'contribution',
@@ -260,8 +302,11 @@ describe('collections (integration)', { timeout: 60_000 }, () => {
       amount: 300,
       method: 'cash',
     })
-    const cancelled = await collectionService.cancel(ctx(owner), orgId, c.id)
+    const notifications: PendingNotification[] = []
+    const cancelled = await collectionService.cancel({ userId: owner, notifications }, orgId, c.id)
     expect(cancelled.status).toBe('cancelled')
+    // игрок с отклонённым обещанием получает уведомление
+    expect(notifications.map((n) => [n.type, n.userId])).toEqual([['payment_rejected', p2]])
     const [row] = await db.select().from(payments).where(eq(payments.id, pledge.contribution.id))
     expect(row!.status).toBe('cancelled')
     await expect(
@@ -288,7 +333,86 @@ describe('collections (integration)', { timeout: 60_000 }, () => {
     expect(await collectionIncome(c.id)).toEqual({ income: 400, entries: 1, bad: 0 })
   })
 
+  it('refunding a confirmed contribution writes a refund and lowers the collected sum', async () => {
+    const c = await create()
+    const { contribution } = await collectionService.contribute(ctx(player), orgId, c.id, {
+      amount: 1200,
+      method: 'cash',
+    })
+    await collectionService.confirmContribution(ctx(owner), orgId, c.id, contribution.id)
+    await paymentService.refund(ctx(owner), contribution.id, 'Сбор не состоялся')
+    const entries = await db
+      .select()
+      .from(ledgerEntries)
+      .where(eq(ledgerEntries.paymentId, contribution.id))
+      .orderBy(ledgerEntries.id)
+    expect(entries.map((e) => [e.type, e.category, e.amount])).toEqual([
+      ['income', 'contribution', 1200],
+      ['expense', 'refund', 1200],
+    ])
+    const view = await collectionService.get(ctx(owner), orgId, c.id, { manager: true })
+    expect(view.collection).toMatchObject({ collected: 0, contributors: 0 })
+    await expect(
+      paymentService.refund(ctx(owner), contribution.id, 'повтор'),
+    ).rejects.toMatchObject({ code: 'payment.not_succeeded' })
+  })
+
   describe('races', () => {
+    it('replace vs confirm of a pledge → the old amount is confirmed or replaced, never both', async () => {
+      for (let run = 0; run < 5; run++) {
+        const c = await create({ title: `Замена ${run}` })
+        const { contribution } = await collectionService.contribute(ctx(player), orgId, c.id, {
+          amount: 1000,
+          method: 'cash',
+        })
+        const [confirm, replace] = await Promise.allSettled([
+          run % 2
+            ? paymentService.confirm(ctx(owner), contribution.id, { orgId })
+            : collectionService.confirmContribution(ctx(owner), orgId, c.id, contribution.id),
+          collectionService.contribute(ctx(player), orgId, c.id, { amount: 3000, method: 'cash' }),
+        ])
+        expect(replace.status).toBe('fulfilled')
+        const rows = await db.select().from(payments).where(eq(payments.collectionId, c.id))
+        const old = rows.find((r) => r.id === contribution.id)!
+        if (confirm.status === 'fulfilled') {
+          // подтверждена ровно та сумма, что видел организатор; замена — новая заявка
+          expect(old).toMatchObject({ status: 'succeeded', amount: 1000 })
+          expect((replace as PromiseFulfilledResult<{ replaced: boolean }>).value.replaced).toBe(
+            false,
+          )
+        } else {
+          expect(old).toMatchObject({ status: 'cancelled', amount: 1000 })
+          expect(String((confirm.reason as { code?: string })?.code)).toBe('payment.not_pending')
+        }
+        expect(rows.filter((r) => r.status === 'pending').map((r) => r.amount)).toEqual([3000])
+        expect((await collectionIncome(c.id)).income).toBe(await confirmedSum(c.id))
+      }
+    })
+
+    it('replace vs reject of a pledge → one pending pledge with the new amount, cash untouched', async () => {
+      for (let run = 0; run < 5; run++) {
+        const c = await create({ title: `Замена-отказ ${run}` })
+        const { contribution } = await collectionService.contribute(ctx(player), orgId, c.id, {
+          amount: 1000,
+          method: 'cash',
+        })
+        const [reject, replace] = await Promise.allSettled([
+          collectionService.rejectContribution(ctx(owner), orgId, c.id, contribution.id),
+          collectionService.contribute(ctx(player), orgId, c.id, { amount: 3000, method: 'cash' }),
+        ])
+        expect(replace.status).toBe('fulfilled')
+        if (reject.status === 'rejected')
+          expect(String((reject.reason as { code?: string })?.code)).toBe('payment.not_pending')
+        const rows = await db.select().from(payments).where(eq(payments.collectionId, c.id))
+        expect(rows.find((r) => r.id === contribution.id)).toMatchObject({
+          status: 'cancelled',
+          amount: 1000,
+        })
+        expect(rows.filter((r) => r.status === 'pending').map((r) => r.amount)).toEqual([3000])
+        expect(await collectionIncome(c.id)).toMatchObject({ income: 0, entries: 0 })
+      }
+    })
+
     it('10 parallel confirmations of one pledge → one success and one income (3 runs)', async () => {
       for (let run = 0; run < 3; run++) {
         const c = await create({ title: `Гонка ${run}` })
@@ -336,8 +460,10 @@ describe('collections (integration)', { timeout: 60_000 }, () => {
       )
       expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(10)
       const rows = await db.select().from(payments).where(eq(payments.collectionId, c.id))
-      expect(rows).toHaveLength(1)
-      expect(rows[0]!.status).toBe('pending')
+      // каждая замена — новая заявка: одна ожидающая, остальные отменены, суммы не менялись
+      expect(rows.filter((r) => r.status === 'pending')).toHaveLength(1)
+      expect(rows.filter((r) => r.status === 'cancelled')).toHaveLength(9)
+      expect(new Set(rows.map((r) => r.amount)).size).toBe(10)
     })
 
     it('cancel vs confirm and cancel vs new pledges leave no pending money and a consistent cash', async () => {

@@ -6,8 +6,8 @@ defineRouteMeta({
     summary: 'Внести взнос в сбор',
     description:
       '21.2.4: свой взнос в активный сбор — обещание (pending-платёж) до подтверждения организатором. ' +
-      'Одно ожидающее обещание игрока в сборе: повтор до подтверждения меняет сумму и способ ' +
-      '(replaced = true). Только при COLLECTIONS_ENABLED=true. Любой активный участник.',
+      'Одно ожидающее обещание игрока в сборе: повтор до подтверждения — новая заявка (прежний ' +
+      'платёж отменяется, replaced = true; решение по старому id — 409 payment.not_pending). Только при COLLECTIONS_ENABLED=true. Любой активный участник.',
     parameters: [
       { in: 'path', name: 'orgId', required: true, schema: { type: 'integer' } },
       { in: 'path', name: 'collectionId', required: true, schema: { type: 'integer' } },

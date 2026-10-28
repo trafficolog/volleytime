@@ -65,6 +65,8 @@ export const AUDIT_ACTIONS = {
   COLLECTION_CANCELLED: 'collection.cancelled',
   COLLECTION_CONTRIBUTION_CONFIRMED: 'collection.contribution_confirmed',
   COLLECTION_CONTRIBUTION_REJECTED: 'collection.contribution_rejected',
+  // повторный взнос до подтверждения: прежний pending-платёж отменён, создан новый (2026-10-28)
+  COLLECTION_CONTRIBUTION_REPLACED: 'collection.contribution_replaced',
 } as const
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS]

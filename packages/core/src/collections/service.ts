@@ -14,6 +14,7 @@ import {
 
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
+import { collectNotification } from '../notifier/collect'
 import { PaymentNotFoundError } from '../payments/errors'
 import { paymentService } from '../payments/service'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
@@ -397,7 +398,21 @@ export const collectionService = {
         .update(payments)
         .set({ status: 'cancelled' })
         .where(and(eq(payments.collectionId, id), eq(payments.status, 'pending')))
-        .returning({ id: payments.id })
+        .returning()
+      // игрокам с отклонёнными обещаниями — уведомление после коммита
+      for (const p of rejected)
+        collectNotification(txCtx, {
+          userId: p.userId,
+          type: 'payment_rejected',
+          dedupKey: `payment_rejected:payment:${p.id}:user:${p.userId}`,
+          params: {
+            amount: p.amount,
+            currency: p.currency,
+            organizationId: orgId,
+            target: 'org',
+            collectionTitle: before.title,
+          },
+        })
       const now = new Date()
       const [row] = await db
         .update(collections)
@@ -418,7 +433,8 @@ export const collectionService = {
 
   /**
    * Свой взнос в активный сбор — pending-платёж до подтверждения организатором. Одно ожидающее
-   * обещание игрока в сборе: повтор до подтверждения меняет сумму и способ (`replaced: true`).
+   * обещание игрока в сборе: повтор до подтверждения отменяет прежний платёж и создаёт новый
+   * (`replaced: true`), организаторы получают новую заявку.
    */
   async contribute(
     ctx: ServiceContext,
@@ -433,9 +449,11 @@ export const collectionService = {
       const collection = await lockCollection(db, orgId, id)
       if (collection.status === 'draft') throw new CollectionNotFoundError(id)
       if (collection.status !== 'active') throw new CollectionNotActiveError()
+      // замена обещания — новая заявка (решение владельца 2026-10-28): сумма ожидающего платежа не
+      // меняется никогда, прежний платёж отменяется, устаревшее решение по нему — 409 not_pending
       const [replaced] = await db
         .update(payments)
-        .set({ amount: data.amount, method: data.method })
+        .set({ status: 'cancelled' })
         .where(
           and(
             eq(payments.collectionId, id),
@@ -444,7 +462,6 @@ export const collectionService = {
           ),
         )
         .returning()
-      if (replaced) return { contribution: replaced, replaced: true }
       const contribution = await paymentService.createForCollection(
         txCtx,
         {
@@ -457,7 +474,16 @@ export const collectionService = {
         },
         collection.title,
       )
-      return { contribution, replaced: false }
+      if (replaced)
+        await auditService.record(txCtx, {
+          organizationId: orgId,
+          action: AUDIT_ACTIONS.COLLECTION_CONTRIBUTION_REPLACED,
+          entityType: 'payment',
+          entityId: replaced.id,
+          oldValue: { amount: replaced.amount, method: replaced.method, status: 'pending' },
+          newValue: { status: 'cancelled', replacedBy: contribution.id, collectionId: id },
+        })
+      return { contribution, replaced: !!replaced }
     })
   },
 
