@@ -2,11 +2,11 @@
 id: '21.5.1'
 phase: '21'
 epic: '21.5'
-status: todo
+status: in_progress
 release: 'v0.3.1'
 sync_state: synced
-last_reviewed: 2026-10-27
-status_note: 'Read-only: может стартовать параллельно с фазой 21 (не меняет код, схему и конфигурацию).'
+last_reviewed: 2026-10-28
+status_note: 'Отчёт составлен на main c919ee8 и ждёт ревью claude-opus-5-5; открыты вопросы владельца OQ-1…OQ-8 (не блокируют пакеты 21.5.2–21.5.4). Карточка становится done после принятия отчёта.'
 ref_id: ''
 complexity: M
 impl_model: claude-sonnet-5-5
@@ -52,6 +52,13 @@ tags: [reference-v3, cleanup, audit]
 - ✅ Пункты, затрагивающие данные, миграции, откат или production-конфигурацию, помечены и не входят в пакеты удаления
 - ✅ Пакеты удаления описаны карточками с составом, тестами и порядком; ревью `claude-opus-5-5` без Critical/Important
 - ✅ Diff PR содержит только документы (отчёт, карточки, эпик, журнал)
+
+## Evidence
+
+- Отчёт: [2026-10-28-legacy-inventory](../operations/reviews/2026-10-28-legacy-inventory.md) — 28 пунктов `LEG-01`…`LEG-28`: удалить 7, обновить документ 5, вопрос владельцу 9, не трогать 1, ждёт 21.3.1 — 3, оставить 3; срез `main` = `c919ee8` (после PR #195).
+- Пакеты: [21.5.2](21-5-2-legacy-removal-batches.md) (LEG-01…03), [21.5.3](21-5-3-legacy-removal-styles.md) (LEG-04, 05), [21.5.4](21-5-4-legacy-removal-dev-config-docs.md) (LEG-06…12), [21.5.5](21-5-5-legacy-history-condense.md) (LEG-13, после OQ-7).
+- Вопросы владельцу OQ-1…OQ-8 записаны открытыми в [журнале решений](../operations/decisions/2026-10-12-reference-v3-decisions.md) (запись 2026-10-28).
+- Diff PR содержит только документы; код, конфигурация, workflows, lockfile, миграции и данные не менялись; production и VPS не использовались.
 
 ## Не делать
 
