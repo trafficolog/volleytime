@@ -79,7 +79,7 @@ export const payments = pgTable(
       'payments_single_target',
       sql`num_nonnulls(${t.bookingId}, ${t.subscriptionId}, ${t.collectionId}) <= 1`,
     ),
-    // одно ожидающее обещание игрока в сборе: повторный взнос меняет сумму, а не плодит строки
+    // одно ожидающее обещание игрока в сборе: повторный взнос отменяет прежний платёж (2026-10-28)
     uniqueIndex('payments_collection_pending_uniq')
       .on(t.collectionId, t.userId)
       .where(sql`${t.collectionId} IS NOT NULL AND ${t.status} = 'pending'`),
