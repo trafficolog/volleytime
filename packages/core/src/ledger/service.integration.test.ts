@@ -131,4 +131,37 @@ describe('ledgerService cabinet cash desk (integration)', () => {
       currency: 'BYN',
     })
   })
+
+  it('totals income and expense over a period without touching the all-time balance', async () => {
+    const ctx = { userId }
+    const at = (iso: string) => new Date(iso)
+    await ledgerService.addExpense(ctx, orgId, {
+      category: 'rent',
+      amount: 4200,
+      description: 'Аренда',
+      occurredAt: at('2026-05-10T10:00:00Z'),
+    })
+    await ledgerService.addIncome(ctx, orgId, {
+      category: 'donation',
+      amount: 500,
+      description: 'Донат',
+      occurredAt: at('2026-05-31T20:59:59Z'),
+    })
+    await ledgerService.addIncome(ctx, orgId, {
+      category: 'donation',
+      amount: 700,
+      description: 'Июнь',
+      occurredAt: at('2026-05-31T21:00:00Z'),
+    })
+    const may = { from: at('2026-04-30T21:00:00Z'), to: at('2026-05-31T21:00:00Z') }
+    expect(await ledgerService.getPeriodTotals(ctx, orgId, may)).toEqual({
+      income: 500,
+      expense: 4200,
+      currency: 'BYN',
+    })
+    const all = await ledgerService.getPeriodTotals(ctx, orgId)
+    const balance = await ledgerService.getBalance(ctx, orgId)
+    expect(all).toMatchObject({ income: balance.income, expense: balance.expense })
+    expect(balance.balance).toBe(500 + 700 - 4200)
+  })
 })

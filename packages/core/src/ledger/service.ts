@@ -189,6 +189,29 @@ export const ledgerService = {
   },
 
   /**
+   * Поступило и списано за период по дате операции (`from` включительно, `to` нет) в валюте
+   * группы — плитки кассы кабинета. Баланс от периода не зависит и берётся из `getBalance`.
+   */
+  async getPeriodTotals(
+    ctx: ServiceContext,
+    orgId: number,
+    period: { from?: Date; to?: Date } = {},
+  ): Promise<{ income: number; expense: number; currency: string }> {
+    const currency = await resolveOrgCurrency(ctx, orgId)
+    const conds = [eq(ledgerEntries.organizationId, orgId), eq(ledgerEntries.currency, currency)]
+    if (period.from) conds.push(gte(ledgerEntries.occurredAt, period.from))
+    if (period.to) conds.push(lt(ledgerEntries.occurredAt, period.to))
+    const [row] = await getDb(ctx)
+      .select({
+        income: sql<number>`COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END), 0)::int`,
+        expense: sql<number>`COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0)::int`,
+      })
+      .from(ledgerEntries)
+      .where(and(...conds))
+    return { income: row?.income ?? 0, expense: row?.expense ?? 0, currency }
+  },
+
+  /**
    * История операций для кассы (Task 6.8.12): дата операции, событие, кто внёс, плательщик —
    * только публичные поля. Сортировка по дате операции.
    */
@@ -224,9 +247,10 @@ export const ledgerService = {
   },
 
   /**
-   * Деньги, которые группа ещё ждёт: сумма и число платежей `pending` в валюте группы. Те же
-   * правила, что у «ждёт оплаты» в списке событий (`readEventListMoney`): отменённые и возвращённые
-   * не входят.
+   * Деньги, которые группа ещё ждёт: сумма и число всех платежей `pending` организации в валюте
+   * группы — за участие, абонементы и платежи, у которых запись удалена. Платежи в другой валюте,
+   * отменённые и возвращённые не входят. Это шире «ждёт оплаты» в списке событий
+   * (`readEventListMoney`): там только платежи записей события и валюта события.
    */
   async getAwaiting(ctx: ServiceContext, orgId: number): Promise<AwaitingMoney> {
     const currency = await resolveOrgCurrency(ctx, orgId)
@@ -261,62 +285,60 @@ async function listHistoryRows(
   },
   maxLimit = 200,
 ) {
-  {
-    const conds = [eq(ledgerEntries.organizationId, orgId)]
-    if (opts.type) conds.push(eq(ledgerEntries.type, opts.type))
-    if (opts.category) conds.push(eq(ledgerEntries.category, opts.category))
-    if (opts.from) conds.push(gte(ledgerEntries.occurredAt, opts.from))
-    if (opts.to) conds.push(lt(ledgerEntries.occurredAt, opts.to))
-    const author = alias(users, 'author')
-    const payer = alias(users, 'payer')
-    const rows = await getDb(ctx)
-      .select({
-        id: ledgerEntries.id,
-        type: ledgerEntries.type,
-        category: ledgerEntries.category,
-        amount: ledgerEntries.amount,
-        currency: ledgerEntries.currency,
-        description: ledgerEntries.description,
-        method: payments.method,
-        occurredAt: ledgerEntries.occurredAt,
-        createdAt: ledgerEntries.createdAt,
-        eventId: events.id,
-        eventTitle: events.title,
-        eventStartsAt: events.startsAt,
-        authorName: author.name,
-        authorUsername: author.telegramUsername,
-        payerName: payer.name,
-        payerUsername: payer.telegramUsername,
-      })
-      .from(ledgerEntries)
-      .leftJoin(payments, eq(payments.id, ledgerEntries.paymentId))
-      .leftJoin(bookings, eq(bookings.id, payments.bookingId))
-      .leftJoin(events, eq(events.id, sql`COALESCE(${ledgerEntries.eventId}, ${bookings.eventId})`))
-      .leftJoin(author, eq(author.id, ledgerEntries.createdByUserId))
-      .leftJoin(payer, eq(payer.id, payments.userId))
-      .where(and(...conds))
-      .orderBy(desc(ledgerEntries.occurredAt), desc(ledgerEntries.id))
-      .limit(Math.min(opts.limit ?? 50, maxLimit))
-      .offset(opts.offset ?? 0)
-    return rows.map((r) => ({
-      id: r.id,
-      type: r.type,
-      category: r.category,
-      amount: r.amount,
-      currency: r.currency,
-      description: r.description,
-      method: r.method,
-      occurredAt: r.occurredAt,
-      createdAt: r.createdAt,
-      event: r.eventId ? { id: r.eventId, title: r.eventTitle!, startsAt: r.eventStartsAt! } : null,
-      author:
-        r.authorName || r.authorUsername
-          ? { name: r.authorName, telegramUsername: r.authorUsername }
-          : null,
-      payer:
-        r.payerName || r.payerUsername
-          ? { name: r.payerName, telegramUsername: r.payerUsername }
-          : null,
-    }))
-  }
+  const conds = [eq(ledgerEntries.organizationId, orgId)]
+  if (opts.type) conds.push(eq(ledgerEntries.type, opts.type))
+  if (opts.category) conds.push(eq(ledgerEntries.category, opts.category))
+  if (opts.from) conds.push(gte(ledgerEntries.occurredAt, opts.from))
+  if (opts.to) conds.push(lt(ledgerEntries.occurredAt, opts.to))
+  const author = alias(users, 'author')
+  const payer = alias(users, 'payer')
+  const rows = await getDb(ctx)
+    .select({
+      id: ledgerEntries.id,
+      type: ledgerEntries.type,
+      category: ledgerEntries.category,
+      amount: ledgerEntries.amount,
+      currency: ledgerEntries.currency,
+      description: ledgerEntries.description,
+      method: payments.method,
+      occurredAt: ledgerEntries.occurredAt,
+      createdAt: ledgerEntries.createdAt,
+      eventId: events.id,
+      eventTitle: events.title,
+      eventStartsAt: events.startsAt,
+      authorName: author.name,
+      authorUsername: author.telegramUsername,
+      payerName: payer.name,
+      payerUsername: payer.telegramUsername,
+    })
+    .from(ledgerEntries)
+    .leftJoin(payments, eq(payments.id, ledgerEntries.paymentId))
+    .leftJoin(bookings, eq(bookings.id, payments.bookingId))
+    .leftJoin(events, eq(events.id, sql`COALESCE(${ledgerEntries.eventId}, ${bookings.eventId})`))
+    .leftJoin(author, eq(author.id, ledgerEntries.createdByUserId))
+    .leftJoin(payer, eq(payer.id, payments.userId))
+    .where(and(...conds))
+    .orderBy(desc(ledgerEntries.occurredAt), desc(ledgerEntries.id))
+    .limit(Math.min(opts.limit ?? 50, maxLimit))
+    .offset(opts.offset ?? 0)
+  return rows.map((r) => ({
+    id: r.id,
+    type: r.type,
+    category: r.category,
+    amount: r.amount,
+    currency: r.currency,
+    description: r.description,
+    method: r.method,
+    occurredAt: r.occurredAt,
+    createdAt: r.createdAt,
+    event: r.eventId ? { id: r.eventId, title: r.eventTitle!, startsAt: r.eventStartsAt! } : null,
+    author:
+      r.authorName || r.authorUsername
+        ? { name: r.authorName, telegramUsername: r.authorUsername }
+        : null,
+    payer:
+      r.payerName || r.payerUsername
+        ? { name: r.payerName, telegramUsername: r.payerUsername }
+        : null,
+  }))
 }

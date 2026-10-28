@@ -1,5 +1,5 @@
 import { eventService, memberService, organizationService } from '@volley-time/core'
-import { closeDb, db, organizations, users } from '@volley-time/db'
+import { closeDb, db, ledgerEntries, organizations, users } from '@volley-time/db'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { createTestApi } from './harness'
@@ -9,6 +9,7 @@ type Api = Awaited<ReturnType<typeof createTestApi>>
 interface LedgerBody {
   balance: { currency: string; income: number; expense: number; balance: number }
   awaiting: { amount: number; count: number; currency: string }
+  period: { income: number; expense: number; currency: string }
   entries: {
     id: number
     type: string
@@ -106,6 +107,12 @@ describe('cabinet cash desk v3 (HTTP)', () => {
     const card = list.events.find((e) => e.id === eventId)!.paymentTotals
     expect(card).toEqual(expect.objectContaining({ paid: 1500, pending: 1500 }))
     expect(ledger.balance.income).toBe(card.paid)
+    // без периода плитки кабинета равны всему времени, как в Mini App
+    expect(ledger.period).toEqual({
+      income: ledger.balance.income,
+      expense: ledger.balance.expense,
+      currency: 'BYN',
+    })
     expect(ledger.awaiting).toEqual({ amount: card.pending, count: 1, currency: 'BYN' })
     expect(ledger.entries.find((e) => e.category === 'payment_income')).toMatchObject({
       amount: card.paid,
@@ -157,6 +164,22 @@ describe('cabinet cash desk v3 (HTTP)', () => {
     expect(all.entries).toHaveLength(3)
     // totals are not narrowed by filters: they match the Mini App and the event card
     expect((await q('type=expense')).balance.income).toBe(1750)
+    // период сужает только плитки «Поступило / Списано»; баланс остаётся за всё время
+    const day = 86_400_000
+    const inRange = await q(
+      `from=${encodeURIComponent(new Date(Date.now() - day).toISOString())}&to=${encodeURIComponent(new Date(Date.now() + 2 * day).toISOString())}`,
+    )
+    expect(inRange.period).toEqual({ income: 1750, expense: 400, currency: 'BYN' })
+    expect(inRange.balance).toMatchObject({ income: 1750, expense: 400, balance: 1350 })
+    const empty = await q(`from=${encodeURIComponent(future)}`)
+    expect(empty.period).toEqual({ income: 0, expense: 0, currency: 'BYN' })
+    expect(empty.balance).toMatchObject({ income: 1750, expense: 400, balance: 1350 })
+    // тип и категория на плитки не влияют
+    expect((await q('type=expense')).period).toEqual({
+      income: 1750,
+      expense: 400,
+      currency: 'BYN',
+    })
     for (const bad of ['type=x', 'category=hack', 'from=abc', 'limit=-1', 'offset=x'])
       expect((await request('GET', `${base()}/ledger?${bad}`, { user: owner })).status).toBe(422)
   })
@@ -206,5 +229,30 @@ describe('cabinet cash desk v3 (HTTP)', () => {
     ).body as LedgerBody
     expect(mine.balance.income).toBe(0)
     expect(mine.awaiting.amount).toBe(0)
+  })
+
+  it('refuses a CSV export above the row limit but serves it at the limit', async () => {
+    const row = {
+      organizationId: otherOrgId,
+      type: 'income' as const,
+      category: 'donation' as const,
+      amount: 100,
+      currency: 'BYN',
+      description: 'bulk',
+    }
+    const insert = (n: number) =>
+      db.insert(ledgerEntries).values(Array.from({ length: n }, () => row))
+    await insert(5000)
+    const url = `/api/organizations/${otherOrgId}/ledger/export`
+    const atLimit = await request('GET', url, { user: outsiderOwner })
+    expect(atLimit.status).toBe(200)
+    expect(atLimit.text.trimEnd().split(String.fromCharCode(10))).toHaveLength(5001)
+    await insert(1)
+    const over = await request('GET', url, { user: outsiderOwner })
+    expect(over.status).toBe(422)
+    expect((over.body as { data?: { code?: string } }).data?.code).toBe('ledger.export_too_large')
+    // сужение фильтром возвращает выгрузку
+    const narrowed = await request('GET', `${url}?type=expense`, { user: outsiderOwner })
+    expect(narrowed.status).toBe(200)
   })
 })

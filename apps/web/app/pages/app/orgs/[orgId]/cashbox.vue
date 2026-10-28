@@ -57,6 +57,7 @@ const formTimezone = ref<string | null>(null)
 const request = useRequestFetch()
 const balance = ref<LedgerBalance | null>(null)
 const awaiting = ref<Awaiting | null>(null)
+const period = ref<{ income: number; expense: number; currency: string } | null>(null)
 const entries = ref<Entry[]>([])
 const hasMore = ref(false)
 const filter = ref<'all' | 'income' | 'expense'>('all')
@@ -124,6 +125,7 @@ function message(error: unknown, fallback: string) {
     accessStatus.value = status
     balance.value = null
     awaiting.value = null
+    period.value = null
     entries.value = []
     kind.value = null
     events.value = []
@@ -174,13 +176,16 @@ async function load(more = false) {
   }
   loadError.value = ''
   try {
-    const result = await request<{ balance: LedgerBalance; awaiting: Awaiting; entries: Entry[] }>(
-      `/api/organizations/${org}/ledger`,
-      { query: { limit: PAGE, offset, ...filterQuery() } },
-    )
+    const result = await request<{
+      balance: LedgerBalance
+      awaiting: Awaiting
+      period: { income: number; expense: number; currency: string }
+      entries: Entry[]
+    }>(`/api/organizations/${org}/ledger`, { query: { limit: PAGE, offset, ...filterQuery() } })
     if (live(org, path, epoch) && token === loadToken) {
       balance.value = result.balance
       awaiting.value = result.awaiting
+      period.value = result.period
       entries.value = more ? [...entries.value, ...result.entries] : result.entries
       hasMore.value = result.entries.length === PAGE
     }
@@ -348,6 +353,7 @@ watch(
     timezoneLoading.value = true
     balance.value = null
     awaiting.value = null
+    period.value = null
     entries.value = []
     hasMore.value = false
     events.value = []
@@ -472,15 +478,15 @@ await load()
             <p class="text-sm">по всем операциям группы</p>
           </div>
           <div class="vt-card p-6">
-            <p class="vt-cap">Поступило</p>
+            <p class="vt-cap">Поступило · {{ monthTitle }}</p>
             <strong class="vt-mono text-vt-grass-ink" data-testid="cashbox-income">{{
-              signedMoney(balance.income, balance.currency)
+              signedMoney(period?.income ?? 0, balance.currency)
             }}</strong>
           </div>
           <div class="vt-card p-6">
-            <p class="vt-cap">Списано</p>
+            <p class="vt-cap">Списано · {{ monthTitle }}</p>
             <strong class="vt-mono text-vt-rose-ink" data-testid="cashbox-expense">{{
-              signedMoney(-balance.expense, balance.currency)
+              signedMoney(-(period?.expense ?? 0), balance.currency)
             }}</strong>
           </div>
           <div class="vt-card p-6">

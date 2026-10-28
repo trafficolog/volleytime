@@ -6,7 +6,7 @@ status: in_progress
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-10-12
-status_note: 'Реализация в PR (ветка trafficolog/feat/21.2.3-cabinet-cashbox); ждёт ревью Opus и CI. Без миграций: способ оплаты ручной записи и «по игрокам» — см. отчёт QA.'
+status_note: 'Реализация в PR #194; ждёт ревью Opus и CI. Без миграций. Осознанные отклонения от макета («По игрокам», меню строки, «Долги» шире карточки события, «обновлено») — в docs/operations/qa/2026-10-27-21-2-3-cabinet-cashbox-visual.md. Способ ручной записи и категории Мячи/Судья/Тренер — отдельная карточка v0.3.0 (решение владельца 2026-10-27).'
 ref_id: 'W-07'
 complexity: M
 impl_model: claude-sonnet-5-5

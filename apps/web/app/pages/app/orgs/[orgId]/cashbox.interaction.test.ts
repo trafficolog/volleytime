@@ -50,6 +50,7 @@ const calls: {
   url: string
   opts?: { method?: string; query?: Record<string, unknown>; body?: unknown }
 }[] = []
+let period = { income: 31850, expense: 7000, currency: 'BYN' }
 let ledgerEntries: ReturnType<typeof entry>[] = []
 const request = vi.fn(async (url: string, opts?: never) => {
   calls.push({ url, opts })
@@ -57,6 +58,7 @@ const request = vi.fn(async (url: string, opts?: never) => {
   if (url === '/api/organizations/30/ledger')
     return {
       balance,
+      period,
       awaiting: { amount: 1500, count: 1, currency: 'BYN' },
       entries: ledgerEntries,
     }
@@ -114,6 +116,7 @@ beforeEach(() => {
     }),
   ]
   route.path = '/app/orgs/30/cashbox'
+  period = { income: 31850, expense: 7000, currency: 'BYN' }
 })
 
 describe('desktop cashbox v3', () => {
@@ -185,5 +188,19 @@ describe('desktop cashbox v3', () => {
     await wrapper.get('input[inputmode="decimal"]').setValue('42')
     expect(wrapper.text()).toContain('Новый расход')
     expect(wrapper.get('[data-testid="cashbox-after"]').text()).toBe('+206,50 BYN')
+  })
+
+  it('scopes income and expense tiles to the selected month and keeps the balance all-time', async () => {
+    const wrapper = await render()
+    const text = (id: string) => wrapper.get(`[data-testid="${id}"]`).text().replace(/\s/g, ' ')
+    expect(wrapper.text()).toContain('Поступило · за всё время')
+    period = { income: 3000, expense: 1000, currency: 'BYN' }
+    await wrapper.get('input[type="month"]').setValue('2026-05')
+    await flushPromises()
+    expect(text('cashbox-income')).toBe('+30,00 BYN')
+    expect(text('cashbox-expense')).toBe('−10,00 BYN')
+    expect(text('cashbox-balance')).toBe('+248,50 BYN')
+    expect(wrapper.text()).toContain('Поступило · май 2026')
+    expect(wrapper.text()).toContain('Списано · май 2026')
   })
 })
