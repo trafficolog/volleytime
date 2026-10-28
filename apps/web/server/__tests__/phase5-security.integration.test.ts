@@ -214,27 +214,29 @@ describe('Phase 5 API security (integration)', () => {
   })
 
   it('6.8.7: expense validation — fractional/negative/unknown category/foreign event rejected', async () => {
-    const bad = [
-      { category: 'rent', amount: 1.5 },
-      { category: 'rent', amount: -100 },
-      { category: 'hack', amount: 100 },
-      {
-        category: 'rent',
-        amount: 100,
-        occurredAt: new Date(Date.now() + 5 * 86400_000).toISOString(),
-      },
+    const future = new Date(Date.now() + 5 * 86400_000).toISOString()
+    // комментарий задан везде: каждый случай должен падать по своей причине, а не из-за его отсутствия
+    const bad: [string, Record<string, unknown>][] = [
+      ['expense', { category: 'rent', amount: 1.5, description: 'x' }],
+      ['expense', { category: 'rent', amount: -100, description: 'x' }],
+      ['expense', { category: 'hack', amount: 100, description: 'x' }],
+      ['expense', { category: 'rent', amount: 100, description: 'x', occurredAt: future }],
+      ['income', { category: 'donation', amount: 1.5, description: 'x' }],
+      ['income', { category: 'donation', amount: -100, description: 'x' }],
+      ['income', { category: 'hack', amount: 100, description: 'x' }],
+      ['income', { category: 'donation', amount: 100, description: 'x', occurredAt: future }],
     ]
-    for (const body of bad) {
-      const r = await request('POST', `/api/organizations/${orgA}/ledger/expense`, {
+    for (const [kind, body] of bad) {
+      const r = await request('POST', `/api/organizations/${orgA}/ledger/${kind}`, {
         user: ownerA,
         body,
       })
-      expect(r.status).toBe(422)
+      expect(r.status, `${kind} ${JSON.stringify(body)}`).toBe(422)
     }
     const evB = await makeEvent(orgB, ownerB)
     const foreign = await request('POST', `/api/organizations/${orgA}/ledger/expense`, {
       user: ownerA,
-      body: { category: 'rent', amount: 5000, eventId: evB.id },
+      body: { category: 'rent', amount: 5000, description: 'Аренда', eventId: evB.id },
     })
     expect(foreign.status).toBe(404)
     const ok = await request('POST', `/api/organizations/${orgA}/ledger/expense`, {

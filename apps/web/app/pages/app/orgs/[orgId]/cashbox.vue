@@ -1,17 +1,26 @@
 <script setup lang="ts">
-import { DEFAULT_TIMEZONE, formatDay, zonedInputToDate } from '@volley-time/shared'
+import { DEFAULT_TIMEZONE, formatDay, formatTime, zonedInputToDate } from '@volley-time/shared'
 
 import {
+  balanceAfterEntry,
   canSubmitDesktopLedgerAction,
-  desktopBalanceRows,
   desktopLedgerFormTime,
   DESKTOP_EXPENSE_CATEGORIES,
   DESKTOP_INCOME_CATEGORIES,
+  monthPeriod,
   parseDesktopLedgerAmount,
+  signedMoney,
+  validateLedgerComment,
   type LedgerBalance,
 } from '~/utils/desktop-cashbox'
 import { desktopSignInPath } from '~/utils/desktop-org-ui'
-import { LEDGER_CATEGORY_LABELS, displayName, formatMoneyRu, label } from '~/utils/labels'
+import {
+  LEDGER_CATEGORY_LABELS,
+  PAYMENT_METHOD_LABELS,
+  displayName,
+  formatMoneyRu,
+  label,
+} from '~/utils/labels'
 
 definePageMeta({ layout: 'desktop-org', middleware: ['auth'] })
 interface Person {
@@ -25,24 +34,37 @@ interface Entry {
   amount: number
   currency: string
   description: string | null
+  method: string | null
   occurredAt: string
   event: { id: number; title: string; startsAt: string } | null
   author: Person | null
   payer: Person | null
+}
+interface Awaiting {
+  amount: number
+  count: number
+  currency: string
 }
 interface EventOption {
   id: number
   title: string
   startsAt: string
 }
+const PAGE = 50
 const route = useRoute()
 const orgId = computed(() => Number(route.params.orgId))
 const formTimezone = ref<string | null>(null)
 const request = useRequestFetch()
 const balance = ref<LedgerBalance | null>(null)
+const awaiting = ref<Awaiting | null>(null)
+const period = ref<{ income: number; expense: number; currency: string } | null>(null)
 const entries = ref<Entry[]>([])
+const hasMore = ref(false)
 const filter = ref<'all' | 'income' | 'expense'>('all')
+const category = ref('')
+const month = ref('')
 const loading = ref(false)
+const loadingMore = ref(false)
 const loadError = ref('')
 const accessStatus = ref<number>()
 const kind = ref<'income' | 'expense' | null>(null)
@@ -55,8 +77,10 @@ const eventsHaveMore = ref(false)
 const saving = ref(false)
 const formError = ref('')
 const amountError = ref('')
+const commentError = ref('')
 const announcement = ref('')
 const amountInput = ref<HTMLInputElement | null>(null)
+const commentInput = ref<HTMLTextAreaElement | null>(null)
 const form = reactive({
   category: 'rent',
   amount: '',
@@ -64,9 +88,29 @@ const form = reactive({
   description: '',
   eventId: '',
 })
-const rows = computed(() => (balance.value ? desktopBalanceRows(balance.value) : []))
+const typeOptions = [
+  { value: 'all', label: 'Все' },
+  { value: 'income', label: 'Поступления' },
+  { value: 'expense', label: 'Расходы' },
+]
+const kindOptions = [
+  { value: 'income', label: 'Поступление' },
+  { value: 'expense', label: 'Расход' },
+]
+const kindModel = computed({
+  get: () => kind.value ?? 'expense',
+  set: (next: string) => switchKind(next as 'income' | 'expense'),
+})
 const categories = computed(() =>
   kind.value === 'income' ? DESKTOP_INCOME_CATEGORIES : DESKTOP_EXPENSE_CATEGORIES,
+)
+const allCategories = Object.keys(LEDGER_CATEGORY_LABELS)
+const currency = computed(() => balance.value?.currency ?? 'BYN')
+const enteredAmount = computed(() => parseDesktopLedgerAmount(form.amount))
+const afterBalance = computed(() =>
+  balance.value && kind.value && enteredAmount.value !== null
+    ? balanceAfterEntry(balance.value.balance, kind.value, enteredAmount.value)
+    : null,
 )
 let active = true,
   generation = 0,
@@ -80,6 +124,8 @@ function message(error: unknown, fallback: string) {
   if (status === 401 || status === 403 || status === 404) {
     accessStatus.value = status
     balance.value = null
+    awaiting.value = null
+    period.value = null
     entries.value = []
     kind.value = null
     events.value = []
@@ -93,28 +139,64 @@ const {
   load: fetchTimezone,
 } = useDesktopFinanceTimezone(orgId, (error) => message(error, ''))
 const tz = computed(() => timezone.value ?? DEFAULT_TIMEZONE)
-async function load() {
+
+/** Фильтры журнала — общие для списка и выгрузки CSV. Период — по часовому поясу группы. */
+function filterQuery(): Record<string, string> {
+  const query: Record<string, string> = {}
+  if (filter.value !== 'all') query.type = filter.value
+  if (category.value) query.category = category.value
+  const period = timezone.value ? monthPeriod(month.value, timezone.value) : null
+  if (period) Object.assign(query, period)
+  return query
+}
+const exportHref = computed(() => {
+  const qs = new URLSearchParams(filterQuery()).toString()
+  return `/api/organizations/${orgId.value}/ledger/export${qs ? `?${qs}` : ''}`
+})
+const monthTitle = computed(() => {
+  const m = /^(\d{4})-(\d{2})$/.exec(month.value)
+  if (!m) return 'за всё время'
+  const name = new Intl.DateTimeFormat('ru-RU', { month: 'long', timeZone: 'UTC' }).format(
+    new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, 1)),
+  )
+  return `${name} ${m[1]}`
+})
+
+async function load(more = false) {
+  if (more && (loadingMore.value || !hasMore.value)) return
   const org = orgId.value,
     path = route.path,
     epoch = generation,
-    token = ++loadToken
-  loading.value = true
+    token = ++loadToken,
+    offset = more ? entries.value.length : 0
+  if (more) loadingMore.value = true
+  else {
+    loading.value = true
+    entries.value = []
+  }
   loadError.value = ''
-  entries.value = []
   try {
-    const result = await request<{ balance: LedgerBalance; entries: Entry[] }>(
-      `/api/organizations/${org}/ledger`,
-      { query: { limit: 50, ...(filter.value === 'all' ? {} : { type: filter.value }) } },
-    )
+    const result = await request<{
+      balance: LedgerBalance
+      awaiting: Awaiting
+      period: { income: number; expense: number; currency: string }
+      entries: Entry[]
+    }>(`/api/organizations/${org}/ledger`, { query: { limit: PAGE, offset, ...filterQuery() } })
     if (live(org, path, epoch) && token === loadToken) {
       balance.value = result.balance
-      entries.value = result.entries
+      awaiting.value = result.awaiting
+      period.value = result.period
+      entries.value = more ? [...entries.value, ...result.entries] : result.entries
+      hasMore.value = result.entries.length === PAGE
     }
   } catch (error) {
     if (live(org, path, epoch) && token === loadToken)
       loadError.value = message(error, 'Не удалось загрузить кассу. Повторите попытку.')
   } finally {
-    if (live(org, path, epoch) && token === loadToken) loading.value = false
+    if (live(org, path, epoch) && token === loadToken) {
+      loading.value = false
+      loadingMore.value = false
+    }
   }
 }
 async function loadEvents(more = false) {
@@ -156,6 +238,9 @@ async function loadTimezone() {
   formTimezone.value = null
   await fetchTimezone()
 }
+function defaultCategory(next: 'income' | 'expense') {
+  return next === 'income' ? 'contribution' : 'rent'
+}
 function openForm(next: 'income' | 'expense') {
   if (saving.value || timezoneLoading.value) return
   const time = desktopLedgerFormTime(new Date(), timezone.value)
@@ -164,8 +249,9 @@ function openForm(next: 'income' | 'expense') {
   kind.value = next
   formError.value = ''
   amountError.value = ''
+  commentError.value = ''
   Object.assign(form, {
-    category: next === 'income' ? 'contribution' : 'rent',
+    category: defaultCategory(next),
     amount: '',
     occurredAt: time.occurredAt,
     description: '',
@@ -173,6 +259,11 @@ function openForm(next: 'income' | 'expense') {
   })
   if (eventFilter.value !== 'upcoming') eventFilter.value = 'upcoming'
   else void loadEvents()
+}
+function switchKind(next: 'income' | 'expense') {
+  if (saving.value || !kind.value || kind.value === next) return
+  kind.value = next
+  form.category = defaultCategory(next)
 }
 async function save() {
   const org = orgId.value,
@@ -197,11 +288,17 @@ async function save() {
     return
   formError.value = ''
   amountError.value = ''
+  commentError.value = ''
   announcement.value = ''
   const amount = parseDesktopLedgerAmount(form.amount)
   if (amount === null) {
     amountError.value = 'Введите сумму от 0,01 до 100 000 с двумя знаками после запятой или меньше.'
     amountInput.value?.focus()
+    return
+  }
+  commentError.value = validateLedgerComment(form.description)
+  if (commentError.value) {
+    commentInput.value?.focus()
     return
   }
   saving.value = true
@@ -211,7 +308,7 @@ async function save() {
       body: {
         category: form.category,
         amount,
-        description: form.description.trim() || undefined,
+        description: form.description.trim(),
         occurredAt: form.occurredAt
           ? zonedInputToDate(form.occurredAt, formTimezone.value).toISOString()
           : undefined,
@@ -229,7 +326,17 @@ async function save() {
     if (live(org, path, epoch)) saving.value = false
   }
 }
-watch(filter, () => {
+function entryDate(entry: Entry) {
+  return `${formatDay(entry.occurredAt, tz.value)}, ${formatTime(entry.occurredAt, tz.value)}`
+}
+function entryTitle(entry: Entry) {
+  const parts: string[] = []
+  if (entry.payer) parts.push(displayName(entry.payer))
+  if (entry.event) parts.push(entry.event.title)
+  if (entry.description) parts.push(entry.description)
+  return parts.join(' · ') || label(LEDGER_CATEGORY_LABELS, entry.category)
+}
+watch([filter, category, month], () => {
   void load()
 })
 watch(eventFilter, () => {
@@ -245,7 +352,10 @@ watch(
     timezoneError.value = ''
     timezoneLoading.value = true
     balance.value = null
+    awaiting.value = null
+    period.value = null
     entries.value = []
+    hasMore.value = false
     events.value = []
     eventsOffset.value = 0
     eventsHaveMore.value = false
@@ -253,12 +363,14 @@ watch(
     kind.value = null
     saving.value = false
     loading.value = false
+    loadingMore.value = false
     eventsLoading.value = false
     accessStatus.value = undefined
     loadError.value = ''
     formError.value = ''
     eventsError.value = ''
     amountError.value = ''
+    commentError.value = ''
     announcement.value = ''
     Object.assign(form, {
       category: 'rent',
@@ -267,6 +379,8 @@ watch(
       description: '',
       eventId: '',
     })
+    category.value = ''
+    month.value = ''
     if (filter.value !== 'all') filter.value = 'all'
     if (route.path === `/app/orgs/${orgId.value}/cashbox`) {
       void load()
@@ -296,23 +410,44 @@ await load()
       <div>
         <p class="vt-desktop-eyebrow">Финансы группы</p>
         <h1 tabindex="-1">Касса</h1>
-        <p class="text-sm text-vt-mute">Баланс и последние движения денег</p>
+        <p class="text-sm text-vt-mute">{{ monthTitle }} · полный журнал движений</p>
       </div>
       <div v-if="balance && !accessStatus" class="vt-desktop-cashbox__actions">
-        <button
-          class="vt-btn vt-btn--ghost"
-          type="button"
-          :disabled="saving || !timezone || timezoneLoading"
-          @click="openForm('expense')"
+        <a
+          v-if="!kind"
+          class="vt-btn vt-btn--ghost vt-btn--sm"
+          :href="exportHref"
+          download
+          data-testid="cashbox-export"
         >
-          Добавить расход</button
-        ><button
-          class="vt-btn vt-btn--primary"
+          <VtIcon name="arrow-r" :size="14" /> Экспорт CSV
+        </a>
+        <template v-if="kind">
+          <button
+            class="vt-btn vt-btn--ghost vt-btn--sm"
+            type="button"
+            :disabled="saving"
+            @click="kind = null"
+          >
+            Отмена
+          </button>
+          <button
+            class="vt-btn vt-btn--primary vt-btn--sm"
+            type="submit"
+            form="ledger-form"
+            :disabled="saving"
+          >
+            <VtIcon name="check" :size="14" /> {{ saving ? 'Сохраняем…' : 'Сохранить' }}
+          </button>
+        </template>
+        <button
+          v-else
+          class="vt-btn vt-btn--primary vt-btn--sm"
           type="button"
           :disabled="saving || !timezone || timezoneLoading"
           @click="openForm('income')"
         >
-          <VtIcon name="plus" :size="16" /> Добавить доход
+          <VtIcon name="plus" :size="14" /> Запись
         </button>
       </div>
     </header>
@@ -332,57 +467,74 @@ await load()
         Загружаем часовой пояс группы перед добавлением операций…
       </p>
       <ErrorState v-if="timezoneError" :message="timezoneError" @retry="loadTimezone" />
-      <ErrorState v-if="loadError" :message="loadError" @retry="load" />
+      <ErrorState v-if="loadError" :message="loadError" @retry="load()" />
       <template v-if="balance">
-        <section class="vt-desktop-cashbox__stats" aria-label="Баланс основной валюты">
+        <section v-if="!kind" class="vt-desktop-cashbox__stats" aria-label="Баланс основной валюты">
           <div class="vt-card vt-card--hero p-6">
             <p class="vt-cap">Баланс кассы · {{ balance.currency }}</p>
-            <strong class="vt-mono">{{ formatMoneyRu(balance.balance, balance.currency) }}</strong>
+            <strong class="vt-mono" data-testid="cashbox-balance">{{
+              signedMoney(balance.balance, balance.currency)
+            }}</strong>
+            <p class="text-sm">по всем операциям группы</p>
           </div>
           <div class="vt-card p-6">
-            <p class="vt-cap">Доходы</p>
-            <strong class="vt-mono text-vt-grass-ink">{{
-              formatMoneyRu(balance.income, balance.currency)
+            <p class="vt-cap">Поступило · {{ monthTitle }}</p>
+            <strong class="vt-mono text-vt-grass-ink" data-testid="cashbox-income">{{
+              signedMoney(period?.income ?? 0, balance.currency)
             }}</strong>
           </div>
           <div class="vt-card p-6">
-            <p class="vt-cap">Расходы</p>
-            <strong class="vt-mono text-vt-rose-ink">{{
-              formatMoneyRu(balance.expense, balance.currency)
+            <p class="vt-cap">Списано · {{ monthTitle }}</p>
+            <strong class="vt-mono text-vt-rose-ink" data-testid="cashbox-expense">{{
+              signedMoney(-(period?.expense ?? 0), balance.currency)
             }}</strong>
+          </div>
+          <div class="vt-card p-6">
+            <p class="vt-cap">Долги</p>
+            <strong class="vt-mono text-vt-amber-ink" data-testid="cashbox-awaiting">{{
+              formatMoneyRu(awaiting?.amount ?? 0, awaiting?.currency ?? balance.currency)
+            }}</strong>
+            <p class="text-sm text-vt-mute">
+              ждут оплаты{{ awaiting?.count ? `: ${awaiting.count}` : '' }}
+            </p>
           </div>
         </section>
-        <ul v-if="rows.length > 1" class="space-y-2" aria-label="Другие валюты">
-          <li v-for="row in rows.slice(1)" :key="row.currency" class="vt-card p-4">
-            {{ row.currency }}: баланс {{ formatMoneyRu(row.balance, row.currency) }} · доходы
-            {{ formatMoneyRu(row.income, row.currency) }} · расходы
-            {{ formatMoneyRu(row.expense, row.currency) }}
+        <ul
+          v-if="!kind && Object.keys(balance.byCurrency).some((c) => c !== balance!.currency)"
+          class="space-y-2"
+          aria-label="Другие валюты"
+        >
+          <li
+            v-for="(row, code) in balance.byCurrency"
+            v-show="code !== balance.currency"
+            :key="code"
+            class="vt-card p-4"
+          >
+            {{ code }}: баланс {{ formatMoneyRu(row.balance, String(code)) }} · доходы
+            {{ formatMoneyRu(row.income, String(code)) }} · расходы
+            {{ formatMoneyRu(row.expense, String(code)) }}
           </li>
         </ul>
       </template>
-      <section
-        v-if="kind"
-        class="vt-card vt-desktop-cashbox__form space-y-4"
-        aria-labelledby="ledger-form-heading"
-      >
-        <h2 id="ledger-form-heading">{{ kind === 'income' ? 'Новый доход' : 'Новый расход' }}</h2>
-        <p class="text-sm text-vt-mute">
-          Валюта: {{ balance?.currency }} · дата и время: {{ tz }}. Запись нельзя изменить или
-          удалить.
-        </p>
-        <form class="space-y-4" @submit.prevent="save">
+      <section v-if="kind" class="vt-cashbox-form space-y-4" aria-labelledby="ledger-form-heading">
+        <div>
+          <h2 id="ledger-form-heading">
+            {{ kind === 'income' ? 'Новое поступление' : 'Новый расход' }}
+          </h2>
+          <p class="text-sm text-vt-mute">
+            Ручная запись в кассу организации · дата и время: {{ tz }}. Запись нельзя изменить или
+            удалить.
+          </p>
+        </div>
+        <VtSegment v-model="kindModel" label="Тип записи" :options="kindOptions" />
+        <form id="ledger-form" class="vt-card space-y-4 p-6" novalidate @submit.prevent="save">
           <fieldset :disabled="saving" class="vt-desktop-cashbox__fields">
-            <label
-              >Категория<select v-model="form.category" class="vt-field">
-                <option v-for="category in categories" :key="category" :value="category">
-                  {{ label(LEDGER_CATEGORY_LABELS, category) }}
-                </option>
-              </select></label
-            ><label
-              >Сумма<input
+            <label class="vt-desktop-cashbox__description"
+              >Сумма, {{ currency
+              }}<input
                 ref="amountInput"
                 v-model="form.amount"
-                class="vt-field"
+                class="vt-field vt-mono"
                 inputmode="decimal"
                 autocomplete="off"
                 :aria-invalid="!!amountError"
@@ -391,6 +543,12 @@ await load()
               /><span id="ledger-amount-error" class="text-sm text-vt-rose-ink">{{
                 amountError
               }}</span></label
+            ><label
+              >Категория<select v-model="form.category" class="vt-field">
+                <option v-for="item in categories" :key="item" :value="item">
+                  {{ label(LEDGER_CATEGORY_LABELS, item) }}
+                </option>
+              </select></label
             ><label
               >Дата и время<input
                 v-model="form.occurredAt"
@@ -413,13 +571,22 @@ await load()
                 </option>
               </select></label
             ><label class="vt-desktop-cashbox__description"
-              >Описание (необязательно)<textarea
+              >Комментарий<textarea
+                ref="commentInput"
                 v-model="form.description"
                 class="vt-field"
                 maxlength="500"
-                rows="3"
-              />
-            </label>
+                rows="2"
+                required
+                :aria-invalid="!!commentError"
+                aria-describedby="ledger-comment-error"
+                :placeholder="
+                  kind === 'income' ? 'Например: доплата за гостя' : 'Например: аренда зала, 2 часа'
+                "
+              /><span id="ledger-comment-error" class="text-sm text-vt-rose-ink">{{
+                commentError
+              }}</span></label
+            >
           </fieldset>
           <p v-if="eventsLoading" role="status">Загружаем события…</p>
           <ErrorState
@@ -437,63 +604,99 @@ await load()
             {{ eventsLoading ? 'Загружаем…' : 'Показать ещё события' }}
           </button>
           <p v-if="formError" role="alert" class="text-vt-rose-ink">{{ formError }}</p>
-          <div class="vt-desktop-cashbox__actions">
-            <button
-              type="button"
-              class="vt-btn vt-btn--ghost"
-              :disabled="saving"
-              @click="kind = null"
-            >
-              Отменить</button
-            ><button type="submit" class="vt-btn vt-btn--primary" :disabled="saving">
-              {{ saving ? 'Сохраняем…' : 'Записать операцию' }}
-            </button>
-          </div>
         </form>
+        <div class="vt-card vt-cashbox-form__after">
+          <span class="text-sm text-vt-mute">Баланс кассы после записи</span>
+          <strong class="vt-mono" data-testid="cashbox-after">{{
+            afterBalance === null ? '—' : signedMoney(afterBalance, currency)
+          }}</strong>
+        </div>
       </section>
-      <section class="space-y-4" aria-labelledby="ledger-heading" :aria-busy="loading">
-        <div class="vt-desktop-section-heading">
-          <div>
-            <h2 id="ledger-heading">Последние операции</h2>
-            <p class="text-sm text-vt-mute">До 50 записей · новые по дате операции сверху</p>
-          </div>
+      <section v-if="!kind" class="space-y-4" aria-labelledby="ledger-heading" :aria-busy="loading">
+        <h2 id="ledger-heading" class="sr-only">Журнал операций</h2>
+        <div class="vt-cashbox-filters">
           <label class="vt-desktop-payment-filter"
-            >Тип<select v-model="filter" class="vt-input">
-              <option value="all">Все</option>
-              <option value="income">Доходы</option>
-              <option value="expense">Расходы</option>
+            ><VtIcon name="calendar" :size="14" /> Месяц<input
+              v-model="month"
+              type="month"
+              class="vt-field"
+              :disabled="!timezone"
+          /></label>
+          <button
+            v-if="month"
+            type="button"
+            class="vt-btn vt-btn--ghost vt-btn--sm"
+            @click="month = ''"
+          >
+            Весь период
+          </button>
+          <VtSegment v-model="filter" label="Тип операций" variant="chips" :options="typeOptions" />
+          <label class="vt-desktop-payment-filter"
+            >Категория<select v-model="category" class="vt-field">
+              <option value="">Все</option>
+              <option v-for="item in allCategories" :key="item" :value="item">
+                {{ label(LEDGER_CATEGORY_LABELS, item) }}
+              </option>
             </select></label
+          >
+          <span class="vt-cashbox-filters__sort text-sm text-vt-mute"
+            >Сортировка: <b>новые сверху</b></span
           >
         </div>
         <EmptyState
           v-if="!loading && !loadError && !entries.length"
           icon="wallet"
           title="Операций пока нет"
-          description="Подтверждённые оплаты и ручные операции появятся здесь. Попробуйте другой тип или добавьте операцию."
+          description="Подтверждённые оплаты и ручные операции появятся здесь. Попробуйте другой период или фильтр либо добавьте запись."
         />
-        <ul v-if="entries.length && timezone" class="vt-desktop-cashbox__journal vt-card">
-          <li v-for="entry in entries" :key="entry.id">
-            <time :datetime="entry.occurredAt" class="text-sm text-vt-mute">{{
-              formatDay(entry.occurredAt, tz)
-            }}</time>
-            <div>
-              <h3>{{ label(LEDGER_CATEGORY_LABELS, entry.category) }}</h3>
-              <p v-if="entry.description" class="text-sm">{{ entry.description }}</p>
-              <p class="text-sm text-vt-mute">
-                <template v-if="entry.event">{{ entry.event.title }} · </template
-                ><template v-if="entry.payer">{{ displayName(entry.payer) }} · </template
-                ><template v-if="entry.author">Внёс {{ displayName(entry.author) }}</template>
-              </p>
-            </div>
-            <div class="vt-mono">
-              <span>{{ entry.type === 'income' ? 'Доход' : 'Расход' }}</span
-              ><strong :class="entry.type === 'income' ? 'text-vt-grass-ink' : 'text-vt-rose-ink'"
-                >{{ entry.type === 'income' ? '+' : '−'
-                }}{{ formatMoneyRu(entry.amount, entry.currency) }}</strong
+        <div v-if="entries.length && timezone" class="vt-card vt-cashbox-journal">
+          <div class="vt-cashbox-journal__row vt-cashbox-journal__head" aria-hidden="true">
+            <span class="vt-cap">Дата</span><span class="vt-cap">Описание</span
+            ><span class="vt-cap">Категория</span><span class="vt-cap">Способ</span
+            ><span class="vt-cap vt-cashbox-journal__amount">Сумма</span>
+          </div>
+          <ul>
+            <li v-for="entry in entries" :key="entry.id" class="vt-cashbox-journal__row">
+              <time :datetime="entry.occurredAt" class="vt-mono text-sm text-vt-mute">{{
+                entryDate(entry)
+              }}</time>
+              <div class="vt-cashbox-journal__what">
+                <p>{{ entryTitle(entry) }}</p>
+                <p v-if="entry.author" class="text-sm text-vt-mute">
+                  Внёс {{ displayName(entry.author) }}
+                </p>
+              </div>
+              <span class="vt-chip">{{ label(LEDGER_CATEGORY_LABELS, entry.category) }}</span>
+              <span class="text-sm text-vt-mute">{{
+                entry.method ? label(PAYMENT_METHOD_LABELS, entry.method) : '—'
+              }}</span>
+              <strong
+                :class="[
+                  'vt-mono vt-cashbox-journal__amount',
+                  entry.type === 'income' ? 'text-vt-grass-ink' : 'text-vt-rose-ink',
+                ]"
+                ><span class="sr-only">{{
+                  entry.type === 'income' ? 'Поступление' : 'Расход'
+                }}</span
+                >{{
+                  signedMoney(
+                    entry.type === 'income' ? entry.amount : -entry.amount,
+                    entry.currency,
+                  )
+                }}</strong
               >
-            </div>
-          </li>
-        </ul>
+            </li>
+          </ul>
+        </div>
+        <button
+          v-if="hasMore"
+          type="button"
+          class="vt-btn vt-btn--ghost"
+          :disabled="loadingMore"
+          @click="load(true)"
+        >
+          {{ loadingMore ? 'Загружаем…' : 'Показать ещё' }}
+        </button>
       </section>
     </template>
   </div>

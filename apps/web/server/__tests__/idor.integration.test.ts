@@ -144,13 +144,14 @@ const ROUTES: OrgRouteTable = {
   },
   'POST /api/organizations/:orgId/ledger/expense': {
     access: 'manager',
-    body: () => ({ category: 'rent', amount: 1000 }),
+    body: () => ({ category: 'rent', amount: 1000, description: 'Аренда' }),
   },
   'POST /api/organizations/:orgId/ledger/income': {
     access: 'manager',
-    body: () => ({ category: 'donation', amount: 1000 }),
+    body: () => ({ category: 'donation', amount: 1000, description: 'Донат' }),
   },
   'GET /api/organizations/:orgId/ledger': { access: 'manager' },
+  'GET /api/organizations/:orgId/ledger/export': { access: 'manager' },
   'POST /api/organizations/:orgId/members/:memberId/approve': {
     access: 'manager',
     body: () => ({}),
@@ -537,13 +538,23 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
       'ledger.expense with event of another group',
       'POST',
       '/ledger/expense',
-      (b: OrgFixtureIds) => ({ category: 'rent', amount: 1000, eventId: b.eventId }),
+      (b: OrgFixtureIds) => ({
+        category: 'rent',
+        amount: 1000,
+        description: 'Аренда',
+        eventId: b.eventId,
+      }),
     ],
     [
       'ledger.income with event of another group',
       'POST',
       '/ledger/income',
-      (b: OrgFixtureIds) => ({ category: 'donation', amount: 1000, eventId: b.eventId }),
+      (b: OrgFixtureIds) => ({
+        category: 'donation',
+        amount: 1000,
+        description: 'Донат',
+        eventId: b.eventId,
+      }),
     ],
     [
       'series.preview with venue of another group',

@@ -231,10 +231,18 @@ describe('append-only cashbox', () => {
     expect(apiFetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(0)
     await wrapper.find('#lg-amount').setValue('12,50')
     await wrapper.find('form').trigger('submit')
+    expect(wrapper.text()).toContain('Укажите комментарий к операции')
+    expect(apiFetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(0)
+    await wrapper.find('#lg-desc').setValue('Аренда зала')
+    await wrapper.find('form').trigger('submit')
     await flushPromises()
     const post = apiFetch.mock.calls.find(([, options]) => options?.method === 'POST')
     expect(post?.[0]).toBe('/api/organizations/30/ledger/expense')
-    expect(post?.[1]?.body).toMatchObject({ category: 'rent', amount: 1250 })
+    expect(post?.[1]?.body).toMatchObject({
+      category: 'rent',
+      amount: 1250,
+      description: 'Аренда зала',
+    })
     expect(apiFetch.mock.calls.filter(([url]) => url.endsWith('/ledger'))).toHaveLength(2)
     wrapper.unmount()
   })

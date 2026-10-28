@@ -1264,7 +1264,7 @@ ol.vt-desktop-event-detail__rows > li {
 }
 .vt-desktop-cashbox__stats {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
   gap: 1rem;
 }
 .vt-desktop-cashbox__stats .vt-card--hero .vt-cap {
@@ -1273,21 +1273,36 @@ ol.vt-desktop-event-detail__rows > li {
 .vt-desktop-cashbox__stats strong {
   display: block;
   margin-top: 0.5rem;
-  font-size: clamp(1.5rem, 2.5vw, 2.5rem);
+  font-size: clamp(1.25rem, 2vw, 2rem);
   overflow-wrap: anywhere;
+}
+.vt-desktop-cashbox__stats .vt-card--hero strong {
+  font-size: clamp(1.75rem, 3vw, 2.75rem);
 }
 .vt-desktop-cashbox__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
 }
-.vt-desktop-cashbox__form {
-  padding: clamp(1rem, 2vw, 1.75rem);
+.vt-cashbox-form {
+  max-width: 40rem;
+}
+.vt-cashbox-form__after {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.875rem 1.125rem;
+  background: var(--vt-bone-2);
 }
 .vt-desktop-cashbox__fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
 }
 .vt-desktop-cashbox__fields label {
   display: grid;
@@ -1297,31 +1312,60 @@ ol.vt-desktop-event-detail__rows > li {
 .vt-desktop-cashbox__description {
   grid-column: 1 / -1;
 }
-.vt-desktop-cashbox__journal {
+.vt-cashbox-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+.vt-cashbox-filters__sort {
+  margin-left: auto;
+}
+.vt-cashbox-journal {
+  padding: 0;
+  overflow: hidden;
+}
+.vt-cashbox-journal ul {
   list-style: none;
   margin: 0;
   padding: 0;
 }
-.vt-desktop-cashbox__journal li {
+.vt-cashbox-journal__row {
   display: grid;
-  grid-template-columns: minmax(7rem, 1fr) minmax(0, 3fr) minmax(7rem, 1fr);
+  grid-template-columns: 9rem minmax(0, 1fr) 9rem 7rem 8rem;
   align-items: center;
   gap: 1rem;
-  padding: 1rem;
+  padding: 0.75rem 1.125rem;
   overflow-wrap: anywhere;
 }
-.vt-desktop-cashbox__journal li + li {
+.vt-cashbox-journal__head {
+  border-bottom: 1px solid var(--vt-stroke);
+  padding-block: 0.625rem;
+}
+.vt-cashbox-journal li + li {
   border-top: 1px solid var(--vt-stroke);
 }
-.vt-desktop-cashbox__journal strong,
-.vt-desktop-cashbox__journal span {
-  display: block;
+.vt-cashbox-journal__amount {
+  text-align: right;
+  justify-self: end;
+}
+.vt-cashbox-journal .vt-chip {
+  justify-self: start;
 }
 @media (max-width: 55rem) {
   .vt-desktop-cashbox__stats,
-  .vt-desktop-cashbox__fields,
-  .vt-desktop-cashbox__journal li {
+  .vt-desktop-cashbox__fields {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .vt-cashbox-journal__head {
+    display: none;
+  }
+  .vt-cashbox-journal__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .vt-cashbox-journal__what {
+    grid-column: 1 / -1;
+    order: 1;
   }
 }
 

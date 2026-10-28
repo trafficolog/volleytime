@@ -222,6 +222,7 @@ describe('Phase 6 — money flows (integration)', { timeout: 30_000 }, () => {
     await ledgerService.addExpense({ userId: ownerId }, orgId, {
       category: 'equipment',
       amount: 400,
+      description: 'Мячи',
     })
     await paymentService.refund({ userId: ownerId }, b.paymentId!)
 

@@ -139,6 +139,7 @@ describe('paymentService + ledger (integration)', () => {
     await ledgerService.addExpense({ userId: ownerId }, orgId, {
       category: 'equipment',
       amount: 500,
+      description: 'Мячи',
     })
     const expenses = await ledgerService.listHistory({ userId: ownerId }, orgId, {
       type: 'expense',
