@@ -2,11 +2,11 @@
 id: '21.5.1'
 phase: '21'
 epic: '21.5'
-status: todo
+status: in_progress
 release: 'v0.3.1'
 sync_state: synced
-last_reviewed: 2026-10-27
-status_note: 'Read-only: может стартовать параллельно с фазой 21 (не меняет код, схему и конфигурацию).'
+last_reviewed: 2026-10-28
+status_note: 'Отчёт составлен на main e6e0e21, владелец ответил на OQ-1…OQ-8 (2026-10-28); ждёт повторного ревью claude-opus-5-5. Карточка становится done после принятия отчёта.'
 ref_id: ''
 complexity: M
 impl_model: claude-sonnet-5-5
@@ -52,6 +52,13 @@ tags: [reference-v3, cleanup, audit]
 - ✅ Пункты, затрагивающие данные, миграции, откат или production-конфигурацию, помечены и не входят в пакеты удаления
 - ✅ Пакеты удаления описаны карточками с составом, тестами и порядком; ревью `claude-opus-5-5` без Critical/Important
 - ✅ Diff PR содержит только документы (отчёт, карточки, эпик, журнал)
+
+## Evidence
+
+- Отчёт: [2026-10-28-legacy-inventory](../operations/reviews/2026-10-28-legacy-inventory.md) — 29 пунктов `LEG-01`…`LEG-29`: удалить 11, обновить документ 6, оставить по решению владельца 4, оставить 4, не трогать (откат, данные, миграции) 1, ждёт 21.3.1 — 3; срез `main` = `e6e0e21` (после PR #194, #195, #196).
+- Пакеты: [21.5.2](21-5-2-legacy-removal-batches.md) (LEG-01…03), [21.5.3](21-5-3-legacy-removal-styles.md) (LEG-04, 05), [21.5.4](21-5-4-legacy-removal-dev-config-docs.md) (LEG-06…12), [21.5.5](21-5-5-legacy-history-condense.md) (LEG-13), [21.5.6](21-5-6-legacy-python-prototype.md) (LEG-21), [21.5.7](21-5-7-legacy-qa-pwcode.md) (LEG-22), [21.5.8](21-5-8-legacy-bot-shared-dependency.md) (LEG-24), [21.5.9](21-5-9-legacy-event-pricing-projection.md) (LEG-17).
+- Вопросы владельцу OQ-1…OQ-8 решены 2026-10-28 и записаны в [журнале решений](../operations/decisions/2026-10-12-reference-v3-decisions.md): оставить OQ-1, OQ-2, OQ-5; удалить OQ-3, OQ-4, OQ-6, OQ-8; разрешить OQ-7.
+- Diff PR содержит только документы; код, конфигурация, workflows, lockfile, миграции и данные не менялись; production и VPS не использовались.
 
 ## Не делать
 
