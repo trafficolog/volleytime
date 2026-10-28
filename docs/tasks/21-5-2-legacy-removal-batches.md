@@ -8,15 +8,15 @@ sync_state: synced
 last_reviewed: 2026-10-28
 status_note: 'Пакет 1 из отчёта 21.5.1: LEG-01…LEG-03. Остальные пакеты — 21.5.3, 21.5.4, 21.5.5.'
 ref_id: ''
-complexity: L
+complexity: M
 impl_model: claude-sonnet-5-5
 review_model: claude-opus-5-5
-review_gate: opus+tests
+review_gate: opus
 roles: [FULLSTACK]
 depends_on: ['21.5.1', '21.3.1']
 supersedes: []
 decisions: []
-estimated_hours: '8-24'
+estimated_hours: '4-8'
 reference:
   spec: ''
   screens: []
@@ -31,10 +31,10 @@ tags: [reference-v3, cleanup]
 
 ## Контекст
 
-- Один пакет = одна ветка, один PR, одна область; пакеты 21.5.x не пересекаются по файлам. Следующие пакеты: [21.5.3](21-5-3-legacy-removal-styles.md), [21.5.4](21-5-4-legacy-removal-dev-config-docs.md), [21.5.5](21-5-5-legacy-history-condense.md).
+- Один пакет = одна ветка, один PR, одна область; пакеты 21.5.x не пересекаются по файлам. Остальные пакеты: [21.5.3](21-5-3-legacy-removal-styles.md), [21.5.4](21-5-4-legacy-removal-dev-config-docs.md), [21.5.5](21-5-5-legacy-history-condense.md), [21.5.6](21-5-6-legacy-python-prototype.md), [21.5.7](21-5-7-legacy-qa-pwcode.md), [21.5.8](21-5-8-legacy-bot-shared-dependency.md), [21.5.9](21-5-9-legacy-event-pricing-projection.md).
 - Старт — после `21.3.1`, чтобы не конфликтовать с задачами фазы 21.
 - Риск пакета низкий: деньги, доступ, данные, деплой и откат не затронуты.
-- Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` с тестами; маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
+- Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` (gate `opus`, без обязательных тестов граничных случаев). Основание: пакет удаляет три неиспользуемые таблицы подписей, composable без вызовов и две константы; деньги, доступ, данные и поведение пользователя не затронуты, меняется один пример в `labels.test.ts`, новых тестов не требуется. Это понижение с L и `opus+tests` до M и `opus` относительно заготовки; маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
 
 Состав пакета (доказательства неиспользования — в отчёте, повторить на актуальном `main` до удаления):
 
@@ -66,4 +66,4 @@ tags: [reference-v3, cleanup]
 - ❌ Не трогать данные, миграции, rollback-скрипты и quiescent-guard
 - ❌ Не объединять несколько областей в один PR и не смешивать с исправлениями огрехов 21.4
 - ❌ Не удалять `status-model` (`pendingOf`, `overlapsOf`, `OVERLAP_LABEL`) и `settingsErrorMessage`: пункты LEG-14 и LEG-15 ждут перепроверки после 21.3.1
-- ❌ Не удалять `legacy/python-prototype` и документы фаз 1–2 без решения владельца
+- ❌ Не трогать `legacy/python-prototype` и документы фаз 1–2: их удаляет пакет 21.5.6
