@@ -24,6 +24,7 @@ import {
 } from './event-balance'
 import {
   bookings,
+  collections,
   eventBalanceEntries,
   eventBalancePurchaseRequests,
   eventSeries,
@@ -903,6 +904,108 @@ async function seedOrganization(tx: Transaction, spec: DemoOrganization): Promis
   for (const event of spec.events) await ensureEvent(ctx, event, venueIds, subscriptionIds)
   if (spec.series) await ensureSeries(ctx, spec.series, venueIds)
   await ensureEventBalance(ctx)
+  if (spec.slug === 'demo-vt-minsk') await ensureCollections(ctx)
+}
+
+/** Сборы группы (21.2.4, макет `screens-contributions.jsx`): `user` → сумма и статус взноса. */
+const DEMO_COLLECTIONS: {
+  title: string
+  description: string
+  icon: 'ball' | 'trophy' | 'shirt'
+  target: number
+  status: 'active' | 'completed'
+  deadlineDay: number
+  contributions: { user: string; amount: number; paid: boolean }[]
+}[] = [
+  {
+    title: 'Новый комплект мячей',
+    description: '3× Mikasa V200W на замену убитым. Хватит на сезон.',
+    icon: 'ball',
+    target: 25_000,
+    status: 'active',
+    deadlineDay: 14,
+    contributions: [
+      { user: 'nikita', amount: 1_500, paid: true },
+      { user: 'masha', amount: 2_000, paid: true },
+      { user: 'lera', amount: 1_500, paid: false },
+    ],
+  },
+  {
+    title: 'Форма команды',
+    description: 'Единые майки с номерами для сыгранного состава.',
+    icon: 'shirt',
+    target: 6_000,
+    status: 'completed',
+    deadlineDay: -2,
+    contributions: [
+      { user: 'nikita', amount: 3_000, paid: true },
+      { user: 'masha', amount: 3_000, paid: true },
+    ],
+  },
+]
+
+/**
+ * Сборы со взносами: взнос — платёж `collection_id`; подтверждённый пишет доход кассы
+ * `contribution` (ADR v3 «Сборы»). Идемпотентно по названию сбора в группе.
+ */
+async function ensureCollections(ctx: Ctx): Promise<void> {
+  const { tx, org, owner } = ctx
+  for (const spec of DEMO_COLLECTIONS) {
+    const [found] = await tx
+      .select({ id: collections.id })
+      .from(collections)
+      .where(and(eq(collections.organizationId, org.id), eq(collections.title, spec.title)))
+    if (found) continue
+    const closed = spec.status === 'completed'
+    const [row] = await tx
+      .insert(collections)
+      .values({
+        organizationId: org.id,
+        title: spec.title,
+        description: spec.description,
+        icon: spec.icon,
+        targetAmount: spec.target,
+        currency: org.defaultCurrency,
+        status: spec.status,
+        deadlineAt: minskTime(ctx.anchor, spec.deadlineDay, '23:00'),
+        createdByUserId: owner.id,
+        closedAt: closed ? minskTime(ctx.anchor, spec.deadlineDay, '23:00') : null,
+      })
+      .returning()
+    for (const c of spec.contributions) {
+      const user = ctx.people.get(c.user)
+      if (!user) continue
+      const at = minskTime(ctx.anchor, spec.deadlineDay - 3, '20:00')
+      const [payment] = await tx
+        .insert(payments)
+        .values({
+          organizationId: org.id,
+          userId: user.id,
+          collectionId: row!.id,
+          amount: c.amount,
+          currency: org.defaultCurrency,
+          method: 'cash',
+          status: c.paid ? 'succeeded' : 'pending',
+          confirmedByUserId: c.paid ? owner.id : null,
+          confirmedAt: c.paid ? at : null,
+          createdAt: at,
+        })
+        .returning()
+      if (c.paid)
+        await tx.insert(ledgerEntries).values({
+          organizationId: org.id,
+          type: 'income',
+          category: 'contribution',
+          amount: c.amount,
+          currency: org.defaultCurrency,
+          paymentId: payment!.id,
+          description: `Взнос в сбор «${spec.title}»`,
+          createdByUserId: owner.id,
+          occurredAt: at,
+          createdAt: at,
+        })
+    }
+  }
 }
 
 const DEMO_SERIES_KEY = 'seed:demo'

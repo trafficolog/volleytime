@@ -131,6 +131,8 @@ describe('payment history HTTP (integration)', () => {
     expect(Object.keys(rows[0]!).sort()).toEqual([
       'amount',
       'bookingId',
+      // взнос в сбор (21.2.4), аддитивно
+      'collection',
       'createdAt',
       'currency',
       'event',

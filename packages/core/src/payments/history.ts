@@ -1,6 +1,7 @@
 import {
   and,
   bookings,
+  collections,
   desc,
   eq,
   events,
@@ -34,6 +35,8 @@ export interface PaymentHistoryRow {
   user: Pick<User, 'id' | 'name' | 'telegramUsername' | 'image'>
   event: { id: number; title: string; startsAt: Date } | null
   plan: { name: string } | null
+  /** Взнос в сбор (21.2.4). */
+  collection: { id: number; title: string } | null
 }
 
 export async function listPaymentHistory(
@@ -67,6 +70,7 @@ export async function listPaymentHistory(
       },
       event: { id: events.id, title: events.title, startsAt: events.startsAt },
       plan: { name: subscriptionPlans.name },
+      collection: { id: collections.id, title: collections.title },
     })
     .from(payments)
     .innerJoin(users, eq(users.id, payments.userId))
@@ -85,6 +89,10 @@ export async function listPaymentHistory(
         eq(subscriptionPlans.id, subscriptions.planId),
         eq(subscriptionPlans.organizationId, orgId),
       ),
+    )
+    .leftJoin(
+      collections,
+      and(eq(collections.id, payments.collectionId), eq(collections.organizationId, orgId)),
     )
     .where(and(...conditions))
     .orderBy(desc(payments.createdAt), desc(payments.id))

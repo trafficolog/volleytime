@@ -52,6 +52,8 @@ describe('payment history (integration)', () => {
     expect(result.nextCursor).toBeNull()
     expect(Object.keys(result.payments[0]!).sort()).toEqual([
       'amount',
+      // взнос в сбор (21.2.4), аддитивно
+      'collection',
       'confirmedAt',
       'createdAt',
       'currency',
