@@ -27,13 +27,13 @@ tags: [reference-v3, cleanup, dependencies]
 
 ## Цель
 
-Убрать неиспользуемую зависимость `@volley-time/shared` из `apps/bot` вместе с записью в `pnpm-lock.yaml` и `COPY` в Dockerfile бота (`LEG-24` принятого отчёта [21.5.1](../operations/reviews/2026-10-28-legacy-inventory.md)).
+Убрать неиспользуемую зависимость `@volley-time/shared` из `apps/bot` вместе с записью bot→shared в `pnpm-lock.yaml` (Dockerfile не меняется) (`LEG-24` принятого отчёта [21.5.1](../operations/reviews/2026-10-28-legacy-inventory.md)).
 
 ## Контекст
 
 - Решение владельца **OQ-6** ([журнал](../operations/decisions/2026-10-12-reference-v3-decisions.md), запись 2026-10-28): удалить; согласие на изменение lockfile — это решение. Пакет отдельный (или как минимум отдельный коммит lockfile), чтобы diff `pnpm-lock.yaml` проверялся независимо.
-- Доказательство: `rg -n "@volley-time/" apps/bot --glob '!node_modules' --glob '!package.json'` → 0 импортов; бот обращается к web по HTTP (`apps/bot/src/web-client.ts`). Записи: `apps/bot/package.json:15`, importer `apps/bot` в `pnpm-lock.yaml` (`link:../../packages/shared`), `apps/bot/Dockerfile:11` (`COPY packages/shared/package.json`).
-- Dockerfile бота копирует манифесты `packages/db` и `packages/core`, а бот от них не зависит; это отдельное наблюдение, в пакет **не** входит (менять только `shared`, если проверка сборки не показывает иного).
+- Доказательство: `rg -n "@volley-time/" apps/bot --glob '!node_modules' --glob '!package.json'` → 0 импортов; бот обращается к web по HTTP (`apps/bot/src/web-client.ts`). Записи: `apps/bot/package.json:15` и importer `apps/bot` в `pnpm-lock.yaml` (`link:../../packages/shared`).
+- `apps/bot/Dockerfile` **не меняется**: строка `COPY packages/shared/package.json` (строка 11) нужна, потому что Dockerfile копирует манифест `packages/core`, а тот объявляет `@volley-time/shared` (`packages/core/package.json:20`). Остальные `COPY` манифестов тоже остаются.
 - Проверка сборки: CI-задача `image-bundle` (`scripts/validate-runner-images.sh`) собирает образы; образ бота должен собираться с `pnpm install --frozen-lockfile`.
 - Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` с проверкой diff lockfile; маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
 
@@ -41,13 +41,13 @@ tags: [reference-v3, cleanup, dependencies]
 
 1. Повторить поиск импортов `@volley-time/shared` в `apps/bot` (включая тесты и `tsup`/`tsconfig`); если импорт появился, остановиться и вернуть задачу оркестратору.
 2. Удалить зависимость из `apps/bot/package.json`; обновить `pnpm-lock.yaml` командой `pnpm install --lockfile-only` без прочих изменений версий; проверить `git diff pnpm-lock.yaml` — удалена только запись bot→shared.
-3. Удалить `COPY packages/shared/package.json` из `apps/bot/Dockerfile` (строка 11); `packages/shared` остаётся в workspace (его используют web и core).
+3. Не трогать `apps/bot/Dockerfile`; `packages/shared` остаётся в workspace (его используют web и core).
 4. Проверить `pnpm install --frozen-lockfile`, `pnpm -F @volley-time/bot typecheck`, `build`, `test` и сборку образа бота (локально `docker build -f apps/bot/Dockerfile .` либо CI `image-bundle`).
 5. Обновить отчёт аудита: статус `LEG-24` — удалено + номер PR.
 
 ## Критерии приёмки
 
-- ✅ Diff содержит только `apps/bot/package.json`, `pnpm-lock.yaml` (запись bot→shared), `apps/bot/Dockerfile` и отчёт аудита
+- ✅ Diff содержит только `apps/bot/package.json`, `pnpm-lock.yaml` (запись bot→shared) и отчёт аудита; `apps/bot/Dockerfile` не изменён
 - ✅ `pnpm install --frozen-lockfile` проходит; образ бота собирается в CI (`image-bundle` зелёный)
 - ✅ Пять gates на tested revision; число тестов не изменилось
 - ✅ Версии остальных зависимостей в lockfile не изменились
@@ -56,5 +56,5 @@ tags: [reference-v3, cleanup, dependencies]
 ## Не делать
 
 - ❌ Не удалять `packages/shared` из workspace и не трогать зависимости web и core
-- ❌ Не обновлять версии пакетов и не менять `COPY` манифестов `db`/`core` в Dockerfile
+- ❌ Не обновлять версии пакетов и не менять `apps/bot/Dockerfile` (в том числе `COPY` манифестов `shared`, `db`, `core`)
 - ❌ Не менять workflows, production-конфигурацию, данные и миграции

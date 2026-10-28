@@ -47,4 +47,5 @@ depends_on: ['21.3.1']
 - ❌ Не удалять ничего без принятого аудита 21.5.1: каждый удаляемый объект назван в его отчёте.
 - ❌ Не трогать данные и миграции: схема БД, существующие миграции, rollback-скрипты и содержимое таблиц остаются как есть; удаление таблиц и колонок — отдельное решение владельца и отдельная карточка с ADR.
 - ❌ Не удалять устаревшие документы и domain knowledge без решения владельца по пункту аудита. Решение 2026-10-28 (OQ-3) относится только к `legacy/python-prototype` и двум документам `docs/phases/1-python-legacy.md`, `2-python-legacy-subscriptions.md` (пакет 21.5.6).
-- ❌ Не удалять то, что владелец решил оставить: ветку GHCR и значения `:latest`, `scripts/deploy-local-build.sh` с тестами, `members/leave` и политики `canViewOrgMembers`, `canManageOrgSettings`, плейсхолдер-драйвер Unisender.
+- ❌ Не удалять то, что владелец решил оставить: ветку GHCR и значения `:latest`, `scripts/deploy-local-build.sh` с тестами, `members/leave` и политики `canViewOrgMembers`, `canManageOrgSettings`.
+- ❌ Не удалять плейсхолдер-драйвер Unisender (`packages/auth/src/email/unisender-driver.ts`, `EMAIL_DRIVER=unisender`, тест): аудит оставляет его как путь авторизации по email (LEG-29), это не ответ владельца.

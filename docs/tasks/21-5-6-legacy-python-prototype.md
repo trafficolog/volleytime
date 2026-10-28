@@ -36,6 +36,7 @@ tags: [reference-v3, cleanup, docs]
   - каталог `legacy/python-prototype` (215 файлов, 1125 КБ): `find legacy/python-prototype -type f | wc -l`;
   - ровно два документа «фаз 1–2»: `docs/phases/1-python-legacy.md` и `docs/phases/2-python-legacy-subscriptions.md`; эпиков и карточек фаз 1–2 в `docs/epics`, `docs/tasks` нет.
 - Входящие ссылки, которые пакет исправляет: `README.md` (раздел «Legacy 1: Python-прототип» и дерево каталогов, строки 66, 126), `docs/MIGRATION_STRATEGY.md` (строки 38, 222, 271, 272). Запись о том, где искать код прототипа: последний коммит `main`, содержавший каталог (SHA указать в тексте), и пометка «удалён в 21.5.6».
+- Простая текстовая строка `docs/ROADMAP.md:108` «Phase 1-2 ✅ — Python-прототип (legacy, для domain knowledge)» ссылки не содержит; пакет обновляет её (прототип удалён, история в Git) либо оставляет как историю фаз по решению ревью.
 - Датированная сессия `docs/operations/sessions/2026/2026-05-25-strategic-pivot-to-saas.md` (строка 112) — история, текст не править.
 - Конфигурация, ставшая мёртвой после удаления каталога, чистится в этом же пакете: `vitest.config.ts:15` (`'legacy/**'` в `exclude`), `.prettierignore:11`, `.dockerignore:12`, `eslint.config.js:16`. Удалять запись только если после удаления каталога она не относится ни к чему другому (проверить `rg -n "legacy" <файл>`).
 - Риск низкий: прототип не входит в workspace, сборку, CI и Dockerfile; домен-знание хранится в Git и в `docs/DOMAIN.md`, `docs/PLATFORM_VISION.md`.
@@ -54,7 +55,7 @@ tags: [reference-v3, cleanup, docs]
 ## Критерии приёмки
 
 - ✅ Удалены только `legacy/python-prototype` и два названных документа; других документов фаз и каталогов не затронуто
-- ✅ `rg -n "python-prototype|legacy/python|1-python-legacy|2-python-legacy" . --glob '!legacy/**'` находит только сессию 2026-05-25, журнал решений, отчёт аудита и карточки 21.5.x
+- ✅ `rg -n "python-prototype|legacy/python|1-python-legacy|2-python-legacy" . --glob '!legacy/**'` находит только сессию 2026-05-25, журнал решений, отчёт аудита, эпик `docs/epics/21-5-legacy-cleanup.md` и карточки 21.5.x
 - ✅ Конфигурация очищена от `legacy`-записей, которые больше ни к чему не относятся; `format:check`, `lint`, `typecheck`, `test`, `build` зелёные
 - ✅ Данные, схема и миграции не изменены
 - ✅ Ревью `claude-opus-5-5` без Critical/Important
