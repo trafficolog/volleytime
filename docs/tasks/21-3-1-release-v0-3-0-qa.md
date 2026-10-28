@@ -70,6 +70,10 @@ tags: [reference-v3]
 1. Пять gates, отчёт 19.0.2 по всем экранам Mini App и кабинета
 2. Telegram QA на двух аккаунтах
 3. Promote, backup, smoke, тег v0.3.0
+4. Сборы (21.2.4, ADR v3 правило совместимости 4, по образцу 20.7.1 п. 6–7): провести `COLLECTIONS_ENABLED` в `scripts/render-production-env.mjs` (список `RELEASE_FLAGS`; только точное `true`, иначе `false`, контрактный тест как у `EVENT_MULTI_SEAT_ENABLED`) и в `deploy.yml` («Prepare production env», repository variable); diff workflow смотрит владелец до merge; выкладка со выключенными сборами.
+5. Сборы, до Promote: preflight миграции `0032_collections` — `SELECT count(*) FROM payments WHERE booking_id IS NOT NULL AND subscription_id IS NOT NULL` = 0 (иначе новый `CHECK payments_single_target` уронит миграцию; координатор выполнил запрос read-only на production 2026-10-28 — 0, повторить перед Promote и записать в evidence).
+6. Сборы, на кандидате: оба образа (web, bot) несут `org.volleytime.collections="1"`; guard отката приложения (`scripts/verify-split-rollback.sh`) отказывает образу без метки, пока есть ожидающие взносы (`SELECT EXISTS (SELECT 1 FROM payments WHERE collection_id IS NOT NULL AND status = 'pending')`), и пропускает при подтверждённых/отклонённых/возвращённых — evidence CI fake-shell и real-PostgreSQL guard, метки образов в evidence выкладки.
+7. Сборы: включить `COLLECTIONS_ENABLED=true` только после приёмки релиза владельцем, отдельным релизным коммитом с подтверждением владельца (как флаги v0.2.0).
 
 ## Критерии приёмки
 
