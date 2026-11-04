@@ -2,11 +2,11 @@
 id: '21.2.5'
 phase: '21'
 epic: '21.2'
-status: todo
+status: in_progress
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-10-12
-status_note: ''
+status_note: 'Реализация в PR trafficolog/feat/21.2.5-cabinet-collections: список и форма «Новый сбор» (флаг capabilities.collections), заметка визуальной сверки в описании PR; ревью Opus и CI ещё впереди; панель обещаний, правка и закрытие сбора вне карточки — открытые вопросы в PR.'
 ref_id: 'W-08'
 complexity: M
 impl_model: claude-sonnet-5-5

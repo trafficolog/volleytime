@@ -1,6 +1,6 @@
 import { desktopNavItems } from './desktop-org-ui'
 
-/** Разделы сайдбара кабинета v3 (20.5.3, W-01). Страницы «Сборы», «Отчёты», «Баланс» добавят их карточки. */
+/** Разделы сайдбара кабинета v3 (20.5.3, W-01). Страницы «Отчёты», «Баланс» добавят их карточки. */
 export type CabinetNavSection = {
   key: 'organization' | 'platform'
   heading: string
@@ -30,6 +30,7 @@ const NAV_ICONS: Record<string, string> = {
   plans: 'ticket',
   payments: 'card',
   cashbox: 'wallet',
+  collections: 'gift',
   settings: 'settings',
 }
 
