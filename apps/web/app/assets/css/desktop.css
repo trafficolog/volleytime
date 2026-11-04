@@ -1250,6 +1250,142 @@ ol.vt-desktop-event-detail__rows > li {
   min-width: 9rem;
 }
 
+.vt-desktop-members__count {
+  padding: 0 0.375rem;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-2xs);
+  background: var(--vt-bone-2);
+}
+
+.vt-desktop-members__count[data-attention='true'] {
+  background: var(--vt-amber);
+  color: var(--vt-ink);
+}
+
+.vt-btn--ink .vt-desktop-members__count:not([data-attention='true']) {
+  background: var(--vt-on-hero-fill);
+}
+
+.vt-desktop-members__table-wrap {
+  padding: 0;
+  overflow-x: auto;
+}
+
+.vt-desktop-members__table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: start;
+}
+
+.vt-desktop-members__table th,
+.vt-desktop-members__table td {
+  padding: 0.75rem 1.125rem;
+  text-align: start;
+  vertical-align: middle;
+}
+
+.vt-desktop-members__table th {
+  color: var(--vt-mute-2);
+  border-bottom: 1px solid var(--vt-bone-2);
+}
+
+.vt-desktop-members__table tbody tr + tr td {
+  border-top: 1px solid var(--vt-bone-2);
+}
+
+.vt-desktop-members__table td.vt-mono {
+  font-size: var(--fs-sm);
+  color: var(--vt-mute-2);
+}
+
+.vt-desktop-members__name {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-align: start;
+  cursor: pointer;
+}
+
+.vt-desktop-members__name:hover {
+  text-decoration: underline;
+}
+
+.vt-desktop-members__table small {
+  display: block;
+  font-size: var(--fs-2xs);
+  color: var(--vt-mute-2);
+}
+
+/* Карточка игрока: боковая панель справа вместо нижнего листа. */
+#vt-player-drawer {
+  justify-content: flex-end;
+  align-items: stretch;
+}
+
+#vt-player-drawer .vt-sheet-panel {
+  width: min(26rem, 100%);
+  max-width: 26rem;
+  height: 100dvh;
+  max-height: 100dvh;
+  border-radius: 0;
+  border-top: 0;
+  border-inline-start: 1px solid var(--vt-stroke);
+  animation: none;
+}
+
+#vt-player-drawer .vt-sheet-panel > [aria-hidden='true'] {
+  display: none;
+}
+
+.vt-player-drawer {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.vt-player-drawer__head {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.vt-player-drawer__handle {
+  margin: 0 0 0.25rem;
+  font-family: var(--f-mono);
+  color: var(--vt-mute-2);
+}
+
+.vt-player-drawer__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.vt-player-drawer__facts dt {
+  font-size: var(--fs-2xs);
+  color: var(--vt-mute-2);
+}
+
+.vt-player-drawer__facts dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.vt-player-drawer__value {
+  margin: 0;
+  font-weight: 600;
+}
+
+.vt-player-drawer__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 @media (max-width: 55rem) {
   .vt-desktop-event-detail__stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
