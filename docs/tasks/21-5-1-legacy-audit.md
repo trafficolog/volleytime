@@ -2,11 +2,11 @@
 id: '21.5.1'
 phase: '21'
 epic: '21.5'
-status: in_progress
+status: done
 release: 'v0.3.1'
 sync_state: synced
-last_reviewed: 2026-10-28
-status_note: 'Отчёт составлен на main e6e0e21, владелец ответил на OQ-1…OQ-8 (2026-10-28); ждёт повторного ревью claude-opus-5-5. Карточка становится done после принятия отчёта.'
+last_reviewed: 2026-11-04
+status_note: 'Выполнено: отчёт docs/operations/reviews/2026-10-28-legacy-inventory.md принят (PR #198 смёржен), владелец ответил на OQ-1…OQ-8. Карточки пакетов удаления 21.5.2–21.5.9 созданы.'
 ref_id: ''
 complexity: M
 impl_model: claude-sonnet-5-5
