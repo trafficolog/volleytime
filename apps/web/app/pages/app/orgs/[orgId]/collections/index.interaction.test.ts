@@ -192,4 +192,12 @@ describe('desktop collections list (W-08)', () => {
     expect(w.findAll('[data-testid="collection-card"]')).toHaveLength(2)
     expect(apiFetch.mock.calls[1]![1].query).toEqual({ limit: 100, cursor: 'next' })
   })
+
+  it('stops after 10 pages and tells that the totals cover only the loaded collections', async () => {
+    apiFetch.mockImplementation(async () => ({ collections: [collection(1)], nextCursor: 'more' }))
+    const w = await render()
+    expect(apiFetch).toHaveBeenCalledTimes(10)
+    expect(w.findAll('[data-testid="collection-card"]')).toHaveLength(10)
+    expect(w.text()).toContain('Показаны последние 10 сборов; итоги посчитаны по ним.')
+  })
 })

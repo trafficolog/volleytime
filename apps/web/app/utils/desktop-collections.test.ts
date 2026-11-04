@@ -35,14 +35,14 @@ describe('desktop collections helpers', () => {
     expect(collectionProgress(item({ targetAmount: null, collected: 500 }))).toBeNull()
   })
 
-  it('totals ignore cancelled collections and count pledges only for active ones', () => {
+  it('totals ignore cancelled collections but keep pledges of completed ones', () => {
     const totals = collectionTotals([
       item({ id: 1, collected: 1000, pledged: 300 }),
-      item({ id: 2, status: 'completed', collected: 2000, pledged: 0 }),
+      item({ id: 2, status: 'completed', collected: 2000, pledged: 700 }),
       item({ id: 3, status: 'cancelled', collected: 900, pledged: 0 }),
       item({ id: 4, status: 'draft', collected: 0, pledged: 50 }),
     ])
-    expect(totals).toEqual({ active: 1, collected: 3000, pledged: 300 })
+    expect(totals).toEqual({ active: 1, collected: 3000, pledged: 1050 })
   })
 
   it('parses the target in major units to minor units', () => {

@@ -50,16 +50,16 @@ export function collectionProgress(c: Pick<DesktopCollection, 'collected' | 'tar
 }
 
 /**
- * Итоги по загруженным сборам. Отменённые сборы в суммы не входят; ожидающие взносы считаются
- * только у активных (у закрытых сборов их нет: взносы отклонены при закрытии).
+ * Итоги по загруженным сборам. Отменённые сборы в суммы не входят (их ожидающие взносы
+ * отклонены). У завершённых сборов ожидающие взносы сохраняются (`complete()` их не трогает) и ещё
+ * могут быть подтверждены или отклонены, поэтому «обещано» считается по всем неотменённым.
  */
 export function collectionTotals(items: readonly DesktopCollection[]) {
   const live = items.filter((c) => c.status !== 'cancelled')
-  const active = items.filter((c) => c.status === 'active')
   return {
-    active: active.length,
+    active: items.filter((c) => c.status === 'active').length,
     collected: live.reduce((sum, c) => sum + c.collected, 0),
-    pledged: active.reduce((sum, c) => sum + c.pledged, 0),
+    pledged: live.reduce((sum, c) => sum + c.pledged, 0),
   }
 }
 
@@ -76,7 +76,7 @@ export function parseCollectionTarget(
   return value >= 1 && value <= MAX_TARGET ? { ok: true, value } : { ok: false }
 }
 
-/** Дедлайн — только отображение (решение 2026-10-28): конец выбранного дня в зоне группы. */
+/** Дедлайн — только отображение (решение 2026-10-28): 23:59 выбранного дня в зоне группы (минута, не последняя миллисекунда). */
 export function collectionDeadlineIso(day: string, tz: string, now = new Date()): string | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return null
   const end = zonedInputToDate(`${day}T23:59`, tz)
