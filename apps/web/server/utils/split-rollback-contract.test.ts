@@ -28,6 +28,13 @@ const v020Capabilities = [
     predicate:
       "SELECT EXISTS (SELECT 1 FROM waitlist_offers WHERE status = 'offered') OR EXISTS (SELECT 1 FROM events WHERE booking_opens_at > now() AND status IN ('draft', 'published', 'closed'))",
   },
+  // сборы (21.2.4): прежний runtime подтверждает ожидающий взнос как payment_income
+  {
+    key: 'collections',
+    name: 'collections',
+    predicate:
+      "SELECT EXISTS (SELECT 1 FROM payments WHERE collection_id IS NOT NULL AND status = 'pending')",
+  },
 ] as const
 
 describe('v0.2.0 capability labels and data guard (20.7.1)', { timeout: 35_000 }, () => {
@@ -210,8 +217,8 @@ describe('v0.2.0 capability labels and data guard (20.7.1)', { timeout: 35_000 }
       const guardQueries = f.calls
         .filter((args) => args.includes('psql') && !args.at(-1)?.includes('pg_stat_activity'))
         .map((args) => args.at(-1)!)
-      // preflight and authoritative pass, each four schema probes and four data predicates
-      expect(guardQueries).toHaveLength(16)
+      // preflight and authoritative pass, each five schema probes and five data predicates (21.2.4: collections)
+      expect(guardQueries).toHaveLength(20)
       for (const query of guardQueries)
         expect(query.startsWith('SET search_path TO pg_catalog, public; '), query).toBe(true)
     } finally {

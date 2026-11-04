@@ -41,6 +41,8 @@ interface Params {
   eventTitle?: string
   eventDate?: string
   planName?: string
+  /** Сбор, в который внесён взнос (21.2.4). */
+  collectionTitle?: string
   playerName?: string
   amount?: number
   targetAmount?: number
@@ -138,7 +140,11 @@ export function notificationView(n: FeedNotification, base: string): Notificatio
         title: 'Оплата подтверждена',
         body: joinText(
           p.amount !== undefined && `${formatPrice(p.amount, p.currency)}.`,
-          p.planName ? `Абонемент «${p.planName}» активирован.` : quoted,
+          p.planName
+            ? `Абонемент «${p.planName}» активирован.`
+            : p.collectionTitle
+              ? `Взнос в сбор «${p.collectionTitle}».`
+              : quoted,
         ),
         icon: 'check',
         tone: 'grass',
@@ -148,7 +154,11 @@ export function notificationView(n: FeedNotification, base: string): Notificatio
       return {
         title: 'Оплата отклонена',
         body: joinText(
-          p.planName ? `Абонемент «${p.planName}».` : `${quoted}.`,
+          p.planName
+            ? `Абонемент «${p.planName}».`
+            : p.collectionTitle
+              ? `Взнос в сбор «${p.collectionTitle}».`
+              : `${quoted}.`,
           'Свяжитесь с организатором.',
         ),
         icon: 'alert',
@@ -179,7 +189,14 @@ export function notificationView(n: FeedNotification, base: string): Notificatio
       }
       return {
         title: 'Заявка на оплату',
-        body: joinText(p.playerName, p.planName ? `· «${p.planName}»` : `· ${event}`),
+        body: joinText(
+          p.playerName,
+          p.planName
+            ? `· «${p.planName}»`
+            : p.collectionTitle
+              ? `· взнос в сбор «${p.collectionTitle}»`
+              : `· ${event}`,
+        ),
         icon: 'wallet',
         tone: 'amber',
         to,

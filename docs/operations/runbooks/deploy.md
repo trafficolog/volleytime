@@ -243,6 +243,7 @@ The **first v0.2.0 rollout leaves all five flags unset (false)**: the release is
 | `multi-seat`  | `SELECT EXISTS (SELECT 1 FROM bookings WHERE seats > 1 OR waitlist_seats > 0)`                                                                                                                                                                                                                   |
 | `invite-mode` | `SELECT EXISTS (SELECT 1 FROM events WHERE join_mode = 'invite' AND status NOT IN ('cancelled', 'finished')) OR EXISTS (SELECT 1 FROM invite_links WHERE type = 'event_join' AND NOT is_revoked AND (expires_at IS NULL OR expires_at > now()) AND (max_uses IS NULL OR uses_count < max_uses))` |
 | `scheduler`   | `SELECT EXISTS (SELECT 1 FROM waitlist_offers WHERE status = 'offered') OR EXISTS (SELECT 1 FROM events WHERE booking_opens_at > now() AND status IN ('draft', 'published', 'closed'))`                                                                                                          |
+| `collections` | `SELECT EXISTS (SELECT 1 FROM payments WHERE collection_id IS NOT NULL AND status = 'pending')` (v0.3.0, 21.2.4; label `org.volleytime.collections`)                                                                                                                                             |
 
 The previous production runtime (v0.1.7 images) carries only the split label. Once multi-seat, invite or scheduler data exists, the guard refuses an application rollback to it; the recovery is a reviewed roll-forward. A disabled flag does not make existing data compatible. Run read-only checks on the VPS through the existing PostgreSQL service:
 
@@ -310,6 +311,18 @@ Neither adds a flag, a capability label or an application guard extension (owner
 - Chat link: the previous runtime works on the schema with empty and with filled `organization_telegram_chats` and `telegram_chat_link_codes`. Migration rollback 0031 refuses while linked chats exist (see the chat link paragraph above). No new environment variables (`TELEGRAM_BOT_USERNAME`, `BOT_INTERNAL_URL`, `BOT_INTERNAL_SECRET` are reused).
 
 Record these candidate observations in the release evidence; repository tests do not establish them.
+
+## v0.3.0 collections: flag, migration and rollback guard (Task 21.2.4)
+
+Migration `0032_collections` is additive: enum `collection_status`, table `collections`, nullable `payments.collection_id` with a composite FK to the collection of the same organization, a partial unique index (one pending pledge per player and collection) and `CHECK payments_single_target` (`num_nonnulls(booking_id, subscription_id, collection_id) <= 1`). The CHECK validates existing rows inside the migration transaction (ADR v3 compatibility rule 3). Before Promote, run the read-only preflight through the PostgreSQL service above; it must return `0`, otherwise stop and investigate before migrating:
+
+```sql
+SELECT count(*) FROM payments WHERE booking_id IS NOT NULL AND subscription_id IS NOT NULL;
+```
+
+- **Flag `COLLECTIONS_ENABLED`** (exact `true`, otherwise off) gates only _new_ collections and pledges (409 `collection.disabled`); reading, editing, completing and cancelling collections and confirming or rejecting existing pledges always work. It is read at runtime by web (`process.env`), not at build time. Wiring it into Deploy («Prepare production env» in `.github/workflows/deploy.yml` and `scripts/render-production-env.mjs`) is part of release task 21.3.1 with the owner's review of the workflow diff, like the v0.2.0 flags; until then production has no variable and collections stay off. Enable it only after the full v0.3.0 release is deployed, smoke-passed and the guard is verified on the candidate.
+- **Why the guard.** A runtime without collections (v0.2.0) lists a pending pledge as a payment without a target and, if an organizer confirms it there, writes cash income `payment_income` («Оплата абонемента») instead of `contribution`. Web and bot images carry `org.volleytime.collections="1"`; with pending pledges the guard denies a target without the label (`collections rows require compatible web and bot images`). Confirmed, rejected and refunded contributions do not block a rollback. To make v0.2.0 a rollback target again, confirm or reject the pending pledges on the current runtime first.
+- **Migration rollback** `packages/db/rollback/0032_collections.sql` refuses while `SELECT EXISTS (SELECT 1 FROM collections)` is true: dropping `collection_id` would lose which collection the money belongs to. Removing collections is an operator decision after `pg_dump -t collections -t payments`: `UPDATE payments SET collection_id = NULL WHERE collection_id IS NOT NULL; DELETE FROM collections;` and the rollback in one transaction (payments and cash entries stay).
 
 ## Path B — GHCR (explicit manual alternative)
 

@@ -1,5 +1,6 @@
 import {
   bookingService,
+  collectionService,
   eventInviteService,
   eventService,
   inviteService,
@@ -14,6 +15,7 @@ import {
   asc,
   auditLog,
   bookings,
+  collections,
   closeDb,
   db,
   eq,
@@ -236,6 +238,35 @@ const ROUTES: OrgRouteTable = {
   },
   'GET /api/organizations/:orgId/subscriptions/my': { access: 'member' },
   'GET /api/organizations/:orgId/venues': { access: 'member' },
+  // 21.2.4: сборы — читают участники (черновики — manager), управляет manager, взнос — свой
+  'GET /api/organizations/:orgId/collections': { access: 'member' },
+  'POST /api/organizations/:orgId/collections': {
+    access: 'manager',
+    body: () => ({ title: 'Мячи', targetAmount: 25000 }),
+  },
+  'GET /api/organizations/:orgId/collections/:collectionId': { access: 'member' },
+  'PATCH /api/organizations/:orgId/collections/:collectionId': {
+    access: 'manager',
+    body: () => ({ title: 'Мячи и сетка' }),
+  },
+  'POST /api/organizations/:orgId/collections/:collectionId/complete': {
+    access: 'manager',
+    body: () => ({}),
+  },
+  'POST /api/organizations/:orgId/collections/:collectionId/cancel': {
+    access: 'manager',
+    body: () => ({}),
+  },
+  'POST /api/organizations/:orgId/collections/:collectionId/contributions': {
+    access: 'member',
+    body: () => ({ amount: 1500, method: 'cash' }),
+  },
+  'POST /api/organizations/:orgId/collections/:collectionId/contributions/:contributionId/confirm':
+    { access: 'manager', body: () => ({}) },
+  'POST /api/organizations/:orgId/collections/:collectionId/contributions/:contributionId/reject': {
+    access: 'manager',
+    body: () => ({}),
+  },
   'POST /api/organizations/:orgId/venues': { access: 'manager', body: () => ({ name: 'Зал 2' }) },
 }
 
@@ -347,6 +378,20 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
         expiresAt: new Date(Date.now() + 30 * 60_000),
       })
       .returning()
+    // активный сбор с ожидающим взносом игрока (21.2.4)
+    const collection = await collectionService.create({ userId: owner }, org.id, {
+      title: `Сбор ${marker}`,
+      targetAmount: 25_000,
+    })
+    const { contribution } = await collectionService.contribute(
+      { userId: player },
+      org.id,
+      collection.id,
+      {
+        amount: 1500,
+        method: 'cash',
+      },
+    )
     return {
       ids: {
         orgId: org.id,
@@ -360,6 +405,8 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
         requestId: request.id,
         seriesId: series.id,
         offerId: offer!.id,
+        collectionId: collection.id,
+        contributionId: contribution.id,
       },
       owner,
       organizer,
@@ -384,6 +431,7 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
       db.select().from(bookings).where(eq(bookings.organizationId, orgId)),
       db.select().from(waitlistOffers).where(eq(waitlistOffers.organizationId, orgId)),
       db.select().from(payments).where(eq(payments.organizationId, orgId)),
+      db.select().from(collections).where(eq(collections.organizationId, orgId)),
       db.select().from(subscriptionPlans).where(eq(subscriptionPlans.organizationId, orgId)),
       db.select().from(subscriptions).where(eq(subscriptions.organizationId, orgId)),
       db.select().from(inviteLinks).where(eq(inviteLinks.organizationId, orgId)),
@@ -415,6 +463,7 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
   // Фикстуры общие для файла: каждый тест доказывает снимком, что отказ ничего не изменил.
   beforeAll(async () => {
     vi.stubEnv('EVENT_INVITE_MODE_ENABLED', 'true')
+    vi.stubEnv('COLLECTIONS_ENABLED', 'true')
     request = await createTestApi()
     await db.delete(organizations)
     await db.delete(users)

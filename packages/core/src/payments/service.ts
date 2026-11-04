@@ -2,6 +2,7 @@ import {
   and,
   asc,
   bookings,
+  collections,
   desc,
   eq,
   events,
@@ -69,6 +70,16 @@ async function lockPaymentEvent(db: Db, paymentId: number): Promise<void> {
 }
 
 /**
+ * Взнос в сбор (21.2.4): сначала строка сбора `FOR UPDATE` — тот же ключ, что у взноса, правки и
+ * отмены сбора; затем условный переход платежа. Платёж без сбора ничего не блокирует.
+ */
+async function lockPaymentCollection(db: Db, paymentId: number): Promise<void> {
+  await db.execute(sql`
+    SELECT c.id FROM collections c JOIN payments p ON p.collection_id = c.id
+    WHERE p.id = ${paymentId} FOR UPDATE OF c`)
+}
+
+/**
  * Живые платежи записи (ADR v3, «Денежная модель нескольких мест»): текущее воплощение, место не
  * освобождено, `pending`/`succeeded`. Инвариант: для платной fixed-записи вне очереди их число = seats.
  */
@@ -95,7 +106,13 @@ function isLive(payment: Payment, booking: BookingRef | undefined): booking is B
 async function paymentContext(
   db: Db,
   payment: Payment,
-): Promise<{ eventTitle?: string; eventDate?: string; eventId?: number; planName?: string }> {
+): Promise<{
+  eventTitle?: string
+  eventDate?: string
+  eventId?: number
+  planName?: string
+  collectionTitle?: string
+}> {
   if (payment.bookingId) {
     const [row] = await db
       .select({ id: events.id, title: events.title, startsAt: events.startsAt })
@@ -116,6 +133,14 @@ async function paymentContext(
       .limit(1)
     if (row) return { planName: row.name }
   }
+  if (payment.collectionId) {
+    const [row] = await db
+      .select({ title: collections.title })
+      .from(collections)
+      .where(eq(collections.id, payment.collectionId))
+      .limit(1)
+    if (row) return { collectionTitle: row.title }
+  }
   return {}
 }
 
@@ -132,6 +157,8 @@ async function notifyOrganizersAboutPending(
     eventDate?: string
     eventId?: number
     planName?: string
+    collectionTitle?: string
+    target?: 'org'
   } = {},
   total: { amount: number; seats: number } = { amount: payment.amount, seats: 1 },
 ): Promise<void> {
@@ -392,6 +419,30 @@ export const paymentService = {
     return p!
   },
 
+  /**
+   * Создать pending-взнос в сбор (21.2.4). Вызывается под блокировкой строки сбора; организаторы
+   * получают заявку на подтверждение.
+   */
+  async createForCollection(
+    ctx: ServiceContext,
+    params: {
+      organizationId: number
+      userId: number
+      collectionId: number
+      amount: number
+      currency: string
+      method: 'cash' | 'transfer'
+    },
+    collectionTitle: string,
+  ): Promise<Payment> {
+    const [p] = await getDb(ctx)
+      .insert(payments)
+      .values({ ...params, bookingId: null, subscriptionId: null, status: 'pending' })
+      .returning()
+    await notifyOrganizersAboutPending(ctx, p!, { collectionTitle, target: 'org' })
+    return p!
+  },
+
   async getById(ctx: ServiceContext, id: number): Promise<Payment> {
     const p = await getDb(ctx).query.payments.findFirst({ where: eq(payments.id, id) })
     if (!p) throw new PaymentNotFoundError(id)
@@ -424,9 +475,12 @@ export const paymentService = {
         eventTitle: events.title,
         eventStartsAt: events.startsAt,
         planName: subscriptionPlans.name,
+        collectionId: collections.id,
+        collectionTitle: collections.title,
       })
       .from(payments)
       .innerJoin(users, eq(users.id, payments.userId))
+      .leftJoin(collections, eq(collections.id, payments.collectionId))
       .leftJoin(bookings, eq(bookings.id, payments.bookingId))
       .leftJoin(events, eq(events.id, bookings.eventId))
       .leftJoin(subscriptions, eq(subscriptions.id, payments.subscriptionId))
@@ -466,6 +520,8 @@ export const paymentService = {
       },
       event: r.eventId ? { id: r.eventId, title: r.eventTitle!, startsAt: r.eventStartsAt! } : null,
       plan: r.planName ? { name: r.planName } : null,
+      // взнос в сбор (21.2.4): подтверждение и отклонение — те же маршруты платежа
+      collection: r.collectionId ? { id: r.collectionId, title: r.collectionTitle! } : null,
     }))
   },
 
@@ -484,6 +540,7 @@ export const paymentService = {
     return db.transaction(async (tx) => {
       // атомарно: только pending → succeeded; параллельный confirm получит 409 (6.8.1)
       await lockPaymentEvent(tx, paymentId)
+      await lockPaymentCollection(tx, paymentId)
       const confirmedSet = { status: 'succeeded' as const, confirmedByUserId: ctx.userId }
       const succeeded = await transitionPayment(
         tx,
@@ -546,18 +603,34 @@ export const paymentService = {
         }
       }
 
-      // ledger income — по каждому платежу (ledger_income_payment_uniq)
+      const context = await paymentContext(tx, payment)
+      // ledger income — по каждому платежу (ledger_income_payment_uniq); взнос в сбор — contribution
       for (const p of confirmed)
         await ledgerService.createEntry(
           { userId: ctx.userId, db: tx },
           {
             organizationId: p.organizationId,
             type: 'income',
-            category: 'payment_income',
+            category: p.collectionId ? 'contribution' : 'payment_income',
             amount: p.amount,
             currency: p.currency,
             paymentId: p.id,
-            description: p.bookingId ? 'Оплата участия' : 'Оплата абонемента',
+            description: p.collectionId
+              ? `Взнос в сбор «${context.collectionTitle ?? ''}»`
+              : p.bookingId
+                ? 'Оплата участия'
+                : 'Оплата абонемента',
+          },
+        )
+      if (payment.collectionId)
+        await auditService.record(
+          { ...ctx, db: tx },
+          {
+            organizationId: payment.organizationId,
+            action: AUDIT_ACTIONS.COLLECTION_CONTRIBUTION_CONFIRMED,
+            entityType: 'payment',
+            entityId: payment.id,
+            newValue: { collectionId: payment.collectionId, amount: payment.amount },
           },
         )
 
@@ -570,8 +643,8 @@ export const paymentService = {
           seats: confirmed.length,
           currency: payment.currency,
           organizationId: payment.organizationId,
-          target: payment.subscriptionId ? 'subscriptions' : 'event',
-          ...(await paymentContext(tx, payment)),
+          target: payment.subscriptionId ? 'subscriptions' : payment.collectionId ? 'org' : 'event',
+          ...context,
         },
       })
 
@@ -607,6 +680,7 @@ export const paymentService = {
       if (bookingEvent) {
         await tx.execute(sql`SELECT pg_advisory_xact_lock(${bookingEvent.eventId})`)
       }
+      await lockPaymentCollection(tx, paymentId)
       const cancelled = await transitionPayment(
         tx,
         paymentId,
@@ -693,6 +767,17 @@ export const paymentService = {
             and(eq(subscriptions.id, payment.subscriptionId), eq(subscriptions.status, 'pending')),
           )
       }
+      if (payment.collectionId)
+        await auditService.record(
+          { ...ctx, db: tx },
+          {
+            organizationId: payment.organizationId,
+            action: AUDIT_ACTIONS.COLLECTION_CONTRIBUTION_REJECTED,
+            entityType: 'payment',
+            entityId: payment.id,
+            newValue: { collectionId: payment.collectionId, amount: payment.amount },
+          },
+        )
       collectNotification(ctx, {
         userId: payment.userId,
         type: 'payment_rejected',
@@ -703,7 +788,7 @@ export const paymentService = {
           keptSeats,
           currency: payment.currency,
           organizationId: payment.organizationId,
-          target: payment.subscriptionId ? 'subscriptions' : 'event',
+          target: payment.subscriptionId ? 'subscriptions' : payment.collectionId ? 'org' : 'event',
           ...(await paymentContext(tx, payment)),
         },
       })
@@ -719,6 +804,7 @@ export const paymentService = {
     const db = getDb(ctx)
     return db.transaction(async (tx) => {
       await lockPaymentEvent(tx, paymentId)
+      await lockPaymentCollection(tx, paymentId)
       const refunded = await transitionPayment(tx, paymentId, 'succeeded', {
         status: 'refunded',
         refundedAt: new Date(),

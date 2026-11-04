@@ -56,6 +56,8 @@ export interface TemplateParams {
   organizationId?: number
   eventId?: number
   planName?: string
+  /** Сбор, в который внесён взнос (21.2.4). */
+  collectionTitle?: string
   /** Куда ведёт кнопка: экран события, платежей организатора, абонементов. */
   target?: 'event' | 'payments' | 'subscriptions' | 'org'
   amount?: number
@@ -165,23 +167,31 @@ export function renderMessage(type: NotificationType, p: TemplateParams): Render
           `✅ Оплата ${formatMoney(p.amount ?? 0, p.currency)} подтверждена.\n` +
           (p.planName
             ? `Абонемент «${esc(p.planName)}» активирован.`
-            : `<b>${title}</b>${when}${seatsNote(p)}`),
+            : p.collectionTitle
+              ? `Взнос в сбор «${esc(p.collectionTitle)}». Спасибо!`
+              : `<b>${title}</b>${when}${seatsNote(p)}`),
         keyboard: openBtn(),
       }
     case 'payment_rejected':
       return {
         text: p.planName
           ? `❌ Оплата абонемента «${esc(p.planName)}» отклонена.\n\nСвяжитесь с организатором.`
-          : p.keptSeats
-            ? `❌ Оплата за <b>${title}</b>${when} отклонена. Неоплаченные места сняты, оплаченных мест: ${p.keptSeats}.\n\nСвяжитесь с организатором.`
-            : `❌ Оплата за <b>${title}</b>${when} отклонена. Запись отменена.\n\nСвяжитесь с организатором.`,
+          : p.collectionTitle
+            ? `❌ Взнос в сбор «${esc(p.collectionTitle)}» отклонён.\n\nСвяжитесь с организатором.`
+            : p.keptSeats
+              ? `❌ Оплата за <b>${title}</b>${when} отклонена. Неоплаченные места сняты, оплаченных мест: ${p.keptSeats}.\n\nСвяжитесь с организатором.`
+              : `❌ Оплата за <b>${title}</b>${when} отклонена. Запись отменена.\n\nСвяжитесь с организатором.`,
         keyboard: openBtn(),
       }
     case 'payment_pending_organizer':
       return {
         text:
           `💰 Новая заявка на оплату\n` +
-          (p.planName ? `Абонемент «${esc(p.planName)}»\n` : `<b>${title}</b>${when}\n`) +
+          (p.planName
+            ? `Абонемент «${esc(p.planName)}»\n`
+            : p.collectionTitle
+              ? `Взнос в сбор «${esc(p.collectionTitle)}»\n`
+              : `<b>${title}</b>${when}\n`) +
           `Игрок: ${esc(p.playerName ?? '—')}\n` +
           (p.seats && p.seats > 1 ? `Мест: ${p.seats}\n` : '') +
           `Сумма: ${formatMoney(p.amount ?? 0, p.currency)}` +

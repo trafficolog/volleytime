@@ -14,6 +14,7 @@ import {
   EventBalanceError,
   SeriesError,
   TelegramChatError,
+  CollectionError,
 } from '@volley-time/core'
 
 /** HTTP-статусы для доменных error-кодов. */
@@ -112,6 +113,10 @@ const CODE_STATUS: Record<string, number> = {
   'telegram_chat.event_not_announceable': 409,
   'telegram_chat.rate_limited': 429,
   'telegram_chat.delivery_failed': 502,
+  // сборы (21.2.4)
+  'collection.not_found': 404,
+  'collection.not_active': 409,
+  'collection.disabled': 409,
   // forbidden
   'forbidden.manage_content': 403,
   'forbidden.manage_members': 403,
@@ -142,7 +147,8 @@ export function handleServiceError(e: unknown): never {
     e instanceof CurrencyMismatchError ||
     e instanceof EventBalanceError ||
     e instanceof SeriesError ||
-    e instanceof TelegramChatError
+    e instanceof TelegramChatError ||
+    e instanceof CollectionError
   ) {
     const status = CODE_STATUS[e.code] ?? 400
     throw createError({ statusCode: status, statusMessage: e.message, data: { code: e.code } })

@@ -1,6 +1,27 @@
-import type postgres from 'postgres'
+import postgres from 'postgres'
 
 import { rollbackLastMigration } from './rollback'
+
+/**
+ * Откат 0032 (21.2.4) отказывает, пока есть сборы. Миграционные тесты старых миграций откатывают
+ * свои шаги через этот помощник: он проходит путь оператора из `rollback/0032_collections.sql`
+ * (снять связь платежей со сбором, удалить сборы; платежи и касса остаются), откатывает 0032 и
+ * возвращает тег. Следующая миграция добавляет свой шаг сюда, а не в каждый тест.
+ */
+export async function rollbackCollections(url: string): Promise<string> {
+  const sql = postgres(url, { max: 1 })
+  try {
+    await sql.begin(async (tx) => {
+      await tx`UPDATE payments SET collection_id = NULL WHERE collection_id IS NOT NULL`
+      await tx`DELETE FROM collections`
+    })
+  } finally {
+    await sql.end()
+  }
+  const tag = await rollbackLastMigration(url)
+  if (tag !== '0032_collections') throw new Error(`expected 0032 to roll back first, got ${tag}`)
+  return tag
+}
 
 /**
  * Откат 0031 (20.3.4) отказывает, пока в группах есть привязанные Telegram-чаты. Миграционные
@@ -9,6 +30,7 @@ import { rollbackLastMigration } from './rollback'
  * тест (как 0030 ниже).
  */
 export async function rollbackTelegramChatLink(url: string): Promise<string> {
+  await rollbackCollections(url) // 21.2.4: новая миграция откатывается первой
   const tag = await rollbackLastMigration(url)
   if (tag !== '0031_telegram_chat_link')
     throw new Error(`expected 0031 to roll back first, got ${tag}`)
