@@ -2,11 +2,11 @@
 id: '21.2.2'
 phase: '21'
 epic: '21.2'
-status: in_progress
+status: done
 release: 'v0.3.0'
 sync_state: synced
-last_reviewed: 2026-11-04
-status_note: 'Реализовано в PR (ветка trafficolog/feat/21.2.2-players), ждёт независимого ревью и CI. Решение владельца 2026-11-04: статистика, исключение из группы и амплуа вынесены в 21.2.20, 21.2.21, 21.2.22. Evidence: docs/operations/qa/2026-11-04-21-2-2-cabinet-players-visual.md; точки расширения: слот stats в PlayerDrawer.vue и PLAYER_TABS/desktop-players.ts.'
+last_reviewed: 2026-11-05
+status_note: 'Выполнено: PR #200 смёржен (независимое ревью и CI пройдены). Экран на имеющихся данных; статистика, исключение из группы и амплуа — 21.2.20, 21.2.21, 21.2.22 (решение владельца 2026-11-04). Отчёт сверки: docs/operations/qa/2026-11-04-21-2-2-cabinet-players-visual.md.'
 ref_id: 'W-06'
 complexity: M
 impl_model: claude-sonnet-5-5
