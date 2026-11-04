@@ -3,6 +3,7 @@ import {
   canManageContent,
   eventService,
   ledgerService,
+  overviewService,
   paymentService,
   readEventPricing,
   readPlayerPriceQuote,
@@ -10,7 +11,10 @@ import {
   subscriptionService,
 } from '@volley-time/core'
 
-/** Данные дашборда группы: игроку — ближайшие записи и абонемент, управляющему — деньги и события (8.8.12). */
+/**
+ * Данные дашборда группы: игроку — ближайшие записи и абонемент, управляющему — деньги и события
+ * (8.8.12) и агрегаты обзора кабинета W-02 в поле `overview` (21.2.18; у игрока ключа нет).
+ */
 export default defineApiHandler(async (event) => {
   requireOrgMember(event.context.member ?? null)
   const ctx = createServiceContextFromEvent(event)
@@ -66,6 +70,9 @@ export default defineApiHandler(async (event) => {
       })()
     : null
 
+  // агрегаты группы для обзора кабинета (W-02, 21.2.18): только управляющему, ключа нет у игрока
+  const overview = isManager ? await overviewService.getManagerOverview(ctx, orgId) : null
+
   return {
     isManager,
     // точные счётчики только своих записей для плитки «Мои записи» (20.4.4)
@@ -117,5 +124,6 @@ export default defineApiHandler(async (event) => {
       }),
     ),
     manager,
+    ...(overview && { overview }),
   }
 })
