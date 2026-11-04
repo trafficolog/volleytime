@@ -12,6 +12,7 @@ describe('cabinet sidebar sections (20.5.3)', () => {
       'members',
       'plans',
       'cashbox',
+      'collections',
     ])
     expect(sections[1]!.items.map((i) => i.key)).toEqual(['settings'])
     expect(sections[1]!.items[0]!.to).toBe('/app/orgs/7/settings')
@@ -20,7 +21,6 @@ describe('cabinet sidebar sections (20.5.3)', () => {
   it('hides Абонементы when subscriptions are off and never links to pages that do not exist yet', () => {
     const keys = cabinetNavSections(7, false).flatMap((s) => s.items.map((i) => i.key))
     expect(keys).not.toContain('plans')
-    expect(keys).not.toContain('contributions')
     expect(keys).not.toContain('reports')
     expect(keys).not.toContain('billing')
     expect(keys).not.toContain('payments')

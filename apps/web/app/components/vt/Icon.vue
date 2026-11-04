@@ -41,6 +41,14 @@ const PATHS: Record<string, string> = {
   search: '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>',
   alert: '<path d="M12 3 2 21h20Z"/><path d="M12 10v5M12 18h.01"/>',
   lock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  ball: '<circle cx="12" cy="12" r="9"/><path d="M12 3c2 3 2 6 0 9s-2 6 0 9M3.5 9c3 0 6 1 8.5 3M20.5 9c-3 0-6 1-8.5 3"/>',
+  trophy:
+    '<path d="M8 4h8v5a4 4 0 0 1-8 0Z"/><path d="M8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4"/><path d="M12 13v4M8 20h8M10 17h4"/>',
+  shirt: '<path d="m8 4-5 3 2 4 3-1v10h8V10l3 1 2-4-5-3a4 4 0 0 1-8 0Z"/>',
+  arena: '<path d="M3 20V9l9-5 9 5v11"/><path d="M7 20v-7h10v7M3 20h18"/>',
+  party: '<path d="m4 20 4-11 7 7Z"/><path d="M13 5v2M18 9h2M17 4l1.5 1.5M9 3v1"/>',
+  bus: '<rect x="4" y="4" width="16" height="13" rx="2"/><path d="M4 11h16M7 17v3M17 17v3"/><circle cx="8" cy="14" r=".8"/><circle cx="16" cy="14" r=".8"/>',
+  gift: '<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8h14v-8M12 8v12"/><path d="M12 8c-1-3-5-3.500-5-1.500S10 8 12 8c1-3 5-3.500 5-1.500S14 8 12 8Z"/>',
 }
 
 const svg = computed(() => PATHS[props.name] ?? '')

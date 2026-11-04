@@ -423,6 +423,26 @@
       "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
     },
     {
+      "id": "cabinet-collections",
+      "title": "Кабинет: сборы",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/collections",
+      "references": ["4-cabinet/11-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
+      "id": "cabinet-collections-new",
+      "title": "Кабинет: новый сбор",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/collections/new",
+      "references": ["4-cabinet/12-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
       "id": "cabinet-settings",
       "title": "Кабинет: настройки",
       "viewport": "cabinet",

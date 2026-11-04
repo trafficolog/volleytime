@@ -40,6 +40,7 @@ export function desktopNavItems(orgId: number, subscriptionsEnabled: boolean) {
     { key: 'members', label: 'Игроки', to: `${base}/members` },
     ...(subscriptionsEnabled ? [{ key: 'plans', label: 'Абонементы', to: `${base}/plans` }] : []),
     { key: 'cashbox', label: 'Касса', to: `${base}/cashbox` },
+    { key: 'collections', label: 'Сборы', to: `${base}/collections` },
     { key: 'settings', label: 'Настройки', to: `${base}/settings` },
   ]
 }
