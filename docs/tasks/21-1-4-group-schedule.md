@@ -2,11 +2,11 @@
 id: '21.1.4'
 phase: '21'
 epic: '21.1'
-status: in_progress
+status: done
 release: 'v0.3.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: 'Реализовано, ждёт независимого ревью (PR trafficolog/feat/21.1.4-group-schedule). Без миграций, без новых эндпоинтов: GET …/events?from&to. Визуальная сверка и осознанные отклонения — docs/operations/qa/2026-11-04-21-1-4-group-schedule-visual.md. Статус done — после ревью и merge.'
+last_reviewed: 2026-11-05
+status_note: 'Выполнено: PR #201 смёржен (независимое ревью и CI пройдены). Без миграций, без новых эндпоинтов. Отчёт сверки: docs/operations/qa/2026-11-04-21-1-4-group-schedule-visual.md.'
 ref_id: 'M-11'
 complexity: M
 impl_model: claude-sonnet-5-5

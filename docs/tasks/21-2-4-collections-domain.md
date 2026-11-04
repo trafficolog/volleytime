@@ -2,11 +2,11 @@
 id: '21.2.4'
 phase: '21'
 epic: '21.2'
-status: in_progress
+status: done
 release: 'v0.3.0'
 sync_state: synced
-last_reviewed: 2026-10-27
-status_note: 'Поглощает фазу 11 в объёме макетов. В работе с 2026-10-27: ветка trafficolog/feat/21.2.4-collections-domain, миграция 0032.'
+last_reviewed: 2026-11-05
+status_note: 'Выполнено: PR #197 смёржен (ревью Opus и CI пройдены). Миграция 0032, capability сборов в guard отката приложения; решения владельца 2026-10-28 и пункты релиза 21.3.1 — в журнале решений.'
 ref_id: ''
 complexity: L
 impl_model: claude-opus-5-5
