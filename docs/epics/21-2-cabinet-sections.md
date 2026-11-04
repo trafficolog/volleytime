@@ -6,7 +6,7 @@ release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-10-12
 status_note: ''
-estimated_hours: '104-208'
+estimated_hours: '120-240'
 depends_on:
   [
     '19.2.1',
@@ -61,6 +61,9 @@ depends_on:
 | [21.2.17](../tasks/21-2-17-settings-transfer-delete-group.md) | Передача владения и удаление группы                              | W-11     | XL     | `claude-opus-5-5`   | `claude-opus-5-5`   |
 | [21.2.18](../tasks/21-2-18-overview-api.md)                   | API обзора кабинета: статистика группы и касса за 4 недели       | W-02     | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
 | [21.2.19](../tasks/21-2-19-cashbox-method-categories.md)      | Касса: способ оплаты ручной записи и категории Мячи/Судья/Тренер | W-07     | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
+| [21.2.20](../tasks/21-2-20-players-stats-api.md)              | API статистики игроков: активность, абонемент, долг              | W-06     | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
+| [21.2.21](../tasks/21-2-21-player-exclude.md)                 | Исключение игрока из группы                                      | W-06     | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
+| [21.2.22](../tasks/21-2-22-player-position.md)                | Амплуа игрока                                                    | W-06     | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
 
 ## Не делать
 
