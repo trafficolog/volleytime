@@ -6,7 +6,7 @@ release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-10-12
 status_note: ''
-estimated_hours: '120-240'
+estimated_hours: '124-248'
 depends_on:
   [
     '19.2.1',
@@ -64,6 +64,7 @@ depends_on:
 | [21.2.20](../tasks/21-2-20-players-stats-api.md)              | API статистики игроков: активность, абонемент, долг              | W-06     | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
 | [21.2.21](../tasks/21-2-21-player-exclude.md)                 | Исключение игрока из группы                                      | W-06     | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
 | [21.2.22](../tasks/21-2-22-player-position.md)                | Амплуа игрока                                                    | W-06     | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
+| [21.2.23](../tasks/21-2-23-collections-actions.md)            | Сборы в кабинете: обещания и действия                            | W-08     | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
 
 ## Не делать
 
