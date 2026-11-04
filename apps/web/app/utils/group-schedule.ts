@@ -1,4 +1,4 @@
-import { buildMonthGrid } from './desktop-calendar'
+import { buildMonthGrid, monthOfInstant } from './desktop-calendar'
 import { participationOf } from './status-model'
 
 import type { EventListItem } from '~/components/EventCard.vue'
@@ -8,8 +8,11 @@ import type { EventListItem } from '~/components/EventCard.vue'
  * Дни считаются в часовом поясе организации; месяц — `YYYY-MM`.
  */
 
-/** Точка дня: залитая синяя — «вы идёте», контурная оранжевая — очередь, серый контур — тренировка. */
-export type ScheduleDot = 'going' | 'queue' | 'plain'
+/**
+ * Точка дня: залитая синяя — «вы идёте», контурная оранжевая — очередь, серый контур — тренировка,
+ * бледная — отменено или черновик.
+ */
+export type ScheduleDot = 'going' | 'queue' | 'plain' | 'muted'
 
 export function scheduleMonthRange(month: string): { from: string; to: string } {
   const last = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0))
@@ -48,15 +51,18 @@ function plural(n: number, one: string, few: string, many: string) {
 export const trainingsLabel = (n: number) =>
   `${n} ${plural(n, 'тренировка', 'тренировки', 'тренировок')}`
 
-/** Чем занят игрок в событии; отменённое событие не считается участием. */
+/** Чем занят игрок в событии; отменённое событие и черновик не считаются участием. */
 export function scheduleDot(event: EventListItem): ScheduleDot {
-  if (event.status === 'cancelled') return 'plain'
+  if (event.status === 'cancelled' || event.status === 'draft') return 'muted'
   const key = participationOf(event.myBooking)?.key
   return key === 'going' ? 'going' : key === 'waitlist' ? 'queue' : 'plain'
 }
 
 /** Фильтр «Мои»: я иду или стою в очереди. */
-export const isMineEvent = (event: EventListItem) => scheduleDot(event) !== 'plain'
+export const isMineEvent = (event: EventListItem) => {
+  const dot = scheduleDot(event)
+  return dot === 'going' || dot === 'queue'
+}
 
 /** Сколько тренировок в месяце: отменённые и черновики — не тренировки. */
 export const countTrainings = (events: readonly EventListItem[]) =>
@@ -103,11 +109,33 @@ export function groupScheduleWeeks(
   return weeks
 }
 
-/** Первый день месяца с событиями — выбранный по умолчанию. */
+/**
+ * День, выбранный по умолчанию. Текущий месяц: сегодня, если есть события, иначе ближайший
+ * следующий день с событиями, иначе последний день с событиями. Другой месяц — первый день с событиями.
+ */
 export function firstEventDay(
   month: string,
   events: readonly EventListItem[],
   tz: string,
+  now: Date = new Date(),
 ): string | null {
-  return buildMonthGrid(month, events, tz).find((c) => c.inMonth && c.events.length)?.day ?? null
+  const days = buildMonthGrid(month, events, tz)
+    .filter((c) => c.inMonth && c.events.length)
+    .map((c) => c.day)
+  if (!days.length) return null
+  if (monthOfInstant(now, tz) !== month) return days[0]!
+  const today = orgDay(now, tz)
+  return days.find((d) => d >= today) ?? days[days.length - 1]!
+}
+
+/** День (`YYYY-MM-DD`) момента времени в часовом поясе организации. */
+function orgDay(instant: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(instant)
+  const part = (type: string) => parts.find((item) => item.type === type)!.value
+  return `${part('year')}-${part('month')}-${part('day')}`
 }

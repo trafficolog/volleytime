@@ -87,7 +87,8 @@ describe('schedule dots and "Мои"', () => {
     expect(scheduleDot(event(1, '2026-06-03T17:00:00Z'))).toBe('plain')
     expect(
       scheduleDot(event(1, '2026-06-03T17:00:00Z', { status: 'cancelled', myBooking: going })),
-    ).toBe('plain')
+    ).toBe('muted')
+    expect(scheduleDot(event(1, '2026-06-03T17:00:00Z', { status: 'draft' }))).toBe('muted')
     expect(isMineEvent(event(1, '2026-06-03T17:00:00Z', { myBooking: queue }))).toBe(true)
     expect(isMineEvent(event(1, '2026-06-03T17:00:00Z'))).toBe(false)
   })
@@ -115,8 +116,18 @@ describe('week grouping and default day', () => {
     expect(weeks.map((w) => w.label)).toEqual(['1 июля'])
   })
 
-  it('picks the first day with events', () => {
-    expect(firstEventDay('2026-06', list, TZ)).toBe('2026-06-03')
-    expect(firstEventDay('2026-06', [], TZ)).toBeNull()
+  it('picks the first day with events outside the current month', () => {
+    const now = new Date('2026-07-15T09:00:00Z')
+    expect(firstEventDay('2026-06', list, TZ, now)).toBe('2026-06-03')
+    expect(firstEventDay('2026-06', [], TZ, now)).toBeNull()
+  })
+
+  it('in the current month picks today, else the nearest upcoming day, else the last day', () => {
+    const at = (iso: string) => new Date(iso)
+    expect(firstEventDay('2026-06', list, TZ, at('2026-06-05T09:00:00Z'))).toBe('2026-06-05')
+    expect(firstEventDay('2026-06', list, TZ, at('2026-06-08T09:00:00Z'))).toBe('2026-06-17')
+    expect(firstEventDay('2026-06', list, TZ, at('2026-06-25T09:00:00Z'))).toBe('2026-06-17')
+    // 21:30 UTC 4 июня = 00:30 5 июня по Минску: сегодня уже 5-е
+    expect(firstEventDay('2026-06', list, TZ, at('2026-06-04T21:30:00Z'))).toBe('2026-06-05')
   })
 })

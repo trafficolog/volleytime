@@ -28,7 +28,10 @@ const JUNE = [
 ]
 
 const route = reactive({ params: { orgId: '30' } })
-const orgData = ref({ organization: { id: 30 }, myMember: { role: 'owner', status: 'active' } })
+const orgData = ref({
+  organization: { id: 30, defaultTimezone: 'Europe/Minsk' },
+  myMember: { role: 'owner', status: 'active' },
+})
 const orgError = ref<Error | null>(null)
 const navigateTo = vi.fn()
 const apiFetch = vi.fn(async (..._args: unknown[]) => ({ events: JUNE }))
@@ -111,7 +114,10 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date('2026-06-15T09:00:00Z'))
   route.params.orgId = '30'
-  orgData.value = { organization: { id: 30 }, myMember: { role: 'owner', status: 'active' } }
+  orgData.value = {
+    organization: { id: 30, defaultTimezone: 'Europe/Minsk' },
+    myMember: { role: 'owner', status: 'active' },
+  }
   orgError.value = null
   navigateTo.mockReset()
   apiFetch.mockReset().mockResolvedValue({ events: JUNE })
@@ -135,8 +141,8 @@ describe('group schedule month', () => {
   it('shows several events of one day and links each to its event', async () => {
     asPlayer()
     const wrapper = await renderEvents()
-    // по умолчанию выбран первый день с событиями — 3 июня (20:00 по Минску)
-    expect(wrapper.findAll('.row').map((r) => r.text())).toEqual(['Основа'])
+    // сегодня 15 июня без событий: выбран ближайший следующий день с событиями — 17 июня
+    expect(wrapper.findAll('.row').map((r) => r.text())).toEqual(['Основа 2'])
     await dayButton(wrapper, 5).trigger('click')
     expect(wrapper.findAll('.row').map((r) => r.text())).toEqual(['Микст', 'Открытая игра'])
     expect(wrapper.findAll('.row').map((r) => r.attributes('href'))).toEqual([
@@ -153,7 +159,7 @@ describe('group schedule month', () => {
     const wrapper = await renderEvents()
     expect(wrapper.get('.sub').text()).toBe('4 тренировки · вся группа')
     expect(wrapper.text()).not.toContain('Мои')
-    expect(wrapper.get('.row').attributes('href')).toBe('/m/orgs/30/events/1/manage')
+    expect(wrapper.get('.row').attributes('href')).toBe('/m/orgs/30/events/4/manage')
   })
 
   it('switches to the week list and filters by "Мои"', async () => {
@@ -189,6 +195,34 @@ describe('group schedule month', () => {
     asPlayer()
     await renderEvents()
     expect(apiFetch.mock.calls.every(([url]) => String(url).endsWith('/events'))).toBe(true)
+  })
+})
+
+describe('schedule details', () => {
+  it('uses the organization timezone from the loaded organization for the initial month', async () => {
+    vi.setSystemTime(new Date('2026-06-30T22:30:00Z')) // 1 июля по Минску, 30 июня по UTC
+    orgData.value.organization.defaultTimezone = 'UTC'
+    await renderEvents()
+    expect(apiFetch).toHaveBeenCalledWith('/api/organizations/30/events', {
+      query: { filter: 'all', from: '2026-06-01', to: '2026-06-30' },
+    })
+  })
+
+  it('lists the queue dot in the legend and mutes cancelled and draft days', async () => {
+    apiFetch.mockResolvedValue({
+      events: [
+        ev(1, 'Отмена', '2026-06-03T17:00:00Z', { status: 'cancelled' }),
+        ev(2, 'Черновик', '2026-06-05T17:00:00Z', { status: 'draft' }),
+        ev(3, 'Очередь', '2026-06-07T07:00:00Z', {
+          myBooking: { id: 3, status: 'waitlisted', waitPos: 1 },
+        }),
+      ],
+    })
+    const wrapper = await renderEvents()
+    expect(wrapper.get('.schedule-legend').text()).toContain('в очереди')
+    expect(dayButton(wrapper, 3).find('.schedule-dot--muted').exists()).toBe(true)
+    expect(dayButton(wrapper, 5).find('.schedule-dot--muted').exists()).toBe(true)
+    expect(dayButton(wrapper, 7).find('.schedule-dot--queue').exists()).toBe(true)
   })
 })
 

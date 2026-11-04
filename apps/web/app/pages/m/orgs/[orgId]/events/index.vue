@@ -22,7 +22,7 @@ const orgId = computed(() => Number(route.params.orgId))
 const { tz } = useOrgTimezone(orgId)
 
 const { data: orgData, error: orgError } = await useFetch<{
-  organization: { id: number }
+  organization: { id: number; defaultTimezone?: string }
   myMember: OrganizationMember
 }>(() => `/api/organizations/${orgId.value}`, { key: () => `org-events-access-${orgId.value}` })
 const isManager = computed(() => {
@@ -32,7 +32,10 @@ const isManager = computed(() => {
 })
 const role = computed(() => (isManager.value ? 'org' : 'player'))
 
-const month = ref(monthOfInstant(new Date(), tz.value))
+// Месяц — по часовому поясу группы из уже загруженной организации, а не по запасному поясу.
+const month = ref(
+  monthOfInstant(new Date(), orgData.value?.organization.defaultTimezone ?? tz.value),
+)
 const view = ref<'cal' | 'list'>('cal')
 const onlyMine = ref(false)
 const pickedDay = ref<string | null>(null)
@@ -223,6 +226,7 @@ watch([orgId, month], load)
         </div>
         <div class="schedule-legend mt-3">
           <span><i class="schedule-dot schedule-dot--going" />вы идёте</span>
+          <span><i class="schedule-dot schedule-dot--queue" />в очереди</span>
           <span><i class="schedule-dot schedule-dot--plain" />тренировка</span>
         </div>
         <div class="vt-cap mt-5 text-vt-mute-2">
@@ -338,6 +342,9 @@ watch([orgId, month], load)
 }
 .schedule-dot--queue {
   box-shadow: inset 0 0 0 1.5px var(--vt-flame-ink);
+}
+.schedule-dot--muted {
+  opacity: 0.4;
 }
 .schedule-day--sel .schedule-dot {
   box-shadow: inset 0 0 0 1.5px var(--vt-on-hero-3);
