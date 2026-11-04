@@ -33,6 +33,26 @@
       "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
     },
     {
+      "id": "player-schedule",
+      "title": "Игрок: расписание группы",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "path": "/m/orgs/{org}/events",
+      "references": ["3-miniapp-player/13-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
+      "id": "organizer-schedule",
+      "title": "Организатор: расписание группы",
+      "viewport": "miniapp",
+      "role": "organizer",
+      "org": "vt",
+      "path": "/m/orgs/{org}/events",
+      "references": ["3-miniapp-organizer/10-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
       "id": "player-event-split",
       "title": "Игрок: событие со сбором суммой (прогноз до закрытия)",
       "viewport": "miniapp",
