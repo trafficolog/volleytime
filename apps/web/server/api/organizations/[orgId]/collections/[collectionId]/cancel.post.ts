@@ -23,10 +23,15 @@ defineRouteMeta({
 
 export default defineApiHandler(async (event) => {
   requireCanManageContent(event.context.member ?? null)
-  const collection = await collectionService.cancel(
-    createServiceContextFromEvent(event),
-    event.context.organization!.id,
-    pathId(getRouterParam(event, 'collectionId')),
+  const collectionId = pathId(getRouterParam(event, 'collectionId'))
+  const ctx = createServiceContextFromEvent(event)
+  // отклонённые обещания: уведомления игрокам после коммита (collect-then-notify)
+  const collection = await withNotifications((notifications) =>
+    collectionService.cancel(
+      { ...ctx, notifications },
+      event.context.organization!.id,
+      collectionId,
+    ),
   )
   return { collection }
 })

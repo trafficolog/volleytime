@@ -1,5 +1,5 @@
 import { memberService, organizationService } from '@volley-time/core'
-import { closeDb, db, organizations, sql, users } from '@volley-time/db'
+import { and, closeDb, db, eq, notifications, organizations, sql, users } from '@volley-time/db'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createTestApi } from './harness'
@@ -156,6 +156,30 @@ describe('collections API (21.2.4)', () => {
       false,
     )
   })
+
+  it('cancelling a collection delivers the rejection notice to players with pending pledges', async () => {
+    const created = await request('POST', base(), { user: ownerId, body: { title: 'Аренда зала' } })
+    const id = (created.body as { collection: { id: number } }).collection.id
+    await request('POST', `${base()}/${id}/contributions`, {
+      user: playerId,
+      body: { amount: 900, method: 'cash' },
+    })
+    const cancelled = await request('POST', `${base()}/${id}/cancel`, { user: ownerId })
+    expect(cancelled.status, cancelled.text).toBe(200)
+    // доставка — после коммита и без ожидания ответа: ждём строку ленты игрока
+    const rejected = async () =>
+      db
+        .select({ type: notifications.type, payload: notifications.payload })
+        .from(notifications)
+        .where(
+          and(
+            eq(notifications.recipientUserId, playerId),
+            eq(notifications.type, 'payment_rejected'),
+          ),
+        )
+    await vi.waitFor(async () => expect(await rejected()).toHaveLength(1), { timeout: 10_000 })
+    expect(JSON.stringify((await rejected())[0]!.payload)).toContain('Аренда зала')
+  }, 20_000)
 
   it('pages the list with an opaque keyset cursor', async () => {
     for (const title of ['A', 'B', 'C'])

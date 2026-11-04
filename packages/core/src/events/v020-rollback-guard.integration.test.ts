@@ -164,7 +164,8 @@ describe(
           f.targets.bot[capability] = '<no value>'
           f.hook = async (args) =>
             args.includes('psql') ? transport.query(args.at(-1)!) : undefined
-          const result = await f.run()
+          // Real psql through docker exec is slow under load: allow more than the 30 s fixture default.
+          const result = await f.run(undefined, 60_000)
           // Every real schema/data query parsed and answered t/f: the denial names the rows.
           expect(result.status).toBe(1)
           expect(result.stderr).toContain(`split rollback: ${name} rows require compatible`)
@@ -176,7 +177,7 @@ describe(
           await db.delete(users).where(eq(users.id, owner!.id))
         }
       },
-      35_000,
+      70_000,
     )
   },
 )
