@@ -31,6 +31,10 @@ let subscriptionsEnabled = true
 let organizationResponseId = 7
 let organizationStatus = 'active'
 let subscriptionBalances: unknown[] = []
+let collectionsFlag = true
+let groupCollections: unknown[] = []
+const collectionsFetch = vi.fn(async (_url: string) => ({ collections: groupCollections }))
+vi.stubGlobal('$fetch', collectionsFetch)
 
 vi.stubGlobal('useRoute', () => route)
 vi.stubGlobal('computed', computed)
@@ -60,6 +64,7 @@ vi.stubGlobal('useFetch', (url: () => string) => {
               status: organizationStatus,
               subscriptionsEnabled,
             },
+            capabilities: { collections: collectionsFlag },
             myMember: { role: memberRole, status: 'active' },
           },
     ),
@@ -130,6 +135,9 @@ afterEach(() => {
   organizationResponseId = 7
   organizationStatus = 'active'
   subscriptionBalances = []
+  collectionsFlag = true
+  groupCollections = []
+  collectionsFetch.mockClear()
 })
 
 describe('Mini App layout navigation interaction', () => {
@@ -279,5 +287,41 @@ describe('Mini App layout navigation interaction', () => {
       route.path = '/m/orgs/7'
       route.fullPath = '/m/orgs/7'
     }
+  })
+
+  it('hides Сборы when the flag is off and the group has no collections', async () => {
+    collectionsFlag = false
+    const { wrapper } = await renderLayout('player')
+    await flushPromises()
+    expect(collectionsFetch).toHaveBeenCalledWith('/api/organizations/7/collections?limit=1')
+    expect(wrapper.find('a[href="/m/orgs/7/collections"]').exists()).toBe(false)
+    expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(3)
+    wrapper.unmount()
+  })
+
+  it('shows Сборы for viewing when the flag is off but the group has collections', async () => {
+    collectionsFlag = false
+    groupCollections = [{ id: 1 }]
+    const { wrapper } = await renderLayout('player')
+    await flushPromises()
+    expect(wrapper.find('a[href="/m/orgs/7/collections"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('shows Сборы without an extra request when the flag is on', async () => {
+    const { wrapper } = await renderLayout('player')
+    await flushPromises()
+    expect(wrapper.find('a[href="/m/orgs/7/collections"]').exists()).toBe(true)
+    expect(collectionsFetch).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('hides Сборы when the collections request fails with the flag off', async () => {
+    collectionsFlag = false
+    collectionsFetch.mockRejectedValueOnce(new Error('boom'))
+    const { wrapper } = await renderLayout('player')
+    await flushPromises()
+    expect(wrapper.find('a[href="/m/orgs/7/collections"]').exists()).toBe(false)
+    wrapper.unmount()
   })
 })

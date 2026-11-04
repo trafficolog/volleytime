@@ -22,6 +22,7 @@ const {
   refresh: refreshOrg,
 } = await useFetch<{
   organization: { id: number; status: string; subscriptionsEnabled: boolean }
+  capabilities?: { collections?: boolean }
   myMember: { role: string; status: string }
 }>(() => `/api/organizations/${orgId.value}`, { key: () => `org-nav-${orgId.value}` })
 const { data: balanceData, refresh: refreshBalances } = await useFetch<{
@@ -84,12 +85,37 @@ function syncCollectionsDot() {
 }
 onMounted(syncCollectionsDot)
 watch(() => route.path, syncCollectionsDot)
+// «Сборы» скрыты при выключенном флаге, если в группе нет сборов (решение владельца 2026-11-05).
+// Флаг уже в ответе группы; запрос сборов делается только при выключенном флаге (лимит 1).
+const flagOn = computed(() => data.value?.capabilities?.collections === true)
+const flagOff = computed(() => currentOrg.value && data.value?.capabilities?.collections === false)
+const groupHasCollections = ref(false)
+let collectionsCheck = 0
+async function checkGroupCollections() {
+  const mine = ++collectionsCheck
+  groupHasCollections.value = false
+  if (!flagOff.value || isManager.value) return
+  try {
+    const result = await $fetch<{ collections: unknown[] }>(
+      `/api/organizations/${orgId.value}/collections?limit=1`,
+    )
+    if (mine === collectionsCheck) groupHasCollections.value = result.collections.length > 0
+  } catch {
+    // без ответа вкладка остаётся скрытой
+  }
+}
+onMounted(checkGroupCollections)
+watch([orgId, flagOff, isManager], checkGroupCollections)
+const showCollections = computed(() => flagOn.value || groupHasCollections.value)
 const tabs = computed<TabItem[]>(() =>
   !isActiveMember.value
     ? []
     : isManager.value
       ? organizerTabItems(base.value)
-      : playerTabs(base.value, availability.value, { collectionsDot: collectionsUnseen.value }),
+      : playerTabs(base.value, availability.value, {
+          collections: showCollections.value,
+          collectionsDot: collectionsUnseen.value,
+        }),
 )
 function onTabAction(id: 'menu') {
   if (id === 'menu' && isManager.value) menuOpen.value = true

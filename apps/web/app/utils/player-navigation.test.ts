@@ -25,6 +25,11 @@ describe('player Mini App navigation', () => {
     expect(tabs.some((tab) => tab.to.endsWith('/bookings'))).toBe(false)
   })
 
+  it('omits Сборы when the layout says collections are not available', () => {
+    const tabs = playerTabs('/m/orgs/2', { showMenu: true }, { collections: false })
+    expect(tabs.map((tab) => tab.label)).toEqual(['Главная', 'Абонементы', 'Профиль'])
+  })
+
   it('keeps Сборы active on its detail and pledge screens and marks it new until first open', () => {
     const fresh = playerTabs('/m/orgs/2', { showMenu: true }, { collectionsDot: true })
     const collections = fresh.find((tab) => tab.label === 'Сборы')
