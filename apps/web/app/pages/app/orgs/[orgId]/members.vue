@@ -32,16 +32,18 @@ type InviteRow = {
   maxUses: number | null
   usesCount: number
   deeplinkUrl: string
+  type: string
+  defaultMemberStatus: string
 }
 
 const route = useRoute()
 const orgId = computed(() => Number(route.params.orgId))
 const path = computed(() => `/app/orgs/${orgId.value}/members`)
 const { tz } = useOrgTimezone(orgId)
-const { data: orgData } = await useFetch<{ myMember: OrganizationMember }>(
-  () => `/api/organizations/${orgId.value}`,
-  { key: () => `desktop-members-org-${orgId.value}` },
-)
+const { data: orgData } = await useFetch<{
+  myMember: OrganizationMember
+  organization?: { defaultMemberStatus?: string }
+}>(() => `/api/organizations/${orgId.value}`, { key: () => `desktop-members-org-${orgId.value}` })
 const { data: levelsData } = await useFetch<{ levels: PlayerLevelView[] }>('/api/levels', {
   key: 'player-levels',
 })
@@ -211,7 +213,9 @@ async function copyInviteLink() {
     const { invites } = await $fetch<{ invites: InviteRow[] }>(
       `/api/organizations/${targetOrgId}/invites`,
     )
-    let url = pickPlayerInvite(invites)?.deeplinkUrl
+    const defaultStatus = orgData.value?.organization?.defaultMemberStatus ?? 'active'
+    let url = pickPlayerInvite(invites, defaultStatus)?.deeplinkUrl
+    const isNew = !url
     if (!url) {
       const created = await $fetch<{ deeplinkUrl: string }>(
         `/api/organizations/${targetOrgId}/invites`,
@@ -219,9 +223,19 @@ async function copyInviteLink() {
       )
       url = created.deeplinkUrl
     }
-    await navigator.clipboard.writeText(url)
+    try {
+      await navigator.clipboard.writeText(url)
+    } catch {
+      if (isNew && alive && isLiveDesktopRoute(route.path, expectedPath))
+        actionError.value =
+          'Новая ссылка создана, но скопировать её не удалось. Скопируйте её на странице приглашений.'
+      else throw new Error('clipboard')
+      return
+    }
     if (alive && isLiveDesktopRoute(route.path, expectedPath) && orgId.value === targetOrgId)
-      inviteNotice.value = 'Invite-ссылка скопирована'
+      inviteNotice.value = isNew
+        ? 'Создана новая ссылка на 7 дней и скопирована'
+        : 'Invite-ссылка скопирована'
   } catch (cause) {
     if (alive && isLiveDesktopRoute(route.path, expectedPath))
       actionError.value = apiErrorMessage(cause, 'Не удалось скопировать invite-ссылку')

@@ -90,22 +90,30 @@ describe('desktop players list', () => {
     expect(telegramChatUrl('x/../y')).toBeNull()
   })
 
-  it('picks a usable player invite only', () => {
+  it('reuses only an unlimited general player invite with the default member status', () => {
     const base = {
+      roleToAssign: 'player',
+      type: 'organization_join',
+      defaultMemberStatus: 'active',
       isRevoked: false,
       expiresAt: null,
       maxUses: null,
       usesCount: 0,
       deeplinkUrl: 'https://t.me/bot?start=x',
     }
-    const invites = [
+    const skipped = [
       { ...base, roleToAssign: 'organizer' },
-      { ...base, roleToAssign: 'player', isRevoked: true },
-      { ...base, roleToAssign: 'player', maxUses: 2, usesCount: 2 },
-      { ...base, roleToAssign: 'player', expiresAt: '2000-01-01T00:00:00Z' },
-      { ...base, roleToAssign: 'player', deeplinkUrl: 'https://t.me/bot?start=ok' },
+      { ...base, isRevoked: true },
+      { ...base, expiresAt: '2000-01-01T00:00:00Z' },
+      { ...base, maxUses: 1 },
+      { ...base, maxUses: 50, usesCount: 3 },
+      { ...base, maxUses: 2, usesCount: 2 },
+      { ...base, defaultMemberStatus: 'pending' },
+      { ...base, type: 'event_join' },
     ]
-    expect(pickPlayerInvite(invites)?.deeplinkUrl).toBe('https://t.me/bot?start=ok')
-    expect(pickPlayerInvite(invites.slice(0, 4))).toBeNull()
+    expect(pickPlayerInvite(skipped, 'active')).toBeNull()
+    const ok = { ...base, deeplinkUrl: 'https://t.me/bot?start=ok' }
+    expect(pickPlayerInvite([...skipped, ok], 'active')?.deeplinkUrl).toBe(ok.deeplinkUrl)
+    expect(pickPlayerInvite([ok], 'pending')).toBeNull()
   })
 })

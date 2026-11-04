@@ -118,6 +118,8 @@ type InviteLike = {
   maxUses: number | null
   usesCount: number
   deeplinkUrl: string
+  type?: string
+  defaultMemberStatus?: string
 }
 
 export function isInviteUsable(invite: Omit<InviteLike, 'roleToAssign' | 'deeplinkUrl'>): boolean {
@@ -128,7 +130,23 @@ export function isInviteUsable(invite: Omit<InviteLike, 'roleToAssign' | 'deepli
   )
 }
 
-/** Действующая ссылка для роли «игрок», если она уже есть. */
-export function pickPlayerInvite<T extends InviteLike>(invites: readonly T[]): T | null {
-  return invites.find((i) => i.roleToAssign === 'player' && isInviteUsable(i)) ?? null
+/**
+ * Ссылка, которую можно переиспользовать: безлимитная общая ссылка в группу для роли «игрок»
+ * с тем же статусом нового участника, что получит свежая ссылка (настройка группы), и без
+ * ограничения по числу вступлений. Ограниченные и одноразовые ссылки не переиспользуются.
+ */
+export function pickPlayerInvite<T extends InviteLike>(
+  invites: readonly T[],
+  defaultMemberStatus: string,
+): T | null {
+  return (
+    invites.find(
+      (i) =>
+        i.roleToAssign === 'player' &&
+        i.maxUses === null &&
+        (i.type === undefined || i.type === 'organization_join') &&
+        i.defaultMemberStatus === defaultMemberStatus &&
+        isInviteUsable(i),
+    ) ?? null
+  )
 }

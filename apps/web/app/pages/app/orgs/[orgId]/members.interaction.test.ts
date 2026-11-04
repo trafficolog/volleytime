@@ -50,10 +50,12 @@ const apiFetch = vi.fn()
 const writeText = vi.fn()
 let wrapper: VueWrapper | undefined
 let invites: unknown[] = []
+let actorRole = 'owner'
 
 beforeEach(() => {
   writeText.mockReset().mockResolvedValue(undefined)
   invites = []
+  actorRole = 'owner'
   apiFetch.mockReset().mockImplementation(async (url: string, opts?: { method?: string }) => {
     if (url === '/api/organizations/30/members') return { members: structuredClone(all) }
     if (url === '/api/organizations/30/invites' && !opts?.method) return { invites }
@@ -70,7 +72,12 @@ beforeEach(() => {
   vi.stubGlobal('useFetch', async (url: string | (() => string)) => {
     const path = typeof url === 'function' ? url() : url
     if (path === '/api/levels') return { data: ref({ levels }) }
-    return { data: ref({ myMember: { role: 'owner', status: 'active', userId: 9 } }) }
+    return {
+      data: ref({
+        myMember: { role: actorRole, status: 'active', userId: 9 },
+        organization: { defaultMemberStatus: 'active' },
+      }),
+    }
   })
   vi.stubGlobal('computed', computed)
   vi.stubGlobal('watch', watch)
@@ -220,6 +227,8 @@ describe('desktop players (W-06)', () => {
     invites = [
       {
         roleToAssign: 'player',
+        type: 'organization_join',
+        defaultMemberStatus: 'active',
         isRevoked: false,
         expiresAt: null,
         maxUses: null,
@@ -250,5 +259,58 @@ describe('desktop players (W-06)', () => {
       body: { roleToAssign: 'player', expiresInDays: 7 },
     })
     expect(writeText).toHaveBeenCalledWith('https://t.me/bot?start=new')
+    expect(w.text()).toContain('Создана новая ссылка на 7 дней и скопирована')
+  })
+
+  it('never reuses a limited or non-default-status invite and creates a new one', async () => {
+    const base = {
+      roleToAssign: 'player',
+      type: 'organization_join',
+      defaultMemberStatus: 'active',
+      isRevoked: false,
+      expiresAt: null,
+      maxUses: null,
+      usesCount: 0,
+    }
+    invites = [
+      { ...base, maxUses: 1, deeplinkUrl: 'https://t.me/bot?start=single' },
+      { ...base, defaultMemberStatus: 'pending', deeplinkUrl: 'https://t.me/bot?start=pending' },
+    ]
+    const w = await render()
+    await w
+      .findAll('header button')
+      .find((b) => b.text().includes('Скопировать invite-link'))!
+      .trigger('click')
+    await flushPromises()
+    expect(writeText).toHaveBeenCalledTimes(1)
+    expect(writeText).toHaveBeenCalledWith('https://t.me/bot?start=new')
+  })
+
+  it('says the link was created when the clipboard write fails after creating it', async () => {
+    writeText.mockRejectedValue(new Error('denied'))
+    const w = await render()
+    await w
+      .findAll('header button')
+      .find((b) => b.text().includes('Скопировать invite-link'))!
+      .trigger('click')
+    await flushPromises()
+    expect(w.get('[role="alert"]').text()).toContain('Новая ссылка создана')
+  })
+
+  it('lets an organizer copy the link and set levels', async () => {
+    actorRole = 'organizer'
+    const w = await render()
+    expect(w.text()).toContain('Скопировать invite-link')
+    await w.findAll('tbody .vt-desktop-members__name')[1]!.trigger('click')
+    expect(w.find('#player-drawer-level').exists()).toBe(true)
+  })
+
+  it('hides the copy button and the level selector from an assistant', async () => {
+    actorRole = 'assistant'
+    const w = await render()
+    expect(w.text()).not.toContain('Скопировать invite-link')
+    await w.findAll('tbody .vt-desktop-members__name')[1]!.trigger('click')
+    expect(w.find('#player-drawer-level').exists()).toBe(false)
+    expect(w.get('[role="dialog"]').text()).toContain('Не назначен')
   })
 })
