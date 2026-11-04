@@ -1,5 +1,11 @@
 <script setup lang="ts">
 import type { TabItem } from '~/components/vt/TabBar.vue'
+import {
+  browserStorage,
+  COLLECTIONS_TAB_SEEN_KEY,
+  isTabUnseen,
+  markTabSeen,
+} from '~/utils/new-tab-dot'
 import { organizerMenuLinks, organizerTabItems } from '~/utils/organizer-miniapp'
 import { playerTabs } from '~/utils/player-navigation'
 import { subscriptionUiState, type SubscriptionBalance } from '~/utils/subscription-availability'
@@ -68,12 +74,22 @@ const menuLinks = computed(() =>
       )
     : [],
 )
+// Точка новой вкладки «Сборы» (21.1.6): горит, пока вкладку не открывали на этом устройстве.
+const collectionsUnseen = ref(false)
+const inCollections = computed(() => route.path.startsWith(`${base.value}/collections`))
+function syncCollectionsDot() {
+  const storage = browserStorage()
+  if (inCollections.value) markTabSeen(COLLECTIONS_TAB_SEEN_KEY, storage)
+  collectionsUnseen.value = isTabUnseen(COLLECTIONS_TAB_SEEN_KEY, storage)
+}
+onMounted(syncCollectionsDot)
+watch(() => route.path, syncCollectionsDot)
 const tabs = computed<TabItem[]>(() =>
   !isActiveMember.value
     ? []
     : isManager.value
       ? organizerTabItems(base.value)
-      : playerTabs(base.value, availability.value),
+      : playerTabs(base.value, availability.value, { collectionsDot: collectionsUnseen.value }),
 )
 function onTabAction(id: 'menu') {
   if (id === 'menu' && isManager.value) menuOpen.value = true

@@ -179,6 +179,38 @@
       "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
     },
     {
+      "id": "player-collections",
+      "title": "Игрок: сборы",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "path": "/m/orgs/{org}/collections",
+      "references": ["3-miniapp-player/08-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
+      "id": "player-collection",
+      "title": "Игрок: сбор",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "collection": { "title": "Новый комплект мячей" },
+      "path": "/m/orgs/{org}/collections/{collection}",
+      "references": ["3-miniapp-player/09-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
+      "id": "player-collection-pledge",
+      "title": "Игрок: мой взнос",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "collection": { "title": "Новый комплект мячей" },
+      "path": "/m/orgs/{org}/collections/{collection}/pledge",
+      "references": ["3-miniapp-player/10-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
       "id": "player-notifications",
       "title": "Игрок: уведомления",
       "viewport": "miniapp",

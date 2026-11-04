@@ -69,6 +69,11 @@ export function validateMap(map) {
       errors.push(`${at}: path использует {org}, но org не задан или не описан в orgs`)
     if (path.includes('{event}') && !(isObj(s.event) && typeof s.event.title === 'string'))
       errors.push(`${at}: path использует {event}, нужен event.title`)
+    if (
+      path.includes('{collection}') &&
+      !(isObj(s.collection) && typeof s.collection.title === 'string')
+    )
+      errors.push(`${at}: path использует {collection}, нужен collection.title`)
     if (path.includes('{slug}') && s.publicEvent === undefined)
       errors.push(`${at}: path использует {slug}, нужен publicEvent`)
     if (
@@ -113,7 +118,7 @@ export function validateMap(map) {
 }
 
 /** Подставляет {org}, {event} и {slug} (публичный идентификатор события, 20.6.1) в шаблон пути. */
-export function resolvePath(template, { orgId, eventId, slug } = {}) {
+export function resolvePath(template, { orgId, eventId, collectionId, slug } = {}) {
   let out = template
   if (out.includes('{org}')) {
     if (orgId == null) throw new Error(`Не определён orgId для ${template}`)
@@ -122,6 +127,10 @@ export function resolvePath(template, { orgId, eventId, slug } = {}) {
   if (out.includes('{event}')) {
     if (eventId == null) throw new Error(`Не определён eventId для ${template}`)
     out = out.replaceAll('{event}', String(eventId))
+  }
+  if (out.includes('{collection}')) {
+    if (collectionId == null) throw new Error(`Не определён collectionId для ${template}`)
+    out = out.replaceAll('{collection}', String(collectionId))
   }
   if (out.includes('{slug}')) {
     if (slug == null) throw new Error(`Не определён slug для ${template}`)
@@ -140,6 +149,11 @@ export function pickEvent(events, { title, status }, now = new Date()) {
     .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
   if (matches.length === 0) return null
   return matches.find((e) => new Date(e.startsAt) >= now) ?? matches[matches.length - 1]
+}
+
+/** Сбор группы по названию (элементы GET /api/organizations/:id/collections; 21.1.6). */
+export function pickCollection(collections, { title }) {
+  return collections.find((c) => c.title === title) ?? null
 }
 
 export const INVITE_STATES = ['none', 'requested', 'invited', 'invited-link', 'expired']

@@ -75,6 +75,9 @@ const CODE_MESSAGES: Record<string, string> = {
   'event.booking_opens_after_close':
     'Запись закрывается раньше, чем открывается: выберите более раннее открытие записи или меньшее время «Запись закрывается»',
   'event.booking_opens_in_past': 'Время открытия записи должно быть в будущем',
+  'collection.disabled': 'Сборы пока недоступны: взнос внести нельзя',
+  'collection.not_active': 'Сбор уже закрыт, новые взносы не принимаются',
+  'collection.not_found': 'Сбор не найден',
   'event.booking_already_open': 'Запись уже открыта: время открытия больше не меняется',
 }
 

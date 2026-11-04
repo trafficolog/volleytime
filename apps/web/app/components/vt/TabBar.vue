@@ -1,6 +1,6 @@
 <script setup lang="ts">
 export type TabItem =
-  | { kind?: 'link'; to: string; label: string; icon: string; prefix?: boolean }
+  | { kind?: 'link'; to: string; label: string; icon: string; prefix?: boolean; dot?: boolean }
   | { kind: 'action'; id: 'menu'; label: string; icon: string }
 defineProps<{ items: TabItem[]; actionExpanded?: boolean; actionControls?: string }>()
 const emit = defineEmits<{ action: [id: 'menu'] }>()
@@ -28,8 +28,12 @@ const isActive = (t: Extract<TabItem, { to: string }>) =>
         :data-active="isActive(t)"
         :aria-current="isActive(t) ? 'page' : undefined"
       >
-        <VtIcon :name="t.icon" :size="20" />
+        <span class="vt-tabbar__icon">
+          <VtIcon :name="t.icon" :size="20" />
+          <i v-if="t.dot" class="vt-tabbar__dot" aria-hidden="true" />
+        </span>
         {{ t.label }}
+        <span v-if="t.dot" class="sr-only">, новое</span>
       </NuxtLink>
     </template>
   </nav>

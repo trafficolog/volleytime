@@ -1,9 +1,21 @@
-export function playerTabs(base: string, availability: { showMenu: boolean }) {
+export function playerTabs(
+  base: string,
+  availability: { showMenu: boolean },
+  options: { collectionsDot?: boolean } = {},
+): { to: string; label: string; icon: string; prefix?: boolean; dot?: boolean }[] {
   return [
     { to: base, label: 'Главная', icon: 'home' },
     ...(availability.showMenu
       ? [{ to: `${base}/subscriptions`, label: 'Абонементы', icon: 'card', prefix: true }]
       : []),
+    // «Сборы» (21.1.6): между «Абонементами» и «Профилем»; точка — пока вкладку не открывали
+    {
+      to: `${base}/collections`,
+      label: 'Сборы',
+      icon: 'gift',
+      prefix: true,
+      dot: options.collectionsDot === true,
+    },
     { to: `${base}/profile`, label: 'Профиль', icon: 'users' },
   ]
 }
