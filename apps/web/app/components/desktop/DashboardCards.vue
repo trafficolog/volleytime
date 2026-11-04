@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import type { DesktopDashboardView } from '~/utils/desktop-dashboard'
+import { formatOccupancy } from '~/utils/desktop-dashboard'
 import { formatMoneyRu } from '~/utils/labels'
 
-defineProps<{ view: DesktopDashboardView; orgId: number }>()
+defineProps<{ view: DesktopDashboardView }>()
 </script>
 
 <template>
@@ -15,11 +16,32 @@ defineProps<{ view: DesktopDashboardView; orgId: number }>()
       <p>Текущий баланс по подтверждённым операциям</p>
     </section>
 
-    <section class="vt-card vt-desktop-dashboard__pending" aria-labelledby="desktop-pending-title">
-      <h2 id="desktop-pending-title" class="vt-cap">Ждут подтверждения</h2>
-      <p class="vt-desktop-dashboard__pending-count vt-mono">{{ view.pendingCount }}</p>
-      <p>{{ formatMoneyRu(view.pendingAmount, view.balance.currency) }} в валюте группы</p>
-      <DesktopAllPaymentsLink :org-id="orgId" />
-    </section>
+    <div class="vt-desktop-dashboard__tiles">
+      <section class="vt-card vt-desktop-dashboard__tile" aria-labelledby="desktop-events-title">
+        <h2 id="desktop-events-title" class="vt-cap">События за месяц</h2>
+        <p class="vt-desktop-dashboard__tile-value vt-mono">
+          {{ view.overview.events.thisMonth }}
+        </p>
+      </section>
+
+      <section class="vt-card vt-desktop-dashboard__tile" aria-labelledby="desktop-bookings-title">
+        <h2 id="desktop-bookings-title" class="vt-cap">Бронирований</h2>
+        <p class="vt-desktop-dashboard__tile-value vt-mono">{{ view.overview.bookings.count }}</p>
+        <p>
+          Заполненность
+          {{ formatOccupancy(view.overview.bookings.occupancyPercent) }}
+        </p>
+      </section>
+
+      <section
+        class="vt-card vt-desktop-dashboard__tile vt-desktop-dashboard__tile--wide"
+        aria-labelledby="desktop-subs-title"
+      >
+        <h2 id="desktop-subs-title" class="vt-cap">Активные абонементы</h2>
+        <p class="vt-desktop-dashboard__tile-value vt-mono">
+          {{ view.overview.subscriptions.active }}
+        </p>
+      </section>
+    </div>
   </div>
 </template>

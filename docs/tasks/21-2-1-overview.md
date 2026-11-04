@@ -2,11 +2,11 @@
 id: '21.2.1'
 phase: '21'
 epic: '21.2'
-status: todo
+status: in_progress
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-10-27
-status_note: 'Разделена решением владельца 2026-10-27: серверные агрегаты вынесены в 21.2.18; здесь только вёрстка W-02 по реальным данным.'
+status_note: 'В работе: вёрстка W-02 на данных overview (21.2.18) реализована в ветке trafficolog/feat/21.2.1-overview, открыт PR в main; ревью и визуальная сверка по харнессу (docs/operations/qa/2026-11-05-21-2-1-overview-visual.md) — до приёмки.'
 ref_id: 'W-02'
 complexity: S
 impl_model: claude-haiku-5-5
