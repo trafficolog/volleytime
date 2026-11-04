@@ -98,6 +98,89 @@ describe('ledgerService cabinet cash desk (integration)', () => {
     expect(page.map((e) => e.description ?? e.category)).toEqual(['Мячи', 'Аренда'])
   })
 
+  it('stores the payment method of a manual entry, with or without it (21.2.19)', async () => {
+    const ctx = { userId }
+    const base = { amount: 700, description: 'Операция' }
+    const cash = await ledgerService.addExpense(ctx, orgId, {
+      ...base,
+      category: 'rent',
+      method: 'cash',
+    })
+    const transfer = await ledgerService.addIncome(ctx, orgId, {
+      ...base,
+      category: 'donation',
+      method: 'transfer',
+    })
+    const none = await ledgerService.addExpense(ctx, orgId, { ...base, category: 'rent' })
+    expect([cash.method, transfer.method, none.method]).toEqual(['cash', 'transfer', null])
+    for (const method of ['online', 'card', '', 'CASH'] as string[]) {
+      await expect(
+        ledgerService.addExpense(ctx, orgId, {
+          ...base,
+          category: 'rent',
+          method: method as 'cash',
+        }),
+      ).rejects.toBeInstanceOf(ZodError)
+    }
+    const history = await ledgerService.listHistory(ctx, orgId)
+    expect(new Map(history.map((e) => [e.id, e.method]))).toEqual(
+      new Map([
+        [cash.id, 'cash'],
+        [transfer.id, 'transfer'],
+        [none.id, null],
+      ]),
+    )
+    // метод попадает в аудит записи
+    const audit = await db.query.auditLog.findFirst({
+      where: (a, { and, eq }) => and(eq(a.entityType, 'ledger_entry'), eq(a.entityId, cash.id)),
+    })
+    expect(audit?.newValue).toMatchObject({ category: 'rent', amount: 700, method: 'cash' })
+  })
+
+  it('accepts balls, referee and coach as expense categories only and sums them (21.2.19)', async () => {
+    const ctx = { userId }
+    for (const category of ['balls', 'referee', 'coach'] as const) {
+      await ledgerService.addExpense(ctx, orgId, {
+        category,
+        amount: 1000,
+        description: category,
+        method: 'cash',
+      })
+      // это расходы: как доходы категории не принимаются
+      await expect(
+        ledgerService.addIncome(ctx, orgId, {
+          category: category as 'donation',
+          amount: 1000,
+          description: category,
+        }),
+      ).rejects.toBeInstanceOf(ZodError)
+    }
+    const balance = await ledgerService.getBalance(ctx, orgId)
+    expect(balance).toMatchObject({ income: 0, expense: 3000, balance: -3000 })
+    expect(await ledgerService.getPeriodTotals(ctx, orgId)).toMatchObject({ expense: 3000 })
+    const coach = await ledgerService.listHistory(ctx, orgId, { category: 'coach' })
+    expect(coach.map((e) => [e.category, e.method])).toEqual([['coach', 'cash']])
+  })
+
+  it('keeps the payment method of a confirmed payment in the journal without a ledger method', async () => {
+    const ctx = { userId }
+    const [payment] = await db
+      .insert(payments)
+      .values({ organizationId: orgId, userId, amount: 1500, currency: 'BYN', method: 'transfer' })
+      .returning()
+    const entry = await ledgerService.createEntry(ctx, {
+      organizationId: orgId,
+      type: 'income',
+      category: 'payment_income',
+      amount: 1500,
+      paymentId: payment!.id,
+    })
+    // записи платежей игроков способ в ledger не хранят (21.2.19): он выводится из платежа при чтении
+    expect(entry.method).toBeNull()
+    const [row] = await ledgerService.listHistory(ctx, orgId)
+    expect(row!.method).toBe('transfer')
+  })
+
   it('sums only pending payments of the group in the group currency as awaiting money', async () => {
     const ctx = { userId }
     await db.insert(payments).values([

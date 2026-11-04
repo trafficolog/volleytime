@@ -5,6 +5,7 @@ import {
   balanceAfterEntry,
   canSubmitDesktopLedgerAction,
   desktopLedgerFormTime,
+  DESKTOP_LEDGER_METHODS,
   DESKTOP_EXPENSE_CATEGORIES,
   DESKTOP_INCOME_CATEGORIES,
   monthPeriod,
@@ -87,6 +88,7 @@ const form = reactive({
   occurredAt: '',
   description: '',
   eventId: '',
+  method: 'cash',
 })
 const typeOptions = [
   { value: 'all', label: 'Все' },
@@ -104,6 +106,10 @@ const kindModel = computed({
 const categories = computed(() =>
   kind.value === 'income' ? DESKTOP_INCOME_CATEGORIES : DESKTOP_EXPENSE_CATEGORIES,
 )
+const methodOptions = DESKTOP_LEDGER_METHODS.map((value) => ({
+  value,
+  label: label(PAYMENT_METHOD_LABELS, value),
+}))
 const allCategories = Object.keys(LEDGER_CATEGORY_LABELS)
 const currency = computed(() => balance.value?.currency ?? 'BYN')
 const enteredAmount = computed(() => parseDesktopLedgerAmount(form.amount))
@@ -256,6 +262,7 @@ function openForm(next: 'income' | 'expense') {
     occurredAt: time.occurredAt,
     description: '',
     eventId: '',
+    method: 'cash',
   })
   if (eventFilter.value !== 'upcoming') eventFilter.value = 'upcoming'
   else void loadEvents()
@@ -307,6 +314,7 @@ async function save() {
       method: 'POST',
       body: {
         category: form.category,
+        method: form.method,
         amount,
         description: form.description.trim(),
         occurredAt: form.occurredAt
@@ -378,6 +386,7 @@ watch(
       occurredAt: '',
       description: '',
       eventId: '',
+      method: 'cash',
     })
     category.value = ''
     month.value = ''
@@ -550,11 +559,13 @@ await load()
                 </option>
               </select></label
             ><label
-              >Дата и время<input
-                v-model="form.occurredAt"
-                type="datetime-local"
-                class="vt-field" /></label
-            ><label
+              >Дата и время<input v-model="form.occurredAt" type="datetime-local" class="vt-field"
+            /></label>
+            <div class="vt-desktop-cashbox__method">
+              <span aria-hidden="true">Способ оплаты</span>
+              <VtSegment v-model="form.method" label="Способ оплаты" :options="methodOptions" />
+            </div>
+            <label
               >Период событий<select v-model="eventFilter" class="vt-field">
                 <option value="upcoming">Предстоящие</option>
                 <option value="past">Прошедшие</option>

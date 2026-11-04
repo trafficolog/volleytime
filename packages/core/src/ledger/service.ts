@@ -35,8 +35,13 @@ export type LedgerCategory =
   | 'other_income'
   | 'contribution'
   | 'carryover'
+  | 'balls'
+  | 'referee'
+  | 'coach'
 
 export interface CreateEntryParams {
+  /** Способ оплаты ручной записи (21.2.19); записи платежей его не хранят */
+  method?: 'cash' | 'transfer'
   organizationId: number
   type: 'income' | 'expense'
   category: LedgerCategory
@@ -89,6 +94,7 @@ export const ledgerService = {
         paymentId: params.paymentId ?? null,
         eventId: params.eventId ?? null,
         description: params.description ?? null,
+        method: params.method ?? null,
         occurredAt: params.occurredAt ?? new Date(),
         createdByUserId: ctx.userId,
       })
@@ -118,6 +124,7 @@ export const ledgerService = {
         category: data.category,
         amount: data.amount,
         description: data.description,
+        method: data.method,
         eventId: data.eventId,
         occurredAt: data.occurredAt,
       })
@@ -126,7 +133,12 @@ export const ledgerService = {
         action: AUDIT_ACTIONS.LEDGER_EXPENSE_ADDED,
         entityType: 'ledger_entry',
         entityId: entry.id,
-        newValue: { category: data.category, amount: data.amount, eventId: data.eventId ?? null },
+        newValue: {
+          category: data.category,
+          amount: data.amount,
+          eventId: data.eventId ?? null,
+          method: data.method ?? null,
+        },
       })
       return entry
     })
@@ -150,6 +162,7 @@ export const ledgerService = {
         category: data.category,
         amount: data.amount,
         description: data.description,
+        method: data.method,
         eventId: data.eventId,
         occurredAt: data.occurredAt,
       })
@@ -158,7 +171,7 @@ export const ledgerService = {
         action: AUDIT_ACTIONS.LEDGER_INCOME_ADDED,
         entityType: 'ledger_entry',
         entityId: entry.id,
-        newValue: { category: data.category, amount: data.amount },
+        newValue: { category: data.category, amount: data.amount, method: data.method ?? null },
       })
       return entry
     })
@@ -300,7 +313,10 @@ async function listHistoryRows(
       amount: ledgerEntries.amount,
       currency: ledgerEntries.currency,
       description: ledgerEntries.description,
-      method: payments.method,
+      // способ ручной записи (21.2.19); у записей платежей — способ платежа, как раньше
+      method: sql<
+        'cash' | 'transfer' | 'online' | null
+      >`COALESCE(${ledgerEntries.method}, ${payments.method})`,
       occurredAt: ledgerEntries.occurredAt,
       createdAt: ledgerEntries.createdAt,
       eventId: events.id,

@@ -1445,6 +1445,12 @@ ol.vt-desktop-event-detail__rows > li {
   gap: 0.5rem;
   min-width: 0;
 }
+.vt-desktop-cashbox__method {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  align-content: start;
+}
 .vt-desktop-cashbox__description {
   grid-column: 1 / -1;
 }

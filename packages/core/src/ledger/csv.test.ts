@@ -22,6 +22,35 @@ describe('ledger csv', () => {
     expect(formatCsvAmount(10_000_000)).toBe('100000,00')
   })
 
+  it('labels the new expense categories and the transfer method', () => {
+    const base = {
+      id: 2,
+      type: 'expense' as const,
+      amount: 5000,
+      currency: 'BYN',
+      description: 'Игра',
+      occurredAt: new Date('2026-05-28T10:00:00Z'),
+      createdAt: new Date('2026-05-28T10:00:00Z'),
+      event: null,
+      author: null,
+      payer: null,
+    }
+    const csv = buildLedgerCsv(
+      [
+        { ...base, category: 'balls' as const, method: 'cash' as const },
+        { ...base, category: 'referee' as const, method: 'transfer' as const },
+        { ...base, category: 'coach' as const, method: null },
+      ],
+      'Europe/Minsk',
+    )
+    const rows = csv.slice(1).trimEnd().split('\r\n').slice(1)
+    expect(rows).toEqual([
+      '28.05.2026 13:00;Расход;Мячи;Игра;;Наличные;50,00;BYN;;',
+      '28.05.2026 13:00;Расход;Судья;Игра;;Перевод;50,00;BYN;;',
+      '28.05.2026 13:00;Расход;Тренер;Игра;;;50,00;BYN;;',
+    ])
+  })
+
   it('builds a BOM-prefixed document with header and a direction column', () => {
     const csv = buildLedgerCsv(
       [

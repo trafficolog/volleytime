@@ -22,7 +22,19 @@ export const DESKTOP_INCOME_CATEGORIES = [
   'sponsorship',
   'other_income',
 ] as const
-export const DESKTOP_EXPENSE_CATEGORIES = ['rent', 'equipment', 'salary', 'other'] as const
+export const DESKTOP_EXPENSE_CATEGORIES = [
+  'rent',
+  'equipment',
+  'balls',
+  'referee',
+  'coach',
+  'salary',
+  'other',
+] as const
+
+/** Способ оплаты ручной записи (21.2.19): переключатель «Наличные / Перевод». */
+export const DESKTOP_LEDGER_METHODS = ['cash', 'transfer'] as const
+export type DesktopLedgerMethod = (typeof DESKTOP_LEDGER_METHODS)[number]
 
 export function parseDesktopLedgerAmount(raw: string): number | null {
   if (!/^\d+(?:[.,]\d{1,2})?$/.test(raw.trim())) return null

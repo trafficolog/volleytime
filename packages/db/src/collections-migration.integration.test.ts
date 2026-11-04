@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { DB } from './client'
 import { runMigrations } from './migrate'
+import { rollbackLedgerMethod } from './migration-test-helpers'
 import { rollbackLastMigration } from './rollback'
 import * as schema from './schema'
 import { seedDemo } from './seed-demo'
@@ -86,6 +87,7 @@ describe('migration 0032 collections (integration)', { timeout: 60_000 }, () => 
     try {
       await runMigrations(url)
       expect(await objects(sql)).toBe(4)
+      await rollbackLedgerMethod(url) // 21.2.19: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await objects(sql)).toBe(0)
       await runMigrations(url)
@@ -99,6 +101,7 @@ describe('migration 0032 collections (integration)', { timeout: 60_000 }, () => 
     const { url, sql } = await scratchDb()
     try {
       await runMigrations(url)
+      await rollbackLedgerMethod(url) // 21.2.19: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG) // теперь БД на 0031
       const a = await org(sql, 'col-a')
       const b = await org(sql, 'col-b')
@@ -164,6 +167,7 @@ describe('migration 0032 collections (integration)', { timeout: 60_000 }, () => 
       const ca = await collection(sql, a.o, a.u)
       await contribution(sql, a.o, a.u, ca, 'succeeded')
 
+      await rollbackLedgerMethod(url) // 21.2.19: новая миграция откатывается первой
       await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0032 refused/)
       expect(await objects(sql)).toBe(4)
       expect(await sql`SELECT 1 FROM payments WHERE collection_id = ${ca}`).toHaveLength(1)
@@ -177,6 +181,7 @@ describe('migration 0032 collections (integration)', { timeout: 60_000 }, () => 
 
       await runMigrations(url)
       expect(await objects(sql)).toBe(4)
+      await rollbackLedgerMethod(url) // 21.2.19: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await rollbackLastMigration(url)).toBe(TAG31)
     } finally {
@@ -195,6 +200,7 @@ describe('migration 0032 collections (integration)', { timeout: 60_000 }, () => 
       const [pays] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM payments`
       // demo-сид создаёт сборы со взносами (ADR v3 «Демо-данные»): откат отказывает
       expect(await sql`SELECT 1 FROM collections`).not.toHaveLength(0)
+      await rollbackLedgerMethod(url) // 21.2.19: новая миграция откатывается первой
       await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0032 refused/)
       await sql`UPDATE payments SET collection_id = NULL WHERE collection_id IS NOT NULL`
       await sql`DELETE FROM collections`

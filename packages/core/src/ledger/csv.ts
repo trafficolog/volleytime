@@ -15,6 +15,9 @@ const CATEGORY_LABELS: Record<string, string> = {
   donation: 'Донат',
   sponsorship: 'Спонсорство',
   other_income: 'Прочий доход',
+  balls: 'Мячи',
+  referee: 'Судья',
+  coach: 'Тренер',
 }
 const METHOD_LABELS: Record<string, string> = {
   cash: 'Наличные',

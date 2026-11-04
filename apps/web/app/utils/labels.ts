@@ -64,6 +64,9 @@ export const LEDGER_CATEGORY_LABELS: Record<string, string> = {
   donation: 'Донат',
   sponsorship: 'Спонсорство',
   other_income: 'Прочий доход',
+  balls: 'Мячи',
+  referee: 'Судья',
+  coach: 'Тренер',
 }
 
 export const PAYMENT_METHOD_LABELS: Record<string, string> = {

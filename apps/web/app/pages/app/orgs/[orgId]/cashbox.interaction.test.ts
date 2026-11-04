@@ -190,6 +190,67 @@ describe('desktop cashbox v3', () => {
     expect(wrapper.get('[data-testid="cashbox-after"]').text()).toBe('+206,50 BYN')
   })
 
+  it('records the payment method: cash by default, transfer after the switch, new categories offered', async () => {
+    const wrapper = await render()
+    const openExpense = async () => {
+      await wrapper
+        .findAll('button')
+        .find((b) => b.text().includes('Запись'))!
+        .trigger('click')
+      await flushPromises()
+      await wrapper.get('[aria-label="Тип записи"]').findAll('[role="radio"]')[1]!.trigger('click')
+    }
+    const save = async (comment: string) => {
+      await wrapper.get('input[inputmode="decimal"]').setValue('42')
+      await wrapper.get('textarea').setValue(comment)
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+    }
+    await openExpense()
+    const methodGroup = wrapper.get('[aria-label="Способ оплаты"]')
+    const radios = methodGroup.findAll('[role="radio"]')
+    expect(radios.map((r) => r.text())).toEqual(['Наличные', 'Перевод'])
+    expect(radios[0]!.attributes('aria-checked')).toBe('true')
+    const options = wrapper
+      .get('form select')
+      .findAll('option')
+      .map((o) => o.text())
+    expect(options).toEqual(
+      expect.arrayContaining(['Аренда', 'Инвентарь', 'Мячи', 'Судья', 'Тренер']),
+    )
+    await wrapper.get('form select').setValue('balls')
+    await save('Мячи для игры')
+    const first = calls.find((c) => c.opts?.method === 'POST')!
+    expect(first.url).toBe('/api/organizations/30/ledger/expense')
+    expect(first.opts!.body).toMatchObject({ category: 'balls', method: 'cash', amount: 4200 })
+
+    calls.length = 0
+    await openExpense()
+    await wrapper.get('[aria-label="Способ оплаты"]').findAll('[role="radio"]')[1]!.trigger('click')
+    await save('Судье переводом')
+    const second = calls.find((c) => c.opts?.method === 'POST')!
+    expect(second.opts!.body).toMatchObject({ method: 'transfer' })
+  })
+
+  it('shows the method of a manual entry in the journal and a dash without one', async () => {
+    ledgerEntries = [
+      entry(3, {
+        type: 'expense',
+        category: 'referee',
+        method: 'transfer',
+        payer: null,
+        event: null,
+      }),
+      entry(4, { type: 'expense', category: 'coach', method: null, payer: null, event: null }),
+    ]
+    const wrapper = await render()
+    const rows = wrapper.findAll('.vt-cashbox-journal li')
+    expect(rows[0]!.text()).toContain('Судья')
+    expect(rows[0]!.text()).toContain('Перевод')
+    expect(rows[1]!.text()).toContain('Тренер')
+    expect(rows[1]!.text()).toContain('—')
+  })
+
   it('scopes income and expense tiles to the selected month and keeps the balance all-time', async () => {
     const wrapper = await render()
     const text = (id: string) => wrapper.get(`[data-testid="${id}"]`).text().replace(/\s/g, ' ')

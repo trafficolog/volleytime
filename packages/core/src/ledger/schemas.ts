@@ -3,9 +3,14 @@ import { z } from 'zod'
 /** Максимальная сумма одной операции: 100 000.00 в минорных единицах. */
 export const MAX_LEDGER_AMOUNT = 10_000_000
 
+/** Способ оплаты ручной записи (21.2.19); необязателен, у прежних записей и платежей — NULL. */
+export const LedgerMethod = z.enum(['cash', 'transfer'])
+export type LedgerMethod = z.infer<typeof LedgerMethod>
+
 /** Расход организатора (Task 6.8.7). Суммы — целые минорные единицы. Комментарий обязателен (21.2.3). */
 export const AddExpenseInput = z.object({
-  category: z.enum(['rent', 'equipment', 'salary', 'other']),
+  method: LedgerMethod.optional(),
+  category: z.enum(['rent', 'equipment', 'salary', 'other', 'balls', 'referee', 'coach']),
   amount: z.number().int().positive().max(MAX_LEDGER_AMOUNT),
   description: z.string().trim().min(1, 'Укажите комментарий к операции').max(500),
   occurredAt: z.coerce
@@ -18,6 +23,7 @@ export type AddExpenseInput = z.input<typeof AddExpenseInput>
 
 /** Ручной доход (взнос, спонсорство, прочее) — без платежа (Task 6.8.9). */
 export const AddIncomeInput = z.object({
+  method: LedgerMethod.optional(),
   category: z.enum(['contribution', 'carryover', 'donation', 'sponsorship', 'other_income']),
   amount: z.number().int().positive().max(MAX_LEDGER_AMOUNT),
   description: z.string().trim().min(1, 'Укажите комментарий к операции').max(500),
@@ -41,6 +47,9 @@ const LEDGER_CATEGORIES = [
   'other_income',
   'contribution',
   'carryover',
+  'balls',
+  'referee',
+  'coach',
 ] as const
 
 /** Фильтры журнала кассы (21.2.3): тип, категория, период по дате операции. */
