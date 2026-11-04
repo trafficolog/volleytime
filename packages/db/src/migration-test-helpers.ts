@@ -3,12 +3,25 @@ import postgres from 'postgres'
 import { rollbackLastMigration } from './rollback'
 
 /**
+ * Откат 0033 (21.2.19) отказывает, пока в кассе есть записи со способом оплаты или категориями
+ * «Мячи» / «Судья» / «Тренер»; тесты старых миграций работают на базах без таких записей.
+ * Помощник откатывает 0033 и возвращает тег; следующая миграция добавляет свой шаг сюда.
+ */
+export async function rollbackLedgerMethod(url: string): Promise<string> {
+  const tag = await rollbackLastMigration(url)
+  if (tag !== '0033_ledger_method_categories')
+    throw new Error(`expected 0033 to roll back first, got ${tag}`)
+  return tag
+}
+
+/**
  * Откат 0032 (21.2.4) отказывает, пока есть сборы. Миграционные тесты старых миграций откатывают
  * свои шаги через этот помощник: он проходит путь оператора из `rollback/0032_collections.sql`
  * (снять связь платежей со сбором, удалить сборы; платежи и касса остаются), откатывает 0032 и
  * возвращает тег. Следующая миграция добавляет свой шаг сюда, а не в каждый тест.
  */
 export async function rollbackCollections(url: string): Promise<string> {
+  await rollbackLedgerMethod(url) // 21.2.19: новая миграция откатывается первой
   const sql = postgres(url, { max: 1 })
   try {
     await sql.begin(async (tx) => {

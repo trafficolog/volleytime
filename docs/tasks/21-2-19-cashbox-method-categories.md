@@ -2,11 +2,11 @@
 id: '21.2.19'
 phase: '21'
 epic: '21.2'
-status: todo
+status: in_progress
 release: 'v0.3.0'
 sync_state: synced
-last_reviewed: 2026-10-27
-status_note: 'Выделена из 21.2.3 решением владельца 2026-10-27 (журнал решений, «Касса кабинета: месяц и ручная запись»): нужна миграция.'
+last_reviewed: 2026-11-04
+status_note: 'Реализация в PR (ветка trafficolog/feat/21.2.19-cashbox-method): миграция 0033 (ledger_entries.method, enum balls/referee/coach), откат с предохранителем, API, кабинет, CSV, тесты. Quiescent-guard не меняется: прежний runtime не читает method, неизвестную категорию показывает ключом, суммы не затрагиваются (обоснование — deploy runbook, раздел 21.2.19). Визуальная сверка — docs/operations/qa/2026-11-04-21-2-19-cabinet-cashbox-method-visual.md. Ждёт ревью Opus и CI.'
 ref_id: 'W-07'
 complexity: M
 impl_model: claude-sonnet-5-5

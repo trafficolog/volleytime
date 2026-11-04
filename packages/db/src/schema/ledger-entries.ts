@@ -14,7 +14,7 @@ import {
 
 import { events } from './events'
 import { organizations } from './organizations'
-import { payments } from './payments'
+import { paymentMethodEnum, payments } from './payments'
 import { users } from './users'
 
 export const ledgerTypeEnum = pgEnum('ledger_type', ['income', 'expense'])
@@ -31,6 +31,10 @@ export const ledgerCategoryEnum = pgEnum('ledger_category', [
   'other_income',
   'contribution',
   'carryover',
+  // расходы кассы кабинета (21.2.19)
+  'balls',
+  'referee',
+  'coach',
 ])
 
 export const ledgerEntries = pgTable(
@@ -47,6 +51,8 @@ export const ledgerEntries = pgTable(
     paymentId: integer('payment_id').references(() => payments.id, { onDelete: 'set null' }),
     eventId: integer('event_id').references(() => events.id, { onDelete: 'set null' }),
     description: text('description'),
+    // способ оплаты ручной записи (21.2.19): `cash` | `transfer`; NULL у записей платежей и прежних записей
+    method: paymentMethodEnum('method'),
     createdByUserId: integer('created_by_user_id').references(() => users.id, {
       onDelete: 'set null',
     }),
@@ -65,6 +71,10 @@ export const ledgerEntries = pgTable(
       .on(t.paymentId)
       .where(sql`${t.category} = 'refund' AND ${t.paymentId} IS NOT NULL`),
     check('ledger_entries_amount_positive', sql`${t.amount} > 0`),
+    check(
+      'ledger_entries_method_chk',
+      sql`${t.method} IS NULL OR ${t.method} IN ('cash', 'transfer')`,
+    ),
   ],
 )
 

@@ -6,6 +6,7 @@ import {
   desktopBalanceRows,
   DESKTOP_EXPENSE_CATEGORIES,
   DESKTOP_INCOME_CATEGORIES,
+  DESKTOP_LEDGER_METHODS,
   parseDesktopLedgerAmount,
   desktopLedgerFormTime,
   balanceAfterEntry,
@@ -71,7 +72,16 @@ describe('desktop cashbox', () => {
       'sponsorship',
       'other_income',
     ])
-    expect(DESKTOP_EXPENSE_CATEGORIES).toEqual(['rent', 'equipment', 'salary', 'other'])
+    expect(DESKTOP_EXPENSE_CATEGORIES).toEqual([
+      'rent',
+      'equipment',
+      'balls',
+      'referee',
+      'coach',
+      'salary',
+      'other',
+    ])
+    expect(DESKTOP_LEDGER_METHODS).toEqual(['cash', 'transfer'])
   })
   it('blocks stale route, organization and duplicate submits', () => {
     expect(
