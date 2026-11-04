@@ -2,11 +2,11 @@
 id: '21.2.18'
 phase: '21'
 epic: '21.2'
-status: todo
+status: in_progress
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-10-27
-status_note: 'Выделена из 21.2.1 решением владельца 2026-10-27 (журнал решений, «Разделение 21.2.1»).'
+status_note: 'Реализовано в PR (ветка trafficolog/feat/21.2.18-overview-api): overviewService в packages/core, поле overview в ответе дашборда для управляющего, типы и границы периодов в packages/shared; без миграций. Ожидает ревью Opus и CI; после merge — done.'
 ref_id: 'W-02'
 complexity: M
 impl_model: claude-sonnet-5-5
