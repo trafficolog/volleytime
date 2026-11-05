@@ -211,6 +211,47 @@
       "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
     },
     {
+      "id": "organizer-collections",
+      "title": "Организатор: сборы",
+      "viewport": "miniapp",
+      "role": "organizer",
+      "org": "vt",
+      "path": "/m/orgs/{org}/collections",
+      "references": ["3-miniapp-organizer/06-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
+      "id": "organizer-collection-manage",
+      "title": "Организатор: управление сбором",
+      "viewport": "miniapp",
+      "role": "organizer",
+      "org": "vt",
+      "collection": { "title": "Новый комплект мячей" },
+      "path": "/m/orgs/{org}/collections/{collection}",
+      "references": ["3-miniapp-organizer/07-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
+      "id": "organizer-collection-new",
+      "title": "Организатор: новый сбор",
+      "viewport": "miniapp",
+      "role": "organizer",
+      "org": "vt",
+      "path": "/m/orgs/{org}/collections/new",
+      "references": ["3-miniapp-organizer/08-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
+      "id": "organizer-notifications",
+      "title": "Организатор: уведомления",
+      "viewport": "miniapp",
+      "role": "organizer",
+      "org": "vt",
+      "path": "/m/orgs/{org}/notifications",
+      "references": ["3-miniapp-organizer/09-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
       "id": "player-notifications",
       "title": "Игрок: уведомления",
       "viewport": "miniapp",

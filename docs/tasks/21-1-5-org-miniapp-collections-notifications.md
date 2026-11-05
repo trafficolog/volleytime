@@ -2,11 +2,11 @@
 id: '21.1.5'
 phase: '21'
 epic: '21.1'
-status: todo
+status: in_progress
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-10-12
-status_note: ''
+status_note: 'Реализация в PR trafficolog/feat/21.1.5-org-collections (2026-11-05): Mini App организатора /m/orgs/{id}/collections (список, управление сбором, новый сбор, правка), вкладка «Сборы» с точкой новой вкладки между «Оплатами» и «Меню», обещание взноса в ленте ведёт к сборам; уважает COLLECTIONS_ENABLED. Тесты, gates и визуальная сверка — в описании PR и docs/operations/qa/2026-11-05-21-1-5-org-collections.md; ревью и CI ожидаются.'
 ref_id: ''
 complexity: M
 impl_model: claude-sonnet-5-5

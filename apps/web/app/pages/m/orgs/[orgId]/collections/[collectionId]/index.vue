@@ -7,10 +7,14 @@ import {
   type PlayerCollection,
 } from '~/utils/collections'
 import { formatMoneyRu } from '~/utils/labels'
+import { isManagerMember } from '~/utils/organizer-collections'
 import { playerAccessFromApiError } from '~/utils/player-home'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
-/** Сбор игрока (21.1.6, `ContribDetail`): цель, собрано, участники, мой взнос и переход к взносу. */
+/**
+ * Сбор игрока (21.1.6, `ContribDetail`): цель, собрано, участники, мой взнос и переход к взносу.
+ * Организатору и владельцу (21.1.5) тот же адрес показывает управление сбором: обещания и действия.
+ */
 const route = useRoute()
 const orgId = computed(() => Number(route.params.orgId))
 const collectionId = computed(() => Number(route.params.collectionId))
@@ -23,6 +27,7 @@ const {
 } = await useFetch<{
   organization: { id: number }
   capabilities: { collections: boolean }
+  myMember?: { role: string; status: string }
 }>(() => `/api/organizations/${orgId.value}`, {
   key: () => `player-collection-org-${orgId.value}`,
 })
@@ -38,9 +43,10 @@ const accessNotice = computed(
 )
 let loadSeq = 0
 
-async function load() {
+/** `silent` — перечитать после действия организатора, не прячет экран за скелетоном. */
+async function load(silent = false) {
   const mine = ++loadSeq
-  loading.value = true
+  if (!silent) loading.value = true
   loadError.value = ''
   notFound.value = false
   loadAccessNotice.value = null
@@ -91,6 +97,20 @@ const deadline = computed(() =>
   collection.value ? collectionDeadlineLabel(collection.value.deadlineAt, tz.value, now) : null,
 )
 const isActive = computed(() => collection.value?.status === 'active')
+const isManager = computed(
+  () => orgData.value?.organization?.id === orgId.value && isManagerMember(orgData.value.myMember),
+)
+const managerView = computed(
+  () =>
+    isManager.value &&
+    !loading.value &&
+    !accessNotice.value &&
+    !!collection.value &&
+    !loadError.value,
+)
+async function reloadAfterAction() {
+  await Promise.all([refreshOrg(), load(true)])
+}
 const pledgesOpen = computed(() => orgData.value?.capabilities?.collections === true)
 const statusLabel = computed(() =>
   collection.value?.status === 'cancelled' ? 'сбор отменён' : 'сбор завершён',
@@ -100,7 +120,17 @@ const money = (minor: number) => formatMoneyRu(minor, collection.value?.currency
 </script>
 
 <template>
-  <div class="min-h-screen pb-6">
+  <OrganizerCollectionManage
+    v-if="managerView && collection"
+    :org-id="orgId"
+    :collection="collection"
+    :contributions="contributions"
+    :flag-on="pledgesOpen"
+    :tz="tz"
+    :back="`${base}/collections`"
+    @changed="reloadAfterAction"
+  />
+  <div v-else class="min-h-screen pb-6">
     <VtMiniHeader
       :title="collection?.title ?? 'Сбор'"
       :sub="deadline?.date"

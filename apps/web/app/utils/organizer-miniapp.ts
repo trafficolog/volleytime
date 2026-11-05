@@ -86,12 +86,28 @@ export function organizerMenuLinks(
   ]
 }
 
-export function organizerTabItems(base: string): TabItem[] {
+export function organizerTabItems(
+  base: string,
+  options: { collections?: boolean; collectionsDot?: boolean } = {},
+): TabItem[] {
   return [
     { kind: 'link', to: base, label: 'События', icon: 'calendar' },
     { kind: 'link', to: `${base}/members`, label: 'Игроки', icon: 'users' },
     { kind: 'link', to: `${base}/cashbox`, label: 'Касса', icon: 'chart' },
     { kind: 'link', to: `${base}/payments`, label: 'Оплаты', icon: 'wallet' },
+    // «Сборы» (21.1.5): между «Оплатами» и «Меню»; точка — пока вкладку не открывали
+    ...(options.collections === false
+      ? []
+      : [
+          {
+            kind: 'link' as const,
+            to: `${base}/collections`,
+            label: 'Сборы',
+            icon: 'gift',
+            prefix: true,
+            dot: options.collectionsDot === true,
+          },
+        ]),
     { kind: 'action', id: 'menu', label: 'Меню', icon: 'menu' },
   ]
 }

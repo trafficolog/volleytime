@@ -75,7 +75,7 @@ const menuLinks = computed(() =>
       )
     : [],
 )
-// Точка новой вкладки «Сборы» (21.1.6): горит, пока вкладку не открывали на этом устройстве.
+// Точка новой вкладки «Сборы» (21.1.6, 21.1.5): горит, пока вкладку не открывали на этом устройстве.
 const collectionsUnseen = ref(false)
 const inCollections = computed(() => route.path.startsWith(`${base.value}/collections`))
 function syncCollectionsDot() {
@@ -85,7 +85,8 @@ function syncCollectionsDot() {
 }
 onMounted(syncCollectionsDot)
 watch(() => route.path, syncCollectionsDot)
-// «Сборы» скрыты при выключенном флаге, если в группе нет сборов (решение владельца 2026-11-05).
+// «Сборы» скрыты при выключенном флаге, если в группе нет сборов (решение владельца 2026-11-05);
+// организатору при выключенном флаге вкладка нужна, пока есть что разбирать (обещания, закрытие).
 // Флаг уже в ответе группы; запрос сборов делается только при выключенном флаге (лимит 1).
 const flagOn = computed(() => data.value?.capabilities?.collections === true)
 const flagOff = computed(() => currentOrg.value && data.value?.capabilities?.collections === false)
@@ -94,7 +95,7 @@ let collectionsCheck = 0
 async function checkGroupCollections() {
   const mine = ++collectionsCheck
   groupHasCollections.value = false
-  if (!flagOff.value || isManager.value) return
+  if (!flagOff.value) return
   try {
     const result = await $fetch<{ collections: unknown[] }>(
       `/api/organizations/${orgId.value}/collections?limit=1`,
@@ -105,13 +106,16 @@ async function checkGroupCollections() {
   }
 }
 onMounted(checkGroupCollections)
-watch([orgId, flagOff, isManager], checkGroupCollections)
+watch([orgId, flagOff], checkGroupCollections)
 const showCollections = computed(() => flagOn.value || groupHasCollections.value)
 const tabs = computed<TabItem[]>(() =>
   !isActiveMember.value
     ? []
     : isManager.value
-      ? organizerTabItems(base.value)
+      ? organizerTabItems(base.value, {
+          collections: showCollections.value,
+          collectionsDot: collectionsUnseen.value,
+        })
       : playerTabs(base.value, availability.value, {
           collections: showCollections.value,
           collectionsDot: collectionsUnseen.value,

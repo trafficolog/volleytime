@@ -244,9 +244,57 @@ describe('Mini App layout navigation interaction', () => {
     wrapper.unmount()
   })
 
-  it('does not add Сборы to the organizer tab bar (21.1.5 owns it)', async () => {
+  it('puts Сборы between Оплаты and Меню for organizers and keeps Оплаты (21.1.5)', async () => {
     const { wrapper } = await renderLayout('owner')
+    await flushPromises()
+    const nav = wrapper.get('nav[aria-label="Разделы"]')
+    expect(nav.findAll('a').map((a) => a.attributes('href'))).toEqual([
+      '/m/orgs/7',
+      '/m/orgs/7/members',
+      '/m/orgs/7/cashbox',
+      '/m/orgs/7/payments',
+      '/m/orgs/7/collections',
+    ])
+    expect(nav.findAll('a, button').map((el) => el.text().replace(/\s+/g, ' ').trim())).toEqual([
+      'События',
+      'Игроки',
+      'Касса',
+      'Оплаты',
+      'Сборы , новое',
+      'Меню',
+    ])
+    wrapper.unmount()
+  })
+
+  it('organizer Сборы dot burns until the tab is opened (21.1.5)', async () => {
+    const first = await renderLayout('owner')
+    await flushPromises()
+    const link = () => first.wrapper.get('a[href="/m/orgs/7/collections"]')
+    expect(link().find('.vt-tabbar__dot').exists()).toBe(true)
+    await link().trigger('click')
+    await flushPromises()
+    await nextTick()
+    expect(link().find('.vt-tabbar__dot').exists()).toBe(false)
+    first.wrapper.unmount()
+    route.path = '/m/orgs/7'
+    route.fullPath = '/m/orgs/7'
+  })
+
+  it('organizer with the flag off and no collections does not get the tab (21.1.5)', async () => {
+    collectionsFlag = false
+    const { wrapper } = await renderLayout('owner')
+    await flushPromises()
+    expect(collectionsFetch).toHaveBeenCalledWith('/api/organizations/7/collections?limit=1')
     expect(wrapper.find('a[href="/m/orgs/7/collections"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('organizer with the flag off still gets the tab while collections exist (21.1.5)', async () => {
+    collectionsFlag = false
+    groupCollections = [{ id: 1 }]
+    const { wrapper } = await renderLayout('owner')
+    await flushPromises()
+    expect(wrapper.find('a[href="/m/orgs/7/collections"]').exists()).toBe(true)
     wrapper.unmount()
   })
 
