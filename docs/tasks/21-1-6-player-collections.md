@@ -2,11 +2,11 @@
 id: '21.1.6'
 phase: '21'
 epic: '21.1'
-status: in_progress
+status: done
 release: 'v0.3.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: 'Реализация в PR trafficolog/feat/21.1.6-player-collections (2026-11-05): Mini App /m/orgs/{id}/collections (список, сбор, взнос), вкладка «Сборы» с точкой новой вкладки, уважает COLLECTIONS_ENABLED. Тесты и визуальная сверка — в описании PR; ревью и CI ожидаются.'
+last_reviewed: 2026-11-05
+status_note: 'Выполнено: PR #207 смёржен (независимое ревью и CI пройдены). Mini App /m/orgs/{id}/collections (список, сбор, обещание); вкладка скрыта при выключенном COLLECTIONS_ENABLED, кроме групп с опубликованными сборами (только чтение). Решения владельца 2026-11-05 в журнале. Отчёт: docs/operations/qa/2026-11-05-21-1-6-player-collections.md.'
 ref_id: ''
 complexity: M
 impl_model: claude-sonnet-5-5
