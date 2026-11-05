@@ -1819,6 +1819,27 @@ ol.vt-desktop-event-detail__rows > li {
 .vt-settings-list__item + .vt-settings-list__item {
   border-top: 1px solid var(--vt-stroke);
 }
+.vt-settings-venue {
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+.vt-settings-venue__pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r-sm);
+  background: var(--vt-bone-2);
+}
+.vt-settings-venue__text {
+  display: grid;
+  gap: 2px;
+}
+.vt-settings-venue[data-archived] .vt-settings-venue__text {
+  opacity: 0.7;
+}
 .vt-settings-venue-form {
   display: grid;
   gap: 0.875rem;

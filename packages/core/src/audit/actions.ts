@@ -49,6 +49,7 @@ export const AUDIT_ACTIONS = {
   VENUE_CREATED: 'venue.created',
   VENUE_UPDATED: 'venue.updated',
   VENUE_ARCHIVED: 'venue.archived',
+  VENUE_DELETED: 'venue.deleted',
   LEDGER_EXPENSE_ADDED: 'ledger.expense_added',
   LEDGER_INCOME_ADDED: 'ledger.income_added',
   // привязка Telegram-чата к группе (20.3.4); код и Telegram id в журнал не пишутся
