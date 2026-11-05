@@ -225,6 +225,38 @@ export const ledgerService = {
   },
 
   /**
+   * Расходы за период по категориям (отчёты 21.2.7) в валюте группы, тот же отбор, что у
+   * `getPeriodTotals`: сумма категорий равна его `expense`. Категории выдаются как записаны,
+   * историческая `salary` — отдельной строкой. От большей суммы к меньшей.
+   */
+  async getExpenseByCategory(
+    ctx: ServiceContext,
+    orgId: number,
+    period: { from?: Date; to?: Date } = {},
+  ): Promise<{ category: LedgerCategory; amount: number; count: number }[]> {
+    const currency = await resolveOrgCurrency(ctx, orgId)
+    const conds = [
+      eq(ledgerEntries.organizationId, orgId),
+      eq(ledgerEntries.currency, currency),
+      eq(ledgerEntries.type, 'expense'),
+    ]
+    if (period.from) conds.push(gte(ledgerEntries.occurredAt, period.from))
+    if (period.to) conds.push(lt(ledgerEntries.occurredAt, period.to))
+    const total = sql<number>`COALESCE(SUM(${ledgerEntries.amount}), 0)::int`
+    const rows = await getDb(ctx)
+      .select({
+        category: ledgerEntries.category,
+        amount: total,
+        count: sql<number>`COUNT(*)::int`,
+      })
+      .from(ledgerEntries)
+      .where(and(...conds))
+      .groupBy(ledgerEntries.category)
+      .orderBy(desc(total), ledgerEntries.category)
+    return rows
+  },
+
+  /**
    * История операций для кассы (Task 6.8.12): дата операции, событие, кто внёс, плательщик —
    * только публичные поля. Сортировка по дате операции.
    */

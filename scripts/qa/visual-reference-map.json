@@ -517,6 +517,26 @@
       "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
     },
     {
+      "id": "cabinet-reports",
+      "title": "Кабинет: отчёты",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/reports",
+      "references": ["4-cabinet/13-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
+      "id": "cabinet-reports-export",
+      "title": "Кабинет: экспорт отчёта",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/reports/export",
+      "references": ["4-cabinet/14-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
       "id": "cabinet-collections-new",
       "title": "Кабинет: новый сбор",
       "viewport": "cabinet",
