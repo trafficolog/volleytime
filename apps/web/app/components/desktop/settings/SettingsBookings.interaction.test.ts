@@ -39,25 +39,55 @@ describe('SettingsBookings', () => {
   it('shows the impact of each setting', () => {
     const { wrapper } = mountBookings()
     const text = wrapper.text()
-    expect(text).toContain('вкладка и продажа абонементов скрыты')
+    expect(text).toContain('не смогут покупать абонементы и оплачивать ими новые записи')
     expect(text).toContain('игроки не могут сами отменить запись')
     expect(text).toContain('Новые события получают этот срок')
     expect(text).toContain('Игрок займёт до 3 мест')
     expect(text).toContain('Созданные события не меняются')
   })
 
-  it('saves the subscriptions switch immediately and reverts it on a server error', async () => {
+  it('warns about the consequences before switching subscriptions off and saves only on confirm', async () => {
     const request = vi.fn().mockRejectedValue(new Error('Нужны права владельца'))
     const { wrapper, settings, toast } = mountBookings(true, request)
-    const toggle = wrapper.findAll('[role="switch"]')[0]!
-    await toggle.trigger('click')
+    await wrapper.findAll('[role="switch"]')[0]!.trigger('click')
+    expect(request).not.toHaveBeenCalled()
+    const dialog = document.querySelector('[role="alertdialog"]')!
+    expect(dialog.textContent).toContain('Выключить абонементы?')
+    expect(dialog.textContent).toContain('срок действия продолжает идти')
+    ;(dialog.querySelector('.vt-btn--rose') as HTMLButtonElement).click()
+    await flushPromises()
     expect(request).toHaveBeenCalledWith('/api/organizations/7/settings', {
       method: 'PATCH',
       body: { subscriptionsEnabled: false },
     })
-    await flushPromises()
     expect(settings.value.subscriptionsEnabled).toBe(true)
     expect(toast).toHaveBeenCalledWith('Нужны права владельца', 'danger')
+  })
+
+  it('keeps subscriptions on when the warning is dismissed', async () => {
+    const request = vi.fn()
+    const { wrapper } = mountBookings(true, request)
+    await wrapper.findAll('[role="switch"]')[0]!.trigger('click')
+    ;(document.querySelector('[role="alertdialog"] .vt-btn--ghost') as HTMLButtonElement).click()
+    await flushPromises()
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull()
+    expect(request).not.toHaveBeenCalled()
+  })
+
+  it('switches subscriptions on immediately and explains the effect while they are off', async () => {
+    const request = vi.fn().mockResolvedValue({
+      settings: { ...baseSettings, subscriptionsEnabled: true },
+    })
+    const { wrapper } = mountBookings(true, request)
+    expect(wrapper.text()).not.toContain('снова можно использовать')
+    await wrapper.setProps({ settings: { ...baseSettings, subscriptionsEnabled: false } })
+    expect(wrapper.text()).toContain('снова можно использовать')
+    await wrapper.findAll('[role="switch"]')[0]!.trigger('click')
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull()
+    expect(request).toHaveBeenCalledWith('/api/organizations/7/settings', {
+      method: 'PATCH',
+      body: { subscriptionsEnabled: true },
+    })
   })
 
   it('confirms the cancellation switch with the server response', async () => {

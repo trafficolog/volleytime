@@ -472,6 +472,17 @@
       "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
     },
     {
+      "id": "cabinet-plans-new",
+      "title": "Кабинет: новый план абонемента",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/plans",
+      "steps": [{ "click": "header button:has-text('Новый план')" }],
+      "references": ["4-cabinet/08-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
       "id": "cabinet-cashbox",
       "title": "Кабинет: касса",
       "viewport": "cabinet",
@@ -503,6 +514,26 @@
       "org": "vt",
       "path": "/app/orgs/{org}/collections",
       "references": ["4-cabinet/11-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
+      "id": "cabinet-reports",
+      "title": "Кабинет: отчёты",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/reports",
+      "references": ["4-cabinet/13-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
+      "id": "cabinet-reports-export",
+      "title": "Кабинет: экспорт отчёта",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/reports/export",
+      "references": ["4-cabinet/14-screen.png"],
       "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
     },
     {

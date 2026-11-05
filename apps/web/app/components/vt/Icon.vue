@@ -34,6 +34,7 @@ const PATHS: Record<string, string> = {
   copy: '<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
   tg: '<path d="m21 4-3 17-7-5-3 2v-4l11-9-13 7-4-1Z"/>',
   'arrow-r': '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  'arrow-d': '<path d="M12 5v14M6 13l6 6 6-6"/>',
   menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
   logout: '<path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4"/><path d="M10 8l-4 4 4 4M6 12h10"/>',
   chart: '<path d="M4 19V5M4 19h16"/><path d="M8 16v-5M12 16V8M16 16v-3"/>',

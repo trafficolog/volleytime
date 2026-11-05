@@ -56,6 +56,7 @@ describe('desktop navigation', () => {
       'plans',
       'cashbox',
       'collections',
+      'reports',
       'settings',
     ])
     expect(desktopNavItems(7, false).map((item) => item.key)).toEqual([
@@ -64,6 +65,7 @@ describe('desktop navigation', () => {
       'members',
       'cashbox',
       'collections',
+      'reports',
       'settings',
     ])
     expect(desktopNavItems(7, false)[0]?.to).toBe('/app/orgs/7')
