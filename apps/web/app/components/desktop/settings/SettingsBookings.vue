@@ -3,6 +3,7 @@ import { computed, reactive, ref, useId, watch } from 'vue'
 
 import SettingsRow from './SettingsRow.vue'
 
+import VtAlert from '~/components/vt/Alert.vue'
 import VtSegment from '~/components/vt/Segment.vue'
 import VtSelect from '~/components/vt/Select.vue'
 import {
@@ -48,6 +49,13 @@ const draft = reactive({
 const errors = ref<SettingsErrors>({})
 const formError = ref('')
 const saving = ref(false)
+const confirmSubsOff = ref(false)
+
+/** Включение сохраняется сразу; выключение сначала показывает последствия. */
+function onSubscriptionsToggle(value: boolean) {
+  if (value) void props.controller.toggle('subscriptionsEnabled', true)
+  else confirmSubsOff.value = true
+}
 
 function reset() {
   draft.maxSeatsPerBooking = props.settings.maxSeatsPerBooking
@@ -134,7 +142,19 @@ async function submit() {
         :model-value="settings.subscriptionsEnabled"
         :disabled="controller.isPending('subscriptionsEnabled')"
         :readonly="!canEdit"
-        @update:model-value="controller.toggle('subscriptionsEnabled', $event)"
+        @update:model-value="onSubscriptionsToggle"
+      />
+      <p v-if="!settings.subscriptionsEnabled" class="vt-settings-hint">
+        Выключение не трогает уже купленные абонементы: они доживут свой срок, новые продаваться не
+        будут.
+      </p>
+      <VtAlert
+        v-model="confirmSubsOff"
+        title="Выключить абонементы?"
+        body="Раздел «Абонементы» скроется в кабинете, продажа в Mini App остановится. Купленные абонементы доживут свой срок, планы сохранятся."
+        confirm-label="Выключить"
+        danger
+        @confirm="controller.toggle('subscriptionsEnabled', false)"
       />
     </section>
 
