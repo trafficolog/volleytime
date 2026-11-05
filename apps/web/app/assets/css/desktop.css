@@ -584,6 +584,10 @@
   color: var(--vt-grass);
 }
 
+.vt-desktop-dashboard__cash-headline.is-negative {
+  color: var(--vt-rose);
+}
+
 .vt-desktop-dashboard__weeks {
   list-style: none;
   margin: 1rem 0 0;

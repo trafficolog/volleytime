@@ -15,6 +15,11 @@ const { data, pending, error, refresh } = await useFetch<DashboardResponse>(
   { key: () => `desktop-dashboard-${orgId.value}` },
 )
 const view = computed(() => desktopDashboardView(data.value ?? null))
+// Организация уже загружена layout `desktop-org` под тем же ключом: отдельного запроса нет.
+const { data: orgData } = useNuxtData<{ organization: { subscriptionsEnabled: boolean } }>(
+  `desktop-org-${orgId.value}`,
+)
+const showSubscriptions = computed(() => orgData.value?.organization.subscriptionsEnabled === true)
 </script>
 
 <template>
@@ -37,7 +42,7 @@ const view = computed(() => desktopDashboardView(data.value ?? null))
       @retry="refresh()"
     />
     <template v-else>
-      <DesktopDashboardCards :view="view" />
+      <DesktopDashboardCards :view="view" :show-subscriptions="showSubscriptions" />
 
       <div class="vt-desktop-dashboard__main">
         <section

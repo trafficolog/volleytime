@@ -53,7 +53,7 @@ describe('pending payments list (21.2.1, W-02)', () => {
 
     expect(wrapper.get('.vt-desktop-dashboard__pending-badge').text()).toBe('6 ждут')
     expect(wrapper.findAll('.vt-desktop-dashboard__payment')).toHaveLength(4)
-    expect(wrapper.get('a[href="/app/orgs/9/payments"]').exists()).toBe(true)
+    expect(wrapper.find('a[href="/app/orgs/9/payments"]').exists()).toBe(true)
   })
 
   it('uses the singular form for one pending payment', () => {

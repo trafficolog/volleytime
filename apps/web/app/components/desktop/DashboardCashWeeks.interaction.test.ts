@@ -45,6 +45,14 @@ describe('cash for 4 weeks chart (21.2.1, W-02)', () => {
     expect(weeks[2]!.text()).toContain('-40,00 BYN')
   })
 
+  it('marks a negative 4-week net in the headline', () => {
+    const negative = { ...cash, total: { income: 0, expense: 4000, net: -4000 } }
+    const wrapper = mount(DashboardCashWeeks, { props: { cash: negative, tz: 'Europe/Minsk' } })
+
+    expect(wrapper.get('.vt-desktop-dashboard__cash-headline').text()).toBe('-40,00 BYN')
+    expect(wrapper.get('.vt-desktop-dashboard__cash-headline').classes()).toContain('is-negative')
+  })
+
   it('scales the bar of the largest absolute net to full height', () => {
     const wrapper = mount(DashboardCashWeeks, { props: { cash, tz: 'Europe/Minsk' } })
     const bars = wrapper.findAll('.vt-desktop-dashboard__week-bar')

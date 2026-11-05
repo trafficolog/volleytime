@@ -3,7 +3,8 @@ import type { DesktopDashboardView } from '~/utils/desktop-dashboard'
 import { formatOccupancy } from '~/utils/desktop-dashboard'
 import { formatMoneyRu } from '~/utils/labels'
 
-defineProps<{ view: DesktopDashboardView }>()
+/** `showSubscriptions` — настройка группы «абонементы включены» из макета layout; без неё плитка скрыта. */
+defineProps<{ view: DesktopDashboardView; showSubscriptions: boolean }>()
 </script>
 
 <template>
@@ -34,6 +35,7 @@ defineProps<{ view: DesktopDashboardView }>()
       </section>
 
       <section
+        v-if="showSubscriptions"
         class="vt-card vt-desktop-dashboard__tile vt-desktop-dashboard__tile--wide"
         aria-labelledby="desktop-subs-title"
       >

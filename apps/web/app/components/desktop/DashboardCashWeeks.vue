@@ -14,7 +14,12 @@ const chart = computed(() => overviewCashChart(props.cash))
   <section class="vt-card vt-desktop-dashboard__cash" aria-labelledby="desktop-cash-weeks-title">
     <div class="vt-desktop-dashboard__section-heading">
       <h2 id="desktop-cash-weeks-title">Касса за 4 недели</h2>
-      <p class="vt-desktop-dashboard__cash-headline vt-mono">{{ chart.headline }}</p>
+      <p
+        class="vt-desktop-dashboard__cash-headline vt-mono"
+        :class="{ 'is-negative': cash.total.net < 0 }"
+      >
+        {{ chart.headline }}
+      </p>
     </div>
 
     <ol class="vt-desktop-dashboard__weeks">
