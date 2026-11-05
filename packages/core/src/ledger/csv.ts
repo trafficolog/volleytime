@@ -56,10 +56,25 @@ export function formatCsvAmount(minor: number): string {
   return `${whole},${cents}`
 }
 
-function person(p: { name: string | null; telegramUsername: string | null } | null): string {
+/** Подпись категории журнала; неизвестная выдаётся как есть. */
+export function ledgerCategoryLabel(category: string): string {
+  return CATEGORY_LABELS[category] ?? category
+}
+
+/** Подпись способа оплаты. */
+export function ledgerMethodLabel(method: string): string {
+  return METHOD_LABELS[method] ?? method
+}
+
+/** Имя человека для выгрузок: имя, иначе `@username`, иначе пусто. */
+export function personLabel(
+  p: { name: string | null; telegramUsername: string | null } | null,
+): string {
   if (!p) return ''
   return p.name?.trim() || (p.telegramUsername ? `@${p.telegramUsername}` : '')
 }
+
+const person = personLabel
 
 /**
  * CSV журнала кассы: UTF-8 с BOM, разделитель `;`, строки через CRLF. Сумма всегда положительная,
