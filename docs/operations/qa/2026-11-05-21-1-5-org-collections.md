@@ -47,6 +47,6 @@ Tested revision: см. SHA в описании PR.
 - `pnpm lint` — 0 errors; 29 предупреждений `import/order` в файлах, которые задача не меняла.
 - `pnpm typecheck` — passed (6/6).
 - `pnpm build` — passed.
-- Unit и interaction (`apps/web/app`, `scripts/qa`, `packages/shared`, `apps/bot`): 168 файлов, 1744 теста passed.
+- Unit и interaction (`apps/web/app`, `scripts/qa`, `packages/shared`, `apps/bot`): 168 файлов, 1775 тестов passed.
 - Integration на PostgreSQL 16 в одноразовом контейнере: `apps/web/server/__tests__/collections.integration.test.ts` и `idor.integration.test.ts` — 282 passed (серверный код задачей не менялся).
 - Ограничение: серверные unit-тесты `apps/web/server/**` не включены в локальный прогон (известный Windows-only сбой `deploy-image-bundle-contract.test.ts`), их запускает CI.
