@@ -6,7 +6,7 @@ status: done
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-11-05
-status_note: 'Выполнено: PR #209 смёржен (ревью Opus и CI пройдены). Панель обещаний и действия над сбором на API 21.2.4, без серверных изменений. Отчёт сверки: docs/operations/qa/2026-11-05-21-2-23-cabinet-collections-actions-visual.md.'
+status_note: 'Выполнено: PR #209 смёржен (ревью Opus и CI пройдены). Панель обещаний и действия над сбором на API 21.2.4, без серверных изменений. main CI на 3509ead был красным из-за дубля api-error, исправлено #212. Отчёт сверки: docs/operations/qa/2026-11-05-21-2-23-cabinet-collections-actions-visual.md.'
 ref_id: 'W-08'
 complexity: M
 impl_model: claude-sonnet-5-5
