@@ -79,6 +79,10 @@ const CODE_MESSAGES: Record<string, string> = {
   'collection.not_active': 'Сбор уже закрыт, новые взносы не принимаются',
   'collection.not_found': 'Сбор не найден',
   'event.booking_already_open': 'Запись уже открыта: время открытия больше не меняется',
+  'payment.not_pending': 'Обещание уже обработано или заменено игроком новым. Список обновлён',
+  'collection.not_found': 'Сбор не найден',
+  'collection.not_active': 'Сбор уже закрыт: действие недоступно',
+  'collection.disabled': 'Сборы пока недоступны',
 }
 
 export function apiErrorCode(e: unknown): string | undefined {

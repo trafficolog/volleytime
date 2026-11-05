@@ -1,4 +1,4 @@
-import { toMinor, zonedInputToDate } from '@volley-time/shared'
+import { dateToZonedInput, toMinor, zonedInputToDate } from '@volley-time/shared'
 
 /** Сбор из `GET /api/organizations/{orgId}/collections` (21.2.4); даты приходят строками JSON. */
 export interface DesktopCollection {
@@ -122,4 +122,128 @@ export function buildCollectionBody(
       status: form.visibility,
     },
   }
+}
+
+export type CollectionAction = 'edit' | 'publish' | 'complete' | 'cancel'
+
+export interface CollectionMenuItem {
+  key: CollectionAction
+  label: string
+  tone?: 'danger'
+  separator?: boolean
+}
+
+/**
+ * Пункты меню строки по статусу; закрытый сбор (завершён, отменён) не меняется (409
+ * `collection.not_active`). При выключенном флаге сборов («только чтение», 21.2.4) остаются решения
+ * по существующим деньгам (завершить, отменить); правка и публикация скрыты.
+ */
+export function collectionMenuItems(
+  status: DesktopCollection['status'],
+  writable = true,
+): CollectionMenuItem[] {
+  const items = statusMenuItems(status)
+  return writable ? items : items.filter((i) => i.key !== 'edit' && i.key !== 'publish')
+}
+
+function statusMenuItems(status: DesktopCollection['status']): CollectionMenuItem[] {
+  if (status === 'draft')
+    return [
+      { key: 'edit', label: 'Изменить' },
+      { key: 'publish', label: 'Опубликовать' },
+      { key: 'cancel', label: 'Отменить сбор', tone: 'danger', separator: true },
+    ]
+  if (status === 'active')
+    return [
+      { key: 'edit', label: 'Изменить' },
+      { key: 'complete', label: 'Завершить сбор' },
+      { key: 'cancel', label: 'Отменить сбор', tone: 'danger', separator: true },
+    ]
+  return []
+}
+
+/** Последствия отмены (`cancel.post`: обещания отклоняются, игроки уведомляются). */
+export const COLLECTION_CANCEL_LINES = [
+  'Ожидающие обещания будут отклонены, игроки получат уведомление.',
+  'Уже подтверждённые взносы и касса не изменятся.',
+  'Отменённый сбор нельзя вернуть.',
+]
+
+export const COLLECTION_COMPLETE_LINES = [
+  'Новые взносы будут закрыты.',
+  'Ожидающие обещания можно будет подтвердить или отклонить.',
+]
+
+/** Взнос из `GET …/collections/{id}` (21.2.4); даты — строки JSON. */
+export interface DesktopContribution {
+  id: number
+  user: { id: number; name: string | null; telegramUsername: string | null; image: string | null }
+  amount: number
+  currency: string
+  method: string
+  status: string
+  createdAt: string
+  confirmedAt: string | null
+}
+
+export interface DesktopPledge extends DesktopContribution {
+  collectionId: number
+  collectionTitle: string
+}
+
+/** Ожидающие обещания сбора (только `pending`), в порядке ответа сервера (новые первыми). */
+export function pendingPledges(
+  collection: Pick<DesktopCollection, 'id' | 'title'>,
+  contributions: readonly DesktopContribution[],
+): DesktopPledge[] {
+  return contributions
+    .filter((c) => c.status === 'pending')
+    .map((c) => ({ ...c, collectionId: collection.id, collectionTitle: collection.title }))
+}
+
+export function pledgePlayerName(user: DesktopContribution['user']): string {
+  return user.name?.trim() || (user.telegramUsername ? `@${user.telegramUsername}` : 'Игрок')
+}
+
+export interface CollectionEditInput {
+  title: string
+  description: string
+  icon: string
+  target: string
+  deadline: string
+}
+
+/** Дедлайн сбора как день `YYYY-MM-DD` в зоне группы (значение поля даты). */
+export function collectionDeadlineDay(deadlineAt: string | null, tz: string): string {
+  return deadlineAt ? dateToZonedInput(deadlineAt, tz).slice(0, 10) : ''
+}
+
+/** Цель сбора в основной единице валюты для поля формы; без цели — пустая строка. */
+export function collectionTargetInput(targetAmount: number | null): string {
+  if (targetAmount === null) return ''
+  const major = targetAmount / 100
+  return Number.isInteger(major) ? String(major) : major.toFixed(2).replace('.', ',')
+}
+
+/**
+ * Тело PATCH …/collections/{id}. Нетронутый дедлайн не отправляется (прошедший дедлайн не должен
+ * блокировать правку названия), очищенный уходит как `null`. Статус правкой не меняется.
+ */
+export function buildCollectionPatch(
+  form: CollectionEditInput,
+  initialDeadlineDay: string,
+  tz: string,
+  now = new Date(),
+): { ok: true; body: Record<string, unknown> } | { ok: false; errors: FieldErrors } {
+  const untouched = form.deadline === initialDeadlineDay
+  const built = buildCollectionBody(
+    { ...form, deadline: untouched ? '' : form.deadline, visibility: 'active' },
+    tz,
+    now,
+  )
+  if (!built.ok) return built
+  const body = { ...built.body }
+  delete body.status
+  if (untouched) delete body.deadlineAt
+  return { ok: true, body }
 }
