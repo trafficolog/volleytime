@@ -262,7 +262,7 @@ describe('desktop players (W-06)', () => {
       expect(card.get('[data-stat="rate"]').text()).toBe('92%')
       expect(card.get('[data-stat="no-shows"]').text()).toBe('2')
       expect(card.get('[data-stat="cancellations"]').text()).toBe('1')
-      expect(card.get('[data-stat="last"]').text()).toBe('посл. 01.05.2026')
+      expect(card.get('[data-stat="last"]').text()).toBe('01.05.2026')
       expect(card.get('[data-stat="subscription"]').text()).toBe('5 / 8 до 30.06.2026')
       expect(card.get('[data-stat="debt"]').text()).toBe('37.00 BYN 3 места')
     })

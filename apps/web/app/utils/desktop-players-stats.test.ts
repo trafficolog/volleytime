@@ -31,6 +31,7 @@ describe('activityView', () => {
     )
     expect(view.visits).toBe('24 тр.')
     expect(view.last).toBe('посл. 01.05.2026')
+    expect(view.lastDate).toBe('01.05.2026')
     expect(view.rate).toBe('92%')
   })
 
@@ -38,6 +39,7 @@ describe('activityView', () => {
     expect(activityView(stats(), 'Europe/Minsk')).toEqual({
       visits: '0 тр.',
       last: 'нет визитов',
+      lastDate: '—',
       rate: '—',
     })
   })

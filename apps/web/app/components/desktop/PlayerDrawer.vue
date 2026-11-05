@@ -177,7 +177,7 @@ function onPosition(event: Event) {
             </div>
             <div>
               <dt>Последний визит</dt>
-              <dd data-stat="last">{{ activity.last }}</dd>
+              <dd data-stat="last">{{ activity.lastDate }}</dd>
             </div>
             <div>
               <dt>Абонемент</dt>

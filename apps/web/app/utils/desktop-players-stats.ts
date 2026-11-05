@@ -11,11 +11,13 @@ import { pluralRu } from '~/utils/desktop-players'
 export function activityView(
   stats: PlayerStats,
   timezone: string,
-): { visits: string; last: string; rate: string } {
+): { visits: string; last: string; lastDate: string; rate: string } {
   const { visits, lastVisitAt, ratePercent } = stats.attendance
+  const lastDate = lastVisitAt ? formatShortDate(lastVisitAt, timezone) : '—'
   return {
     visits: `${visits} тр.`,
-    last: lastVisitAt ? `посл. ${formatShortDate(lastVisitAt, timezone)}` : 'нет визитов',
+    last: lastVisitAt ? `посл. ${lastDate}` : 'нет визитов',
+    lastDate,
     rate: ratePercent === null ? '—' : `${ratePercent}%`,
   }
 }
