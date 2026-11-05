@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { PLAYER_POSITIONS, levelAndPosition, positionTitle } from './player-position'
+import { PLAYER_POSITIONS, positionTitle } from './player-position'
 
 describe('player position labels (21.2.22)', () => {
   it('lists the six confirmed values with Russian labels', () => {
@@ -27,12 +27,5 @@ describe('player position labels (21.2.22)', () => {
     expect(positionTitle(null)).toBeNull()
     expect(positionTitle(undefined)).toBeNull()
     expect(positionTitle('goalkeeper')).toBeNull()
-  })
-
-  it('joins level and position for the profile line', () => {
-    expect(levelAndPosition('В2', 'outside_hitter')).toBe('В2 · доигровщик')
-    expect(levelAndPosition('В2', null)).toBe('В2')
-    expect(levelAndPosition(null, 'setter')).toBe('связующий')
-    expect(levelAndPosition(null, null)).toBe('')
   })
 })

@@ -78,6 +78,7 @@ tags: [reference-v3]
 5. Сборы, до Promote: preflight миграции `0032_collections` — `SELECT count(*) FROM payments WHERE booking_id IS NOT NULL AND subscription_id IS NOT NULL` = 0 (иначе новый `CHECK payments_single_target` уронит миграцию; координатор выполнил запрос read-only на production 2026-10-28 — 0, повторить перед Promote и записать в evidence).
 6. Сборы, на кандидате: оба образа (web, bot) несут `org.volleytime.collections="1"`; guard отката приложения (`scripts/verify-split-rollback.sh`) отказывает образу без метки, пока есть ожидающие взносы (`SELECT EXISTS (SELECT 1 FROM payments WHERE collection_id IS NOT NULL AND status = 'pending')`), и пропускает при подтверждённых/отклонённых/возвращённых — evidence CI fake-shell и real-PostgreSQL guard, метки образов в evidence выкладки.
 7. Сборы: включить `COLLECTIONS_ENABLED=true` только после приёмки релиза владельцем, отдельным релизным коммитом с подтверждением владельца (как флаги v0.2.0).
+8. Мастер создания группы ([21.1.7](21-1-7-group-creation-wizard.md), решение владельца 2026-11-05): живая проверка владельцем в Telegram — шаги 2–3 по макету, MainButton и BackButton Telegram, «Назад» сохраняет группу; замечания записываются в бэклог [21.4.1](21-4-1-defects-collect.md). Дубль пустой группы при потерянном ответе или повторном входе — принятый остаток.
 
 ## Критерии приёмки
 

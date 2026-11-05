@@ -16,12 +16,3 @@ export function positionTitle(code: string | null | undefined): string | null {
   if (!code) return null
   return PLAYER_POSITIONS.find((p) => p.code === code)?.title ?? null
 }
-
-/** Строка «Уровень и амплуа»: «B · доигровщик»; пустые части пропускаются. */
-export function levelAndPosition(
-  levelName: string | null | undefined,
-  positionCode: string | null | undefined,
-): string {
-  const position = positionTitle(positionCode)?.toLowerCase()
-  return [levelName, position].filter(Boolean).join(' · ')
-}

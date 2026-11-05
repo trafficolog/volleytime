@@ -15,7 +15,7 @@ review_gate: opus
 roles: [BE, FE]
 depends_on: ['20.5.7']
 supersedes: []
-decisions: []
+decisions: ['Мастер группы, амплуа, залы (журнал решений, 2026-11-05)']
 estimated_hours: '4-8'
 reference:
   spec: 'docs/design/reference-v3/specs/03-organizer-web/W-11-settings.md'
