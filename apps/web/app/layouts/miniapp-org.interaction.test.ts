@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { flushPromises, mount } from '@vue/test-utils'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   computed,
   defineComponent,
@@ -8,6 +8,7 @@ import {
   nextTick,
   onMounted,
   onUnmounted,
+  reactive,
   ref,
   Suspense,
   useTemplateRef,
@@ -20,16 +21,20 @@ import TabBar from '../components/vt/TabBar.vue'
 
 import MiniappOrg from './miniapp-org.vue'
 
-const route = {
+const route = reactive({
   params: { orgId: '7' },
   fullPath: '/m/orgs/7',
   path: '/m/orgs/7',
-}
+})
 let memberRole: 'owner' | 'player' = 'owner'
 let subscriptionsEnabled = true
 let organizationResponseId = 7
 let organizationStatus = 'active'
 let subscriptionBalances: unknown[] = []
+let collectionsFlag = true
+let groupCollections: unknown[] = []
+const collectionsFetch = vi.fn(async (_url: string) => ({ collections: groupCollections }))
+vi.stubGlobal('$fetch', collectionsFetch)
 
 vi.stubGlobal('useRoute', () => route)
 vi.stubGlobal('computed', computed)
@@ -59,6 +64,7 @@ vi.stubGlobal('useFetch', (url: () => string) => {
               status: organizationStatus,
               subscriptionsEnabled,
             },
+            capabilities: { collections: collectionsFlag },
             myMember: { role: memberRole, status: 'active' },
           },
     ),
@@ -77,14 +83,20 @@ async function renderLayout(role: 'owner' | 'player', enabled = true) {
       { path: '/m/orgs/7/events', component: { template: '<div />' } },
       { path: '/m/orgs/7/bookings', component: { template: '<div />' } },
       { path: '/m/orgs/7/subscriptions', component: { template: '<div />' } },
+      { path: '/m/orgs/7/collections', component: { template: '<div />' } },
+      { path: '/m/orgs/7/collections/3', component: { template: '<div />' } },
       { path: '/m/orgs/7/members', component: { template: '<div />' } },
       { path: '/m/orgs/7/cashbox', component: { template: '<div />' } },
       { path: '/m/orgs/7/payments', component: { template: '<div />' } },
       { path: '/m/orgs/7/profile', component: { template: '<div />' } },
     ],
   })
-  await router.push('/m/orgs/7')
+  await router.push(route.path)
   await router.isReady()
+  router.afterEach((to) => {
+    route.path = to.path
+    route.fullPath = to.fullPath
+  })
   const host = defineComponent({
     render: () => h(Suspense, null, { default: () => h(MiniappOrg) }),
   })
@@ -106,11 +118,26 @@ async function renderLayout(role: 'owner' | 'player', enabled = true) {
   return { wrapper, router }
 }
 
+// Node 26 shadows happy-dom's localStorage with an unusable stub: use a plain in-memory one.
+beforeEach(() => {
+  const data = new Map<string, string>()
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: (k: string) => data.get(k) ?? null,
+      setItem: (k: string, v: string) => void data.set(k, v),
+    },
+  })
+})
+
 afterEach(() => {
   document.body.innerHTML = ''
   organizationResponseId = 7
   organizationStatus = 'active'
   subscriptionBalances = []
+  collectionsFlag = true
+  groupCollections = []
+  collectionsFetch.mockClear()
 })
 
 describe('Mini App layout navigation interaction', () => {
@@ -130,7 +157,7 @@ describe('Mini App layout navigation interaction', () => {
   it('keeps player tabs as navigable links without a menu button', async () => {
     const { wrapper, router } = await renderLayout('player')
     expect(wrapper.find('button[aria-controls="organizer-menu-dialog"]').exists()).toBe(false)
-    expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(3)
+    expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(4)
     expect(wrapper.find('a[href="/m/orgs/7/bookings"]').exists()).toBe(false)
     expect(wrapper.find('a[href="/m/orgs/7/profile"]').exists()).toBe(true)
     expect(wrapper.find('a[href="/m/orgs/7/events"]').exists()).toBe(false)
@@ -151,7 +178,7 @@ describe('Mini App layout navigation interaction', () => {
       },
     ]
     const { wrapper } = await renderLayout('player', false)
-    expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(3)
+    expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(4)
     expect(wrapper.find('a[href="/m/orgs/7/subscriptions"]').exists()).toBe(true)
     wrapper.unmount()
   })
@@ -168,7 +195,7 @@ describe('Mini App layout navigation interaction', () => {
     ]
     const { wrapper } = await renderLayout('player', false)
     expect(wrapper.find('a[href="/m/orgs/7/subscriptions"]').exists()).toBe(false)
-    expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(2)
+    expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(3)
     wrapper.unmount()
   })
 
@@ -184,7 +211,7 @@ describe('Mini App layout navigation interaction', () => {
     try {
       const { wrapper } = await renderLayout('player', false)
       expect(wrapper.findAll('[aria-current="page"]')).toHaveLength(0)
-      expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(2)
+      expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(3)
       wrapper.unmount()
     } finally {
       route.path = '/m/orgs/7'
@@ -206,6 +233,95 @@ describe('Mini App layout navigation interaction', () => {
     const { wrapper } = await renderLayout('owner')
     expect(wrapper.find('nav[aria-label="Разделы"]').exists()).toBe(false)
     expect(wrapper.findComponent(Sheet).exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('puts Сборы between Абонементы and Профиль for players', async () => {
+    const { wrapper } = await renderLayout('player', true)
+    expect(wrapper.findAll('nav[aria-label="Разделы"] a').map((a) => a.attributes('href'))).toEqual(
+      ['/m/orgs/7', '/m/orgs/7/subscriptions', '/m/orgs/7/collections', '/m/orgs/7/profile'],
+    )
+    wrapper.unmount()
+  })
+
+  it('does not add Сборы to the organizer tab bar (21.1.5 owns it)', async () => {
+    const { wrapper } = await renderLayout('owner')
+    expect(wrapper.find('a[href="/m/orgs/7/collections"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('shows the new-tab dot on Сборы until the tab is opened, then keeps it off', async () => {
+    const first = await renderLayout('player')
+    await flushPromises()
+    const link = () => first.wrapper.get('a[href="/m/orgs/7/collections"]')
+    expect(link().find('.vt-tabbar__dot').exists()).toBe(true)
+    expect(link().text()).toContain('новое')
+    await link().trigger('click')
+    await flushPromises()
+    await nextTick()
+    expect(first.router.currentRoute.value.path).toBe('/m/orgs/7/collections')
+    expect(link().find('.vt-tabbar__dot').exists()).toBe(false)
+    expect(link().attributes('aria-current')).toBe('page')
+    first.wrapper.unmount()
+
+    route.path = '/m/orgs/7'
+    route.fullPath = '/m/orgs/7'
+    const again = await renderLayout('player')
+    await flushPromises()
+    expect(
+      again.wrapper.get('a[href="/m/orgs/7/collections"]').find('.vt-tabbar__dot').exists(),
+    ).toBe(false)
+    again.wrapper.unmount()
+  })
+
+  it('opening Сборы directly on a detail screen also clears the dot', async () => {
+    route.path = '/m/orgs/7/collections/3'
+    route.fullPath = '/m/orgs/7/collections/3'
+    try {
+      const { wrapper } = await renderLayout('player')
+      await flushPromises()
+      expect(wrapper.find('.vt-tabbar__dot').exists()).toBe(false)
+      expect(wrapper.get('a[href="/m/orgs/7/collections"]').attributes('aria-current')).toBe('page')
+      wrapper.unmount()
+    } finally {
+      route.path = '/m/orgs/7'
+      route.fullPath = '/m/orgs/7'
+    }
+  })
+
+  it('hides Сборы when the flag is off and the group has no collections', async () => {
+    collectionsFlag = false
+    const { wrapper } = await renderLayout('player')
+    await flushPromises()
+    expect(collectionsFetch).toHaveBeenCalledWith('/api/organizations/7/collections?limit=1')
+    expect(wrapper.find('a[href="/m/orgs/7/collections"]').exists()).toBe(false)
+    expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(3)
+    wrapper.unmount()
+  })
+
+  it('shows Сборы for viewing when the flag is off but the group has collections', async () => {
+    collectionsFlag = false
+    groupCollections = [{ id: 1 }]
+    const { wrapper } = await renderLayout('player')
+    await flushPromises()
+    expect(wrapper.find('a[href="/m/orgs/7/collections"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('shows Сборы without an extra request when the flag is on', async () => {
+    const { wrapper } = await renderLayout('player')
+    await flushPromises()
+    expect(wrapper.find('a[href="/m/orgs/7/collections"]').exists()).toBe(true)
+    expect(collectionsFetch).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('hides Сборы when the collections request fails with the flag off', async () => {
+    collectionsFlag = false
+    collectionsFetch.mockRejectedValueOnce(new Error('boom'))
+    const { wrapper } = await renderLayout('player')
+    await flushPromises()
+    expect(wrapper.find('a[href="/m/orgs/7/collections"]').exists()).toBe(false)
     wrapper.unmount()
   })
 })

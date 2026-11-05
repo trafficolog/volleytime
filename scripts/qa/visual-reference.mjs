@@ -27,6 +27,7 @@ import {
   assertLocalHosts,
   assertLocalUrl,
   inviteFixturePlan,
+  pickCollection,
   pickEvent,
   renderHtml,
   renderMarkdown,
@@ -334,6 +335,7 @@ try {
           await page.setViewportSize(viewport)
           let orgId
           let eventId
+          let collectionId
           if (screen.org) {
             const org = orgs.find((o) => o.name === map.orgs[screen.org])
             if (!org) throw new Error(`Группа «${map.orgs[screen.org]}» недоступна роли ${role}`)
@@ -344,6 +346,12 @@ try {
             const ev = pickEvent(events, screen.event)
             if (!ev) throw new Error(`Событие «${screen.event.title}» не найдено в демо-данных`)
             eventId = ev.id
+          }
+          if (screen.collection) {
+            const { collections } = await api(context, `/api/organizations/${orgId}/collections`)
+            const found = pickCollection(collections, screen.collection)
+            if (!found) throw new Error(`Сбор «${screen.collection.title}» не найден в демо-данных`)
+            collectionId = found.id
           }
           if (screen.inviteState) {
             const linkToken = await applyInviteFixture(sql, {
@@ -377,7 +385,7 @@ try {
             if (!ev) throw new Error(`Публичное событие «${title}» не найдено в демо-данных`)
             slug = ev.slug
           }
-          result.url = resolvePath(screen.path, { orgId, eventId, slug })
+          result.url = resolvePath(screen.path, { orgId, eventId, collectionId, slug })
           await page.goto(`${base}${result.url}`, { waitUntil: 'networkidle', timeout: 45_000 })
           await page.evaluate(
             (t) => document.documentElement.classList.toggle('dark', t === 'dark'),

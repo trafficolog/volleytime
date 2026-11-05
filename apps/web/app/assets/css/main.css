@@ -496,6 +496,20 @@
     justify-content: center;
     cursor: pointer;
   }
+  .vt-tabbar__icon {
+    position: relative;
+    display: inline-flex;
+  }
+  .vt-tabbar__dot {
+    position: absolute;
+    top: -2px;
+    inset-inline-end: -4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--vt-orange);
+    box-shadow: 0 0 0 2px var(--vt-tabbar-bg);
+  }
   .vt-tabbar [data-active='true'] {
     color: var(--vt-tabbar-active);
     position: relative;

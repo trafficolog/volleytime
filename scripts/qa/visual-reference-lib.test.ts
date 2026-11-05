@@ -7,6 +7,7 @@ import {
   assertLocalHosts,
   assertLocalUrl,
   inviteFixturePlan,
+  pickCollection,
   pickEvent,
   renderHtml,
   renderMarkdown,
@@ -46,6 +47,13 @@ describe('visual reference map', () => {
     ['unknown role', (m: M) => (m.screens[0].role = 'root'), 'role'],
     ['missing org', (m: M) => delete m.screens[0].org, '{org}'],
     ['missing event', (m: M) => delete m.screens[1].event, '{event}'],
+    [
+      'missing collection',
+      (m: M) => {
+        m.screens[0].path = '/m/orgs/{org}/collections/{collection}'
+      },
+      '{collection}',
+    ],
     ['bad path', (m: M) => (m.screens[0].path = 'm/orgs'), 'path'],
     ['bad steps', (m: M) => (m.screens[0].steps = [{ tap: 'x' }]), 'steps'],
     ['bad crop', (m: M) => (m.screens[0].referenceCrop = { x: 1 }), 'referenceCrop'],
@@ -134,6 +142,21 @@ describe('route helpers', () => {
       '/m/orgs/3/events/9',
     )
     expect(() => resolvePath('/m/orgs/{org}', {})).toThrow()
+  })
+
+  it('resolves the collection placeholder and picks a collection by title', () => {
+    expect(
+      resolvePath('/m/orgs/{org}/collections/{collection}', { orgId: 3, collectionId: 5 }),
+    ).toBe('/m/orgs/3/collections/5')
+    expect(() => resolvePath('/m/orgs/{org}/collections/{collection}', { orgId: 3 })).toThrow(
+      /collectionId/,
+    )
+    const collections = [
+      { id: 1, title: 'Форма команды' },
+      { id: 2, title: 'Новый комплект мячей' },
+    ]
+    expect(pickCollection(collections, { title: 'Новый комплект мячей' })?.id).toBe(2)
+    expect(pickCollection(collections, { title: 'Нет' })).toBeNull()
   })
 
   it('picks nearest upcoming event, else latest past', () => {
