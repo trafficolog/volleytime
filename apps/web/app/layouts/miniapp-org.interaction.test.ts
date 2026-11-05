@@ -298,6 +298,15 @@ describe('Mini App layout navigation interaction', () => {
     wrapper.unmount()
   })
 
+  it('organizer with the flag off keeps the tab when the group only has drafts (21.1.5)', async () => {
+    collectionsFlag = false
+    groupCollections = [{ id: 1, status: 'draft' }]
+    const { wrapper } = await renderLayout('owner')
+    await flushPromises()
+    expect(wrapper.find('a[href="/m/orgs/7/collections"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
   it('shows the new-tab dot on Сборы until the tab is opened, then keeps it off', async () => {
     const first = await renderLayout('player')
     await flushPromises()

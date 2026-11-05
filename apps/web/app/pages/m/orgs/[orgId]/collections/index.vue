@@ -2,7 +2,7 @@
 import {
   collectionDeadlineLabel,
   collectionMyStatus,
-  collectionProgress,
+  progressPercent,
   collectionSections,
   type PlayerCollection,
 } from '~/utils/collections'
@@ -21,7 +21,7 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
 const { tz } = useOrgTimezone(orgId)
 // тот же запрос и ключ, что у layout: ответ группы с ролью и флагом `COLLECTIONS_ENABLED`
 const { data: orgData } = await useFetch<{
-  organization: { id: number }
+  organization: { id: number; defaultCurrency?: string }
   capabilities?: { collections?: boolean }
   myMember?: { role: string; status: string }
 }>(() => `/api/organizations/${orgId.value}`, { key: () => `org-nav-${orgId.value}` })
@@ -114,6 +114,7 @@ const managerView = computed(
     :collections="collections"
     :base="base"
     :tz="tz"
+    :currency="orgData?.organization?.defaultCurrency ?? collections[0]?.currency ?? 'BYN'"
     :can-create="canCreate"
     :has-more="nextCursor !== null"
     :loading-more="loadingMore"
@@ -167,23 +168,21 @@ const managerView = computed(
                       {{ c.description }}
                     </p>
                     <div
-                      v-if="collectionProgress(c.collected, c.targetAmount) !== null"
+                      v-if="progressPercent(c.collected, c.targetAmount) !== null"
                       class="mt-3 flex items-center gap-2"
                     >
                       <div
                         class="vt-meter h-1.5 flex-1"
                         role="meter"
                         aria-label="Собрано"
-                        :aria-valuenow="collectionProgress(c.collected, c.targetAmount)!"
+                        :aria-valuenow="progressPercent(c.collected, c.targetAmount)!"
                         aria-valuemin="0"
                         aria-valuemax="100"
                       >
-                        <i
-                          :style="{ width: `${collectionProgress(c.collected, c.targetAmount)}%` }"
-                        />
+                        <i :style="{ width: `${progressPercent(c.collected, c.targetAmount)}%` }" />
                       </div>
                       <span class="vt-mono text-[11px] font-semibold"
-                        >{{ collectionProgress(c.collected, c.targetAmount) }}%</span
+                        >{{ progressPercent(c.collected, c.targetAmount) }}%</span
                       >
                     </div>
                     <div class="mt-2 flex items-center justify-between gap-2">

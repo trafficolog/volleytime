@@ -17,6 +17,7 @@ const fetchApi = vi.fn<(url: string) => Promise<unknown>>()
 let errorCode: string | undefined
 let memberRole = 'player'
 let collectionsEnabled = true
+let groupCurrency = 'BYN'
 let wrapper: VueWrapper | undefined
 
 const collection = (id: number, over: Record<string, unknown> = {}) => ({
@@ -50,7 +51,7 @@ function stubGlobals() {
   vi.stubGlobal('apiErrorCode', () => errorCode)
   vi.stubGlobal('useFetch', async () => ({
     data: ref({
-      organization: { id: 30 },
+      organization: { id: 30, defaultCurrency: groupCurrency },
       capabilities: { collections: collectionsEnabled },
       myMember: { role: memberRole, status: 'active' },
     }),
@@ -92,6 +93,7 @@ beforeEach(() => {
   errorCode = undefined
   memberRole = 'player'
   collectionsEnabled = true
+  groupCurrency = 'BYN'
   fetchApi.mockReset()
 })
 afterEach(() => {
@@ -269,6 +271,17 @@ describe('organizer collections list (21.1.5)', () => {
     await flushPromises()
     expect(page.text()).not.toContain('Итоги по загруженным сборам')
     expect(links(page)).toHaveLength(2)
+  })
+
+  it('shows the summary in the group currency, even when the list is empty of that currency', async () => {
+    memberRole = 'owner'
+    groupCurrency = 'EUR'
+    fetchApi.mockResolvedValue({
+      collections: [collection(1, { currency: 'BYN' })],
+      nextCursor: null,
+    })
+    const page = await mountPage()
+    expect(page.get('[data-summary="collected"]').text()).toContain('EUR')
   })
 
   it('does not show management to a player', async () => {

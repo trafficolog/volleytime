@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import {
   buildCollectionBody,
+  collectionDeadlineDay,
+  collectionTargetInput,
   COLLECTION_ICON_KEYS,
   COLLECTION_ICON_META,
+  type DesktopCollection,
 } from '~/utils/desktop-collections'
-import {
-  buildCollectionPatch,
-  deadlineInputValue,
-  targetInputValue,
-  type ManagedCollection,
-} from '~/utils/organizer-collections'
+import { buildChangedCollectionPatch } from '~/utils/organizer-collections'
 
 /**
  * Форма сбора организатора (21.1.5, `OrgContribCreate`): создание и правка. Проверяет поля и отдаёт
@@ -24,7 +22,7 @@ const props = defineProps<{
   currency: string
   busy: boolean
   serverError: string
-  collection?: ManagedCollection
+  collection?: DesktopCollection
 }>()
 const emit = defineEmits<{ submit: [body: Record<string, unknown>] }>()
 
@@ -34,8 +32,8 @@ const form = reactive({
   title: original?.title ?? '',
   description: original?.description ?? '',
   icon: original?.icon ?? 'ball',
-  target: targetInputValue(original?.targetAmount ?? null),
-  deadline: deadlineInputValue(original?.deadlineAt ?? null, props.tz),
+  target: collectionTargetInput(original?.targetAmount ?? null),
+  deadline: collectionDeadlineDay(original?.deadlineAt ?? null, props.tz),
   visibility: 'active' as 'active' | 'draft',
 })
 const errors = reactive({ title: '', target: '', deadline: '' })
@@ -50,7 +48,7 @@ function submit() {
   const built =
     props.mode === 'create'
       ? buildCollectionBody(form, props.tz)
-      : buildCollectionPatch(original!, form, props.tz)
+      : buildChangedCollectionPatch(original!, form, props.tz)
   errors.title = built.ok ? '' : (built.errors.title ?? '')
   errors.target = built.ok ? '' : (built.errors.target ?? '')
   errors.deadline = built.ok ? '' : (built.errors.deadline ?? '')

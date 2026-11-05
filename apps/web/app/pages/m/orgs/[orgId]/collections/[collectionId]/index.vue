@@ -2,7 +2,7 @@
 import {
   collectionCtaLabel,
   collectionDeadlineLabel,
-  collectionProgress,
+  progressPercent,
   type CollectionContribution,
   type PlayerCollection,
 } from '~/utils/collections'
@@ -90,7 +90,7 @@ async function retryPage() {
 const now = new Date()
 const progress = computed(() =>
   collection.value
-    ? collectionProgress(collection.value.collected, collection.value.targetAmount)
+    ? progressPercent(collection.value.collected, collection.value.targetAmount)
     : null,
 )
 const deadline = computed(() =>
@@ -128,7 +128,7 @@ const money = (minor: number) => formatMoneyRu(minor, collection.value?.currency
     :flag-on="pledgesOpen"
     :tz="tz"
     :back="`${base}/collections`"
-    @changed="reloadAfterAction"
+    :reload="reloadAfterAction"
   />
   <div v-else class="min-h-screen pb-6">
     <VtMiniHeader

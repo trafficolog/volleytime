@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { collectionDeadlineLabel } from '~/utils/collections'
-import { collectionProgress } from '~/utils/desktop-collections'
-import { formatMoneyRu } from '~/utils/labels'
 import {
-  organizerSections,
-  organizerSummary,
-  type ManagedCollection,
-} from '~/utils/organizer-collections'
+  collectionProgress,
+  collectionTotals,
+  type DesktopCollection,
+} from '~/utils/desktop-collections'
+import { formatMoneyRu } from '~/utils/labels'
+import { organizerSections } from '~/utils/organizer-collections'
 
 /**
  * Сборы организатора (21.1.5, `OrgContribs`): итоги, активные и завершённые сборы, «Новый сбор».
@@ -14,9 +14,11 @@ import {
  * (`canCreate = false`), существующие сборы открываются для разбора обещаний и закрытия.
  */
 const props = defineProps<{
-  collections: ManagedCollection[]
+  collections: DesktopCollection[]
   base: string
   tz: string
+  /** Валюта группы для итогов (как в кабинете). */
+  currency: string
   canCreate: boolean
   hasMore: boolean
   loadingMore: boolean
@@ -25,9 +27,8 @@ const props = defineProps<{
 const emit = defineEmits<{ loadMore: [] }>()
 
 const now = new Date()
-const summary = computed(() => organizerSummary(props.collections))
+const summary = computed(() => collectionTotals(props.collections))
 const sections = computed(() => organizerSections(props.collections))
-const currency = computed(() => props.collections[0]?.currency ?? 'BYN')
 const newPath = computed(() => `${props.base}/collections/new`)
 
 function plural(n: number): string {
@@ -38,7 +39,7 @@ function plural(n: number): string {
   return 'участников'
 }
 
-function meta(c: ManagedCollection): string {
+function meta(c: DesktopCollection): string {
   const parts = [`${c.contributors} ${plural(c.contributors)}`]
   if (c.status === 'active' || c.status === 'draft') {
     const deadline = collectionDeadlineLabel(c.deadlineAt, props.tz, now)
@@ -48,7 +49,7 @@ function meta(c: ManagedCollection): string {
 }
 
 type ChipTone = 'default' | 'flame' | 'amber' | 'grass'
-function chip(c: ManagedCollection): { tone: ChipTone; label: string; dot?: boolean } {
+function chip(c: DesktopCollection): { tone: ChipTone; label: string; dot?: boolean } {
   if (c.status === 'draft') return { tone: 'amber', label: 'черновик' }
   if (c.status === 'cancelled') return { tone: 'default', label: 'отменён' }
   if (c.status === 'completed') return { tone: 'grass', label: 'готово', dot: true }

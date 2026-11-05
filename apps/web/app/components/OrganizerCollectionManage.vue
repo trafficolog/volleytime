@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { COLLECTION_METHOD_LABELS, collectionDeadlineLabel } from '~/utils/collections'
-import { collectionProgress } from '~/utils/desktop-collections'
+import {
+  collectionMenuItems,
+  collectionProgress,
+  pendingPledges,
+  type DesktopCollection,
+  type DesktopContribution,
+} from '~/utils/desktop-collections'
 import { displayName, formatMoneyRu } from '~/utils/labels'
 import {
-  collectionActions,
+  canDecidePledges,
   collectionRemaining,
-  splitContributions,
-  type ManagedCollection,
-  type ManagedContribution,
+  paidContributions,
 } from '~/utils/organizer-collections'
 
 /**
@@ -18,13 +22,14 @@ import {
  */
 const props = defineProps<{
   orgId: number
-  collection: ManagedCollection
-  contributions: ManagedContribution[]
+  collection: DesktopCollection
+  contributions: DesktopContribution[]
   flagOn: boolean
   tz: string
   back: string
+  /** Перечитать экран после действия; кнопки заблокированы, пока перезагрузка не закончилась. */
+  reload: () => Promise<void>
 }>()
-const emit = defineEmits<{ changed: [] }>()
 
 const { confirm, haptic } = useTelegram()
 const toast = useToast()
@@ -40,12 +45,24 @@ const menuOpen = ref(false)
 const busy = ref<string | null>(null)
 const actionError = ref('')
 
-const actions = computed(() => collectionActions(props.collection, props.flagOn))
+const actions = computed(() => {
+  const keys = new Set(collectionMenuItems(props.collection.status, props.flagOn).map((i) => i.key))
+  return {
+    edit: keys.has('edit'),
+    publish: keys.has('publish'),
+    complete: keys.has('complete'),
+    cancel: keys.has('cancel'),
+    decide: canDecidePledges(props.collection.status),
+  }
+})
 const hasMenu = computed(
   () =>
     actions.value.edit || actions.value.publish || actions.value.complete || actions.value.cancel,
 )
-const parts = computed(() => splitContributions(props.contributions))
+const parts = computed(() => ({
+  pending: pendingPledges(props.collection, props.contributions),
+  paid: paidContributions(props.contributions),
+}))
 const progress = computed(() => collectionProgress(props.collection))
 const remaining = computed(() => collectionRemaining(props.collection))
 const deadline = computed(() => collectionDeadlineLabel(props.collection.deadlineAt, props.tz, now))
@@ -62,7 +79,7 @@ const sub = computed(() => {
   return [state, progress.value === null ? null : `${progress.value}%`].filter(Boolean).join(' · ')
 })
 const money = (minor: number) => formatMoneyRu(minor, props.collection.currency)
-const who = (c: ManagedContribution) => displayName(c.user)
+const who = (c: DesktopContribution) => displayName(c.user)
 
 async function run(key: string, request: () => Promise<unknown>, success: string, failure: string) {
   if (busy.value) return
@@ -72,28 +89,24 @@ async function run(key: string, request: () => Promise<unknown>, success: string
     await request()
     haptic('success')
     toast.show(success)
-    emit('changed')
+    await props.reload()
   } catch (e) {
     haptic('error')
+    actionError.value = apiErrorMessage(e, failure)
+    // устаревший экран (обещание уже обработано, сбор закрыт или исчез): показываем причину и перечитываем
     const code = apiErrorCode(e)
-    // устаревший экран: обещание уже обработано или сбор закрыт — показываем причину и перечитываем
-    if (code === 'payment.not_pending') {
-      actionError.value = 'Обещание уже обработано — список обновлён'
-      emit('changed')
-    } else if (code === 'collection.not_active') {
-      actionError.value = 'Сбор уже закрыт — экран обновлён'
-      emit('changed')
-    } else if (code === 'collection.not_found') {
-      actionError.value = 'Сбор не найден'
-    } else {
-      actionError.value = apiErrorMessage(e, failure)
-    }
+    if (
+      code === 'payment.not_pending' ||
+      code === 'collection.not_active' ||
+      code === 'collection.not_found'
+    )
+      await props.reload()
   } finally {
     busy.value = null
   }
 }
 
-function confirmPledge(c: ManagedContribution) {
+function confirmPledge(c: DesktopContribution) {
   void run(
     `confirm-${c.id}`,
     () => send(`/contributions/${c.id}/confirm`, 'POST'),
@@ -102,7 +115,7 @@ function confirmPledge(c: ManagedContribution) {
   )
 }
 
-async function rejectPledge(c: ManagedContribution) {
+async function rejectPledge(c: DesktopContribution) {
   if (busy.value) return
   const ok = await confirm(
     `Отклонить обещание ${who(c)} на ${money(c.amount)}? Игрок получит уведомление, касса не изменится.`,

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { DEFAULT_TIMEZONE } from '@volley-time/shared'
 
-import { isManagerMember, type ManagedCollection } from '~/utils/organizer-collections'
+import type { DesktopCollection } from '~/utils/desktop-collections'
+import { isManagerMember } from '~/utils/organizer-collections'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
 /**
@@ -27,12 +28,9 @@ const org = computed(() =>
     : null,
 )
 const isManager = computed(() => org.value !== null && isManagerMember(orgData.value?.myMember))
-const disabledByServer = ref(false)
-const enabled = computed(
-  () => orgData.value?.capabilities?.collections === true && !disabledByServer.value,
-)
+const enabled = computed(() => orgData.value?.capabilities?.collections === true)
 
-const collection = ref<ManagedCollection | null>(null)
+const collection = ref<DesktopCollection | null>(null)
 const loading = ref(false)
 const loadError = ref('')
 const notFound = ref(false)
@@ -48,7 +46,7 @@ async function load() {
   loadError.value = ''
   notFound.value = false
   try {
-    const result = await $fetch<{ collection: ManagedCollection }>(
+    const result = await $fetch<{ collection: DesktopCollection }>(
       `/api/organizations/${orgId.value}/collections/${collectionId.value}`,
     )
     collection.value = result.collection

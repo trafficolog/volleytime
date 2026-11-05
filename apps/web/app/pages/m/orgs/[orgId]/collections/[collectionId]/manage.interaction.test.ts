@@ -6,7 +6,7 @@ import { computed, defineComponent, h, reactive, ref, Suspense, watch } from 'vu
 import Detail from './index.vue'
 
 import OrganizerCollectionManage from '~/components/OrganizerCollectionManage.vue'
-import { apiErrorMessage } from '~/utils/api-error'
+import { apiErrorCode, apiErrorMessage } from '~/utils/api-error'
 
 const Host = defineComponent({
   render: () => h(Suspense, null, { default: () => h(Detail) }),
@@ -22,7 +22,6 @@ const haptic = vi.fn()
 const toastShow = vi.fn()
 let collectionsEnabled = true
 let memberRole = 'owner'
-let errorCode: string | undefined
 let current: { collection: Record<string, unknown>; contributions: unknown[] }
 const calls: { url: string; method: string; body?: unknown }[] = []
 let failNext: Error | undefined
@@ -65,6 +64,9 @@ const standard = () => ({
   ],
 })
 
+const domainError = (code: string) =>
+  Object.assign(new Error(code), { statusCode: 409, data: { data: { code } } })
+
 const fetchApi = vi.fn(async (url: string, opts?: { method?: string; body?: unknown }) => {
   const method = opts?.method ?? 'GET'
   calls.push({ url, method, body: opts?.body })
@@ -85,7 +87,7 @@ function stubGlobals() {
   vi.stubGlobal('watch', watch)
   vi.stubGlobal('$fetch', fetchApi)
   vi.stubGlobal('apiErrorMessage', apiErrorMessage)
-  vi.stubGlobal('apiErrorCode', () => errorCode)
+  vi.stubGlobal('apiErrorCode', apiErrorCode)
   vi.stubGlobal('useTelegram', () => ({ confirm: confirmAsk, haptic }))
   vi.stubGlobal('useToast', () => ({ show: toastShow }))
   vi.stubGlobal('useFetch', async () => ({
@@ -143,7 +145,6 @@ beforeEach(() => {
   stubGlobals()
   collectionsEnabled = true
   memberRole = 'owner'
-  errorCode = undefined
   failNext = undefined
   current = standard()
   calls.length = 0
@@ -230,8 +231,7 @@ describe('organizer collection management (21.1.5)', () => {
 
   it('shows a message and reloads on 409 payment.not_pending', async () => {
     const page = await mountPage()
-    failNext = Object.assign(new Error('conflict'), { statusCode: 409 })
-    errorCode = 'payment.not_pending'
+    failNext = domainError('payment.not_pending')
     current = {
       collection: collection({ collected: 19000, pledged: 3000 }),
       contributions: [
@@ -242,10 +242,45 @@ describe('organizer collection management (21.1.5)', () => {
     const before = gets().length
     await pledges(page)[0]!.get('button[aria-label^="Подтвердить"]').trigger('click')
     await flushPromises()
-    expect(page.get('[role="alert"]').text()).toBe('Обещание уже обработано — список обновлён')
+    expect(page.get('[role="alert"]').text()).toBe(
+      apiErrorMessage(domainError('payment.not_pending')),
+    )
     expect(gets().length).toBeGreaterThan(before)
     expect(pledges(page)).toHaveLength(1)
     expect(toastShow).not.toHaveBeenCalled()
+  })
+
+  it('ignores a second tap until the reload after the first action has finished', async () => {
+    const page = await mountPage()
+    let release: () => void = () => undefined
+    const original = fetchApi.getMockImplementation()!
+    fetchApi.mockImplementation(async (url, opts) => {
+      if ((opts?.method ?? 'GET') === 'GET' && calls.some((c) => c.method === 'POST')) {
+        await new Promise<void>((resolve) => (release = resolve))
+      }
+      return original(url, opts)
+    })
+    const buttons = pledges(page).map((p) => p.get('button[aria-label^="Подтвердить"]'))
+    await buttons[0]!.trigger('click')
+    await flushPromises()
+    // POST прошёл, перезагрузка ещё идёт: вторая кнопка заблокирована, запросов не прибавилось
+    expect(buttons[1]!.attributes('disabled')).toBeDefined()
+    await buttons[1]!.trigger('click')
+    await flushPromises()
+    expect(posts()).toHaveLength(1)
+    release()
+    await flushPromises()
+    expect(posts()).toHaveLength(1)
+    fetchApi.mockImplementation(original)
+  })
+
+  it('reloads the screen when the collection disappeared', async () => {
+    const page = await mountPage()
+    failNext = domainError('collection.not_found')
+    const before = gets().length
+    await pledges(page)[0]!.get('button[aria-label^="Подтвердить"]').trigger('click')
+    await flushPromises()
+    expect(gets().length).toBeGreaterThan(before)
   })
 
   it('keeps pledges decidable and offers only finish and cancel while the flag is off', async () => {
@@ -360,8 +395,7 @@ describe('organizer collection management (21.1.5)', () => {
 
   it('shows a closed collection message on 409 collection.not_active and reloads', async () => {
     const page = await mountPage()
-    failNext = Object.assign(new Error('conflict'), { statusCode: 409 })
-    errorCode = 'collection.not_active'
+    failNext = domainError('collection.not_active')
     current = {
       collection: collection({ status: 'completed', closedAt: '2026-11-05T10:00:00.000Z' }),
       contributions: standard().contributions,
@@ -372,7 +406,9 @@ describe('organizer collection management (21.1.5)', () => {
       .find((b) => b.text() === 'Завершить сбор')!
       .trigger('click')
     await flushPromises()
-    expect(page.get('[role="alert"]').text()).toBe('Сбор уже закрыт — экран обновлён')
+    expect(page.get('[role="alert"]').text()).toBe(
+      apiErrorMessage(domainError('collection.not_active')),
+    )
     expect(page.get('h1').text()).toContain('завершён')
   })
 
