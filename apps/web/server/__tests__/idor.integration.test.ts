@@ -154,6 +154,15 @@ const ROUTES: OrgRouteTable = {
   },
   'GET /api/organizations/:orgId/ledger': { access: 'manager' },
   'GET /api/organizations/:orgId/ledger/export': { access: 'manager' },
+  // отчёты кабинета (21.2.7): период обязателен, чтобы 403/404 не маскировались 422
+  'GET /api/organizations/:orgId/reports': {
+    access: 'manager',
+    query: '?from=2026-05-01&to=2026-05-31',
+  },
+  'GET /api/organizations/:orgId/reports/export': {
+    access: 'manager',
+    query: '?type=finance&from=2026-05-01&to=2026-05-31',
+  },
   'POST /api/organizations/:orgId/members/:memberId/approve': {
     access: 'manager',
     body: () => ({}),
