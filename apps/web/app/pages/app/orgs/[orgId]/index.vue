@@ -15,6 +15,11 @@ const { data, pending, error, refresh } = await useFetch<DashboardResponse>(
   { key: () => `desktop-dashboard-${orgId.value}` },
 )
 const view = computed(() => desktopDashboardView(data.value ?? null))
+// Организация уже загружена layout `desktop-org` под тем же ключом: отдельного запроса нет.
+const { data: orgData } = useNuxtData<{ organization: { subscriptionsEnabled: boolean } }>(
+  `desktop-org-${orgId.value}`,
+)
+const showSubscriptions = computed(() => orgData.value?.organization.subscriptionsEnabled === true)
 </script>
 
 <template>
@@ -37,47 +42,57 @@ const view = computed(() => desktopDashboardView(data.value ?? null))
       @retry="refresh()"
     />
     <template v-else>
-      <DesktopDashboardCards :view="view" :org-id="orgId" />
+      <DesktopDashboardCards :view="view" :show-subscriptions="showSubscriptions" />
 
-      <section
-        class="vt-card vt-desktop-dashboard__upcoming"
-        aria-labelledby="desktop-upcoming-title"
-      >
-        <div class="vt-desktop-dashboard__section-heading">
-          <h2 id="desktop-upcoming-title">Ближайшие события</h2>
-          <NuxtLink :to="`${base}/events`" class="vt-btn vt-btn--ghost vt-btn--sm"
-            >Все события</NuxtLink
-          >
+      <div class="vt-desktop-dashboard__main">
+        <section
+          class="vt-card vt-desktop-dashboard__upcoming"
+          aria-labelledby="desktop-upcoming-title"
+        >
+          <div class="vt-desktop-dashboard__section-heading">
+            <h2 id="desktop-upcoming-title">Ближайшие события</h2>
+            <NuxtLink :to="`${base}/events`" class="vt-btn vt-btn--ghost vt-btn--sm"
+              >Все события</NuxtLink
+            >
+          </div>
+          <div v-if="view.upcoming.length === 0" class="vt-desktop-dashboard__empty">
+            <p>Ближайших событий пока нет.</p>
+            <NuxtLink :to="`${base}/events/new`" class="vt-btn vt-btn--ghost"
+              >Создать событие</NuxtLink
+            >
+          </div>
+          <ul v-else class="vt-desktop-dashboard__event-list">
+            <li v-for="event in view.upcoming.slice(0, 4)" :key="event.id">
+              <NuxtLink :to="`${base}/events/${event.id}`" class="vt-desktop-dashboard__event">
+                <span class="vt-desktop-dashboard__date vt-mono">{{
+                  formatDay(event.startsAt, tz)
+                }}</span>
+                <span class="vt-desktop-dashboard__event-text">
+                  <strong>{{ event.title }}</strong>
+                  <small>
+                    {{ formatTime(event.startsAt, tz) }} ·
+                    {{ event.venue?.name ?? event.locationText ?? 'Площадка не указана' }}
+                  </small>
+                </span>
+                <VtSeatsMini
+                  class="vt-desktop-dashboard__seats"
+                  :taken="event.taken"
+                  :capacity="event.capacity"
+                  :event="event"
+                />
+              </NuxtLink>
+            </li>
+          </ul>
+        </section>
+
+        <div class="vt-desktop-dashboard__side">
+          <DesktopDashboardPendingPayments
+            :pending="view.overview.pendingPayments"
+            :org-id="orgId"
+          />
+          <DesktopDashboardCashWeeks :cash="view.overview.cashWeekly" :tz="tz" />
         </div>
-        <div v-if="view.upcoming.length === 0" class="vt-desktop-dashboard__empty">
-          <p>Ближайших событий пока нет.</p>
-          <NuxtLink :to="`${base}/events/new`" class="vt-btn vt-btn--ghost"
-            >Создать событие</NuxtLink
-          >
-        </div>
-        <ul v-else class="vt-desktop-dashboard__event-list">
-          <li v-for="event in view.upcoming.slice(0, 4)" :key="event.id">
-            <NuxtLink :to="`${base}/events/${event.id}`" class="vt-desktop-dashboard__event">
-              <span class="vt-desktop-dashboard__date vt-mono">{{
-                formatDay(event.startsAt, tz)
-              }}</span>
-              <span class="vt-desktop-dashboard__event-text">
-                <strong>{{ event.title }}</strong>
-                <small>
-                  {{ formatTime(event.startsAt, tz) }} ·
-                  {{ event.venue?.name ?? event.locationText ?? 'Площадка не указана' }}
-                </small>
-              </span>
-              <VtSeatsMini
-                class="vt-desktop-dashboard__seats"
-                :taken="event.taken"
-                :capacity="event.capacity"
-                :event="event"
-              />
-            </NuxtLink>
-          </li>
-        </ul>
-      </section>
+      </div>
     </template>
   </div>
 </template>

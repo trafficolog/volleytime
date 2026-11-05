@@ -1,6 +1,13 @@
+import type { ManagerOverview } from '@volley-time/shared'
 import { describe, expect, it } from 'vitest'
 
-import { desktopDashboardView } from './desktop-dashboard'
+import {
+  desktopDashboardView,
+  formatOccupancy,
+  overviewCashChart,
+  pendingPaymentMeta,
+  pendingPaymentTitle,
+} from './desktop-dashboard'
 
 const event = {
   id: 9,
@@ -18,12 +25,67 @@ const event = {
   locationText: null,
 }
 
+const overview: ManagerOverview = {
+  timezone: 'Europe/Minsk',
+  currency: 'BYN',
+  month: { from: '2026-11-01T00:00:00Z', to: '2026-12-01T00:00:00Z' },
+  events: { thisMonth: 12 },
+  bookings: { count: 168, seats: 150, capacity: 180, occupancyPercent: 83 },
+  subscriptions: { active: 9 },
+  pendingPayments: {
+    count: 1,
+    amount: 2500,
+    currency: 'BYN',
+    items: [
+      {
+        id: 7,
+        amount: 2500,
+        currency: 'BYN',
+        seats: 1,
+        createdAt: '2026-11-04T10:00:00Z',
+        user: { id: 3, name: 'Иван', telegramUsername: 'ivan' },
+        event: { id: 9, title: 'Тренировка', startsAt: '2026-11-08T16:00:00Z' },
+        plan: null,
+        collection: null,
+      },
+    ],
+  },
+  cashWeekly: {
+    currency: 'BYN',
+    weeks: [
+      { from: '2026-10-12T21:00:00Z', to: '2026-10-19T21:00:00Z', income: 0, expense: 0, net: 0 },
+      {
+        from: '2026-10-19T21:00:00Z',
+        to: '2026-10-26T21:00:00Z',
+        income: 5000,
+        expense: 1000,
+        net: 4000,
+      },
+      {
+        from: '2026-10-26T21:00:00Z',
+        to: '2026-11-02T21:00:00Z',
+        income: 2000,
+        expense: 6000,
+        net: -4000,
+      },
+      {
+        from: '2026-11-02T21:00:00Z',
+        to: '2026-11-09T21:00:00Z',
+        income: 8250,
+        expense: 0,
+        net: 8250,
+      },
+    ],
+    total: { income: 15250, expense: 7000, net: 8250 },
+  },
+}
+
 describe('desktop dashboard projection', () => {
   it('does not invent manager metrics when the dashboard is absent', () => {
     expect(desktopDashboardView(null)).toBeNull()
   })
 
-  it('preserves server amounts, currency, count and upcoming event without trend fields', () => {
+  it('keeps the balance block and passes the overview through without trend fields', () => {
     const view = desktopDashboardView({
       isManager: true,
       upcoming: [event],
@@ -32,18 +94,79 @@ describe('desktop dashboard projection', () => {
         pendingAmount: 2500,
         balance: { currency: 'BYN', balance: -1250 },
       },
+      overview,
     })
 
     expect(view).toEqual({
       balance: { currency: 'BYN', balance: -1250 },
-      pendingCount: 2,
-      pendingAmount: 2500,
       upcoming: [event],
+      overview,
     })
     expect(view).not.toHaveProperty('trend')
   })
 
+  it('returns no view when the manager response has no overview', () => {
+    expect(
+      desktopDashboardView({
+        isManager: true,
+        upcoming: [event],
+        manager: { pendingCount: 0, pendingAmount: 0, balance: { currency: 'BYN', balance: 0 } },
+      }),
+    ).toBeNull()
+  })
+
   it('does not expose manager amounts from a player response', () => {
     expect(desktopDashboardView({ isManager: false, manager: null, upcoming: [event] })).toBeNull()
+  })
+})
+
+describe('overview formatting', () => {
+  it('shows occupancy exactly as the API gives it, or a dash when it is null', () => {
+    expect(formatOccupancy(83)).toBe('83%')
+    expect(formatOccupancy(0)).toBe('0%')
+    expect(formatOccupancy(null)).toBe('—')
+  })
+
+  it('builds the pending payment title from the name, then the handle, then a fallback', () => {
+    expect(pendingPaymentTitle(overview.pendingPayments.items[0]!)).toBe('Иван')
+    const noName = {
+      ...overview.pendingPayments.items[0]!,
+      user: { id: 3, name: null, telegramUsername: 'ivan' },
+    }
+    expect(pendingPaymentTitle(noName)).toBe('@ivan')
+    const anonymous = { ...noName, user: { id: 3, name: null, telegramUsername: null } }
+    expect(pendingPaymentTitle(anonymous)).toBe('Игрок')
+  })
+
+  it('describes the payment by event and seat count', () => {
+    const [item] = overview.pendingPayments.items
+    expect(pendingPaymentMeta(item!)).toBe('Тренировка')
+    expect(pendingPaymentMeta({ ...item!, seats: 3 })).toBe('Тренировка · 3 места')
+    expect(
+      pendingPaymentMeta({ ...item!, event: null, collection: { id: 1, title: 'Сбор' } }),
+    ).toBe('Сбор')
+  })
+
+  it('takes the chart headline and bars from net, marks the last week as current', () => {
+    const chart = overviewCashChart(overview.cashWeekly)
+
+    expect(chart.headline).toBe('+82,50 BYN')
+    expect(chart.bars.map((bar) => bar.value)).toEqual([
+      '0,00 BYN',
+      '+40,00 BYN',
+      '-40,00 BYN',
+      '+82,50 BYN',
+    ])
+    expect(chart.bars.map((bar) => bar.heightPercent)).toEqual([0, 48, 48, 100])
+    expect(chart.bars.map((bar) => bar.current)).toEqual([false, false, false, true])
+  })
+
+  it('draws empty bars when every week is zero', () => {
+    const chart = overviewCashChart({
+      currency: 'BYN',
+      weeks: overview.cashWeekly.weeks.map((w) => ({ ...w, income: 0, expense: 0, net: 0 })),
+      total: { income: 0, expense: 0, net: 0 },
+    })
+    expect(chart.bars.every((bar) => bar.heightPercent === 0)).toBe(true)
   })
 })
