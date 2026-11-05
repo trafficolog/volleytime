@@ -2,11 +2,11 @@
 id: '21.1.5'
 phase: '21'
 epic: '21.1'
-status: in_progress
+status: done
 release: 'v0.3.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: 'Реализация в PR trafficolog/feat/21.1.5-org-collections (2026-11-05): Mini App организатора /m/orgs/{id}/collections (список, управление сбором, новый сбор, правка), вкладка «Сборы» с точкой новой вкладки между «Оплатами» и «Меню», обещание взноса в ленте ведёт к сборам; уважает COLLECTIONS_ENABLED. Тесты, gates и визуальная сверка — в описании PR и docs/operations/qa/2026-11-05-21-1-5-org-collections.md; ревью и CI ожидаются.'
+last_reviewed: 2026-11-05
+status_note: 'Выполнено: PR #211 смёржен (ревью Opus и CI пройдены). Mini App организатора: сборы (список, управление, новый сбор, правка), вкладка «Сборы», маршрутизация уведомления об обещании. Типы уведомлений с экрана 09, которым нужны новые серверные источники, — в 21.4.5 (решение владельца 2026-11-05). Отчёт: docs/operations/qa/2026-11-05-21-1-5-org-collections.md.'
 ref_id: ''
 complexity: M
 impl_model: claude-sonnet-5-5
@@ -15,7 +15,7 @@ review_gate: opus
 roles: [FE]
 depends_on: ['21.2.4', '20.3.2', '20.4.3']
 supersedes: []
-decisions: []
+decisions: ['Уведомления организатора: новые типы (журнал решений, 2026-11-05)']
 estimated_hours: '4-8'
 reference:
   spec: ''
@@ -25,7 +25,6 @@ reference:
       '3-miniapp-organizer/07-screen.png',
       '3-miniapp-organizer/08-screen.png',
       '3-miniapp-organizer/09-screen.png',
-      '3-miniapp-organizer/11-screen.png',
     ]
 tags: [reference-v3]
 ---
@@ -46,20 +45,20 @@ tags: [reference-v3]
 ## Что должно быть сделано
 
 1. Сборы: список, управление сбором, новый сбор
-2. Уведомления организатора (лента 20.3.2)
+2. Уведомления организатора (лента 20.3.2): только исправление маршрутизации уведомления об обещании взноса; остальные типы экрана 09 — [21.4.5](21-4-5-org-notifications-types.md)
 3. Добавить вкладку «Сборы» (с точкой новой вкладки до первого открытия) в таб-бар Mini App организатора; вкладка «Оплаты» не удаляется, набор — по решению владельца 2026-10-14 ([20.4.2](20-4-2-tab-bar.md))
 4. Сверить экраны с референсом через харнесс [19.0.2](19-0-2-visual-reference-harness.md) и приложить отчёт к PR.
 
 ## Критерии приёмки
 
 - ✅ Вкладка «Сборы» в таб-баре организатора ведёт на список сборов; точка новой вкладки гаснет после первого открытия
-- ✅ Совпадение с `3-miniapp-organizer/06–09, 11` по отчёту 19.0.2
+- ✅ Совпадение с `3-miniapp-organizer/06–09` по отчёту 19.0.2 (экран 11 — мастер создания группы, его делает [21.1.7](21-1-7-group-creation-wizard.md) по решению 2026-10-14)
 - ✅ Отчёт визуальной сверки по экранам из `reference.screens` без открытых расхождений Critical/Important
 - ✅ Пять gates CODING_STANDARDS на tested revision; ревью `claude-opus-5-5` без Critical/Important
 
 ## Подсказки
 
-- Скриншоты: [3-miniapp-organizer/06-screen.png](../design/reference-v3/screenshots/3-miniapp-organizer/06-screen.png), [3-miniapp-organizer/07-screen.png](../design/reference-v3/screenshots/3-miniapp-organizer/07-screen.png), [3-miniapp-organizer/08-screen.png](../design/reference-v3/screenshots/3-miniapp-organizer/08-screen.png), [3-miniapp-organizer/09-screen.png](../design/reference-v3/screenshots/3-miniapp-organizer/09-screen.png), [3-miniapp-organizer/11-screen.png](../design/reference-v3/screenshots/3-miniapp-organizer/11-screen.png) (окно 924×540 — ориентир; размеры и отступы брать из исходников).
+- Скриншоты: [3-miniapp-organizer/06-screen.png](../design/reference-v3/screenshots/3-miniapp-organizer/06-screen.png), [3-miniapp-organizer/07-screen.png](../design/reference-v3/screenshots/3-miniapp-organizer/07-screen.png), [3-miniapp-organizer/08-screen.png](../design/reference-v3/screenshots/3-miniapp-organizer/08-screen.png), [3-miniapp-organizer/09-screen.png](../design/reference-v3/screenshots/3-miniapp-organizer/09-screen.png) (окно 924×540 — ориентир; размеры и отступы брать из исходников).
 - Исходники макета: `docs/design/reference-v3/handoff/screens-organizer.jsx`, `docs/design/reference-v3/handoff/screens-contributions.jsx`, `docs/design/reference-v3/handoff/app-nav.jsx`; токены — `handoff/styles.css`; доменные функции — `handoff/atoms.jsx`.
 - Handoff: [README](../design/reference-v3/handoff/README.md) — статусная модель, доменная логика, доступность.
 
