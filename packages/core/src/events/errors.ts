@@ -33,6 +33,11 @@ export class VenueNotInOrgError extends EventError {
     super('event.venue_not_in_org', 'Venue does not belong to this organization')
   }
 }
+export class VenueArchivedError extends EventError {
+  constructor() {
+    super('event.venue_archived', 'Venue is archived and cannot be chosen')
+  }
+}
 export class EventStartsInPastError extends EventError {
   constructor() {
     super('event.starts_in_past', 'Event must start in the future')

@@ -1,4 +1,4 @@
-import { and, eq, venues, type Venue } from '@volley-time/db'
+import { and, eq, eventSeries, events, sql, venues, type Venue } from '@volley-time/db'
 
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
@@ -37,8 +37,14 @@ export const venueService = {
     })
   },
 
-  async getById(ctx: ServiceContext, venueId: number): Promise<Venue> {
-    const v = await getDb(ctx).query.venues.findFirst({ where: eq(venues.id, venueId) })
+  /** С `orgId` зал чужой группы «не найден» (21.2.13, IDOR); без него поиск по всей базе. */
+  async getById(ctx: ServiceContext, venueId: number, orgId?: number): Promise<Venue> {
+    const v = await getDb(ctx).query.venues.findFirst({
+      where:
+        orgId === undefined
+          ? eq(venues.id, venueId)
+          : and(eq(venues.id, venueId), eq(venues.organizationId, orgId)),
+    })
     if (!v) throw new VenueNotFoundError(venueId)
     return v
   },
@@ -54,10 +60,15 @@ export const venueService = {
     })
   },
 
-  async update(ctx: ServiceContext, venueId: number, input: UpdateInput): Promise<Venue> {
+  async update(
+    ctx: ServiceContext,
+    venueId: number,
+    input: UpdateInput,
+    orgId?: number,
+  ): Promise<Venue> {
     const data = UpdateVenueInput.parse(input)
     return inTransaction(ctx, async (tx) => {
-      const existing = await this.getById(tx, venueId)
+      const existing = await this.getById(tx, venueId, orgId)
       const [updated] = await getDb(tx)
         .update(venues)
         .set({ ...data, updatedAt: new Date() })
@@ -74,9 +85,9 @@ export const venueService = {
     })
   },
 
-  async archive(ctx: ServiceContext, venueId: number): Promise<Venue> {
+  async archive(ctx: ServiceContext, venueId: number, orgId?: number): Promise<Venue> {
     return inTransaction(ctx, async (tx) => {
-      const existing = await this.getById(tx, venueId)
+      const existing = await this.getById(tx, venueId, orgId)
       const [archived] = await getDb(tx)
         .update(venues)
         .set({ status: 'archived', updatedAt: new Date() })
@@ -89,6 +100,60 @@ export const venueService = {
         entityId: venueId,
       })
       return archived!
+    })
+  },
+
+  /**
+   * «Удалить» зал (21.2.13): с событиями или серией — архив (события сохраняют зал и название),
+   * без них — физическое удаление. Правило `ON DELETE SET NULL` у событий не задействуется.
+   */
+  async remove(
+    ctx: ServiceContext,
+    venueId: number,
+    orgId: number,
+  ): Promise<{ outcome: 'deleted' | 'archived'; venue: Venue }> {
+    return inTransaction(ctx, async (tx) => {
+      const db = getDb(tx)
+      // строка зала под блокировкой: проверка использования и удаление не разъезжаются
+      const [existing] = await db
+        .select()
+        .from(venues)
+        .where(and(eq(venues.id, venueId), eq(venues.organizationId, orgId)))
+        .for('update')
+      if (!existing) throw new VenueNotFoundError(venueId)
+
+      const [inEvents] = await db
+        .select({ id: events.id })
+        .from(events)
+        .where(eq(events.venueId, venueId))
+        .limit(1)
+      const [inSeries] = inEvents
+        ? []
+        : await db
+            .select({ id: eventSeries.id })
+            .from(eventSeries)
+            .where(
+              and(
+                eq(eventSeries.organizationId, orgId),
+                sql`(${eventSeries.template} ->> 'venueId') = ${String(venueId)}`,
+              ),
+            )
+            .limit(1)
+
+      if (inEvents || inSeries) {
+        if (existing.status === 'archived') return { outcome: 'archived' as const, venue: existing }
+        return { outcome: 'archived' as const, venue: await this.archive(tx, venueId, orgId) }
+      }
+
+      await db.delete(venues).where(eq(venues.id, venueId))
+      await auditService.record(tx, {
+        organizationId: orgId,
+        action: AUDIT_ACTIONS.VENUE_DELETED,
+        entityType: 'venue',
+        entityId: venueId,
+        oldValue: { name: existing.name },
+      })
+      return { outcome: 'deleted' as const, venue: existing }
     })
   },
 }

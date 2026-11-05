@@ -77,13 +77,23 @@ const uid = useId()
 const i = props.initial
 
 const venues = ref<Venue[]>([])
+// Архивный зал (21.2.13) в выбор не попадает, но у уже привязанного события остаётся выбранным.
+const currentVenue = ref<Venue | null>(null)
 const groupSettings = ref<GroupSettingsView | null>(null)
 const levelCatalog = ref<LevelView[]>([])
 // Площадки, настройки группы (умолчания P-02) и справочник уровней читаются параллельно; сбой любого
 // не мешает форме: умолчания тогда общие.
 await Promise.all([
   $fetch<{ venues: Venue[] }>(`/api/organizations/${props.orgId}/venues`).then(
-    (res) => (venues.value = res.venues),
+    async (res) => {
+      venues.value = res.venues
+      if (i?.venueId && !res.venues.some((v) => v.id === i.venueId)) {
+        const all = await $fetch<{ venues: Venue[] }>(
+          `/api/organizations/${props.orgId}/venues?includeArchived=true`,
+        ).catch(() => null)
+        currentVenue.value = all?.venues.find((v) => v.id === i.venueId) ?? null
+      }
+    },
     () => (venues.value = []),
   ),
   $fetch<{ settings: GroupSettingsView }>(`/api/organizations/${props.orgId}/settings`).then(
@@ -217,6 +227,9 @@ const durationValue = computed({
 const venueOptions = computed(() => [
   { value: '', label: 'Не указана' },
   ...venues.value.map((v) => ({ value: String(v.id), label: v.name })),
+  ...(currentVenue.value
+    ? [{ value: String(currentVenue.value.id), label: `${currentVenue.value.name} (архив)` }]
+    : []),
 ])
 const venueValue = computed({
   get: () => String(form.venueId),
