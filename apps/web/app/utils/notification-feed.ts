@@ -188,7 +188,7 @@ export function notificationView(n: FeedNotification, base: string): Notificatio
         }
       }
       return {
-        title: 'Заявка на оплату',
+        title: p.collectionTitle ? 'Новое обещание взноса' : 'Заявка на оплату',
         body: joinText(
           p.playerName,
           p.planName
@@ -197,9 +197,10 @@ export function notificationView(n: FeedNotification, base: string): Notificatio
               ? `· взнос в сбор «${p.collectionTitle}»`
               : `· ${event}`,
         ),
-        icon: 'wallet',
+        icon: p.collectionTitle ? 'gift' : 'wallet',
         tone: 'amber',
-        to,
+        // обещание взноса организатор разбирает на экране сборов (21.1.5), а не в «Оплатах»
+        to: p.collectionTitle && !p.planName ? `${base}/collections` : to,
       }
     case 'lineup_ready':
       return { title: 'Составы готовы', body: quoted, icon: 'users', tone: 'flame', to }

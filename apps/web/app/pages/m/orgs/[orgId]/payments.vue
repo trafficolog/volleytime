@@ -13,6 +13,7 @@ interface PendingPayment {
   user: { id: number; name: string | null; telegramUsername: string | null; image: string | null }
   event: { id: number; title: string; startsAt: string } | null
   plan: { name: string } | null
+  collection?: { id: number; title: string } | null
 }
 
 const route = useRoute()
@@ -106,7 +107,7 @@ async function act(p: PendingPayment, action: 'confirm' | 'reject') {
   try {
     if (action === 'reject') {
       const ok = await askConfirm(
-        `Отклонить оплату ${displayName(p.user)}? ${p.event ? 'Запись будет отменена, место перейдёт следующему в листе ожидания.' : 'Абонемент не будет активирован.'}`,
+        `Отклонить оплату ${displayName(p.user)}? ${p.event ? 'Запись будет отменена, место перейдёт следующему в листе ожидания.' : p.collection ? 'Касса не изменится.' : 'Абонемент не будет активирован.'}`,
       )
       if (!ok || !isCurrentPage(actionOrgId) || loadedOrgId.value !== actionOrgId) return
     }
@@ -168,12 +169,16 @@ async function act(p: PendingPayment, action: 'confirm' | 'reject') {
                     >{{ p.event.title }} · {{ formatDay(p.event.startsAt, tz) }}</template
                   >
                   <template v-else-if="p.plan">Абонемент «{{ p.plan.name }}»</template>
+                  <template v-else-if="p.collection"
+                    >Взнос в сбор «{{ p.collection.title }}»</template
+                  >
                 </div>
               </div>
             </div>
             <div class="flex items-center gap-1.5 mt-2.5">
               <VtChip>{{ label(PAYMENT_METHOD_LABELS, p.method) }}</VtChip>
               <VtChip v-if="p.plan" tone="flame">Абонемент</VtChip>
+              <VtChip v-if="p.collection" tone="flame">Сбор</VtChip>
               <span class="ml-auto text-[11px] text-vt-mute-2">{{ ago(p.createdAt) }}</span>
             </div>
             <div class="payment-actions flex gap-1.5 mt-3">

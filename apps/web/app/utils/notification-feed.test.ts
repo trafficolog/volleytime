@@ -63,6 +63,20 @@ describe('notificationView', () => {
     expect(v.to).toBe('/m/orgs/7/payments')
   })
 
+  it('обещание взноса организатору (21.1.5) ведёт к сборам, а не к оплатам', () => {
+    const v = notificationView(
+      item(
+        { type: 'organizer_action_required' },
+        { playerName: 'Соня', collectionTitle: 'Новый комплект мячей', target: 'org' },
+      ),
+      '/m/orgs/7',
+    )
+    expect(v.title).toBe('Новое обещание взноса')
+    expect(v.body).toBe('Соня · взнос в сбор «Новый комплект мячей»')
+    expect(v.icon).toBe('gift')
+    expect(v.to).toBe('/m/orgs/7/collections')
+  })
+
   it('запрос приглашения организатору (20.4.7) — не «заявка на оплату», ведёт на событие', () => {
     const v = notificationView(
       item(
