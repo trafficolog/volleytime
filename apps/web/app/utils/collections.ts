@@ -40,7 +40,7 @@ export interface CollectionContribution {
 /** Потолок одного взноса сервера (`MAX_CONTRIBUTION_AMOUNT`), минорные единицы. */
 const MAX_PLEDGE_MINOR = 10_000_000
 
-export function collectionProgress(collected: number, target: number | null): number | null {
+export function progressPercent(collected: number, target: number | null): number | null {
   if (target === null || target <= 0) return null
   return Math.min(100, Math.round((collected / target) * 100))
 }

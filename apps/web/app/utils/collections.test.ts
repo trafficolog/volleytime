@@ -4,7 +4,7 @@ import {
   collectionCtaLabel,
   collectionDeadlineLabel,
   collectionMyStatus,
-  collectionProgress,
+  progressPercent,
   collectionSections,
   parsePledgeAmount,
   pledgeToastText,
@@ -29,13 +29,13 @@ const base: PlayerCollection = {
   my: { paid: 0, pending: null },
 }
 
-describe('collectionProgress', () => {
+describe('progressPercent', () => {
   it('rounds the share and caps it at 100', () => {
-    expect(collectionProgress(17500, 25000)).toBe(70)
-    expect(collectionProgress(30000, 25000)).toBe(100)
+    expect(progressPercent(17500, 25000)).toBe(70)
+    expect(progressPercent(30000, 25000)).toBe(100)
   })
   it('has no progress without a target', () => {
-    expect(collectionProgress(500, null)).toBeNull()
+    expect(progressPercent(500, null)).toBeNull()
   })
 })
 

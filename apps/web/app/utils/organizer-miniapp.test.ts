@@ -35,14 +35,36 @@ describe('organizer Mini App navigation', () => {
     expect(organizerMenuLinks(base, null, true)).toEqual([])
   })
 
-  it('projects four organizer destinations and a menu action for the layout', () => {
-    expect(organizerTabItems(base)).toEqual([
+  it('projects the organizer destinations and a menu action for the layout', () => {
+    const base4 = [
       { kind: 'link', to: base, label: 'События', icon: 'calendar' },
       { kind: 'link', to: `${base}/members`, label: 'Игроки', icon: 'users' },
       { kind: 'link', to: `${base}/cashbox`, label: 'Касса', icon: 'chart' },
       { kind: 'link', to: `${base}/payments`, label: 'Оплаты', icon: 'wallet' },
-      { kind: 'action', id: 'menu', label: 'Меню', icon: 'menu' },
+    ]
+    const menu = { kind: 'action', id: 'menu', label: 'Меню', icon: 'menu' }
+    expect(organizerTabItems(base, { collections: false })).toEqual([...base4, menu])
+    // «Сборы» (21.1.5) — между «Оплатами» и «Меню», «Оплаты» не удалены
+    expect(organizerTabItems(base)).toEqual([
+      ...base4,
+      {
+        kind: 'link',
+        to: `${base}/collections`,
+        label: 'Сборы',
+        icon: 'gift',
+        prefix: true,
+        dot: false,
+      },
+      menu,
     ])
+  })
+
+  it('lights the Сборы dot for organizers until the tab was opened', () => {
+    expect(
+      organizerTabItems(base, { collectionsDot: true }).find((t) => t.label === 'Сборы'),
+    ).toMatchObject({
+      dot: true,
+    })
   })
 })
 

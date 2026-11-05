@@ -110,6 +110,20 @@ describe('general pending payment queue', () => {
     wrapper.unmount()
   })
 
+  it('names the collection on a collection pledge (21.1.5)', async () => {
+    pending = [
+      {
+        ...payment,
+        method: 'cash',
+        event: null as never,
+        collection: { id: 4, title: 'Новый комплект мячей' },
+      } as never,
+    ]
+    const wrapper = await renderPayments()
+    expect(wrapper.text()).toContain('Взнос в сбор «Новый комплект мячей»')
+    wrapper.unmount()
+  })
+
   it('clears the old queue and blocks its actions during an organization switch', async () => {
     const wrapper = await renderPayments()
     route.params.orgId = '31'
