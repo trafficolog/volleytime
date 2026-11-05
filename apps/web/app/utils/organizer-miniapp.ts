@@ -1,6 +1,7 @@
 import type { EventListItem } from '../components/EventCard.vue'
 import type { TabItem } from '../components/vt/TabBar.vue'
 
+import { seatsLabel } from './booking-seats'
 import { formatMoneyRu, ROLE_LABELS } from './labels'
 import { pendingLabel, waitlistOrganizerLabel } from './status-model'
 
@@ -130,6 +131,31 @@ export function pendingCountsByEvent(
     if (id !== undefined) counts.set(id, (counts.get(id) ?? 0) + 1)
   }
   return counts
+}
+
+/** «4 платежа · сумма 215,00 BYN» под заголовком «Ожидают подтверждения». */
+export function pendingPaymentsSubtitle(count: number, total: string): string {
+  const mod10 = count % 10
+  const mod100 = count % 100
+  const word =
+    mod10 === 1 && mod100 !== 11
+      ? 'платёж'
+      : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)
+        ? 'платежа'
+        : 'платежей'
+  return `${count} ${word} · сумма ${total}`
+}
+
+/** Чип «2 места × 30,00 BYN»: цена места видна, только когда сумма делится на места поровну. */
+export function pendingSeatsChip(
+  amount: number,
+  seats: number | undefined,
+  currency: string,
+): string | null {
+  if (!seats || seats < 2) return null
+  return amount % seats === 0
+    ? `${seatsLabel(seats)} × ${formatMoneyRu(amount / seats, currency)}`
+    : seatsLabel(seats)
 }
 
 export interface OrganizerEventChip {

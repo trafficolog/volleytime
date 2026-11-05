@@ -11,7 +11,11 @@ import StateChip from './vt/StateChip.vue'
 vi.stubGlobal('computed', computed)
 afterEach(() => vi.unstubAllGlobals())
 
-function mountRow(status: string, taken = 1) {
+function mountRow(
+  status: string,
+  taken = 1,
+  extra: { pending?: number | null; event?: Record<string, unknown> } = {},
+) {
   vi.stubGlobal('computed', computed)
   return mount(OrganizerEventRow, {
     props: {
@@ -27,11 +31,13 @@ function mountRow(status: string, taken = 1) {
         taken,
         waitlist: 0,
         myBooking: null,
+        ...extra.event,
         venue: { name: 'Малый спортзал кооперативного университета' },
         locationText: null,
       },
       tz: 'Europe/Minsk',
       to: '/m/orgs/1/events/1/manage',
+      pending: extra.pending,
     },
     global: {
       components: { VtStateChip: StateChip, VtSeatsMini: SeatsMini, VtIcon: Icon },
@@ -69,5 +75,46 @@ describe('organizer event row status model', () => {
   it('says «мест нет» only while the event is open', () => {
     expect(mountRow('published', 18).text()).toContain('мест нет')
     expect(mountRow('closed', 18).text()).toContain('18/18')
+  })
+})
+
+describe('organizer event row payment chips (21.1.1)', () => {
+  it('shows an amber chip with number agreement while payments wait', () => {
+    const one = mountRow('published', 5, { pending: 1 })
+    expect(one.get('[data-pay-chip="amber"]').text()).toBe('1 ждёт оплаты')
+    const two = mountRow('published', 5, { pending: 2 })
+    expect(two.get('[data-pay-chip="amber"]').text()).toBe('2 ждут оплаты')
+  })
+
+  it('shows a green chip when everybody paid and nothing without pending data', () => {
+    expect(mountRow('published', 5, { pending: 0 }).get('[data-pay-chip="grass"]').text()).toBe(
+      'все оплатили',
+    )
+    expect(mountRow('published', 5).find('[data-pay-chip]').exists()).toBe(false)
+  })
+
+  it('adds the neutral queue chip and keeps the closed state a separate grey word', () => {
+    const wrapper = mountRow('closed', 5, { pending: 0, event: { waitlist: 2 } })
+    expect(wrapper.get('[data-pay-chip="state"]').text()).toBe('очередь · 2 чел.')
+    expect(wrapper.text()).toContain('Запись закрыта')
+  })
+
+  it('shows the split price per seat as a forecast', () => {
+    const wrapper = mountRow('published', 5, {
+      event: {
+        pricing: {
+          mode: 'split',
+          targetAmount: 24000,
+          settledAt: null,
+          participantCount: 8,
+          minAmount: 3000,
+          maxAmount: 3000,
+          basis: 'current',
+          myAllocatedAmount: null,
+          myPaymentStatus: null,
+        },
+      },
+    })
+    expect(wrapper.get('[data-split-forecast]').text()).toBe('≈ 30,00 BYN')
   })
 })

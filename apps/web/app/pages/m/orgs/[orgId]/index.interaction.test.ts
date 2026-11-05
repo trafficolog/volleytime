@@ -17,6 +17,7 @@ import {
 import Home from './index.vue'
 
 import EventCard from '~/components/EventCard.vue'
+import OrganizerEventRow from '~/components/OrganizerEventRow.vue'
 import MyChip from '~/components/vt/MyChip.vue'
 import SeatsMini from '~/components/vt/SeatsMini.vue'
 import StateChip from '~/components/vt/StateChip.vue'
@@ -666,5 +667,135 @@ describe('player Home bento v3 (20.4.4)', () => {
     expect(w.text()).not.toContain('Привет')
     authUser.value = { name: 'Артём Иванов' }
     w.unmount()
+  })
+})
+
+describe('organizer Home v3 bento (21.1.1)', () => {
+  const managerDash = {
+    isManager: true,
+    myBookings: [],
+    subscription: null,
+    manager: {
+      pendingCount: 3,
+      pendingAmount: 4500,
+      balance: { currency: 'BYN', income: 5000, expense: 1000, balance: 4000, byCurrency: {} },
+    },
+    upcoming: [
+      {
+        id: 74,
+        title: 'Основа',
+        status: 'published',
+        startsAt: '2027-10-01T16:00:00Z',
+        endsAt: '2027-10-01T18:00:00Z',
+        capacity: 14,
+        taken: 12,
+        price: 1000,
+        currency: 'BYN',
+        waitlist: 0,
+        myBooking: null,
+        venue: { name: 'Зал' },
+        locationText: null,
+      },
+      {
+        id: 75,
+        title: 'Открытая игра',
+        status: 'published',
+        startsAt: '2027-10-02T16:00:00Z',
+        endsAt: '2027-10-02T18:00:00Z',
+        capacity: 14,
+        taken: 9,
+        price: 1000,
+        currency: 'BYN',
+        waitlist: 0,
+        myBooking: null,
+        venue: { name: 'Зал' },
+        locationText: null,
+      },
+    ],
+  }
+  const stubs = {
+    NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
+    VtMiniHeader: { template: '<header><slot name="right" /></header>' },
+    VtSheet: { template: '<div />' },
+    VtIcon: { template: '<span />' },
+    VtChip: { template: '<span><slot /></span>' },
+    VtStateChip: StateChip,
+    VtSeatsMini: SeatsMini,
+    VtMeter: { template: '<span />' },
+    EventCard: { template: '<span />' },
+    EmptyState: { template: '<span />' },
+    SkeletonList: { template: '<span />' },
+    ErrorState: { props: ['message'], template: '<div role="alert">{{ message }}</div>' },
+  }
+  async function mountManager(
+    extras: { payments?: unknown; balance?: unknown } = {},
+    failBalance = false,
+  ) {
+    fetchDashboard
+      .mockImplementationOnce(async () => managerDash)
+      .mockImplementationOnce(async () => extras.payments ?? { payments: [] })
+      .mockImplementationOnce(async () => {
+        if (failBalance) throw new Error('boom')
+        return extras.balance ?? { eventBalance: { balance: 32, low: false } }
+      })
+    const wrapper = mount(HomeHost, {
+      global: { components: { OrganizerEventRow }, stubs },
+    })
+    await flushPromises()
+    return wrapper
+  }
+
+  it('shows the event balance tile instead of the next-event tile, from the cabinet card', async () => {
+    const wrapper = await mountManager()
+    const tile = wrapper.get('[data-event-balance]')
+    expect(tile.text()).toContain('32')
+    expect(tile.text()).toContain('события в балансе')
+    expect(wrapper.text()).not.toContain('Ближайшее событие')
+    expect(fetchDashboard).toHaveBeenCalledWith('/api/organizations/30/event-balance')
+    wrapper.unmount()
+  })
+
+  it('warns on a low event balance and shows a placeholder when it is unavailable', async () => {
+    const low = await mountManager({ balance: { eventBalance: { balance: 1, low: true } } })
+    expect(low.get('[data-event-balance]').text()).toContain('событие в балансе')
+    expect(low.get('[data-event-balance]').text()).toContain('Баланс заканчивается')
+    low.unmount()
+    const failed = await mountManager({}, true)
+    expect(failed.get('[data-event-balance]').text()).toContain('нет данных')
+    expect(failed.text()).toContain('Касса')
+    failed.unmount()
+  })
+
+  it('puts payment chips into the event rows from the pending payments list', async () => {
+    const wrapper = await mountManager({
+      payments: {
+        payments: [
+          { id: 1, event: { id: 74 } },
+          { id: 2, event: { id: 74 } },
+          { id: 3, event: null },
+        ],
+      },
+    })
+    const rows = wrapper
+      .findAll('li')
+      .filter((li) => li.text().includes('Открытая игра') || li.text().includes('Основа'))
+    const byTitle = (title: string) => rows.find((li) => li.text().includes(title))!
+    expect(byTitle('Основа').get('[data-pay-chip="amber"]').text()).toBe('2 ждут оплаты')
+    expect(byTitle('Открытая игра').get('[data-pay-chip="grass"]').text()).toBe('все оплатили')
+    wrapper.unmount()
+  })
+
+  it('draws no payment chips when the pending payments request fails', async () => {
+    fetchDashboard
+      .mockImplementationOnce(async () => managerDash)
+      .mockImplementationOnce(async () => {
+        throw new Error('boom')
+      })
+      .mockImplementationOnce(async () => ({ eventBalance: { balance: 5, low: false } }))
+    const wrapper = mount(HomeHost, { global: { components: { OrganizerEventRow }, stubs } })
+    await flushPromises()
+    expect(wrapper.text()).toContain('Основа')
+    expect(wrapper.find('[data-pay-chip]').exists()).toBe(false)
+    wrapper.unmount()
   })
 })
