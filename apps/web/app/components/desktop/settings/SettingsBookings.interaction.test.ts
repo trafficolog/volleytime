@@ -39,7 +39,7 @@ describe('SettingsBookings', () => {
   it('shows the impact of each setting', () => {
     const { wrapper } = mountBookings()
     const text = wrapper.text()
-    expect(text).toContain('вкладка и продажа абонементов скрыты')
+    expect(text).toContain('не смогут покупать абонементы и оплачивать ими новые записи')
     expect(text).toContain('игроки не могут сами отменить запись')
     expect(text).toContain('Новые события получают этот срок')
     expect(text).toContain('Игрок займёт до 3 мест')
@@ -53,7 +53,7 @@ describe('SettingsBookings', () => {
     expect(request).not.toHaveBeenCalled()
     const dialog = document.querySelector('[role="alertdialog"]')!
     expect(dialog.textContent).toContain('Выключить абонементы?')
-    expect(dialog.textContent).toContain('доживут свой срок')
+    expect(dialog.textContent).toContain('срок действия продолжает идти')
     ;(dialog.querySelector('.vt-btn--rose') as HTMLButtonElement).click()
     await flushPromises()
     expect(request).toHaveBeenCalledWith('/api/organizations/7/settings', {
@@ -79,9 +79,9 @@ describe('SettingsBookings', () => {
       settings: { ...baseSettings, subscriptionsEnabled: true },
     })
     const { wrapper } = mountBookings(true, request)
-    expect(wrapper.text()).not.toContain('Выключение не трогает уже купленные абонементы')
+    expect(wrapper.text()).not.toContain('снова можно использовать')
     await wrapper.setProps({ settings: { ...baseSettings, subscriptionsEnabled: false } })
-    expect(wrapper.text()).toContain('Выключение не трогает уже купленные абонементы')
+    expect(wrapper.text()).toContain('снова можно использовать')
     await wrapper.findAll('[role="switch"]')[0]!.trigger('click')
     expect(document.querySelector('[role="alertdialog"]')).toBeNull()
     expect(request).toHaveBeenCalledWith('/api/organizations/7/settings', {

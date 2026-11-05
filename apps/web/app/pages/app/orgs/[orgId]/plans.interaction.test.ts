@@ -140,7 +140,7 @@ describe('desktop plans (W-09)', () => {
     subscriptionsEnabled = false
     const w = await render()
     expect(w.text()).toContain('Абонементы выключены в настройках группы')
-    expect(w.text()).toContain('доживут свой срок')
+    expect(w.text()).toContain('оплачивать ими новые записи')
     expect(w.findAll('.vt-desktop-plans__card')).toHaveLength(2)
     expect(byText(w, 'Новый план')).toBeUndefined()
     expect(byText(w, 'Изменить')).toBeUndefined()
