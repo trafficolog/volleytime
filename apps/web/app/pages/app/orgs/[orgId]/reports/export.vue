@@ -192,7 +192,7 @@ const typeTitle = computed(() => REPORT_TYPE_OPTIONS.find((o) => o.type === type
 
       <div class="vt-desktop-reports__preview" :aria-busy="loading">
         <ul class="vt-desktop-reports__kpis vt-desktop-reports__kpis--export">
-          <li class="vt-card vt-desktop-reports__kpi vt-desktop-reports__kpi--hero">
+          <li class="vt-card vt-card--hero vt-desktop-reports__kpi">
             <span class="vt-cap">{{ typeTitle }}</span>
             <strong class="vt-mono" data-testid="reports-total">{{ preview?.total ?? '—' }}</strong>
             <small>строк за период</small>
