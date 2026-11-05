@@ -2,11 +2,11 @@
 id: '21.1.7'
 phase: '21'
 epic: '21.1'
-status: in_progress
+status: done
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-11-05
-status_note: 'Реализация в PR trafficolog/feat/21.1.7-group-wizard; owner decision 2026-11-05: группа создаётся на переходе 1→2 (см. требование 3). Ждёт ревью и CI.'
+status_note: 'Выполнено: PR #216 смёржен (ревью и CI пройдены). Группа создаётся на переходе 1→2, «Назад» её сохраняет (решение владельца 2026-11-05); дубль пустой группы при потерянном ответе POST или повторном входе принят, API не менялся. Умолчания серии (инженерные): название = название группы, 120 минут, тренировка, еженедельно на месяц, старт завтра; один ключ идемпотентности на прогон мастера. Визуальная проверка шагов 2–3 и MainButton/BackButton — живая проверка владельца в Telegram при приёмке v0.3.0 (пункт 21.3.1), находки в 21.4.1. Отчёт: docs/operations/qa/2026-11-05-21-1-7-group-wizard-visual.md.'
 ref_id: ''
 complexity: M
 impl_model: claude-sonnet-5-5
@@ -15,7 +15,7 @@ review_gate: opus
 roles: [FE]
 depends_on: ['19.2.2', '20.2.1', '20.2.2', '20.4.3']
 supersedes: []
-decisions: []
+decisions: ['Мастер группы, амплуа, залы (журнал решений, 2026-11-05)']
 estimated_hours: '4-8'
 reference:
   spec: ''
