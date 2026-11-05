@@ -62,6 +62,7 @@ beforeEach(() => {
     if (url === '/api/organizations/30/invites')
       return { deeplinkUrl: 'https://t.me/bot?start=new' }
     if (url.endsWith('/level')) return { member: { level: 'v2' } }
+    if (url.endsWith('/position')) return { member: { position: 'libero' } }
     return {}
   })
   vi.stubGlobal('window', Object.assign(window, { confirm: () => true }))
@@ -168,12 +169,49 @@ describe('desktop players (W-06)', () => {
     expect(w.findAll('thead th').map((th) => th.text())).toEqual([
       'Игрок',
       'Телеграм',
+      'Амплуа',
       'Роль',
       'Действия',
     ])
     expect(w.text()).toContain('уровень В1')
     expect(w.text()).toContain('@synthetic_one')
-    expect(w.text()).not.toMatch(/Амплуа|Абонемент|Задолж/)
+    expect(w.text()).not.toMatch(/Абонемент|Задолж/)
+  })
+
+  it('opens the card, sets a position via PATCH and shows it in the list (21.2.22)', async () => {
+    const w = await render()
+    await w.findAll('tbody .vt-desktop-members__name')[1]!.trigger('click')
+    const select = w.get('#player-drawer-position')
+    expect(select.findAll('option').map((o) => o.text())).toEqual([
+      'Не задано',
+      'Связующий',
+      'Доигровщик',
+      'Диагональный',
+      'Центральный блокирующий',
+      'Либеро',
+      'Универсал',
+    ])
+    await select.setValue('libero')
+    await flushPromises()
+    expect(apiFetch).toHaveBeenCalledWith('/api/organizations/30/members/2/position', {
+      method: 'PATCH',
+      body: { position: 'libero' },
+    })
+    expect(w.findAll('tbody tr')[1]!.text()).toContain('Либеро')
+  })
+
+  it('shows the position read-only for a blocked player and to an assistant (21.2.22)', async () => {
+    const w = await render()
+    await w.findAll('tbody .vt-desktop-members__name')[4]!.trigger('click')
+    expect(w.find('#player-drawer-position').exists()).toBe(false)
+    expect(w.get('[role="dialog"]').text()).toContain('Амплуа')
+  })
+
+  it('hides the position selector from an assistant (21.2.22)', async () => {
+    actorRole = 'assistant'
+    const w = await render()
+    await w.findAll('tbody .vt-desktop-members__name')[1]!.trigger('click')
+    expect(w.find('#player-drawer-position').exists()).toBe(false)
   })
 
   it('opens the card, assigns a level via PATCH and updates the row', async () => {

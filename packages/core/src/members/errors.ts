@@ -46,6 +46,14 @@ export class MemberLevelNotAssignableError extends MemberError {
     super('member.level_not_assignable', `Level cannot be set for a member with status ${status}`)
   }
 }
+export class MemberPositionNotAssignableError extends MemberError {
+  constructor(status: string) {
+    super(
+      'member.position_not_assignable',
+      `Position cannot be set for a member with status ${status}`,
+    )
+  }
+}
 export class MemberInvalidTransitionError extends MemberError {
   constructor(from: string, to: string) {
     super('member.invalid_transition', `Cannot change member status from ${from} to ${to}`)

@@ -16,7 +16,7 @@ const levels = [
 
 let wrapper: VueWrapper | undefined
 
-function stubPage(level: string | null) {
+function stubPage(level: string | null, position: string | null = null) {
   vi.stubGlobal('definePageMeta', () => undefined)
   vi.stubGlobal('useRoute', () => ({ params: { orgId: '30' } }))
   vi.stubGlobal('useAuth', () => ({ user: ref({ name: 'Синтетический Игрок', image: null }) }))
@@ -37,7 +37,7 @@ function stubPage(level: string | null) {
     return {
       data: ref({
         organization: { id: 30, name: 'Синтетическая QA-группа', defaultMemberStatus: 'active' },
-        myMember: { role: 'player', status: 'active', userId: 9, level },
+        myMember: { role: 'player', status: 'active', userId: 9, level, position },
       }),
       error: ref(null),
       pending: ref(false),
@@ -74,7 +74,7 @@ describe('Mini App player profile level', () => {
   it('shows the own level title and its scale description', async () => {
     stubPage('v2')
     const page = await renderProfile()
-    expect(page.get('#profile-level-title').text()).toBe('Уровень в группе')
+    expect(page.get('#profile-level-title').text()).toBe('Уровень и амплуа')
     expect(page.text()).toContain('В2')
     expect(page.text()).toContain('Сильный любитель')
     expect(page.text()).not.toMatch(/\b[ABC]\b/)
@@ -85,6 +85,20 @@ describe('Mini App player profile level', () => {
     const page = await renderProfile()
     expect(page.text()).toContain('Уровень пока не назначен')
     expect(page.text()).not.toContain('В2')
+  })
+
+  it('shows the own position read-only, with no control to edit it (21.2.22)', async () => {
+    stubPage('v2', 'outside_hitter')
+    const page = await renderProfile()
+    expect(page.get('[data-testid="profile-position"]').text()).toBe('Амплуа: Доигровщик')
+    expect(page.find('select').exists()).toBe(false)
+    expect(page.find('input').exists()).toBe(false)
+  })
+
+  it('says the position is not set when the organizer has not chosen one', async () => {
+    stubPage('v2', null)
+    const page = await renderProfile()
+    expect(page.get('[data-testid="profile-position"]').text()).toContain('пока не задано')
   })
 
   it('links to bookings, the notification feed, joining and creating a group (20.4.9)', async () => {

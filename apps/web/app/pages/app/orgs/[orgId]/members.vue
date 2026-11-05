@@ -22,6 +22,7 @@ import {
   levelTitle,
   type PlayerLevelView,
 } from '~/utils/player-level'
+import { positionTitle } from '~/utils/player-position'
 
 definePageMeta({ layout: 'desktop-org', middleware: ['auth'] })
 
@@ -62,6 +63,7 @@ const loading = ref(false)
 const error = ref('')
 const actionError = ref('')
 const levelError = ref('')
+const positionError = ref('')
 const inviteNotice = ref('')
 const busy = ref(false)
 const selectedId = ref<number | null>(null)
@@ -196,8 +198,32 @@ async function setLevel(member: MemberRow, level: string | null) {
   }
 }
 
+async function setPosition(member: MemberRow, position: string | null) {
+  if (busy.value || !canSetLevel(member) || position === (member.position ?? null)) return
+  const targetOrgId = orgId.value
+  const expectedPath = path.value
+  busy.value = true
+  positionError.value = ''
+  try {
+    const result = await $fetch<{ member: { position: string | null } }>(
+      `/api/organizations/${targetOrgId}/members/${member.id}/position`,
+      { method: 'PATCH', body: { position } },
+    )
+    if (alive && isLiveDesktopRoute(route.path, expectedPath) && orgId.value === targetOrgId) {
+      const row = members.value.find((m) => m.id === member.id)
+      if (row) row.position = result.member.position
+    }
+  } catch (cause) {
+    if (alive && isLiveDesktopRoute(route.path, expectedPath))
+      positionError.value = apiErrorMessage(cause, 'Не удалось задать амплуа')
+  } finally {
+    busy.value = false
+  }
+}
+
 function openCard(member: MemberRow) {
   levelError.value = ''
+  positionError.value = ''
   selectedId.value = member.id
 }
 
@@ -339,6 +365,7 @@ const filtered = computed(() => query.value.trim() !== '' || levelFilter.value !
           <tr>
             <th scope="col" class="vt-cap">Игрок</th>
             <th scope="col" class="vt-cap">Телеграм</th>
+            <th scope="col" class="vt-cap">Амплуа</th>
             <th scope="col" class="vt-cap">Роль</th>
             <th scope="col" class="vt-cap"><span class="sr-only">Действия</span></th>
           </tr>
@@ -369,6 +396,12 @@ const filtered = computed(() => query.value.trim() !== '' || levelFilter.value !
               <template v-if="member.user.telegramUsername"
                 ><VtIcon name="tg" :size="11" /> @{{ member.user.telegramUsername }}</template
               >
+              <span v-else class="text-vt-mute-2">—</span>
+            </td>
+            <td>
+              <template v-if="positionTitle(member.position)">{{
+                positionTitle(member.position)
+              }}</template>
               <span v-else class="text-vt-mute-2">—</span>
             </td>
             <td>
@@ -456,8 +489,10 @@ const filtered = computed(() => query.value.trim() !== '' || levelFilter.value !
       :actions="selected ? actions(selected) : []"
       :busy="busy"
       :level-error="levelError"
+      :position-error="positionError"
       @act="(action) => selected && act(selected, action)"
       @set-level="(level) => selected && setLevel(selected, level)"
+      @set-position="(position) => selected && setPosition(selected, position)"
     />
   </section>
 </template>

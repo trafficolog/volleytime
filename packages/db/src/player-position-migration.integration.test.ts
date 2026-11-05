@@ -51,6 +51,8 @@ describe('migration 0034 player position (integration)', { timeout: 60_000 }, ()
     const [o] = await sql<{ id: number }[]>`
       INSERT INTO organizations (slug, name, owner_user_id) VALUES (${slug}, ${slug}, ${user!.id})
       RETURNING id`
+    await sql`INSERT INTO organization_members (organization_id, user_id, role)
+      VALUES (${o!.id}, ${user!.id}, 'owner')`
     return { o: o!.id, u: user!.id }
   }
 

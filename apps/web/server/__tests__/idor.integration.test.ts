@@ -184,6 +184,10 @@ const ROUTES: OrgRouteTable = {
     access: 'manager',
     body: () => ({ level: 'v2' }),
   },
+  'PATCH /api/organizations/:orgId/members/:memberId/position': {
+    access: 'manager',
+    body: () => ({ position: 'setter' }),
+  },
   'GET /api/organizations/:orgId/members': { access: 'member' },
   'POST /api/organizations/:orgId/members/leave': { access: 'tenant', body: () => ({}) },
   'POST /api/organizations/:orgId/payments/:paymentId/confirm': {
