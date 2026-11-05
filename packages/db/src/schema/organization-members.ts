@@ -1,7 +1,7 @@
 import { index, integer, pgTable, serial, timestamp, unique } from 'drizzle-orm/pg-core'
 
 import { inviteLinks } from './invite-links'
-import { playerLevelEnum } from './level-enums'
+import { playerLevelEnum, playerPositionEnum } from './level-enums'
 import { memberRoleEnum, memberStatusEnum } from './member-enums'
 import { organizations } from './organizations'
 import { playerLevels } from './player-levels'
@@ -28,6 +28,8 @@ export const organizationMembers = pgTable(
     ratingInOrg: integer('rating_in_org'),
     // уровень игрока в этой группе (19.2.3); NULL — не назначен
     level: playerLevelEnum('level').references(() => playerLevels.code, { onDelete: 'restrict' }),
+    // амплуа игрока в этой группе (21.2.22), задаёт организатор; NULL — не задано
+    position: playerPositionEnum('position'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

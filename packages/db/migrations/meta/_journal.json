@@ -239,6 +239,13 @@
       "when": 1793815011253,
       "tag": "0033_ledger_method_categories",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1793881789383,
+      "tag": "0034_player_position",
+      "breakpoints": true
     }
   ]
 }

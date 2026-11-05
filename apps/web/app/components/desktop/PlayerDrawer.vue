@@ -4,6 +4,7 @@ import type { DesktopMemberAction } from '~/utils/desktop-member-actions'
 import { telegramChatUrl } from '~/utils/desktop-players'
 import { MEMBER_STATUS_LABELS, ROLE_LABELS, displayName, label } from '~/utils/labels'
 import type { PlayerLevelView } from '~/utils/player-level'
+import { PLAYER_POSITIONS, positionTitle } from '~/utils/player-position'
 
 /**
  * Карточка игрока (W-06): боковая панель с профилем, уровнем и модерацией.
@@ -22,10 +23,12 @@ const props = defineProps<{
   actions: DesktopMemberAction[]
   busy: boolean
   levelError: string
+  positionError?: string
 }>()
 const emit = defineEmits<{
   act: [action: DesktopMemberAction]
   setLevel: [level: string | null]
+  setPosition: [position: string | null]
 }>()
 
 const moderation = computed(() => props.actions.filter((a) => a !== 'changeRole'))
@@ -39,9 +42,16 @@ const ACTION_LABELS: Record<Exclude<DesktopMemberAction, 'changeRole'>, string> 
   unblock: 'Разблокировать',
 }
 
+const positionValue = computed(() => props.member?.position ?? '')
+
 function onLevel(event: Event) {
   const value = (event.target as HTMLSelectElement).value
   emit('setLevel', value === '' ? null : value)
+}
+
+function onPosition(event: Event) {
+  const value = (event.target as HTMLSelectElement).value
+  emit('setPosition', value === '' ? null : value)
 }
 </script>
 
@@ -94,6 +104,28 @@ function onLevel(event: Event) {
           {{ levels.find((l) => l.code === member?.level)?.title ?? 'Не назначен' }}
         </p>
         <p v-if="levelError" role="alert" class="text-vt-rose-ink">{{ levelError }}</p>
+      </div>
+
+      <div>
+        <label v-if="canSetLevel" class="vt-label" for="player-drawer-position">Амплуа</label>
+        <p v-else class="vt-label">Амплуа</p>
+        <select
+          v-if="canSetLevel"
+          id="player-drawer-position"
+          class="vt-field"
+          :value="positionValue"
+          :disabled="busy"
+          @change="onPosition"
+        >
+          <option value="">Не задано</option>
+          <option v-for="position in PLAYER_POSITIONS" :key="position.code" :value="position.code">
+            {{ position.title }}
+          </option>
+        </select>
+        <p v-else class="vt-player-drawer__value">
+          {{ positionTitle(member?.position) ?? 'Не задано' }}
+        </p>
+        <p v-if="positionError" role="alert" class="text-vt-rose-ink">{{ positionError }}</p>
       </div>
 
       <!-- Статистика игрока: активность, абонемент, задолженность — отдельная карточка. -->

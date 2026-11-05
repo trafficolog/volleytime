@@ -20,12 +20,14 @@ import {
   MemberInvalidTransitionError,
   MemberLevelNotAssignableError,
   MemberNotFoundError,
+  MemberPositionNotAssignableError,
   OwnerCannotLeaveError,
 } from './errors'
 import {
   AddMemberInput,
   ChangeMemberRoleInput,
   SetMemberLevelInput,
+  SetMemberPositionInput,
   type AddMemberInput as AddInput,
 } from './schemas'
 
@@ -42,6 +44,8 @@ export interface MemberWithUser {
   status: OrganizationMember['status']
   /** Уровень игрока в группе (19.2.3); null — не назначен. */
   level: OrganizationMember['level']
+  /** Амплуа игрока в группе (21.2.22); null — не задано. */
+  position: OrganizationMember['position']
   joinedAt: Date | null
   createdAt: Date
   user: { id: number; name: string | null; telegramUsername: string | null; image: string | null }
@@ -169,6 +173,48 @@ export const memberService = {
   },
 
   /**
+   * Назначить или снять (null) амплуа игрока в группе (21.2.22). Как уровень, амплуа принадлежит
+   * участнику группы и задаётся управляющим; игрок его только видит. Не назначается заблокированным,
+   * вышедшим и отклонённым. Права актора (canManageContent) проверяет API-слой; участник чужой
+   * группы — «не найден». Без изменения значения записи в audit нет.
+   */
+  async setPosition(
+    ctx: ServiceContext,
+    memberId: number,
+    input: SetMemberPositionInput,
+  ): Promise<OrganizationMember> {
+    const { position } = SetMemberPositionInput.parse(input)
+    return inTransaction(ctx, async (tx) => {
+      const [m] = await getDb(tx)
+        .select()
+        .from(organizationMembers)
+        .where(eq(organizationMembers.id, memberId))
+        .for('update')
+      if (!m || (ctx.organization && m.organizationId !== ctx.organization.id)) {
+        throw new MemberNotFoundError(memberId)
+      }
+      if (!LEVEL_ASSIGNABLE_STATUSES.includes(m.status)) {
+        throw new MemberPositionNotAssignableError(m.status)
+      }
+      if (m.position === position) return m
+      const [updated] = await getDb(tx)
+        .update(organizationMembers)
+        .set({ position, updatedAt: new Date() })
+        .where(eq(organizationMembers.id, memberId))
+        .returning()
+      await auditService.record(tx, {
+        organizationId: m.organizationId,
+        action: AUDIT_ACTIONS.MEMBER_POSITION_CHANGED,
+        entityType: 'member',
+        entityId: m.id,
+        oldValue: { position: m.position },
+        newValue: { position },
+      })
+      return updated!
+    })
+  },
+
+  /**
    * Переход статуса участника с проверкой исходного статуса и audit (Task 4.9.8).
    * Владельца модерировать нельзя. Права актора проверяет политика requireCanModerate.
    */
@@ -275,6 +321,7 @@ export const memberService = {
         role: organizationMembers.role,
         status: organizationMembers.status,
         level: organizationMembers.level,
+        position: organizationMembers.position,
         joinedAt: organizationMembers.joinedAt,
         createdAt: organizationMembers.createdAt,
         userId: users.id,

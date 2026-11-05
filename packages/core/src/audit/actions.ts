@@ -13,6 +13,7 @@ export const AUDIT_ACTIONS = {
   MEMBER_REJOINED: 'member.rejoined',
   MEMBER_LEFT: 'member.left',
   MEMBER_LEVEL_CHANGED: 'member.level_changed',
+  MEMBER_POSITION_CHANGED: 'member.position_changed',
   INVITE_CREATED: 'invite.created',
   INVITE_REDEEMED: 'invite.redeemed',
   INVITE_REVOKED: 'invite.revoked',

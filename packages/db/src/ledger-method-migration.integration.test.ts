@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { DB } from './client'
 import { runMigrations } from './migrate'
+import { rollbackPlayerPosition } from './migration-test-helpers'
 import { rollbackLastMigration } from './rollback'
 import * as schema from './schema'
 import { seedDemo } from './seed-demo'
@@ -74,6 +75,7 @@ describe('migration 0033 ledger method and categories (integration)', { timeout:
       await runMigrations(url)
       expect(await objects(sql)).toBe(2)
       expect(await enumValues(sql)).toEqual(expect.arrayContaining(['balls', 'referee', 'coach']))
+      await rollbackPlayerPosition(url) // 21.2.22: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await objects(sql)).toBe(0)
       // значения enum PostgreSQL не удаляются: повторная миграция не должна на них падать
@@ -92,6 +94,7 @@ describe('migration 0033 ledger method and categories (integration)', { timeout:
     const { url, sql } = await scratchDb()
     try {
       await runMigrations(url)
+      await rollbackPlayerPosition(url) // 21.2.22: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG) // теперь БД на 0032
       const a = await org(sql, 'lm-a')
       await sql`INSERT INTO ledger_entries (organization_id, type, category, amount, description)
@@ -136,6 +139,7 @@ describe('migration 0033 ledger method and categories (integration)', { timeout:
       const [withMethod] = await sql<{ id: number }[]>`
         INSERT INTO ledger_entries (organization_id, type, category, amount, method)
         VALUES (${a.o}, 'expense', 'rent', 1000, 'cash') RETURNING id`
+      await rollbackPlayerPosition(url) // 21.2.22: новая миграция откатывается первой
       await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0033 refused/)
       expect(await objects(sql)).toBe(2)
       expect(await sql`SELECT 1 FROM ledger_entries`).toHaveLength(1)
@@ -167,6 +171,7 @@ describe('migration 0033 ledger method and categories (integration)', { timeout:
       await runMigrations(url)
       await seedDemo(database)
       const [entries] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM ledger_entries`
+      await rollbackPlayerPosition(url) // 21.2.22: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await sql`SELECT 1 FROM ledger_entries`).toHaveLength(entries!.n)
       await runMigrations(url)

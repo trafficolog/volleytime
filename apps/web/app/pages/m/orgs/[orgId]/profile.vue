@@ -4,6 +4,7 @@ import type { Organization, OrganizationMember } from '@volley-time/db'
 import { groupMonogram } from '~/utils/group-monogram'
 import { playerHomeAccess } from '~/utils/player-home'
 import { levelTitle, type PlayerLevelView } from '~/utils/player-level'
+import { positionTitle } from '~/utils/player-position'
 import { playerGroupOptions, playerProfileFields } from '~/utils/player-navigation'
 
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
@@ -62,6 +63,7 @@ const levelDescription = computed(
     (levelsData.value?.levels ?? []).find((level) => level.code === levelCode.value)?.description ??
     null,
 )
+const positionName = computed(() => positionTitle(data.value?.myMember?.position))
 const access = computed(() =>
   playerHomeAccess(
     orgId.value,
@@ -155,7 +157,7 @@ const access = computed(() =>
         </section>
 
         <section aria-labelledby="profile-level-title">
-          <h2 id="profile-level-title" class="vt-cap mb-2 px-1 text-vt-mute-2">Уровень в группе</h2>
+          <h2 id="profile-level-title" class="vt-cap mb-2 px-1 text-vt-mute-2">Уровень и амплуа</h2>
           <div class="vt-card p-4">
             <template v-if="levelCode">
               <VtChip tone="solid">{{ levelName ?? 'Уровень назначен' }}</VtChip>
@@ -164,6 +166,11 @@ const access = computed(() =>
               </p>
             </template>
             <p v-else class="text-sm text-vt-mute-2">Уровень пока не назначен организатором.</p>
+            <p class="mt-3 text-sm" data-testid="profile-position">
+              <span class="text-vt-mute-2">Амплуа: </span>
+              <span v-if="positionName" class="font-semibold">{{ positionName }}</span>
+              <span v-else class="text-vt-mute-2">пока не задано организатором</span>
+            </p>
           </div>
         </section>
 

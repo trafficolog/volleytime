@@ -57,6 +57,8 @@ export interface MemberRow {
   status: 'pending' | 'active' | 'guest' | 'blocked' | 'left' | 'rejected'
   /** Код уровня В1–В4+ (`v1`…`v4_plus`) или null, если не назначен. */
   level: string | null
+  /** Код амплуа (`setter`…`utility`, 21.2.22) или null/отсутствует, если не задано. */
+  position?: string | null
   joinedAt: string | null
   createdAt: string
   user: { id: number; name: string | null; telegramUsername: string | null; image: string | null }
