@@ -106,6 +106,40 @@ describe('group creation wizard API flow (HTTP integration)', () => {
     expect((invite.body as { deeplinkUrl: string }).deeplinkUrl).toContain('http')
   })
 
+  it('one key per wizard run: retry replays, an edited schedule gets 409, one series and one charge', async () => {
+    const org = await createGroup()
+    const startDate = wizardStartDate(new Date(), org.defaultTimezone)
+    const make = (days: number[]) =>
+      buildWizardSeries({ name: 'Волейбол по средам', days, time: '20:00', seats: '14', startDate })
+    const key = 'wizard-run-key-0002'
+    const post = (body: ReturnType<typeof make>) =>
+      request('POST', `/api/organizations/${org.id}/series`, {
+        user: userId,
+        body: { ...body, idempotencyKey: key },
+      })
+
+    // одна дата в неделю: событий меньше баланса, остаток остаётся выше нуля
+    const first = await post(make([3]))
+    expect(first.status, first.text).toBe(200)
+    const created = first.body as { published: number; balanceAfter: number }
+    expect(created.balanceAfter).toBeGreaterThan(0)
+    expect(await balanceOf(org.id)).toBe(created.balanceAfter)
+
+    const replay = await post(make([3]))
+    expect(replay.body).toMatchObject({ replayed: true })
+    expect(await balanceOf(org.id)).toBe(created.balanceAfter)
+
+    const edited = await post(make([3, 5]))
+    expect(edited.status).toBe(409)
+    expect((edited.body as { data?: { code?: string } }).data?.code).toBe(
+      'series.idempotency_conflict',
+    )
+    expect(await balanceOf(org.id)).toBe(created.balanceAfter)
+    expect(
+      await db.select().from(eventSeries).where(eq(eventSeries.organizationId, org.id)),
+    ).toHaveLength(1)
+  })
+
   it('without a schedule: the group has the demo balance and no events or series', async () => {
     const org = await createGroup()
     expect(await balanceOf(org.id)).toBe(5)

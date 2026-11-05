@@ -10,6 +10,7 @@ import {
   type SeriesCreatedView,
   type SeriesPreviewView,
 } from '~/utils/event-series'
+import { apiErrorCode } from '~/utils/api-error'
 import { registerBackOverlay } from '~/utils/miniapp-back'
 import {
   WIZARD_DEFAULTS,
@@ -50,8 +51,12 @@ let previewSeq = 0
 const creatingSeries = ref(false)
 const seriesError = ref('')
 const seriesResult = ref<SeriesCreatedView | null>(null)
-let seriesKey = ''
-let seriesKeyFor = ''
+// один ключ идемпотентности на запуск мастера: если создание прошло, а клиент увидел ошибку, повтор
+// с изменённым расписанием получит 409 вместо второй серии и второго списания баланса
+const runKey = newIdempotencyKey()
+// попытка создать серию была, итог неизвестен (ошибка) или серия уже есть (409)
+const seriesAttempted = ref(false)
+const seriesExists = ref(false)
 
 const inviteUrl = ref('')
 const inviteLoading = ref(false)
@@ -161,22 +166,25 @@ async function ensureGroup(): Promise<boolean> {
 async function createSeries(): Promise<boolean> {
   const body = seriesBody.value
   if (!group.value || !body || creatingSeries.value || !previewCurrent.value) return false
-  if (seriesKeyFor !== bodyKey.value) {
-    seriesKey = newIdempotencyKey()
-    seriesKeyFor = bodyKey.value
-  }
   creatingSeries.value = true
+  seriesAttempted.value = true
   seriesError.value = ''
   try {
     seriesResult.value = await $fetch<SeriesCreatedView>(
       `/api/organizations/${group.value.id}/series`,
-      { method: 'POST', body: { ...body, idempotencyKey: seriesKey } },
+      { method: 'POST', body: { ...body, idempotencyKey: runKey } },
     )
     haptic('success')
     return true
   } catch (e) {
     haptic('error')
-    seriesError.value = `${apiErrorMessage(e, 'Не удалось создать расписание')}. Группа уже создана: повторите или пропустите шаг и создайте расписание позже.`
+    if (apiErrorCode(e) === 'series.idempotency_conflict') {
+      // серия этого запуска уже создана (прошлая попытка прошла, ответ потерян): идём дальше
+      seriesExists.value = true
+      seriesResult.value = null
+      return true
+    }
+    seriesError.value = `${apiErrorMessage(e, 'Не удалось создать расписание')}. Группа уже создана: повторите или пропустите шаг. Расписание могло создаться — проверьте события группы.`
     return false
   } finally {
     creatingSeries.value = false
@@ -248,13 +256,19 @@ const nextLabel = computed(() => {
   return 'Дальше'
 })
 
-const daysLabel = computed(() =>
-  seriesResult.value
-    ? WEEKDAYS.filter((d) => days.value.includes(d.value))
-        .map((d) => d.short)
-        .join(', ')
-    : 'расписание позже',
-)
+const daysLabel = computed(() => {
+  if (seriesResult.value)
+    return WEEKDAYS.filter((d) => days.value.includes(d.value))
+      .map((d) => d.short)
+      .join(', ')
+  if (seriesExists.value) return 'расписание создано'
+  if (seriesAttempted.value) return 'расписание — проверьте события группы'
+  return 'расписание позже'
+})
+
+watch(bodyKey, () => {
+  seriesError.value = ''
+})
 
 // В Telegram основное действие — системная MainButton (Task 20.4.1); кнопка футера скрыта
 const mainButton = createMainButton(isTelegram.value ? webApp : undefined, () => {
@@ -368,7 +382,11 @@ onUnmounted(() => {
             :key="d.value"
             type="button"
             class="vt-btn vt-btn--sm !py-3"
-            :class="days.includes(d.value) ? 'vt-btn--primary' : ''"
+            :style="
+              days.includes(d.value)
+                ? { background: 'var(--vt-ink)', color: 'var(--vt-paper)' }
+                : { background: 'var(--vt-ctl)', color: 'var(--vt-ink)' }
+            "
             :data-day="d.value"
             :aria-pressed="days.includes(d.value) ? 'true' : 'false'"
             :aria-label="d.name"
@@ -434,14 +452,7 @@ onUnmounted(() => {
       </section>
 
       <section v-else class="space-y-3" data-wizard-done>
-        <h2
-          id="wizard-heading"
-          ref="heading"
-          tabindex="-1"
-          class="text-3xl leading-none font-display outline-none"
-        >
-          Группа создана
-        </h2>
+        <h2 id="wizard-heading" ref="heading" tabindex="-1" class="sr-only">Группа создана</h2>
         <div class="vt-card vt-card--hero p-5">
           <div class="vt-cap opacity-70">Группа создана</div>
           <div class="font-display text-3xl font-bold uppercase leading-none mt-2.5">
@@ -457,6 +468,16 @@ onUnmounted(() => {
             >
           </p>
         </div>
+        <p v-if="seriesExists" class="vt-card p-3.5 text-sm" role="status" data-series-exists>
+          Расписание уже создано. Его события — в списке событий группы.
+        </p>
+        <p
+          v-else-if="seriesAttempted && !seriesResult"
+          class="vt-card p-3.5 text-sm"
+          data-series-unknown
+        >
+          Расписание могло создаться, проверьте события группы.
+        </p>
         <div v-if="seriesResult" class="vt-card p-3.5 space-y-1" data-series-result>
           <p v-for="line in seriesResultLines(seriesResult)" :key="line" class="text-sm">
             {{ line }}

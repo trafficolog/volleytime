@@ -3,6 +3,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch, watchEffect } from 'vue'
 
+import { closeTopBackOverlay, overlayCount } from '../../../utils/miniapp-back'
 import { createMainButton } from '../../../utils/telegram-shell'
 
 import Create from './create.vue'
@@ -305,7 +306,9 @@ describe('step 2 «Расписание»', () => {
     await flushPromises()
     expect(page.find('[data-sub]').text()).toBe('Шаг 3 из 3')
     expect(page.find('[data-series-result]').exists()).toBe(false)
-    expect(text(page)).toContain('расписание позже')
+    expect(text(page)).not.toContain('расписание позже')
+    expect(text(page)).toContain('проверьте события группы')
+    expect(page.find('[data-series-unknown]').exists()).toBe(true)
     expect(create).toHaveBeenCalledTimes(1)
   })
 
@@ -320,9 +323,35 @@ describe('step 2 «Расписание»', () => {
     expect(page.find('[data-invite-link]').text()).toBe('https://t.me/test_bot?start=inv_abc')
   })
 
-  it('changing the schedule gives the next attempt a new idempotency key', async () => {
+  it('keeps one idempotency key per wizard run even when the schedule changes', async () => {
     const series = vi.fn().mockRejectedValue(new Error('fail'))
     const { calls } = stubPage({ series })
+    const page = mountPage()
+    await toStep2(page)
+    await next(page).trigger('click')
+    await flushPromises()
+    expect(page.find('[data-series-error]').exists()).toBe(true)
+    await page.find('[data-day="5"]').trigger('click')
+    await flushPromises()
+    // сообщение об ошибке гаснет при изменении полей
+    expect(page.find('[data-series-error]').exists()).toBe(false)
+    await next(page).trigger('click')
+    await flushPromises()
+    const keys = calls
+      .filter((c) => c.url === '/api/organizations/7/series')
+      .map((c) => c.body?.idempotencyKey)
+    expect(keys).toHaveLength(2)
+    expect(keys[0]).toBe(keys[1])
+  })
+
+  it('series.idempotency_conflict means the schedule already exists: step 3, no duplicate', async () => {
+    let attempt = 0
+    const { calls } = stubPage({
+      series: async () => {
+        if (attempt++ === 0) throw new Error('response lost')
+        throw { data: { data: { code: 'series.idempotency_conflict' } } }
+      },
+    })
     const page = mountPage()
     await toStep2(page)
     await next(page).trigger('click')
@@ -331,10 +360,25 @@ describe('step 2 «Расписание»', () => {
     await flushPromises()
     await next(page).trigger('click')
     await flushPromises()
-    const keys = calls
-      .filter((c) => c.url === '/api/organizations/7/series')
-      .map((c) => c.body?.idempotencyKey)
-    expect(keys[0]).not.toBe(keys[1])
+    expect(page.find('[data-sub]').text()).toBe('Шаг 3 из 3')
+    expect(page.find('[data-series-exists]').text()).toContain('Расписание уже создано')
+    expect(text(page)).not.toContain('расписание позже')
+    expect(calls.filter((c) => c.url === '/api/organizations/7/series')).toHaveLength(2)
+  })
+
+  it('«Далее» stays disabled while the preview is pending', async () => {
+    let resolve!: (v: unknown) => void
+    stubPage({ preview: () => new Promise((r) => (resolve = r)) })
+    const page = mountPage()
+    await toStep2(page)
+    expect(next(page).attributes('disabled')).toBeDefined()
+    resolve({ ...PREVIEW, dates: [], balanceEnforced: true })
+    await flushPromises()
+    expect(next(page).attributes('disabled')).toBeUndefined()
+    // изменили расписание — снова ждём актуальный предпросмотр
+    await page.find('[data-day="5"]').trigger('click')
+    await flushPromises()
+    expect(next(page).attributes('disabled')).toBeDefined()
   })
 
   it('preview error disables «Дальше», offers retry and keeps «Пропустить»', async () => {
@@ -392,6 +436,22 @@ describe('step 3 «Готово»', () => {
 })
 
 describe('accessibility and Telegram', () => {
+  it('the system back button on step 2 goes back to step 1 and keeps the group', async () => {
+    const { create, main } = stubPage({ telegram: true })
+    const page = mountPage()
+    await page.find('#org-name').setValue('Волейбол Минск')
+    await flushPromises()
+    for (const handler of main.handlers) handler()
+    await flushPromises()
+    expect(page.find('[data-sub]').text()).toBe('Шаг 2 из 3')
+    expect(overlayCount()).toBe(1)
+    expect(closeTopBackOverlay()).toBe(true)
+    await flushPromises()
+    expect(page.find('[data-sub]').text()).toBe('Шаг 1 из 3')
+    expect(overlayCount()).toBe(0)
+    expect(create).toHaveBeenCalledTimes(1)
+  })
+
   it('moves focus to the step heading on every step change', async () => {
     stubPage()
     const page = mountPage()
