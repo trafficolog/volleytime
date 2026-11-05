@@ -2,11 +2,11 @@
 id: '21.2.7'
 phase: '21'
 epic: '21.2'
-status: in_progress
+status: done
 release: 'v0.3.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: 'Реализация в PR trafficolog/feat/21.2.7-reports (ветка от main aedd919): API GET …/reports и …/reports/export, общий сервис reportsService в packages/core, экраны «Отчёты» и «Экспорт отчёта»; ждёт ревью Opus и CI. Вне объёма до решения владельца: PDF, Excel, Windows-1251, отчёт «Абонементы».'
+last_reviewed: 2026-11-05
+status_note: 'Выполнено: PR #215 смёржен (ревью Opus и CI пройдены). API GET …/reports и …/reports/export, общий сервис reportsService в packages/core (включая getPlayerAttendance), экраны «Отчёты» и «Экспорт отчёта». PDF, Excel, Windows-1251 и отчёт «Абонементы» — в бэклог v0.3.1 (решение владельца 2026-11-05). Отчёт сверки: docs/operations/qa/2026-11-05-21-2-7-reports-visual.md.'
 ref_id: 'W-10'
 complexity: M
 impl_model: claude-sonnet-5-5
