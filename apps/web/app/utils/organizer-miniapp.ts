@@ -1,7 +1,8 @@
 import type { EventListItem } from '../components/EventCard.vue'
 import type { TabItem } from '../components/vt/TabBar.vue'
 
-import { ROLE_LABELS } from './labels'
+import { formatMoneyRu, ROLE_LABELS } from './labels'
+import { pendingLabel, waitlistOrganizerLabel } from './status-model'
 
 interface Member {
   role: string
@@ -117,4 +118,68 @@ export function pendingPaymentsForEvent<T extends { event?: { id: number } | nul
   eventId: number,
 ): T[] {
   return payments.filter((payment) => payment.event?.id === eventId)
+}
+
+/** Сколько платежей ждёт подтверждения по каждому событию: одна запись списка = одна запись игрока. */
+export function pendingCountsByEvent(
+  payments: readonly { event?: { id: number } | null }[],
+): Map<number, number> {
+  const counts = new Map<number, number>()
+  for (const payment of payments) {
+    const id = payment.event?.id
+    if (id !== undefined) counts.set(id, (counts.get(id) ?? 0) + 1)
+  }
+  return counts
+}
+
+export interface OrganizerEventChip {
+  /** `amber` — нужно действие, `grass` — всё в порядке, `state` — нейтральная информация. */
+  tone: 'amber' | 'grass' | 'state'
+  text: string
+}
+
+interface ChipEvent {
+  status: string
+  taken: number
+  waitlist: number
+  waitlistSeats?: number
+  price: number
+  priceMode?: 'fixed' | 'split'
+  pricing?: { mode: string }
+}
+
+/**
+ * Чипы оплаты в строке события организатора (v3): amber = нужно действие, grass = в порядке,
+ * серый = информация. `pending` — ожидающие платежи события (`null` — данные не пришли: чип оплаты
+ * не рисуем, чтобы не врать «все оплатили»).
+ */
+export function organizerEventChips(
+  event: ChipEvent,
+  pending: number | null,
+): OrganizerEventChip[] {
+  const chips: OrganizerEventChip[] = []
+  const split = event.pricing?.mode === 'split' || event.priceMode === 'split'
+  const live = event.status !== 'cancelled' && event.status !== 'draft'
+  if (live && pending !== null) {
+    if (pending > 0) chips.push({ tone: 'amber', text: `${pendingLabel(pending)} оплаты` })
+    else if (event.taken > 0 && (split || event.price > 0))
+      chips.push({ tone: 'grass', text: 'все оплатили' })
+  }
+  if (live && event.waitlist > 0)
+    chips.push({
+      tone: 'state',
+      text: `очередь · ${waitlistOrganizerLabel(event.waitlist, event.waitlistSeats)}`,
+    })
+  return chips
+}
+
+/** Цена места делёжа в списке: «≈ 30,00 BYN» до закрытия записи, точная после; не split — `null`. */
+export function splitForecastLabel(event: {
+  status: string
+  currency: string
+  pricing?: { mode: string; maxAmount: number; basis: string }
+}): string | null {
+  const pricing = event.pricing
+  if (pricing?.mode !== 'split' || event.status === 'cancelled') return null
+  return `${pricing.basis === 'settled' ? '' : '≈ '}${formatMoneyRu(pricing.maxAmount, event.currency)}`
 }
