@@ -36,6 +36,7 @@ const saving = ref(false)
 const menuOpenId = ref<number | null>(null)
 const deleting = ref<VenueRow | null>(null)
 const deleteOpen = ref(false)
+const deleteBusy = ref(false)
 
 const base = computed(() => `/api/organizations/${props.orgId}/venues`)
 
@@ -134,7 +135,8 @@ function onSelect(venue: VenueRow, item: VtPopoverItem) {
 
 async function confirmDelete() {
   const venue = deleting.value
-  if (!venue) return
+  if (!venue || deleteBusy.value) return
+  deleteBusy.value = true
   try {
     const res = await $fetch<{ outcome: 'deleted' | 'archived'; venue: VenueRow }>(
       `${base.value}/${venue.id}`,
@@ -152,6 +154,7 @@ async function confirmDelete() {
   } catch (cause) {
     emit('toast', apiErrorMessage(cause, 'Не удалось удалить зал'), 'danger')
   } finally {
+    deleteBusy.value = false
     deleting.value = null
   }
 }

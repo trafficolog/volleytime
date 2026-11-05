@@ -107,6 +107,14 @@ describe('venueService (integration)', () => {
     expect(updated.address).toBeNull()
   })
 
+  it('rejects whitespace-only names and trims valid ones', async () => {
+    const ctx = { userId: ownerId }
+    await expect(venueService.create(ctx, { organizationId: orgId, name: '   ' })).rejects.toThrow()
+    const v = await venueService.create(ctx, { organizationId: orgId, name: '  Зал  ' })
+    expect(v.name).toBe('Зал')
+    await expect(venueService.update(ctx, v.id, { name: '  ' }, orgId)).rejects.toThrow()
+  })
+
   it('remove deletes a venue without events', async () => {
     const v = await venueService.create(
       { userId: ownerId },

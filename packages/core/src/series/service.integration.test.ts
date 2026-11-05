@@ -458,6 +458,59 @@ describe('event series (integration, 20.2.2)', () => {
       )
       expect(await db.select().from(eventSeries)).toHaveLength(0)
     })
+
+    it('rejects an archived venue in the template for create and preview (21.2.13)', async () => {
+      const venue = await venueService.create(owner(), { organizationId: orgId, name: 'Старый' })
+      await venueService.archive(owner(), venue.id, orgId)
+      const input = weekly(2, { template: template({ venueId: venue.id }) })
+      expect(await codeOfCall(seriesService.create(owner(), orgId, input))).toBe(
+        'event.venue_archived',
+      )
+      expect(await codeOfCall(seriesService.preview(owner(), orgId, input))).toBe(
+        'event.venue_archived',
+      )
+      expect(await db.select().from(eventSeries)).toHaveLength(0)
+    })
+
+    it('following keeps the archived template venue but refuses another archived one (21.2.13)', async () => {
+      await setBalance(10)
+      const venue = await venueService.create(owner(), { organizationId: orgId, name: 'Зал' })
+      const { series } = await seriesService.create(
+        owner(),
+        orgId,
+        weekly(3, { template: template({ venueId: venue.id }) }),
+      )
+      await venueService.archive(owner(), venue.id, orgId)
+      const result = await seriesService.update(
+        owner(),
+        orgId,
+        series.id,
+        { scope: 'following', from: wed(1) },
+        { capacity: 14 },
+      )
+      expect(result.updated).toBe(2)
+      const [stored] = await db.select().from(eventSeries).where(eq(eventSeries.id, series.id))
+      expect(stored!.template).toMatchObject({ venueId: venue.id, capacity: 14 })
+      expect((await seriesEvents(series.id)).map((e) => e.venueId)).toEqual([
+        venue.id,
+        venue.id,
+        venue.id,
+      ])
+
+      const other = await venueService.create(owner(), { organizationId: orgId, name: 'Другой' })
+      await venueService.archive(owner(), other.id, orgId)
+      expect(
+        await codeOfCall(
+          seriesService.update(
+            owner(),
+            orgId,
+            series.id,
+            { scope: 'following', from: wed(1) },
+            { venueId: other.id },
+          ),
+        ),
+      ).toBe('event.venue_archived')
+    })
   })
 
   describe('idempotency and races', () => {

@@ -109,10 +109,13 @@ export async function assertVenueInOrg(
   /** Зал уже привязан к этому событию/серии: архив не мешает сохранить прежний выбор (21.2.13). */
   opts: { allowArchived?: boolean } = {},
 ): Promise<void> {
-  const venue = await db.query.venues.findFirst({
-    where: and(eq(venues.id, venueId), eq(venues.organizationId, orgId)),
-    columns: { id: true, status: true },
-  })
+  // FOR KEY SHARE до конца транзакции: параллельное «Удалить» зал (FOR UPDATE) ждёт, и событие
+  // или шаблон серии не сохранят зал, который физически удаляется (21.2.13).
+  const [venue] = await db
+    .select({ id: venues.id, status: venues.status })
+    .from(venues)
+    .where(and(eq(venues.id, venueId), eq(venues.organizationId, orgId)))
+    .for('key share')
   if (!venue) throw new VenueNotInOrgError()
   if (venue.status === 'archived' && !opts.allowArchived) throw new VenueArchivedError()
 }
