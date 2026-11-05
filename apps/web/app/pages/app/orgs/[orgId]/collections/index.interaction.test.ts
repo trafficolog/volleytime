@@ -211,12 +211,12 @@ describe('desktop collections list (W-08)', () => {
     expect(failed.text()).toContain('Создание сборов недоступно')
   })
 
-  it('keeps existing collections visible read-only while the flag is off', async () => {
+  it('keeps existing collections visible while the flag is off, without creation', async () => {
     capabilities = { collections: false }
     listReturns([collection(1)])
     const w = await render()
     expect(w.findAll('[data-testid="collection-card"]')).toHaveLength(1)
-    expect(w.find('button').exists()).toBe(false)
+    expect(w.find(NEW_LINK).exists()).toBe(false)
   })
 
   it('shows an empty state and a retryable error', async () => {
@@ -292,9 +292,27 @@ describe('pledges panel (21.2.23)', () => {
     expect(useToast().current.value?.message).toBe('Обещание подтверждено')
   })
 
-  it('rejects a pledge', async () => {
-    const w = await render()
+  const askReject = async (w: VueWrapper) => {
     await w.get('button[aria-label="Отклонить обещание: Игрок 11"]').trigger('click')
+    await flushPromises()
+  }
+
+  it('asks for confirmation before rejecting and does nothing when declined', async () => {
+    const w = await render()
+    await askReject(w)
+    const dialog = document.querySelector('[role="alertdialog"]')!
+    expect(dialog.textContent).toContain('Игрок получит уведомление')
+    expect(writes()).toHaveLength(0)
+    byText('button', 'Не отклонять', dialog)!.click()
+    await flushPromises()
+    expect(writes()).toHaveLength(0)
+    expect(document.querySelector('[role="alertdialog"]')).toBeNull()
+  })
+
+  it('rejects a pledge after confirmation', async () => {
+    const w = await render()
+    await askReject(w)
+    byText('[role="alertdialog"] button', 'Отклонить')!.click()
     await flushPromises()
     expect(apiFetch).toHaveBeenCalledWith(`${BASE}/1/contributions/11/reject`, { method: 'POST' })
     expect(useToast().current.value?.message).toBe('Обещание отклонено')
@@ -342,7 +360,8 @@ describe('pledges panel (21.2.23)', () => {
     const w = await render()
     failWrites(Object.assign(new Error('boom'), { statusCode: 500 }))
     const before = apiFetch.mock.calls.length
-    await w.get('button[aria-label="Отклонить обещание: Игрок 11"]').trigger('click')
+    await askReject(w)
+    byText('[role="alertdialog"] button', 'Отклонить')!.click()
     await flushPromises()
     expect(useToast().current.value).toMatchObject({
       message: 'Не удалось отклонить обещание',
@@ -367,17 +386,28 @@ describe('pledges panel (21.2.23)', () => {
     expect(w.text()).not.toContain('Не удалось загрузить часть обещаний')
   })
 
-  it('shows pledges read-only while the flag is off', async () => {
+  it('still confirms existing pledges while the flag is off', async () => {
     capabilities = { collections: false }
     const w = await render()
-    expect(w.findAll('[data-testid="pledge-row"]')).toHaveLength(2)
-    expect(w.find('button').exists()).toBe(false)
-    expect(w.text()).toContain('решения по обещаниям недоступны')
+    await w.get('button[aria-label="Подтвердить обещание: Игрок 11"]').trigger('click')
+    await flushPromises()
+    expect(apiFetch).toHaveBeenCalledWith(`${BASE}/1/contributions/11/confirm`, { method: 'POST' })
   })
 
-  it('refuses decisions when the flag is off even if invoked', async () => {
+  it('still rejects existing pledges while the flag is off', async () => {
     capabilities = { collections: false }
     const w = await render()
+    await askReject(w)
+    byText('[role="alertdialog"] button', 'Отклонить')!.click()
+    await flushPromises()
+    expect(apiFetch).toHaveBeenCalledWith(`${BASE}/1/contributions/11/reject`, { method: 'POST' })
+  })
+
+  it('shows pledges read-only and refuses decisions when the group cannot be read', async () => {
+    orgFails = true
+    const w = await render()
+    expect(w.findAll('[data-testid="pledge-row"]')).toHaveLength(2)
+    expect(w.find('button[aria-label^="Подтвердить обещание"]').exists()).toBe(false)
     w.getComponent(Pledges).vm.$emit('confirm', { id: 11, collectionId: 1 })
     await flushPromises()
     expect(writes()).toHaveLength(0)
@@ -501,9 +531,17 @@ describe('collection row menu (21.2.23)', () => {
     expect(call[1].body).not.toHaveProperty('deadlineAt')
   })
 
-  it('has no menu while the flag is off', async () => {
+  it('keeps only complete and cancel in the menu while the flag is off', async () => {
     capabilities = { collections: false }
     const w = await render()
-    expect(w.find('button[aria-label^="Действия со сбором"]').exists()).toBe(false)
+    expect(await openMenu(w, 'Идёт')).toEqual(['Завершить сбор', 'Отменить сбор'])
+    document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+    await flushPromises()
+    expect(await openMenu(w, 'Черновик')).toEqual(['Отменить сбор'])
+    byText('[role="menuitem"]', 'Отменить сбор')!.click()
+    await flushPromises()
+    byText('[role="alertdialog"] button', 'Отменить сбор')!.click()
+    await flushPromises()
+    expect(apiFetch).toHaveBeenCalledWith(`${BASE}/2/cancel`, { method: 'POST' })
   })
 })

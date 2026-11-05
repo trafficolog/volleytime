@@ -41,6 +41,8 @@ const org = computed(() =>
 const canCreate = computed(
   () => org.value !== null && orgData.value?.capabilities?.collections === true,
 )
+/** Решения по существующим обещаниям, завершение и отмена работают и при выключенном флаге. */
+const canDecide = computed(() => org.value !== null)
 const tz = computed(() => org.value?.defaultTimezone ?? DEFAULT_TIMEZONE)
 const items = ref<DesktopCollection[]>([])
 const truncated = ref(false)
@@ -137,7 +139,7 @@ async function guarded(work: () => Promise<string>, failure: string) {
 }
 
 async function decide(pledge: DesktopPledge, decision: 'confirm' | 'reject') {
-  if (!canCreate.value || busyPledges.value.has(pledge.id)) return
+  if (!canDecide.value || busyPledges.value.has(pledge.id)) return
   const target = orgId.value
   busyPledges.value = new Set(busyPledges.value).add(pledge.id)
   try {
@@ -163,7 +165,7 @@ async function runCollectionAction(
   work: (target: number) => Promise<string>,
   failure: string,
 ) {
-  if (!canCreate.value || busyCollection.value !== null) return
+  if (!canDecide.value || busyCollection.value !== null) return
   const target = orgId.value
   busyCollection.value = collection.id
   try {
@@ -174,6 +176,8 @@ async function runCollectionAction(
 }
 
 function onRowAction(action: CollectionAction, collection: DesktopCollection) {
+  // правка и публикация — запись при включённом флаге; завершение и отмена — решения по деньгам
+  if ((action === 'edit' || action === 'publish') && !canCreate.value) return
   if (action === 'edit') {
     editTarget.value = collection
     editOpen.value = true
@@ -211,6 +215,14 @@ function runConfirmed() {
     },
     kind === 'cancel' ? 'Не удалось отменить сбор' : 'Не удалось завершить сбор',
   )
+}
+
+const rejectTarget = ref<DesktopPledge | null>(null)
+const rejectOpen = ref(false)
+
+function askReject(pledge: DesktopPledge) {
+  rejectTarget.value = pledge
+  rejectOpen.value = true
 }
 
 function onEdited() {
@@ -264,7 +276,8 @@ const tone = (c: DesktopCollection) =>
     </header>
 
     <p v-if="org && !canCreate" class="vt-card p-4" role="status">
-      Создание сборов пока недоступно. Существующие сборы показаны только для просмотра.
+      Создание сборов пока недоступно. Существующие сборы можно завершить или отменить, а обещания
+      подтвердить или отклонить.
     </p>
     <p v-else-if="!org" class="vt-card p-4" role="status">
       Не удалось проверить настройки группы. Создание сборов недоступно.
@@ -320,8 +333,9 @@ const tone = (c: DesktopCollection) =>
                     COLLECTION_STATUS_LABELS[c.status]
                   }}</VtChip>
                   <DesktopCollectionRowMenu
-                    v-if="canCreate"
+                    v-if="canDecide"
                     :collection="c"
+                    :writable="canCreate"
                     :busy="busyCollection !== null"
                     @action="(action) => onRowAction(action, c)"
                   />
@@ -353,10 +367,10 @@ const tone = (c: DesktopCollection) =>
           <DesktopCollectionPledges
             :pledges="pledges"
             :busy-ids="busyPledges"
-            :readonly="!canCreate"
+            :readonly="!canDecide"
             :partial="pledgesPartial"
             @confirm="(p) => decide(p, 'confirm')"
-            @reject="(p) => decide(p, 'reject')"
+            @reject="askReject"
           />
           <p v-if="pledgesError" class="text-vt-rose-ink text-sm" role="alert">
             {{ pledgesError }}
@@ -398,6 +412,15 @@ const tone = (c: DesktopCollection) =>
         </li>
       </ul>
     </VtAlert>
+    <VtAlert
+      v-model="rejectOpen"
+      danger
+      :title="`Отклонить обещание${rejectTarget ? ` ${money(rejectTarget.amount, rejectTarget.currency)}` : ''}?`"
+      body="Игрок получит уведомление, что обещание отклонено. Отменить это действие в кабинете нельзя."
+      confirm-label="Отклонить"
+      cancel-label="Не отклонять"
+      @confirm="rejectTarget && decide(rejectTarget, 'reject')"
+    />
     <VtToast />
   </section>
 </template>

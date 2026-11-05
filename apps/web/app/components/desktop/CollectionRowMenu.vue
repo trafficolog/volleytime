@@ -10,11 +10,14 @@ import {
  * «Отменить сбор». Пункты зависят от статуса; у закрытого сбора меню нет. Действия выполняет
  * страница, меню только сообщает о выборе.
  */
-const props = defineProps<{ collection: DesktopCollection; busy?: boolean }>()
+const props = withDefaults(
+  defineProps<{ collection: DesktopCollection; busy?: boolean; writable?: boolean }>(),
+  { writable: true },
+)
 const emit = defineEmits<{ action: [action: CollectionAction] }>()
 
 const open = ref(false)
-const items = computed(() => collectionMenuItems(props.collection.status))
+const items = computed(() => collectionMenuItems(props.collection.status, props.writable))
 </script>
 
 <template>

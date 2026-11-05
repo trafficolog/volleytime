@@ -133,8 +133,20 @@ export interface CollectionMenuItem {
   separator?: boolean
 }
 
-/** Пункты меню строки по статусу; закрытый сбор (завершён, отменён) не меняется (409 `collection.not_active`). */
-export function collectionMenuItems(status: DesktopCollection['status']): CollectionMenuItem[] {
+/**
+ * Пункты меню строки по статусу; закрытый сбор (завершён, отменён) не меняется (409
+ * `collection.not_active`). При выключенном флаге сборов («только чтение», 21.2.4) остаются решения
+ * по существующим деньгам (завершить, отменить); правка и публикация скрыты.
+ */
+export function collectionMenuItems(
+  status: DesktopCollection['status'],
+  writable = true,
+): CollectionMenuItem[] {
+  const items = statusMenuItems(status)
+  return writable ? items : items.filter((i) => i.key !== 'edit' && i.key !== 'publish')
+}
+
+function statusMenuItems(status: DesktopCollection['status']): CollectionMenuItem[] {
   if (status === 'draft')
     return [
       { key: 'edit', label: 'Изменить' },

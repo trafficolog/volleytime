@@ -125,6 +125,13 @@ describe('collection row menu by status', () => {
     expect(keys('cancelled')).toEqual([])
   })
 
+  it('hides edit and publish when the flag is off', () => {
+    const k = (status: DesktopCollection['status']) =>
+      collectionMenuItems(status, false).map((i) => i.key)
+    expect(k('draft')).toEqual(['cancel'])
+    expect(k('active')).toEqual(['complete', 'cancel'])
+  })
+
   it('marks cancel as the separated danger item', () => {
     const cancel = collectionMenuItems('active').at(-1)!
     expect(cancel).toMatchObject({ key: 'cancel', tone: 'danger', separator: true })

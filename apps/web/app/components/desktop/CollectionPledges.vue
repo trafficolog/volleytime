@@ -10,7 +10,7 @@ defineProps<{
   pledges: readonly DesktopPledge[]
   /** Взносы, по которым решение уже отправлено. */
   busyIds: ReadonlySet<number>
-  /** Нет права решать (сборы выключены): панель только показывает обещания. */
+  /** Решения недоступны (группа не загрузилась): панель только показывает обещания. */
   readonly?: boolean
   /** Показаны не все сборы с обещаниями. */
   partial?: boolean
@@ -28,7 +28,7 @@ const emit = defineEmits<{ confirm: [pledge: DesktopPledge]; reject: [pledge: De
     </h2>
     <p class="text-vt-mute-2 text-xs">Подтверждённые деньги попадут в кассу.</p>
     <p v-if="readonly" class="text-vt-mute-2 text-xs" role="status">
-      Пока сборы выключены, решения по обещаниям недоступны.
+      Решения по обещаниям сейчас недоступны.
     </p>
     <p v-if="pledges.length === 0" class="text-vt-mute-2 text-sm" role="status">
       Ожидающих обещаний нет
