@@ -1,0 +1,2 @@
+CREATE TYPE "public"."player_position" AS ENUM('setter', 'outside_hitter', 'opposite', 'middle_blocker', 'libero', 'utility');--> statement-breakpoint
+ALTER TABLE "organization_members" ADD COLUMN "position" "player_position";

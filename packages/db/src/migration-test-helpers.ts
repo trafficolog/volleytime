@@ -3,11 +3,24 @@ import postgres from 'postgres'
 import { rollbackLastMigration } from './rollback'
 
 /**
+ * Откат 0034 (21.2.22) отказывает, пока у участников задано амплуа; тесты старых миграций работают
+ * на базах без амплуа. Помощник откатывает 0034 и возвращает тег; следующая миграция добавляет
+ * свой шаг сюда.
+ */
+export async function rollbackPlayerPosition(url: string): Promise<string> {
+  const tag = await rollbackLastMigration(url)
+  if (tag !== '0034_player_position')
+    throw new Error(`expected 0034 to roll back first, got ${tag}`)
+  return tag
+}
+
+/**
  * Откат 0033 (21.2.19) отказывает, пока в кассе есть записи со способом оплаты или категориями
  * «Мячи» / «Судья» / «Тренер»; тесты старых миграций работают на базах без таких записей.
  * Помощник откатывает 0033 и возвращает тег; следующая миграция добавляет свой шаг сюда.
  */
 export async function rollbackLedgerMethod(url: string): Promise<string> {
+  await rollbackPlayerPosition(url) // 21.2.22: новая миграция откатывается первой
   const tag = await rollbackLastMigration(url)
   if (tag !== '0033_ledger_method_categories')
     throw new Error(`expected 0033 to roll back first, got ${tag}`)
