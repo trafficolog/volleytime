@@ -2,11 +2,11 @@
 id: '21.2.1'
 phase: '21'
 epic: '21.2'
-status: in_progress
+status: done
 release: 'v0.3.0'
 sync_state: synced
-last_reviewed: 2026-10-27
-status_note: 'В работе: вёрстка W-02 на данных overview (21.2.18) реализована в ветке trafficolog/feat/21.2.1-overview, открыт PR в main; ревью и визуальная сверка по харнессу (docs/operations/qa/2026-11-05-21-2-1-overview-visual.md) — до приёмки.'
+last_reviewed: 2026-11-05
+status_note: 'Выполнено: PR #208 смёржен (независимое ревью и CI пройдены). Вёрстка W-02 на данных overview (21.2.18); дельты обзора — 21.4.4. Отчёт сверки: docs/operations/qa/2026-11-05-21-2-1-overview-visual.md.'
 ref_id: 'W-02'
 complexity: S
 impl_model: claude-haiku-5-5
