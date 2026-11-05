@@ -76,6 +76,10 @@ const CODE_MESSAGES: Record<string, string> = {
     'Запись закрывается раньше, чем открывается: выберите более раннее открытие записи или меньшее время «Запись закрывается»',
   'event.booking_opens_in_past': 'Время открытия записи должно быть в будущем',
   'event.booking_already_open': 'Запись уже открыта: время открытия больше не меняется',
+  'payment.not_pending': 'Обещание уже обработано или заменено игроком новым. Список обновлён',
+  'collection.not_found': 'Сбор не найден',
+  'collection.not_active': 'Сбор уже закрыт: действие недоступно',
+  'collection.disabled': 'Сборы пока недоступны',
 }
 
 export function apiErrorCode(e: unknown): string | undefined {

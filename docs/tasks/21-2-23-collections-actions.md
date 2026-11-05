@@ -2,11 +2,11 @@
 id: '21.2.23'
 phase: '21'
 epic: '21.2'
-status: todo
+status: in_progress
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-11-05
-status_note: 'Выделена из 21.2.5 решением владельца 2026-11-05: панель обещаний и действия над сбором. Серверных изменений нет.'
+status_note: 'Реализовано в PR (ветка trafficolog/feat/21.2.23-collections-actions): панель обещаний и меню действий, тесты, QA-заметка docs/operations/qa/2026-11-05-21-2-23-cabinet-collections-actions-visual.md. Ждёт ревью claude-opus-5-5 и CI.'
 ref_id: 'W-08'
 complexity: M
 impl_model: claude-sonnet-5-5

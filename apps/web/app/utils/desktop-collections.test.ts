@@ -2,11 +2,18 @@ import { describe, expect, it } from 'vitest'
 
 import {
   buildCollectionBody,
+  buildCollectionPatch,
+  COLLECTION_CANCEL_LINES,
+  collectionDeadlineDay,
   collectionDeadlineIso,
   collectionIconMeta,
+  collectionMenuItems,
   collectionProgress,
+  collectionTargetInput,
   collectionTotals,
   parseCollectionTarget,
+  pendingPledges,
+  pledgePlayerName,
   type DesktopCollection,
 } from './desktop-collections'
 
@@ -98,5 +105,123 @@ describe('desktop collections helpers', () => {
 
   it('falls back to the ball icon for unknown icons', () => {
     expect(collectionIconMeta('unknown')).toBe(collectionIconMeta('ball'))
+  })
+})
+
+describe('collection row menu by status', () => {
+  const keys = (status: DesktopCollection['status']) =>
+    collectionMenuItems(status).map((i) => i.key)
+
+  it('offers edit, publish and cancel for a draft', () => {
+    expect(keys('draft')).toEqual(['edit', 'publish', 'cancel'])
+  })
+
+  it('offers edit, complete and cancel for an active collection', () => {
+    expect(keys('active')).toEqual(['edit', 'complete', 'cancel'])
+  })
+
+  it('has no actions for closed collections', () => {
+    expect(keys('completed')).toEqual([])
+    expect(keys('cancelled')).toEqual([])
+  })
+
+  it('marks cancel as the separated danger item', () => {
+    const cancel = collectionMenuItems('active').at(-1)!
+    expect(cancel).toMatchObject({ key: 'cancel', tone: 'danger', separator: true })
+  })
+
+  it('warns that pending pledges are rejected and players are notified', () => {
+    expect(COLLECTION_CANCEL_LINES[0]).toContain('отклонены')
+    expect(COLLECTION_CANCEL_LINES[0]).toContain('получат уведомление')
+  })
+})
+
+describe('pledges', () => {
+  const contribution = (id: number, status: string) => ({
+    id,
+    user: { id, name: null, telegramUsername: null, image: null },
+    amount: 1500,
+    currency: 'BYN',
+    method: 'cash',
+    status,
+    createdAt: '2026-11-01T10:00:00.000Z',
+    confirmedAt: null,
+  })
+
+  it('keeps only pending contributions and tags them with the collection', () => {
+    const result = pendingPledges({ id: 7, title: 'Мячи' }, [
+      contribution(1, 'pending'),
+      contribution(2, 'succeeded'),
+      contribution(3, 'pending'),
+    ])
+    expect(result.map((p) => p.id)).toEqual([1, 3])
+    expect(result[0]).toMatchObject({ collectionId: 7, collectionTitle: 'Мячи' })
+  })
+
+  it('names the player by name, then username, then a placeholder', () => {
+    const base = { id: 1, image: null }
+    expect(pledgePlayerName({ ...base, name: ' Аня ', telegramUsername: 'a' })).toBe('Аня')
+    expect(pledgePlayerName({ ...base, name: null, telegramUsername: 'anya' })).toBe('@anya')
+    expect(pledgePlayerName({ ...base, name: '', telegramUsername: null })).toBe('Игрок')
+  })
+})
+
+describe('collection edit patch', () => {
+  const NOW = new Date('2026-11-05T09:00:00Z')
+  const form = {
+    title: ' Мячи ',
+    description: '',
+    icon: 'ball',
+    target: '250,50',
+    deadline: '',
+  }
+
+  it('formats the target for the field', () => {
+    expect(collectionTargetInput(null)).toBe('')
+    expect(collectionTargetInput(25000)).toBe('250')
+    expect(collectionTargetInput(25050)).toBe('250,50')
+  })
+
+  it('converts the deadline to a day in the group zone', () => {
+    expect(collectionDeadlineDay(null, 'Europe/Minsk')).toBe('')
+    expect(collectionDeadlineDay('2026-11-20T20:59:00.000Z', 'Europe/Minsk')).toBe('2026-11-20')
+  })
+
+  it('never sends status and omits an untouched deadline', () => {
+    const result = buildCollectionPatch(
+      { ...form, deadline: '2026-10-01' },
+      '2026-10-01',
+      'UTC',
+      NOW,
+    )
+    expect(result).toEqual({
+      ok: true,
+      body: { title: 'Мячи', description: null, icon: 'ball', targetAmount: 25050 },
+    })
+  })
+
+  it('sends null for a cleared deadline and an ISO value for a changed one', () => {
+    const cleared = buildCollectionPatch(form, '2026-12-01', 'UTC', NOW)
+    expect(cleared).toMatchObject({ ok: true, body: { deadlineAt: null } })
+    const changed = buildCollectionPatch(
+      { ...form, deadline: '2026-12-02' },
+      '2026-12-01',
+      'UTC',
+      NOW,
+    )
+    expect(changed).toMatchObject({ ok: true, body: { deadlineAt: '2026-12-02T23:59:00.000Z' } })
+  })
+
+  it('reports field errors', () => {
+    const result = buildCollectionPatch({ ...form, title: '', target: '0' }, '', 'UTC', NOW)
+    expect(result).toMatchObject({
+      ok: false,
+      errors: { title: expect.any(String), target: expect.any(String) },
+    })
+  })
+
+  it('rejects a new deadline in the past', () => {
+    const result = buildCollectionPatch({ ...form, deadline: '2026-11-01' }, '', 'UTC', NOW)
+    expect(result).toMatchObject({ ok: false, errors: { deadline: expect.any(String) } })
   })
 })
