@@ -268,6 +268,12 @@ const ROUTES: OrgRouteTable = {
     body: () => ({}),
   },
   'POST /api/organizations/:orgId/venues': { access: 'manager', body: () => ({ name: 'Зал 2' }) },
+  // 21.2.13: правка и удаление/архив зала — manager, зал чужой группы недоступен
+  'PATCH /api/organizations/:orgId/venues/:venueId': {
+    access: 'manager',
+    body: () => ({ name: 'Зал переименован' }),
+  },
+  'DELETE /api/organizations/:orgId/venues/:venueId': { access: 'manager' },
 }
 
 function seriesBody(extra: Record<string, unknown> = {}) {

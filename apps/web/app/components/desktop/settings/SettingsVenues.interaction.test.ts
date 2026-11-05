@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { flushPromises, mount } from '@vue/test-utils'
+import { computed } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import SettingsVenues from './SettingsVenues.vue'
@@ -9,6 +10,7 @@ const fetchMock = vi.fn()
 beforeEach(() => {
   fetchMock.mockReset()
   vi.stubGlobal('$fetch', fetchMock)
+  vi.stubGlobal('computed', computed)
   vi.stubGlobal('apiErrorMessage', (_e: unknown, fallback: string) => fallback)
 })
 afterEach(() => {
@@ -30,8 +32,8 @@ describe('SettingsVenues', () => {
       ],
     })
     const wrapper = await mountVenues()
-    expect(fetchMock).toHaveBeenCalledWith('/api/organizations/7/venues')
-    expect(wrapper.findAll('li')).toHaveLength(2)
+    expect(fetchMock).toHaveBeenCalledWith('/api/organizations/7/venues?includeArchived=true')
+    expect(wrapper.findAll('li.vt-settings-venue')).toHaveLength(2)
     expect(wrapper.text()).toContain('ул. Кропоткина 91')
   })
 

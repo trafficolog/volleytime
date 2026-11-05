@@ -49,6 +49,7 @@ import {
   EventNotFoundError,
   EventSchedulerDisabledError,
   EventStartsInPastError,
+  VenueArchivedError,
   VenueNotInOrgError,
 } from './errors'
 import { isInviteModeEnabled } from './join-mode-capability'
@@ -105,12 +106,15 @@ export async function assertVenueInOrg(
   db: ReturnType<typeof getDb>,
   venueId: number,
   orgId: number,
+  /** Зал уже привязан к этому событию/серии: архив не мешает сохранить прежний выбор (21.2.13). */
+  opts: { allowArchived?: boolean } = {},
 ): Promise<void> {
   const venue = await db.query.venues.findFirst({
     where: and(eq(venues.id, venueId), eq(venues.organizationId, orgId)),
-    columns: { id: true },
+    columns: { id: true, status: true },
   })
   if (!venue) throw new VenueNotInOrgError()
+  if (venue.status === 'archived' && !opts.allowArchived) throw new VenueArchivedError()
 }
 
 export interface EventStats {
@@ -485,7 +489,11 @@ export const eventService = {
           )
         }
       }
-      if (data.venueId) await assertVenueInOrg(db, data.venueId, existing.organizationId)
+      if (data.venueId) {
+        await assertVenueInOrg(db, data.venueId, existing.organizationId, {
+          allowArchived: data.venueId === existing.venueId,
+        })
+      }
       // переключение в invite — под тем же lock события, что и запись (20.1.3)
       if (data.joinMode === 'invite' && existing.joinMode !== 'invite') {
         requireInviteModeCapability()

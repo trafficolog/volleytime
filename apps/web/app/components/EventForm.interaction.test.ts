@@ -199,6 +199,60 @@ describe('EventForm payload and state', () => {
     })
   })
 
+  it('offers only active venues, but keeps the event archived venue selected (21.2.13)', async () => {
+    apiFetch.mockImplementation(async (url: string) => {
+      if (url.includes('includeArchived=true')) {
+        return {
+          venues: [
+            { id: 8, name: 'Зал', address: null },
+            { id: 99, name: 'Старый зал', address: null },
+          ],
+        }
+      }
+      if (url.endsWith('/settings')) {
+        return { settings: { cancellationAllowed: true, cancellationDeadlineHours: 12 } }
+      }
+      if (url.endsWith('/venues')) return { venues: [{ id: 8, name: 'Зал', address: null }] }
+      return { event: { id: 71 } }
+    })
+    const created = await renderForm()
+    await created.get('[role="combobox"][aria-labelledby$="-venue"]').trigger('click')
+    const labels = created.findAll('[role="option"]').map((o) => o.text())
+    expect(labels).toContain('Зал')
+    expect(labels.some((l) => l.includes('Старый зал'))).toBe(false)
+    created.unmount()
+
+    const wrapper = await renderForm({
+      id: 71,
+      organizationId: 30,
+      createdByUserId: 9,
+      type: 'training',
+      title: 'Игра',
+      priceMode: 'fixed',
+      targetAmount: null,
+      pricingSettledAt: null,
+      pricingParticipantCount: null,
+      startsAt: new Date('2026-09-27T16:00:00.000Z'),
+      endsAt: new Date('2026-09-27T18:00:00.000Z'),
+      venueId: 99,
+      locationText: null,
+      capacity: 12,
+      price: 0,
+      currency: 'BYN',
+      cancellationDeadlineHours: 6,
+      cancellationAllowed: true,
+      level: null,
+      joinMode: 'open' as const,
+      seriesId: null,
+      seriesDate: null,
+      status: 'published',
+    } as unknown as Event)
+    expect(wrapper.get('[role="combobox"][aria-labelledby$="-venue"]').text()).toContain(
+      'Старый зал (архив)',
+    )
+    wrapper.unmount()
+  })
+
   it('edits a draft with zero price and preserves entered values after an API error', async () => {
     const wrapper = await renderForm({
       id: 71,

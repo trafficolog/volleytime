@@ -61,6 +61,7 @@ const CODE_STATUS: Record<string, number> = {
   'event.split_target_too_small': 409,
   'event.split_booking_invalid': 409,
   'event.venue_not_in_org': 422,
+  'event.venue_archived': 422,
   'plan.not_found': 404,
   'plan.not_available': 409,
   'booking.already_booked': 409,

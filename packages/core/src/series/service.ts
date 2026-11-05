@@ -334,7 +334,11 @@ async function mergeTemplate(
   const merged: Record<string, unknown> = { ...template, ...changes }
   for (const key of NULLABLE_BY_ABSENCE) if (merged[key] === null) delete merged[key]
   const next = SeriesTemplateInput.parse(merged)
-  if (next.venueId !== undefined) await assertVenueInOrg(getDb(ctx), next.venueId, orgId)
+  if (next.venueId !== undefined) {
+    await assertVenueInOrg(getDb(ctx), next.venueId, orgId, {
+      allowArchived: next.venueId === template.venueId,
+    })
+  }
   eventInputFor(next, {
     date: '2000-01-01',
     startsAt: new Date(0),
