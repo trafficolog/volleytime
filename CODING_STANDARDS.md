@@ -13,6 +13,7 @@ Read this document before implementing, reviewing or integrating changes. For th
 - One task per branch from `main`: `trafficolog/<type>/<id>-<slug>`, where type is `feat`, `fix`, `test`, `docs` or `chore`.
 - Use Conventional Commits with `Task: <id>` and `Release: <version>` trailers; select the version from RELEASES.
 - Create a PR into `main`, linking the task and closing its issue when one exists. Merge after task acceptance, review findings and applicable CI gates are satisfied.
+- If `main` has moved in overlapping files since the PR's last CI run, update the branch from `main` and merge only on a fresh green run.
 - Preserve published release tags. Production promotion and rollback follow the [deploy runbook](docs/operations/runbooks/deploy.md), separately from task merge into main.
 
 ## Verification and evidence
