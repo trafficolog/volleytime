@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Organization, OrganizationMember } from '@volley-time/db'
-import { formatDay, formatShortDate, formatTime, type EventPricingView } from '@volley-time/shared'
+import { formatShortDate, type EventPricingView } from '@volley-time/shared'
 
 import type { EventListItem } from '~/components/EventCard.vue'
 import GroupSwitcher from '~/components/GroupSwitcher.vue'
