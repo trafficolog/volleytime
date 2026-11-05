@@ -2,11 +2,11 @@
 id: '21.2.6'
 phase: '21'
 epic: '21.2'
-status: todo
+status: in_progress
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-10-12
-status_note: ''
+status_note: 'Реализовано в PR (ветка trafficolog/feat/21.2.6-cabinet-subscriptions): карточки планов и форма с превью в стиле v3, подтверждение выключения абонементов, тесты, QA-заметка docs/operations/qa/2026-11-05-21-2-6-cabinet-subscriptions-visual.md. Ждёт ревью claude-sonnet-5-5 и CI.'
 ref_id: 'W-09'
 complexity: M
 impl_model: claude-sonnet-5-5

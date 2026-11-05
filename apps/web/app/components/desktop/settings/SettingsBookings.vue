@@ -3,6 +3,7 @@ import { computed, reactive, ref, useId, watch } from 'vue'
 
 import SettingsRow from './SettingsRow.vue'
 
+import VtAlert from '~/components/vt/Alert.vue'
 import VtSegment from '~/components/vt/Segment.vue'
 import VtSelect from '~/components/vt/Select.vue'
 import {
@@ -48,6 +49,13 @@ const draft = reactive({
 const errors = ref<SettingsErrors>({})
 const formError = ref('')
 const saving = ref(false)
+const confirmSubsOff = ref(false)
+
+/** Включение сохраняется сразу; выключение сначала показывает последствия. */
+function onSubscriptionsToggle(value: boolean) {
+  if (value) void props.controller.toggle('subscriptionsEnabled', true)
+  else confirmSubsOff.value = true
+}
 
 function reset() {
   draft.maxSeatsPerBooking = props.settings.maxSeatsPerBooking
@@ -134,7 +142,20 @@ async function submit() {
         :model-value="settings.subscriptionsEnabled"
         :disabled="controller.isPending('subscriptionsEnabled')"
         :readonly="!canEdit"
-        @update:model-value="controller.toggle('subscriptionsEnabled', $event)"
+        @update:model-value="onSubscriptionsToggle"
+      />
+      <p v-if="!settings.subscriptionsEnabled" class="vt-settings-hint">
+        Игроки не смогут покупать абонементы и оплачивать ими новые записи. Остатки, история и планы
+        сохранятся, срок действия продолжает идти; после повторного включения остаток снова можно
+        использовать.
+      </p>
+      <VtAlert
+        v-model="confirmSubsOff"
+        title="Выключить абонементы?"
+        body="Раздел «Абонементы» скроется в кабинете. Игроки не смогут покупать абонементы и оплачивать ими новые записи. Остатки, история и планы сохранятся, срок действия продолжает идти; после повторного включения остаток снова можно использовать."
+        confirm-label="Выключить"
+        danger
+        @confirm="controller.toggle('subscriptionsEnabled', false)"
       />
     </section>
 

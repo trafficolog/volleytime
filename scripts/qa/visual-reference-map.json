@@ -472,6 +472,17 @@
       "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
     },
     {
+      "id": "cabinet-plans-new",
+      "title": "Кабинет: новый план абонемента",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/plans",
+      "steps": [{ "click": "header button:has-text('Новый план')" }],
+      "references": ["4-cabinet/08-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
       "id": "cabinet-cashbox",
       "title": "Кабинет: касса",
       "viewport": "cabinet",
