@@ -2,11 +2,11 @@
 id: '21.2.12'
 phase: '21'
 epic: '21.2'
-status: in_progress
+status: done
 release: 'v0.3.0'
 sync_state: synced
-last_reviewed: 2026-10-15
-status_note: 'Реализовано в PR (ветка trafficolog/feat/21.2.12-schedule-templates): миграция 0035 schedule_slots, API слотов, раздел «Расписание по умолчанию», подстановка слота в форму события и серии, визуальная сверка docs/operations/qa/2026-11-06-21-2-12-settings-schedule-visual.md. Ждёт ревью claude-opus-5-5 и CI.'
+last_reviewed: 2026-11-06
+status_note: 'Выполнено: PR #222 смёржен (ревью Opus и CI пройдены). Шаблоны слотов расписания по умолчанию, миграция 0035. Отчёт сверки: docs/operations/qa/2026-11-06-21-2-12-settings-schedule-visual.md.'
 ref_id: 'W-11'
 complexity: M
 impl_model: claude-sonnet-5-5
