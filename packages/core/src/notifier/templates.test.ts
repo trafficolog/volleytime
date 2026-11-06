@@ -219,3 +219,32 @@ describe('кнопки действий в уведомлениях (20.3.3)', (
     expect(callbacks('payment_confirmed')).toEqual([])
   })
 })
+
+describe('исключение из группы (21.2.21)', () => {
+  it('игроку: без ссылки в группу, с числом отменённых записей и напоминанием про деньги', () => {
+    const m = renderMessage('member_excluded', {
+      organizationName: 'Лига <1>',
+      cancelledBookings: 2,
+      miniAppUrl: 'https://vt.by/m/',
+    })
+    expect(m.text).toContain('Лига &lt;1&gt;')
+    expect(m.text).toContain('Будущие записи отменены: 2')
+    expect(m.text).toContain('автоматически не возвращаются')
+    expect(m.keyboard).toBeUndefined()
+    expect(renderMessage('member_excluded', {}).text).not.toContain('Будущие записи')
+  })
+  it('управляющему: оплаченные места к ручному возврату', () => {
+    const m = renderMessage('member_excluded_organizer', {
+      playerName: 'Иван',
+      cancelledBookings: 3,
+      paidSeats: 2,
+      miniAppUrl: 'https://vt.by/m/',
+    })
+    expect(m.text).toContain('Иван')
+    expect(m.text).toContain('Отменено будущих записей: 3')
+    expect(m.text).toContain('Оплаченных мест: 2')
+    expect(renderMessage('member_excluded_organizer', { cancelledBookings: 0 }).text).not.toContain(
+      'Оплаченных',
+    )
+  })
+})

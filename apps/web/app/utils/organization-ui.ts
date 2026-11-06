@@ -13,6 +13,7 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
   'member.blocked': 'Участник заблокирован',
   'member.unblocked': 'Участник разблокирован',
   'member.role_changed': 'Роль участника изменена',
+  'member.excluded': 'Участник исключён из группы',
   'member.kicked': 'Участник удалён',
   'invite.created': 'Приглашение создано',
   'invite.revoked': 'Приглашение отозвано',

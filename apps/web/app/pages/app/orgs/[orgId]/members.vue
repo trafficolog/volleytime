@@ -3,7 +3,11 @@ import type { OrganizationMember } from '@volley-time/db'
 import { formatDay, type PlayersStatsPeriod } from '@volley-time/shared'
 
 import type { MemberRow } from '~/composables/useOrganizations'
-import { desktopMemberActions, type DesktopMemberAction } from '~/utils/desktop-member-actions'
+import {
+  canExcludeMember,
+  desktopMemberActions,
+  type DesktopMemberAction,
+} from '~/utils/desktop-member-actions'
 import { isLiveDesktopRoute } from '~/utils/desktop-org-ui'
 import {
   activityView,
@@ -74,6 +78,7 @@ const actionError = ref('')
 const levelError = ref('')
 const positionError = ref('')
 const inviteNotice = ref('')
+const excludeError = ref('')
 const busy = ref(false)
 const selectedId = ref<number | null>(null)
 const selectedRoles = reactive<Record<number, 'organizer' | 'assistant' | 'player'>>({})
@@ -99,6 +104,14 @@ function actions(member: MemberRow): DesktopMemberAction[] {
     status: member.status,
     userId: member.user.id,
   })
+}
+
+watch(selectedId, () => {
+  excludeError.value = ''
+})
+
+function memberTarget(member: MemberRow) {
+  return { role: member.role, status: member.status, userId: member.user.id }
 }
 
 function canSetLevel(member: MemberRow): boolean {
@@ -187,6 +200,36 @@ async function act(member: MemberRow, action: DesktopMemberAction) {
   } catch (cause) {
     if (alive && isLiveDesktopRoute(route.path, expectedPath))
       actionError.value = apiErrorMessage(cause, 'Не удалось выполнить действие')
+  } finally {
+    busy.value = false
+  }
+}
+
+/** «Удалить из группы» (21.2.21): подтверждение с последствиями — в карточке игрока. */
+async function exclude(member: MemberRow, reason: string) {
+  if (busy.value || !canExcludeMember(actor.value, memberTarget(member))) return
+  const targetOrgId = orgId.value
+  const expectedPath = path.value
+  busy.value = true
+  excludeError.value = ''
+  actionError.value = ''
+  inviteNotice.value = ''
+  try {
+    const result = await $fetch<{ cancelledBookings: number; paidSeats: number }>(
+      `/api/organizations/${targetOrgId}/members/${member.id}/exclude`,
+      { method: 'POST', body: reason ? { reason } : {} },
+    )
+    if (!alive || !isLiveDesktopRoute(route.path, expectedPath) || orgId.value !== targetOrgId)
+      return
+    inviteNotice.value =
+      `${displayName(member.user)} удалён из группы. Отменено записей: ${result.cancelledBookings}.` +
+      (result.paidSeats > 0
+        ? ` Оплаченных мест: ${result.paidSeats}. Деньги вернуть нужно вручную.`
+        : '')
+    await load()
+  } catch (cause) {
+    if (alive && isLiveDesktopRoute(route.path, expectedPath))
+      excludeError.value = apiErrorMessage(cause, 'Не удалось удалить из группы')
   } finally {
     busy.value = false
   }
@@ -536,11 +579,14 @@ const filtered = computed(() => query.value.trim() !== '' || levelFilter.value !
       :busy="busy"
       :level-error="levelError"
       :position-error="positionError"
+      :can-exclude="selected ? canExcludeMember(actor, memberTarget(selected)) : false"
+      :exclude-error="excludeError"
       :stats-period="showStats ? statsPeriod : null"
       :timezone="tz"
       @act="(action) => selected && act(selected, action)"
       @set-level="(level) => selected && setLevel(selected, level)"
       @set-position="(position) => selected && setPosition(selected, position)"
+      @exclude="(reason) => selected && exclude(selected, reason)"
     />
   </section>
 </template>

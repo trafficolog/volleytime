@@ -19,6 +19,9 @@ export type NotificationType =
   // запросы приглашения на событие «по приглашению» (20.4.7)
   | 'invite_request_organizer'
   | 'invite_request_decided'
+  // исключение из группы (21.2.21): игроку — об исключении, управляющим — о последствиях для записей
+  | 'member_excluded'
+  | 'member_excluded_organizer'
 
 export interface KeyboardButton {
   text: string
@@ -77,6 +80,12 @@ export interface TemplateParams {
   keptSeats?: number
   /** Ответ организатора на запрос приглашения: `true` — приглашение выдано (20.4.7). */
   inviteApproved?: boolean
+  /** Название группы для сообщений об исключении (21.2.21): игроку без ссылки в группу. */
+  organizationName?: string
+  /** Сколько будущих записей отменено исключением (21.2.21). */
+  cancelledBookings?: number
+  /** Оплаченные места отменённых записей: возврат — только вручную (D-14, 21.2.21). */
+  paidSeats?: number
   /** Запрос приглашения организатору: в ленте показывается не как заявка на оплату (20.4.7). */
   inviteRequest?: boolean
 }
@@ -240,6 +249,34 @@ export function renderMessage(type: NotificationType, p: TemplateParams): Render
             `Приглашение одноразовое. Место не держится, пока вы не запишетесь.`
           : `Организатор не смог пригласить вас на <b>${title}</b>${when}.\n\n` +
             `Вы можете отправить запрос снова.`,
+        keyboard: openBtn(),
+      }
+    // исключение без блокировки (21.2.21): вернуться можно по новому приглашению
+    case 'member_excluded':
+      return {
+        text:
+          `Вас исключили из группы <b>${p.organizationName ? esc(p.organizationName) : 'группа'}</b>.` +
+          (p.cancelledBookings
+            ? `
+
+Будущие записи отменены: ${p.cancelledBookings}. Деньги за оплаченные места ` +
+              `автоматически не возвращаются — уточните у организатора.`
+            : '') +
+          `
+
+Абонемент остаётся за вами. Вы можете вернуться по новому приглашению организатора.`,
+      }
+    case 'member_excluded_organizer':
+      return {
+        text:
+          `Игрок ${esc(p.playerName ?? '—')} исключён из группы.
+` +
+          `Отменено будущих записей: ${p.cancelledBookings ?? 0}` +
+          (p.paidSeats
+            ? `
+💸 Оплаченных мест: ${p.paidSeats} — возврат автоматически не делается, ` +
+              `верните деньги вручную.`
+            : ''),
         keyboard: openBtn(),
       }
     case 'waitlist_offer_expired':
