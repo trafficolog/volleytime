@@ -313,6 +313,16 @@
       "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
     },
     {
+      "id": "organizer-event-new",
+      "title": "Организатор: новое событие",
+      "viewport": "miniapp",
+      "role": "organizer",
+      "org": "vt",
+      "path": "/m/orgs/{org}/events/new",
+      "references": ["3-miniapp-organizer/05-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
       "id": "organizer-payments",
       "title": "Организатор: платежи",
       "viewport": "miniapp",
