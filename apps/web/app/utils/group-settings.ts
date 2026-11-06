@@ -18,11 +18,19 @@ export interface GroupSettings {
 }
 
 export type SettingsSectionKey =
-  'profile' | 'bookings' | 'venues' | 'team' | 'notifications' | 'integrations' | 'danger'
+  | 'profile'
+  | 'schedule'
+  | 'bookings'
+  | 'venues'
+  | 'team'
+  | 'notifications'
+  | 'integrations'
+  | 'danger'
 
 export const SETTINGS_SECTIONS: { key: SettingsSectionKey; label: string; ownerOnly?: boolean }[] =
   [
     { key: 'profile', label: 'Профиль' },
+    { key: 'schedule', label: 'Расписание по умолчанию' },
     { key: 'bookings', label: 'Записи и оплата' },
     { key: 'venues', label: 'Залы и площадки' },
     { key: 'team', label: 'Команда' },

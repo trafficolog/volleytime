@@ -40,6 +40,9 @@ describe('group settings sections', () => {
     expect(parseSection('danger', true)).toBe('danger')
     expect(parseSection(['bookings'], true)).toBe('bookings')
     expect(parseSection('nope', true)).toBe('profile')
+    // расписание по умолчанию видят и правят владелец и организатор (21.2.12)
+    expect(visibleSections(false).map((s) => s.key)).toContain('schedule')
+    expect(parseSection('schedule', false)).toBe('schedule')
     expect(parseSection(undefined, true)).toBe('profile')
   })
 
@@ -61,7 +64,7 @@ describe('group settings sections', () => {
     ] as const) {
       expect(SETTING_IMPACT[key].length).toBeGreaterThan(20)
     }
-    expect(SETTINGS_SECTIONS).toHaveLength(7)
+    expect(SETTINGS_SECTIONS).toHaveLength(8)
   })
 })
 
