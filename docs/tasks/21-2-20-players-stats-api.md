@@ -2,11 +2,11 @@
 id: '21.2.20'
 phase: '21'
 epic: '21.2'
-status: todo
+status: done
 release: 'v0.3.0'
 sync_state: synced
-last_reviewed: 2026-11-04
-status_note: 'Выделена из 21.2.2 решением владельца 2026-11-04 (журнал решений, «Кабинет «Игроки» (21.2.2)»).'
+last_reviewed: 2026-11-06
+status_note: 'Выполнено: PR #221 смёржен (ревью Opus и CI пройдены). Агрегаты playerStatsService (активность, абонемент, долг), колонки и статистика карточки на экране игроков, без миграций; посещаемость через reportsService.getPlayerAttendance. Инженерные умолчания — в журнале решений (2026-11-06). Отчёт сверки: docs/operations/qa/2026-11-05-21-2-20-players-stats-visual.md.'
 ref_id: 'W-06'
 complexity: M
 impl_model: claude-sonnet-5-5

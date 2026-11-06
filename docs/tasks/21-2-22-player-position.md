@@ -2,11 +2,11 @@
 id: '21.2.22'
 phase: '21'
 epic: '21.2'
-status: in_progress
+status: done
 release: 'v0.3.0'
 sync_state: synced
-last_reviewed: 2026-11-05
-status_note: 'Выделена из 21.2.2 решением владельца 2026-11-04: нужна миграция. Решение 2026-11-05: амплуа задаёт организатор, хранится по членству в группе; игрок только видит. Реализация в PR (ветка trafficolog/feat/21.2.22-player-position): миграция 0034, откат с предохранителем, PATCH members/{id}/position, колонка и поле в кабинете, строка в профиле Mini App; guard и capability не нужны (runbook, ADR 19.2.1).'
+last_reviewed: 2026-11-06
+status_note: 'Выполнено: PR #219 смёржен (ревью Opus и CI пройдены). Миграция 0034 (амплуа в членстве группы), откат с предохранителем; capability в guard отката не добавлена (прежний runtime nullable-колонку игнорирует). Амплуа задаёт организатор, игрок видит; перечень подтверждён владельцем 2026-11-05. Отчёт сверки: docs/operations/qa/2026-11-05-21-2-22-player-position-visual.md.'
 ref_id: 'W-06'
 complexity: M
 impl_model: claude-sonnet-5-5

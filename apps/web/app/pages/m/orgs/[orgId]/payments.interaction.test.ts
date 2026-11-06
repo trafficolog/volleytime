@@ -70,7 +70,7 @@ async function renderPayments() {
   const wrapper = mount(host, {
     global: {
       stubs: {
-        VtMiniHeader: { template: '<header />' },
+        VtMiniHeader: { props: ['sub'], template: '<header>{{ sub }}</header>' },
         VtAvatar: { template: '<span />' },
         VtChip: { template: '<span><slot /></span>' },
         VtIcon: { template: '<span />' },
@@ -107,6 +107,22 @@ describe('general pending payment queue', () => {
     expect(wrapper.text()).toContain('Онлайн')
     expect(wrapper.text()).toContain('25,00 BYN')
     expect(wrapper.text()).toContain('30,00 EUR')
+    wrapper.unmount()
+  })
+
+  it('summarises the queue in the header and shows the per-seat price of multi-seat bookings (21.1.1)', async () => {
+    pending = [
+      { ...payment, amount: 6000, seats: 2 } as never,
+      { ...payment, id: 12, amount: 1500, seats: 1 } as never,
+      { ...payment, id: 13, amount: 1000, seats: 3 } as never,
+    ]
+    const wrapper = await renderPayments()
+    expect(wrapper.get('header').text()).toBe('3 платежа · сумма 85,00 BYN')
+    expect(wrapper.text()).toContain('2 места × 30,00 BYN')
+    // сумма не делится на места поровну: цену места не выдумываем
+    expect(wrapper.text()).toContain('3 места')
+    expect(wrapper.text()).not.toContain('3 места ×')
+    expect(wrapper.text()).not.toContain('1 место')
     wrapper.unmount()
   })
 

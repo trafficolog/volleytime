@@ -1,15 +1,23 @@
 <script setup lang="ts">
+import type { PlayersStatsPeriod } from '@volley-time/shared'
+
 import type { MemberRow } from '~/composables/useOrganizations'
 import type { DesktopMemberAction } from '~/utils/desktop-member-actions'
 import { telegramChatUrl } from '~/utils/desktop-players'
+import {
+  activityView,
+  debtView,
+  playerStatsPeriodLabel,
+  subscriptionView,
+} from '~/utils/desktop-players-stats'
 import { MEMBER_STATUS_LABELS, ROLE_LABELS, displayName, label } from '~/utils/labels'
 import type { PlayerLevelView } from '~/utils/player-level'
 import { PLAYER_POSITIONS, positionTitle } from '~/utils/player-position'
 
 /**
  * Карточка игрока (W-06): боковая панель с профилем, уровнем и модерацией.
- * Точка расширения: слот `stats` — статистика игрока (Активность / Абонемент / Задолженность)
- * появится вместе с API статистики игроков (отдельная карточка).
+ * Статистика игрока (21.2.20: активность, абонемент, задолженность) показывается управляющему,
+ * если `member.stats` пришла из API; слот `stats` переопределяет блок.
  */
 const open = defineModel<boolean>({ default: false })
 const props = defineProps<{
@@ -24,6 +32,10 @@ const props = defineProps<{
   busy: boolean
   levelError: string
   positionError?: string
+  /** Период посещаемости ответа API (локальные даты группы); без него подпись периода не рисуется. */
+  statsPeriod?: PlayersStatsPeriod | null
+  /** Часовой пояс группы для дат статистики. */
+  timezone?: string
 }>()
 const emit = defineEmits<{
   act: [action: DesktopMemberAction]
@@ -43,6 +55,15 @@ const ACTION_LABELS: Record<Exclude<DesktopMemberAction, 'changeRole'>, string> 
 }
 
 const positionValue = computed(() => props.member?.position ?? '')
+
+const tz = computed(() => props.timezone ?? 'Europe/Minsk')
+const activity = computed(() =>
+  props.member?.stats ? activityView(props.member.stats, tz.value) : null,
+)
+const subscription = computed(() =>
+  props.member?.stats ? subscriptionView(props.member.stats, tz.value) : null,
+)
+const debt = computed(() => (props.member?.stats ? debtView(props.member.stats) : null))
 
 function onLevel(event: Event) {
   const value = (event.target as HTMLSelectElement).value
@@ -128,8 +149,57 @@ function onPosition(event: Event) {
         <p v-if="positionError" role="alert" class="text-vt-rose-ink">{{ positionError }}</p>
       </div>
 
-      <!-- Статистика игрока: активность, абонемент, задолженность — отдельная карточка. -->
-      <slot name="stats" :member="member" />
+      <slot name="stats" :member="member">
+        <section
+          v-if="member.stats && activity"
+          class="vt-player-drawer__stats"
+          aria-label="Статистика"
+        >
+          <p v-if="statsPeriod" class="vt-cap">
+            Статистика · {{ playerStatsPeriodLabel(statsPeriod) }}
+          </p>
+          <dl class="vt-player-drawer__facts">
+            <div>
+              <dt>Тренировок</dt>
+              <dd data-stat="visits">{{ member.stats.attendance.visits }}</dd>
+            </div>
+            <div>
+              <dt>Посещаемость</dt>
+              <dd data-stat="rate">{{ activity.rate }}</dd>
+            </div>
+            <div>
+              <dt>Неявки</dt>
+              <dd data-stat="no-shows">{{ member.stats.attendance.noShows }}</dd>
+            </div>
+            <div>
+              <dt>Отмены</dt>
+              <dd data-stat="cancellations">{{ member.stats.attendance.cancellations }}</dd>
+            </div>
+            <div>
+              <dt>Последний визит</dt>
+              <dd data-stat="last">{{ activity.lastDate }}</dd>
+            </div>
+            <div>
+              <dt>Абонемент</dt>
+              <dd data-stat="subscription">
+                <template v-if="subscription"
+                  >{{ subscription.label }} <small>{{ subscription.hint }}</small></template
+                >
+                <template v-else>—</template>
+              </dd>
+            </div>
+            <div>
+              <dt>Задолженность</dt>
+              <dd data-stat="debt" :data-debt="debt !== null">
+                <template v-if="debt"
+                  >{{ debt.label }} <small>{{ debt.hint }}</small></template
+                >
+                <template v-else>Нет</template>
+              </dd>
+            </div>
+          </dl>
+        </section>
+      </slot>
 
       <div class="vt-player-drawer__actions">
         <a

@@ -247,3 +247,16 @@ describe('append-only cashbox', () => {
     wrapper.unmount()
   })
 })
+
+describe('cashbox v3 labels (21.1.1)', () => {
+  it('names the balance card and its breakdown like the reference, with the time of each entry', async () => {
+    const wrapper = await renderCashbox()
+    const hero = wrapper.get('[aria-label="Баланс кассы"]')
+    expect(hero.text()).toContain('Баланс кассы')
+    expect(hero.text()).toContain('Поступило')
+    expect(hero.text()).toContain('Списано')
+    // 10:00 UTC = 13:00 в Минске
+    expect(wrapper.text()).toContain('13:00')
+    wrapper.unmount()
+  })
+})

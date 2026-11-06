@@ -2,6 +2,7 @@
 import { formatDay } from '@volley-time/shared'
 
 import { PAYMENT_METHOD_LABELS, displayName, formatPrice, label } from '~/utils/labels'
+import { pendingPaymentsSubtitle, pendingSeatsChip } from '~/utils/organizer-miniapp'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
 interface PendingPayment {
@@ -10,6 +11,8 @@ interface PendingPayment {
   currency: string
   method: 'cash' | 'transfer' | 'online'
   createdAt: string
+  /** Неоплаченных мест в записи (одна строка = одна запись игрока). */
+  seats?: number
   user: { id: number; name: string | null; telegramUsername: string | null; image: string | null }
   event: { id: number; title: string; startsAt: string } | null
   plan: { name: string } | null
@@ -135,7 +138,9 @@ async function act(p: PendingPayment, action: 'confirm' | 'reject') {
     <VtMiniHeader
       title="Ожидают подтверждения"
       :sub="
-        loadedOrgId === orgId && items.length ? `${items.length} · ожидается ${totals}` : undefined
+        loadedOrgId === orgId && items.length
+          ? pendingPaymentsSubtitle(items.length, totals)
+          : undefined
       "
       :back="`/m/orgs/${orgId}`"
     />
@@ -177,6 +182,9 @@ async function act(p: PendingPayment, action: 'confirm' | 'reject') {
             </div>
             <div class="flex items-center gap-1.5 mt-2.5">
               <VtChip>{{ label(PAYMENT_METHOD_LABELS, p.method) }}</VtChip>
+              <VtChip v-if="pendingSeatsChip(p.amount, p.seats, p.currency)" tone="flame">{{
+                pendingSeatsChip(p.amount, p.seats, p.currency)
+              }}</VtChip>
               <VtChip v-if="p.plan" tone="flame">Абонемент</VtChip>
               <VtChip v-if="p.collection" tone="flame">Сбор</VtChip>
               <span class="ml-auto text-[11px] text-vt-mute-2">{{ ago(p.createdAt) }}</span>

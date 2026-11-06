@@ -2,11 +2,11 @@
 id: '21.1.1'
 phase: '21'
 epic: '21.1'
-status: todo
+status: in_progress
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-10-12
-status_note: ''
+status_note: 'Реализовано в PR (ветка trafficolog/feat/21.1.1-org-miniapp-core); ждёт ревью claude-opus-5-5 и CI. Сверка: docs/operations/qa/2026-11-06-21-1-1-org-miniapp-core-visual.md.'
 ref_id: ''
 complexity: L
 impl_model: claude-sonnet-5-5

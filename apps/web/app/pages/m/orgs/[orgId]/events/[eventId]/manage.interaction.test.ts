@@ -65,6 +65,7 @@ const payment = {
 let eventData = ref({ event })
 let orgData = ref({ organization: { id: 30 }, myMember: { role: 'owner', status: 'active' } })
 let rosterFailure = false
+let rosterFixture: (typeof booking)[] = [booking]
 let paymentsFixture: (typeof payment)[] = []
 let holdPaymentPost = false
 let resolvePaymentPost: (() => void) | null = null
@@ -80,7 +81,7 @@ const apiFetch = vi.fn(async (url: string, options?: { method?: string }) => {
   }
   if (url.endsWith('/bookings')) {
     if (rosterFailure) throw new Error('roster unavailable')
-    return { bookings: [booking] }
+    return { bookings: rosterFixture }
   }
   if (url.endsWith('/payments')) return { payments: paymentsFixture }
   throw new Error(`Unexpected GET ${url}`)
@@ -142,6 +143,7 @@ beforeEach(() => {
   eventData = ref({ event })
   orgData = ref({ organization: { id: 30 }, myMember: { role: 'owner', status: 'active' } })
   rosterFailure = false
+  rosterFixture = [booking]
   paymentsFixture = []
   holdPaymentPost = false
   resolvePaymentPost = null
@@ -212,7 +214,7 @@ describe('event management interactions', () => {
     const wrapper = await renderManage()
     await wrapper
       .findAll('[role="tab"]')
-      .find((tab) => tab.text() === 'Оплаты')!
+      .find((tab) => tab.text() === 'Платежи')!
       .trigger('click')
     await wrapper
       .findAll('button')
@@ -465,7 +467,7 @@ describe('event management interactions', () => {
     const wrapper = await renderManage()
     await wrapper
       .findAll('[role="tab"]')
-      .find((tab) => tab.text() === 'Оплаты')!
+      .find((tab) => tab.text() === 'Платежи')!
       .trigger('click')
     await wrapper
       .findAll('button')
@@ -497,7 +499,7 @@ describe('event management interactions', () => {
     const wrapper = await renderManage()
     await wrapper
       .findAll('[role="tab"]')
-      .find((tab) => tab.text() === 'Оплаты')!
+      .find((tab) => tab.text() === 'Платежи')!
       .trigger('click')
     await wrapper
       .findAll('button')
@@ -524,12 +526,115 @@ describe('event management interactions', () => {
     expect(confirm).toHaveBeenCalled()
     await wrapper
       .findAll('[role="tab"]')
-      .find((tab) => tab.text() === 'Оплаты')!
+      .find((tab) => tab.text() === 'Платежи')!
       .trigger('click')
     const pay = wrapper.findAll('button').find((button) => button.text() === 'Подтвердить')!
     expect(pay.attributes('disabled')).toBeDefined()
     resolveConfirmation?.(false)
     await flushPromises()
+    wrapper.unmount()
+  })
+})
+
+describe('event management v3: tabs, pending tile and sharing (21.1.1)', () => {
+  const tab = (wrapper: Awaited<ReturnType<typeof renderManage>>, name: string) =>
+    wrapper.findAll('[role="tab"]').find((t) => t.text() === name)!
+
+  it('offers roster, payments and sharing tabs and moves between them with the keyboard', async () => {
+    const wrapper = await renderManage()
+    expect(wrapper.findAll('[role="tab"]').map((t) => t.text())).toEqual([
+      'Состав',
+      'Платежи',
+      'Шеринг',
+    ])
+    expect(tab(wrapper, 'Состав').attributes('aria-selected')).toBe('true')
+    await tab(wrapper, 'Состав').trigger('keydown', { key: 'ArrowRight' })
+    expect(tab(wrapper, 'Платежи').attributes('aria-selected')).toBe('true')
+    await tab(wrapper, 'Платежи').trigger('keydown', { key: 'End' })
+    expect(tab(wrapper, 'Шеринг').attributes('aria-selected')).toBe('true')
+    await tab(wrapper, 'Шеринг').trigger('keydown', { key: 'ArrowRight' })
+    expect(tab(wrapper, 'Шеринг').attributes('aria-selected')).toBe('true')
+    await tab(wrapper, 'Шеринг').trigger('keydown', { key: 'Home' })
+    expect(tab(wrapper, 'Состав').attributes('aria-selected')).toBe('true')
+    wrapper.unmount()
+  })
+
+  it('keeps the split distribution (forecast and settle) in the payments tab, not above the tabs', async () => {
+    const wrapper = await renderManage()
+    const panel = wrapper.findComponent(EventPricingPanel)
+    expect(panel.exists()).toBe(true)
+    expect(panel.element.closest('[role="tabpanel"]')?.id).toContain('payments-panel')
+    expect(panel.text()).toContain('Закрыть запись и распределить')
+    wrapper.unmount()
+  })
+
+  it('counts "ждут оплаты" from the roster with pendingOf and opens payments on tap', async () => {
+    const wrapper = await renderManage()
+    const tile = wrapper.get('[data-pending-tile]')
+    expect(tile.text()).toContain('0')
+    expect(tile.text()).toContain('ждут оплаты')
+    await tile.trigger('click')
+    expect(tab(wrapper, 'Платежи').attributes('aria-selected')).toBe('true')
+    wrapper.unmount()
+  })
+
+  it('counts a split booking in pending_payment as waiting for payment', async () => {
+    const waiting = {
+      status: 'pending_payment',
+      seats: 1,
+      waitlistSeats: 0,
+      paymentId: null,
+      pendingPaymentIds: [] as number[],
+      paidSeats: 0,
+      allocatedAmount: null,
+    }
+    rosterFixture = [
+      { ...booking, ...waiting, id: 6 },
+      { ...booking, ...waiting, id: 7 },
+      booking,
+    ] as unknown as typeof rosterFixture
+    const wrapper = await renderManage()
+    const tile = wrapper.get('[data-pending-tile]')
+    expect(tile.text()).toContain('2')
+    expect(tile.text()).toContain('ждут оплаты')
+    wrapper.unmount()
+  })
+
+  it('shows the public link of the event and copies it', async () => {
+    const writeText = vi.fn(async () => undefined)
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    eventData = ref({ event: { ...event, publicSlug: 'abc123def456' } }) as typeof eventData
+    const wrapper = await renderManage()
+    await tab(wrapper, 'Шеринг').trigger('click')
+    const url = (wrapper.get('#event-share-link').element as HTMLInputElement).value
+    expect(url).toMatch(/\/e\/abc123def456$/)
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Скопировать'))!
+      .trigger('click')
+    await flushPromises()
+    expect(writeText).toHaveBeenCalledWith(url)
+    expect(wrapper.text()).toContain('Ссылка скопирована')
+    wrapper.unmount()
+  })
+
+  it('tells the organizer to copy by hand when the clipboard is unavailable', async () => {
+    vi.stubGlobal('navigator', {
+      clipboard: {
+        writeText: vi.fn(async () => {
+          throw new Error('denied')
+        }),
+      },
+    })
+    eventData = ref({ event: { ...event, publicSlug: 'abc123def456' } }) as typeof eventData
+    const wrapper = await renderManage()
+    await tab(wrapper, 'Шеринг').trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Скопировать'))!
+      .trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[role="alert"]').text()).toContain('скопируйте вручную')
     wrapper.unmount()
   })
 })

@@ -1,7 +1,9 @@
 import type { EventListItem } from '../components/EventCard.vue'
 import type { TabItem } from '../components/vt/TabBar.vue'
 
-import { ROLE_LABELS } from './labels'
+import { seatsLabel } from './booking-seats'
+import { formatMoneyRu, ROLE_LABELS } from './labels'
+import { pendingLabel, waitlistOrganizerLabel } from './status-model'
 
 interface Member {
   role: string
@@ -117,4 +119,108 @@ export function pendingPaymentsForEvent<T extends { event?: { id: number } | nul
   eventId: number,
 ): T[] {
   return payments.filter((payment) => payment.event?.id === eventId)
+}
+
+/** Сколько платежей ждёт подтверждения по каждому событию: одна запись списка = одна запись игрока. */
+export function pendingCountsByEvent(
+  payments: readonly { event?: { id: number } | null }[],
+): Map<number, number> {
+  const counts = new Map<number, number>()
+  for (const payment of payments) {
+    const id = payment.event?.id
+    if (id !== undefined) counts.set(id, (counts.get(id) ?? 0) + 1)
+  }
+  return counts
+}
+
+/** «4 платежа · сумма 215,00 BYN» под заголовком «Ожидают подтверждения». */
+export function pendingPaymentsSubtitle(count: number, total: string): string {
+  const mod10 = count % 10
+  const mod100 = count % 100
+  const word =
+    mod10 === 1 && mod100 !== 11
+      ? 'платёж'
+      : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)
+        ? 'платежа'
+        : 'платежей'
+  return `${count} ${word} · сумма ${total}`
+}
+
+/** Чип «2 места × 30,00 BYN»: цена места видна, только когда сумма делится на места поровну. */
+export function pendingSeatsChip(
+  amount: number,
+  seats: number | undefined,
+  currency: string,
+): string | null {
+  if (!seats || seats < 2) return null
+  return amount % seats === 0
+    ? `${seatsLabel(seats)} × ${formatMoneyRu(amount / seats, currency)}`
+    : seatsLabel(seats)
+}
+
+export interface OrganizerEventChip {
+  /** `amber` — нужно действие, `grass` — всё в порядке, `state` — нейтральная информация. */
+  tone: 'amber' | 'grass' | 'state'
+  text: string
+}
+
+interface ChipEvent {
+  status: string
+  taken: number
+  waitlist: number
+  waitlistSeats?: number
+  price: number
+  priceMode?: 'fixed' | 'split'
+  pricing?: { mode: string; settledAt?: string | null; basis?: string }
+  /** Суммы платежей события (список кабинета); на главной из дашборда их нет. */
+  paymentTotals?: { paid: number; pending: number }
+}
+
+/**
+ * Чипы оплаты в строке события организатора (v3): amber = нужно действие, grass = в порядке,
+ * серый = информация. `pending` — ожидающие платежи события (`null` — данные не пришли: чип оплаты
+ * не рисуем, чтобы не врать «все оплатили»).
+ */
+export function organizerEventChips(
+  event: ChipEvent,
+  pending: number | null,
+): OrganizerEventChip[] {
+  const chips: OrganizerEventChip[] = []
+  const split = event.pricing?.mode === 'split' || event.priceMode === 'split'
+  const unsettledSplit = split && !event.pricing?.settledAt && event.pricing?.basis !== 'settled'
+  const live = event.status !== 'cancelled' && event.status !== 'draft'
+  if (live) {
+    if (unsettledSplit && event.status === 'closed')
+      chips.push({ tone: 'amber', text: 'нужно распределить' })
+    else if (pending !== null && pending > 0)
+      chips.push({ tone: 'amber', text: `${pendingLabel(pending)} оплаты` })
+    else if (
+      pending === 0 &&
+      !unsettledSplit &&
+      event.taken > 0 &&
+      event.price > 0 &&
+      (event.paymentTotals?.paid ?? 0) > 0 &&
+      (event.paymentTotals?.pending ?? 0) === 0
+    )
+      // зелёный только по фактически полученным деньгам: у онлайн-записей и у split до закрытия
+      // платёжных строк ещё нет, «нет ожидающих» там не значит «все оплатили»
+      chips.push({ tone: 'grass', text: 'все оплатили' })
+  }
+  if (live && event.waitlist > 0)
+    chips.push({
+      tone: 'state',
+      text: `очередь · ${waitlistOrganizerLabel(event.waitlist, event.waitlistSeats)}`,
+    })
+  return chips
+}
+
+/** Цена места делёжа в списке: «≈ 30,00 BYN» до закрытия записи, точная после; не split — `null`. */
+export function splitForecastLabel(event: {
+  status: string
+  currency: string
+  pricing?: { mode: string; maxAmount: number; basis: string }
+}): string | null {
+  const pricing = event.pricing
+  if (pricing?.mode !== 'split' || event.status === 'cancelled') return null
+  return `${pricing.basis === 'settled' ? '' : '≈ '}${formatMoneyRu(pricing.maxAmount, event.currency)}`
 }
