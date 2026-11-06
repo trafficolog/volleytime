@@ -128,6 +128,8 @@ const ROUTES: OrgRouteTable = {
   'GET /api/organizations/:orgId/events/:eventId/price': { access: 'member' },
   'POST /api/organizations/:orgId/events/:eventId/settle': { access: 'manager', body: () => ({}) },
   'GET /api/organizations/:orgId/events': { access: 'member' },
+  // CSV списка событий (21.2.10): manager-only, события только своей группы
+  'GET /api/organizations/:orgId/events/export': { access: 'manager' },
   'POST /api/organizations/:orgId/events': {
     access: 'manager',
     body: () => ({

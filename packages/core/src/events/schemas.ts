@@ -125,6 +125,10 @@ export const ListEventsQuery = z
     status: z.enum(['draft', 'published', 'closed', 'finished', 'cancelled']).optional(),
     from: IsoDay.optional(),
     to: IsoDay.optional(),
+    /** Поиск по названию, залу и месту (21.2.10): подстрока без регистра; пустая строка — без поиска. */
+    q: z.string().max(200).optional(),
+    /** Фильтр по залу (21.2.10); чужой зал даёт пустой список. */
+    venueId: z.coerce.number().int().positive().optional(),
     limit: z.coerce.number().int().min(1).max(500).optional(),
     offset: z.coerce.number().int().min(0).default(0),
   })
