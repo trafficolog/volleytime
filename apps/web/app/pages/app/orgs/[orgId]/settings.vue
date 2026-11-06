@@ -6,6 +6,7 @@ import SettingsDanger from '~/components/desktop/settings/SettingsDanger.vue'
 import SettingsIntegrations from '~/components/desktop/settings/SettingsIntegrations.vue'
 import SettingsNotifications from '~/components/desktop/settings/SettingsNotifications.vue'
 import SettingsProfile from '~/components/desktop/settings/SettingsProfile.vue'
+import SettingsSchedule from '~/components/desktop/settings/SettingsSchedule.vue'
 import SettingsTeam from '~/components/desktop/settings/SettingsTeam.vue'
 import SettingsVenues from '~/components/desktop/settings/SettingsVenues.vue'
 import { canSaveDesktopSettings } from '~/utils/desktop-settings'
@@ -133,7 +134,9 @@ async function archive() {
       <div>
         <p class="vt-cap">Управление группой</p>
         <h1 tabindex="-1">Настройки</h1>
-        <p class="text-vt-mute-2">Профиль, записи и оплата, залы, команда и интеграции.</p>
+        <p class="text-vt-mute-2">
+          Профиль, расписание, записи и оплата, залы, команда и интеграции.
+        </p>
       </div>
     </header>
 
@@ -157,7 +160,11 @@ async function archive() {
         </NuxtLink>
       </nav>
       <div class="vt-settings__content">
-        <p v-if="!isOwner && section !== 'venues'" class="vt-settings-note" role="note">
+        <p
+          v-if="!isOwner && section !== 'venues' && section !== 'schedule'"
+          class="vt-settings-note"
+          role="note"
+        >
           Изменять настройки может только владелец группы. Вы видите текущие значения.
         </p>
         <SettingsProfile
@@ -166,6 +173,12 @@ async function archive() {
           :settings="settings"
           :can-edit="isOwner"
           :controller="controller"
+        />
+        <SettingsSchedule
+          v-else-if="section === 'schedule'"
+          :org-id="orgId"
+          :can-manage="true"
+          @toast="toast.show"
         />
         <SettingsBookings
           v-else-if="section === 'bookings'"

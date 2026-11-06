@@ -246,6 +246,13 @@
       "when": 1793881789383,
       "tag": "0034_player_position",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1793916649710,
+      "tag": "0035_schedule_slots",
+      "breakpoints": true
     }
   ]
 }

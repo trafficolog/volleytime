@@ -1,4 +1,13 @@
-import { and, eq, eventSeries, events, sql, venues, type Venue } from '@volley-time/db'
+import {
+  and,
+  eq,
+  eventSeries,
+  events,
+  scheduleSlots,
+  sql,
+  venues,
+  type Venue,
+} from '@volley-time/db'
 
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
@@ -104,8 +113,8 @@ export const venueService = {
   },
 
   /**
-   * «Удалить» зал (21.2.13): с событиями или серией — архив (события сохраняют зал и название),
-   * без них — физическое удаление. Правило `ON DELETE SET NULL` у событий не задействуется.
+   * «Удалить» зал (21.2.13): с событиями, серией или слотом расписания (21.2.12) — архив (события
+   * сохраняют зал и название, слот остаётся с залом), без них — физическое удаление. Правило `ON DELETE SET NULL` у событий не задействуется.
    */
   async remove(
     ctx: ServiceContext,
@@ -140,7 +149,16 @@ export const venueService = {
             )
             .limit(1)
 
-      if (inEvents || inSeries) {
+      const [inSlots] =
+        inEvents || inSeries
+          ? []
+          : await db
+              .select({ id: scheduleSlots.id })
+              .from(scheduleSlots)
+              .where(eq(scheduleSlots.venueId, venueId))
+              .limit(1)
+
+      if (inEvents || inSeries || inSlots) {
         if (existing.status === 'archived') return { outcome: 'archived' as const, venue: existing }
         return { outcome: 'archived' as const, venue: await this.archive(tx, venueId, orgId) }
       }

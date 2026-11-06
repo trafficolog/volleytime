@@ -567,6 +567,16 @@
       "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
     },
     {
+      "id": "cabinet-settings-schedule",
+      "title": "Кабинет: настройки · расписание по умолчанию",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/settings?section=schedule",
+      "references": ["4-cabinet/18-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
       "id": "cabinet-settings-bookings",
       "title": "Кабинет: настройки · записи и оплата",
       "viewport": "cabinet",
