@@ -75,6 +75,21 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ saved: [event: Event]; seriesCreated: [result: SeriesCreated] }>()
 
+// Хост с собственной кнопкой (MainButton) читает состояние и вызывает отправку через ссылку на форму.
+// Объявлено до первого await (иначе expose не сработает); значения читаются лениво, при обращении.
+defineExpose({
+  submit: () => submit(),
+  get submitDisabled() {
+    return submitDisabled.value
+  },
+  get submitText() {
+    return submitText.value
+  },
+  get saving() {
+    return saving.value
+  },
+})
+
 const uid = useId()
 const i = props.initial
 
@@ -608,9 +623,6 @@ async function submit() {
 function resetJoinMode() {
   form.joinMode = groupJoinMode
 }
-// Хост с собственной кнопкой (MainButton) читает состояние и вызывает отправку через ссылку на форму.
-defineExpose({ submit, submitDisabled, submitText, saving })
-
 const seatsText = computed(() => {
   const max = groupSettings.value?.maxSeatsPerBooking
   return max ? `Мест на игрока: до ${max} · меняется в настройках группы` : null

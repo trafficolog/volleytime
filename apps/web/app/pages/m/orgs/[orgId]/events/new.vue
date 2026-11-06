@@ -46,7 +46,9 @@ async function onSeriesCreated(result: SeriesCreatedView) {
   if (router.currentRoute.value.path !== `/m/orgs/${orgId.value}/events/new`) return
   seriesResult.value = result
   await nextTick()
-  resultHeading.value?.focus()
+  // форма была длинной: возвращаем экран к началу, иначе итог уходит под липкую шапку
+  window.scrollTo({ top: 0 })
+  resultHeading.value?.focus({ preventScroll: true })
 }
 function createAnother() {
   seriesResult.value = null
