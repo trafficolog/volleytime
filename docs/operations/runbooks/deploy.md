@@ -340,7 +340,7 @@ Migration `0034_player_position` is additive: enum `player_position` (`setter`, 
 
 ## v0.3.0 schedule slots: no flag, no guard extension (Task 21.2.12)
 
-Migration `0035_schedule_slots` is additive: a new table `schedule_slots` (organization CASCADE, optional venue with `ON DELETE SET NULL`, CHECK on weekday, time, duration, places, title and type). It needs no preflight: the table starts empty and no existing table references it.
+Migration `0035_schedule_slots` is additive: a new table `schedule_slots` (organization CASCADE, optional venue with `ON DELETE SET NULL` as a safety net (a venue used by a slot is archived, not deleted), CHECK on weekday, time, duration, places, title and type). It needs no preflight: the table starts empty and no existing table references it.
 
 - **Application rollback to v0.2.0 needs no flag, capability label or guard predicate.** The v0.2.0 runtime has no code that reads or writes `schedule_slots`; slots are consumed only by the new cabinet form, which fills fields and then calls the unchanged event and series endpoints. Events and series created from a slot are ordinary rows the old runtime already handles. Therefore `scripts/verify-split-rollback.sh`, the capability labels and `split-rollback-contract.test.ts` are unchanged.
 - **Migration rollback** `packages/db/rollback/0035_schedule_slots.sql` refuses while `SELECT EXISTS (SELECT 1 FROM schedule_slots)` is true: slots are entered by organizers by hand and cannot be recovered. With such rows the schema stays (roll-forward). Deleting slots (`DELETE FROM schedule_slots`) is an operator decision after `pg_dump -t schedule_slots`, then the rollback in one transaction (`pnpm db:rollback`). Events and series created from slots are not touched.

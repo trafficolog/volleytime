@@ -58,6 +58,25 @@ describe('nextSlotStart', () => {
     )
   })
 
+  it('follows the group zone across a DST switch (Europe/Berlin, 2026-03-29)', () => {
+    // 01:30 UTC в воскресенье после перехода = 03:30 CEST: слот 03:00 уже прошёл, а по UTC ещё нет
+    const afterSwitch = new Date('2026-03-29T01:30:00Z')
+    expect(
+      nextSlotStart(slot({ weekday: 7, startTime: '03:00' }), 'Europe/Berlin', afterSwitch),
+    ).toBe('2026-04-05T03:00')
+    expect(
+      nextSlotStart(slot({ weekday: 7, startTime: '04:00' }), 'Europe/Berlin', afterSwitch),
+    ).toBe('2026-03-29T04:00')
+    // 23:30 UTC субботы = 00:30 воскресенья CET, ещё до перехода
+    const beforeSwitch = new Date('2026-03-28T23:30:00Z')
+    expect(
+      nextSlotStart(slot({ weekday: 7, startTime: '10:00' }), 'Europe/Berlin', beforeSwitch),
+    ).toBe('2026-03-29T10:00')
+    expect(
+      nextSlotStart(slot({ weekday: 6, startTime: '10:00' }), 'Europe/Berlin', beforeSwitch),
+    ).toBe('2026-04-04T10:00')
+  })
+
   it('crosses month and year ends', () => {
     const newYear = new Date('2026-12-30T09:00:00Z') // среда
     expect(nextSlotStart(slot({ weekday: 5, startTime: '19:30' }), 'Europe/Minsk', newYear)).toBe(

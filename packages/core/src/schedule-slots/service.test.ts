@@ -199,7 +199,31 @@ describe('scheduleSlotService (integration)', () => {
     expect(resent.capacity).toBe(10)
   })
 
-  it('leaves the slot without a venue after the venue is deleted', async () => {
+  it('archives instead of deleting a venue used only by a slot, and the slot keeps it flagged', async () => {
+    const venue = await venueService.create(
+      { userId: ownerId },
+      { organizationId: orgId, name: 'Для слота' },
+    )
+    const slot = await scheduleSlotService.create(ctx(), orgId, { ...base, venueId: venue.id })
+    const unused = await venueService.create(
+      { userId: ownerId },
+      { organizationId: orgId, name: 'Свободный' },
+    )
+
+    const res = await venueService.remove(ctx(), venue.id, orgId)
+    expect(res.outcome).toBe('archived')
+    expect(res.venue.status).toBe('archived')
+    expect(await scheduleSlotService.getById(ctx(), orgId, slot.id)).toMatchObject({
+      venueId: venue.id,
+      venueName: 'Для слота',
+      venueArchived: true,
+    })
+    // повтор безопасен, а зал без ссылок по-прежнему удаляется
+    expect((await venueService.remove(ctx(), venue.id, orgId)).outcome).toBe('archived')
+    expect((await venueService.remove(ctx(), unused.id, orgId)).outcome).toBe('deleted')
+  })
+
+  it('SET NULL stays as a safety net when a venue is removed directly', async () => {
     const venue = await venueService.create(ctx(), { organizationId: orgId, name: 'Удаляемый' })
     const slot = await scheduleSlotService.create(ctx(), orgId, { ...base, venueId: venue.id })
     await db.delete(venues).where(eq(venues.id, venue.id))

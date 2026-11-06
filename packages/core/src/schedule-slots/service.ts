@@ -59,6 +59,9 @@ function toView(row: {
  * группы; архивный зал выбрать нельзя (`event.venue_archived`), но слот, уже указывающий на
  * позднее архивированный зал, остаётся правимым, пока зал в запросе не меняется.
  */
+/** Первый ключ advisory-блокировки группы при добавлении слота (второй — id группы). */
+const SLOT_LIMIT_LOCK_KEY = 2112
+
 export const scheduleSlotService = {
   async list(ctx: ServiceContext, orgId: number): Promise<ScheduleSlotView[]> {
     const rows = await getDb(ctx)
@@ -85,7 +88,7 @@ export const scheduleSlotService = {
     return inTransaction(ctx, async (tx) => {
       const db = getDb(tx)
       // потолок проверяется под замком группы: параллельные добавления его не превысят
-      await db.execute(sql`SELECT pg_advisory_xact_lock(2112, ${orgId})`)
+      await db.execute(sql`SELECT pg_advisory_xact_lock(${SLOT_LIMIT_LOCK_KEY}, ${orgId})`)
       const [{ total } = { total: 0 }] = await db
         .select({ total: sql<number>`count(*)::int` })
         .from(scheduleSlots)
