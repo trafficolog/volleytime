@@ -52,5 +52,5 @@ export function buildEventsCsv(
         .join(';'),
     )
   }
-  return `﻿${lines.join('\r\n')}\r\n`
+  return `\uFEFF${lines.join('\r\n')}\r\n`
 }

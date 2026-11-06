@@ -2,11 +2,11 @@
 id: '21.2.10'
 phase: '21'
 epic: '21.2'
-status: todo
+status: in_progress
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-10-14
-status_note: ''
+status_note: 'реализовано в ветке trafficolog/feat/21.2.10-events-search-export (PR открыт, ревью Opus ожидается): GET /events принимает q, venueId, from/to и отдаёт total; GET /events/export (CSV, manager-only); поиск, панель «Фильтры», страницы «Показано N из M» и экспорт в кабинете, состояние в URL.'
 ref_id: 'W-03'
 complexity: M
 impl_model: claude-sonnet-5-5

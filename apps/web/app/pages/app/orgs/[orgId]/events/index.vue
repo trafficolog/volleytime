@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import type { EventListItem } from '~/components/EventCard.vue'
-import {
-  appendDesktopEventPage,
-  buildMonthGrid,
-  eventFilterQuery,
-  monthOfInstant,
-  type EventFilterKey,
-} from '~/utils/desktop-calendar'
+import { buildMonthGrid, monthOfInstant, type EventFilterKey } from '~/utils/desktop-calendar'
 import { cancelConsequencesOf } from '~/utils/event-cancel'
+import {
+  eventExportHref,
+  eventFilterParams,
+  eventListApiQuery,
+  eventListRouteQuery,
+  eventPageCount,
+  hasActiveEventFilters,
+  parseEventListQuery,
+  type EventListState,
+} from '~/utils/event-list-query'
 import {
   chatLinkStateOf,
   duplicateEventBody,
@@ -18,12 +22,60 @@ import {
 definePageMeta({ layout: 'desktop-org', middleware: ['auth'] })
 
 const route = useRoute()
+const router = useRouter()
 const toast = useToast()
 const orgId = computed(() => Number(route.params.orgId))
 const base = computed(() => `/app/orgs/${orgId.value}`)
 const { tz } = useOrgTimezone(orgId)
-const filter = ref<EventFilterKey>('all')
-const view = ref<'list' | 'calendar'>('list')
+// Фишка статуса, вид, поиск, панель, период, зал и страница живут в адресе (21.2.10):
+// переключение «Список / Календарь» и перезагрузка их сохраняют.
+const state = computed(() => parseEventListQuery(route.query))
+function update(patch: Partial<EventListState>) {
+  const next: EventListState = { ...state.value, ...patch }
+  // любое изменение фильтра возвращает на первую страницу; вид и сама страница — нет
+  if (!('page' in patch) && !('view' in patch) && !('panel' in patch)) next.page = 1
+  void router.replace({ query: eventListRouteQuery(next) })
+}
+const filter = computed<EventFilterKey>({
+  get: () => state.value.tab,
+  set: (tab) => update({ tab }),
+})
+const view = computed<'list' | 'calendar'>({
+  get: () => state.value.view,
+  set: (next) => update({ view: next }),
+})
+const searchText = ref(state.value.q)
+let searchTimer: ReturnType<typeof setTimeout> | undefined
+function onSearchInput() {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => update({ q: searchText.value.trim() }), 300)
+}
+watch(
+  () => state.value.q,
+  (q) => {
+    if (q !== searchText.value.trim()) searchText.value = q
+  },
+)
+const venues = ref<{ id: number; name: string }[]>([])
+async function loadVenues() {
+  const targetOrgId = orgId.value
+  try {
+    const result = await $fetch<{ venues: { id: number; name: string }[] }>(
+      `/api/organizations/${targetOrgId}/venues`,
+    )
+    if (orgId.value === targetOrgId) venues.value = result.venues
+  } catch {
+    // без списка залов панель работает по периоду
+    if (orgId.value === targetOrgId) venues.value = []
+  }
+}
+function resetFilters() {
+  clearTimeout(searchTimer)
+  searchText.value = ''
+  update({ tab: 'all', q: '', venueId: null, from: '', to: '' })
+}
+const exportHref = computed(() => eventExportHref(orgId.value, state.value))
+const filtersActive = computed(() => hasActiveEventFilters(state.value))
 const viewOptions = [
   { value: 'list', label: 'Список' },
   { value: 'calendar', label: 'Календарь' },
@@ -42,26 +94,31 @@ const calendarError = ref('')
 let calendarGeneration = 0
 const loading = ref(false)
 const error = ref('')
-const hasMore = ref(false)
+const total = ref(0)
 let generation = 0
 
-async function loadPage(offset: number) {
-  if (loading.value) return
-  const token = generation
+/** Ключ запроса списка: смена группы, фильтра, поиска или страницы перезагружает таблицу. */
+const listKey = computed(() => JSON.stringify([orgId.value, eventListApiQuery(state.value)]))
+
+async function loadPage() {
+  const token = ++generation
   const targetOrgId = orgId.value
-  const targetFilter = filter.value
   loading.value = true
   error.value = ''
   try {
-    const result = await $fetch<{ events: EventListItem[] }>(
+    const result = await $fetch<{ events: EventListItem[]; total: number }>(
       `/api/organizations/${targetOrgId}/events`,
-      { query: { ...eventFilterQuery(targetFilter), limit: 50, offset } },
+      { query: eventListApiQuery(state.value) },
     )
-    if (token !== generation || orgId.value !== targetOrgId || filter.value !== targetFilter) return
-    events.value = appendDesktopEventPage(events.value, result.events, offset)
-    hasMore.value = result.events.length === 50
+    if (token !== generation || orgId.value !== targetOrgId) return
+    events.value = result.events
+    total.value = result.total
+    // страница за последней (после отмены или смены фильтра): на последнюю
+    const last = eventPageCount(result.total)
+    if (result.events.length === 0 && result.total > 0 && state.value.page > last)
+      update({ page: last })
   } catch (cause) {
-    if (token !== generation || orgId.value !== targetOrgId || filter.value !== targetFilter) return
+    if (token !== generation || orgId.value !== targetOrgId) return
     error.value = apiErrorMessage(cause, 'Не удалось загрузить события')
   } finally {
     if (token === generation) loading.value = false
@@ -71,13 +128,8 @@ async function loadPage(offset: number) {
 /** Сброс списка и загрузка первой страницы заново: после действия из меню строки. */
 const heading = ref<HTMLElement | null>(null)
 async function reloadList() {
-  generation++
-  events.value = []
-  loading.value = false
-  error.value = ''
-  hasMore.value = false
   if (view.value === 'calendar') void loadCalendar()
-  await loadPage(0)
+  await loadPage()
   // строка с меню исчезла из таблицы: фокус на заголовок страницы, а не на body
   await nextTick()
   heading.value?.focus()
@@ -198,7 +250,7 @@ async function loadCalendar() {
       `/api/organizations/${targetOrgId}/events`,
       {
         query: {
-          ...eventFilterQuery(filter.value),
+          ...eventFilterParams(state.value),
           from: grid[0]!.day,
           to: grid[grid.length - 1]!.day,
         },
@@ -214,33 +266,36 @@ async function loadCalendar() {
   }
 }
 
-const emptyTitle = computed(() =>
-  filter.value === 'past'
-    ? 'Прошедших событий нет'
-    : filter.value === 'cancelled'
-      ? 'Отменённых событий нет'
-      : 'Событий пока нет',
-)
+const emptyTitle = computed(() => {
+  if (filtersActive.value && state.value.tab === 'all') return 'Ничего не найдено'
+  if (state.value.tab === 'past') return 'Прошедших событий нет'
+  if (state.value.tab === 'cancelled') return 'Отменённых событий нет'
+  return filtersActive.value ? 'Ничего не найдено' : 'Событий пока нет'
+})
 
 watch(
-  [orgId, filter],
-  () => {
-    generation++
-    events.value = []
-    loading.value = false
-    error.value = ''
-    hasMore.value = false
-    void loadPage(0)
+  listKey,
+  (_, previous) => {
+    // смена группы очищает таблицу; смена страницы или фильтра держит прежние строки до ответа
+    if (previous && (JSON.parse(previous) as unknown[])[0] !== orgId.value) {
+      events.value = []
+      total.value = 0
+    }
+    void loadPage()
   },
   { immediate: true },
 )
 watch(orgId, () => {
   calendarEvents.value = []
+  void loadVenues()
 })
+void loadVenues()
+// ключ календаря: фишка, поиск и зал; период панели в календаре не действует (его задаёт месяц)
+const calendarKey = computed(() => JSON.stringify(eventFilterParams(state.value)))
 watch(orgId, loadChat, { immediate: true })
 // Сетка не очищается на время перезагрузки: старые данные остаются до прихода новых.
 watch(
-  [orgId, filter, month, view],
+  [orgId, calendarKey, month, view],
   () => {
     if (view.value === 'calendar') void loadCalendar()
     else calendarGeneration++
@@ -248,6 +303,7 @@ watch(
   { immediate: true },
 )
 onBeforeUnmount(() => {
+  clearTimeout(searchTimer)
   generation++
   calendarGeneration++
 })
@@ -269,7 +325,48 @@ onBeforeUnmount(() => {
       </div>
     </header>
 
-    <VtSegment v-model="filter" label="Фильтр событий" variant="chips" :options="filterOptions" />
+    <div class="vt-desktop-events__strip">
+      <VtSegment v-model="filter" label="Фильтр событий" variant="chips" :options="filterOptions" />
+      <div class="vt-desktop-events__strip-end">
+        <input
+          v-model="searchText"
+          type="search"
+          class="vt-field"
+          aria-label="Поиск по событиям"
+          placeholder="Название или зал"
+          maxlength="200"
+          @input="onSearchInput"
+        />
+        <button
+          type="button"
+          class="vt-btn vt-btn--ghost vt-btn--sm"
+          :aria-expanded="state.panel"
+          aria-controls="events-filters"
+          @click="update({ panel: !state.panel })"
+        >
+          Фильтры
+        </button>
+        <a
+          class="vt-btn vt-btn--ghost vt-btn--sm"
+          :href="exportHref"
+          download
+          data-testid="events-export"
+        >
+          <VtIcon name="arrow-d" :size="14" /> Экспорт
+        </a>
+      </div>
+    </div>
+    <div v-if="state.panel" id="events-filters">
+      <DesktopEventFilters
+        :venues="venues"
+        :venue-id="state.venueId"
+        :from="state.from"
+        :to="state.to"
+        :hide-period="view === 'calendar'"
+        @change="update($event)"
+        @reset="update({ venueId: null, from: '', to: '' })"
+      />
+    </div>
 
     <DesktopEventCalendar
       v-if="view === 'calendar'"
@@ -283,14 +380,19 @@ onBeforeUnmount(() => {
     />
     <template v-else>
       <SkeletonList v-if="loading && events.length === 0" :count="3" />
-      <ErrorState v-else-if="error && events.length === 0" :message="error" @retry="loadPage(0)" />
+      <ErrorState v-else-if="error && events.length === 0" :message="error" @retry="loadPage()" />
       <template v-else>
-        <p class="text-vt-mute-2" role="status">
-          Загружено: {{ events.length }}{{ hasMore ? ' · доступны ещё' : '' }}.
-        </p>
         <EmptyState v-if="events.length === 0" icon="calendar" :title="emptyTitle">
           <template #action>
-            <NuxtLink :to="`${base}/events/new`" class="vt-btn vt-btn--primary"
+            <button
+              v-if="filtersActive"
+              type="button"
+              class="vt-btn vt-btn--primary"
+              @click="resetFilters"
+            >
+              Сбросить фильтры
+            </button>
+            <NuxtLink v-else :to="`${base}/events/new`" class="vt-btn vt-btn--primary"
               >Создать событие</NuxtLink
             >
           </template>
@@ -304,20 +406,14 @@ onBeforeUnmount(() => {
           :busy-id="busyId"
           @action="onRowAction"
         />
-        <ErrorState
-          v-if="error && events.length"
-          :message="error"
-          @retry="loadPage(events.length)"
+        <ErrorState v-if="error && events.length" :message="error" @retry="loadPage()" />
+        <DesktopEventPager
+          v-if="total > 0"
+          :shown="events.length"
+          :total="total"
+          :page="state.page"
+          @page="update({ page: $event })"
         />
-        <button
-          v-if="hasMore"
-          type="button"
-          class="vt-btn vt-btn--ghost"
-          :disabled="loading"
-          @click="loadPage(events.length)"
-        >
-          {{ loading ? 'Загружаем…' : 'Загрузить ещё' }}
-        </button>
       </template>
     </template>
 
