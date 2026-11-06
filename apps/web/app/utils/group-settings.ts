@@ -19,6 +19,7 @@ export interface GroupSettings {
 
 export type SettingsSectionKey =
   | 'profile'
+  | 'schedule'
   | 'bookings'
   | 'venues'
   | 'payments'
@@ -30,6 +31,7 @@ export type SettingsSectionKey =
 export const SETTINGS_SECTIONS: { key: SettingsSectionKey; label: string; ownerOnly?: boolean }[] =
   [
     { key: 'profile', label: 'Профиль' },
+    { key: 'schedule', label: 'Расписание по умолчанию' },
     { key: 'bookings', label: 'Записи и оплата' },
     { key: 'venues', label: 'Залы и площадки' },
     { key: 'payments', label: 'Способы оплаты' },

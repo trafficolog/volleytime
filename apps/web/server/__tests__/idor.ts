@@ -27,6 +27,8 @@ export interface OrgFixtureIds {
   /** Код способа оплаты в пути (21.2.11). */
   method: string
   venueId: number
+  /** Слот расписания группы (21.2.12). */
+  slotId: number
   eventId: number
   bookingId: number
   memberId: number

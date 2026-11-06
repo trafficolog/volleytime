@@ -11,7 +11,7 @@ import * as schema from './schema'
 import { seedDemo } from './seed-demo'
 
 const TAG = '0036_organization_payment_methods'
-const PREVIOUS = '0034_player_position'
+const PREVIOUS = '0035_schedule_slots'
 const BASE_URL = process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL ?? ''
 
 /**

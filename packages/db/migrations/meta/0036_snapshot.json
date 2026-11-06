@@ -1,6 +1,6 @@
 {
-  "id": "3231c42f-c429-480f-b16c-ab55312d0d72",
-  "prevId": "4d462ce3-cef2-4f41-b7f3-f9ca6f02b787",
+  "id": "1aec4e81-fc70-4c3d-aa4f-a52b2a20be3a",
+  "prevId": "58d3ec2d-8250-4e83-b48f-a216581ca802",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1508,6 +1508,170 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.schedule_slots": {
+      "name": "schedule_slots",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "weekday": {
+          "name": "weekday",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "start_time": {
+          "name": "start_time",
+          "type": "varchar(5)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "duration_minutes": {
+          "name": "duration_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 120
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "event_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'training'"
+        },
+        "venue_id": {
+          "name": "venue_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "capacity": {
+          "name": "capacity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "schedule_slots_org_idx": {
+          "name": "schedule_slots_org_idx",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "weekday",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "start_time",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "schedule_slots_organization_id_organizations_id_fk": {
+          "name": "schedule_slots_organization_id_organizations_id_fk",
+          "tableFrom": "schedule_slots",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "schedule_slots_venue_id_venues_id_fk": {
+          "name": "schedule_slots_venue_id_venues_id_fk",
+          "tableFrom": "schedule_slots",
+          "tableTo": "venues",
+          "columnsFrom": [
+            "venue_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "schedule_slots_weekday_chk": {
+          "name": "schedule_slots_weekday_chk",
+          "value": "\"schedule_slots\".\"weekday\" BETWEEN 1 AND 7"
+        },
+        "schedule_slots_start_time_chk": {
+          "name": "schedule_slots_start_time_chk",
+          "value": "\"schedule_slots\".\"start_time\" ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'"
+        },
+        "schedule_slots_duration_chk": {
+          "name": "schedule_slots_duration_chk",
+          "value": "\"schedule_slots\".\"duration_minutes\" BETWEEN 15 AND 1440"
+        },
+        "schedule_slots_capacity_chk": {
+          "name": "schedule_slots_capacity_chk",
+          "value": "\"schedule_slots\".\"capacity\" BETWEEN 1 AND 500"
+        },
+        "schedule_slots_title_chk": {
+          "name": "schedule_slots_title_chk",
+          "value": "char_length(btrim(\"schedule_slots\".\"title\")) BETWEEN 2 AND 200"
+        },
+        "schedule_slots_type_chk": {
+          "name": "schedule_slots_type_chk",
+          "value": "\"schedule_slots\".\"type\" <> 'tournament_match'"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.event_series": {

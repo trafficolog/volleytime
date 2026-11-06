@@ -1869,6 +1869,21 @@ ol.vt-desktop-event-detail__rows > li {
 .vt-settings-venue[data-archived] .vt-settings-venue__text {
   opacity: 0.7;
 }
+.vt-settings-slot {
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+.vt-settings-slot__time {
+  min-width: 3rem;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.vt-settings-slot__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
 .vt-settings-venue-form {
   display: grid;
   gap: 0.875rem;

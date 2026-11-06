@@ -16,6 +16,7 @@ import {
   TelegramChatError,
   CollectionError,
   PaymentMethodError,
+  ScheduleSlotError,
 } from '@volley-time/core'
 
 /** HTTP-статусы для доменных error-кодов. */
@@ -52,6 +53,9 @@ const CODE_STATUS: Record<string, number> = {
   'event.join_mode_open': 409,
   'booking.invite_required': 403,
   'venue.not_found': 404,
+  // шаблоны слотов расписания (21.2.12)
+  'schedule_slot.not_found': 404,
+  'schedule_slot.limit_reached': 422,
   'event.not_found': 404,
   'event.not_editable': 409,
   'event.split_pricing_disabled': 409,
@@ -153,7 +157,8 @@ export function handleServiceError(e: unknown): never {
     e instanceof SeriesError ||
     e instanceof TelegramChatError ||
     e instanceof CollectionError ||
-    e instanceof PaymentMethodError
+    e instanceof PaymentMethodError ||
+    e instanceof ScheduleSlotError
   ) {
     const status = CODE_STATUS[e.code] ?? 400
     throw createError({ statusCode: status, statusMessage: e.message, data: { code: e.code } })
