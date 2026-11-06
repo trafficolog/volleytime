@@ -69,6 +69,8 @@ const props = defineProps<{
   inviteModeEnabled?: boolean
   /** Блок повтора: только при создании и только там, где хост умеет показать итог серии. */
   allowSeries?: boolean
+  /** Скрыть кнопку отправки: хост сам вызывает `submit` (системная MainButton Telegram, 21.1.2). */
+  hideSubmit?: boolean
   pricingPermissions?: PricingPermissions
 }>()
 const emit = defineEmits<{ saved: [event: Event]; seriesCreated: [result: SeriesCreated] }>()
@@ -606,6 +608,9 @@ async function submit() {
 function resetJoinMode() {
   form.joinMode = groupJoinMode
 }
+// Хост с собственной кнопкой (MainButton) читает состояние и вызывает отправку через ссылку на форму.
+defineExpose({ submit, submitDisabled, submitText, saving })
+
 const seatsText = computed(() => {
   const max = groupSettings.value?.maxSeatsPerBooking
   return max ? `Мест на игрока: до ${max} · меняется в настройках группы` : null
@@ -945,6 +950,7 @@ const seatsText = computed(() => {
 
     <p v-if="error" id="ev-form-error" class="text-sm text-vt-rose-ink" role="alert">{{ error }}</p>
     <button
+      v-if="!hideSubmit"
       type="submit"
       class="vt-btn vt-btn--primary vt-btn--lg vt-btn--full"
       :disabled="submitDisabled"
