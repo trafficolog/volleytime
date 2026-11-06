@@ -2,11 +2,11 @@
 id: '21.2.13'
 phase: '21'
 epic: '21.2'
-status: in_progress
+status: done
 release: 'v0.3.0'
 sync_state: synced
-last_reviewed: 2026-10-15
-status_note: 'Реализация в PR trafficolog/feat/21.2.13-venues (2026-11-05): PATCH/DELETE залов, архив через существующий venues.status без миграции, форма и меню в настройках. Цена за час отложена решением владельца 2026-11-05 в бэклог v0.3.1 (нужна миграция). Ждёт ревью и визуальную сверку.'
+last_reviewed: 2026-11-06
+status_note: 'Выполнено: PR #217 смёржен (ревью Opus и CI пройдены). PATCH/DELETE залов, архив через существующий статус; цена за час отложена в бэклог v0.3.1 (решение владельца 2026-11-05, 21.4.1). Отчёт сверки: docs/operations/qa/2026-11-05-21-2-13-settings-venues-visual.md.'
 ref_id: 'W-11'
 complexity: M
 impl_model: claude-sonnet-5-5
