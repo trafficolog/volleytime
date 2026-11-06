@@ -5,6 +5,7 @@ import SettingsBookings from '~/components/desktop/settings/SettingsBookings.vue
 import SettingsDanger from '~/components/desktop/settings/SettingsDanger.vue'
 import SettingsIntegrations from '~/components/desktop/settings/SettingsIntegrations.vue'
 import SettingsNotifications from '~/components/desktop/settings/SettingsNotifications.vue'
+import SettingsPaymentMethods from '~/components/desktop/settings/SettingsPaymentMethods.vue'
 import SettingsProfile from '~/components/desktop/settings/SettingsProfile.vue'
 import SettingsTeam from '~/components/desktop/settings/SettingsTeam.vue'
 import SettingsVenues from '~/components/desktop/settings/SettingsVenues.vue'
@@ -157,7 +158,7 @@ async function archive() {
         </NuxtLink>
       </nav>
       <div class="vt-settings__content">
-        <p v-if="!isOwner && section !== 'venues'" class="vt-settings-note" role="note">
+        <p v-if="!isOwner && section !== 'venues' && section !== 'payments'" class="vt-settings-note" role="note">
           Изменять настройки может только владелец группы. Вы видите текущие значения.
         </p>
         <SettingsProfile
@@ -176,6 +177,12 @@ async function archive() {
         />
         <SettingsVenues
           v-else-if="section === 'venues'"
+          :org-id="orgId"
+          :can-manage="true"
+          @toast="toast.show"
+        />
+        <SettingsPaymentMethods
+          v-else-if="section === 'payments'"
           :org-id="orgId"
           :can-manage="true"
           @toast="toast.show"

@@ -61,7 +61,7 @@ describe('group settings sections', () => {
     ] as const) {
       expect(SETTING_IMPACT[key].length).toBeGreaterThan(20)
     }
-    expect(SETTINGS_SECTIONS).toHaveLength(7)
+    expect(SETTINGS_SECTIONS).toHaveLength(8)
   })
 })
 
