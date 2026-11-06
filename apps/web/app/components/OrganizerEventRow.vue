@@ -3,7 +3,20 @@ import { formatDay, formatTime } from '@volley-time/shared'
 
 import type { EventListItem } from './EventCard.vue'
 
-const props = defineProps<{ event: EventListItem; tz: string; to: string }>()
+import { organizerEventChips, splitForecastLabel } from '~/utils/organizer-miniapp'
+
+/**
+ * Строка события организатора (v3). `pending` — сколько платежей события ждёт подтверждения
+ * (из списка ожидающих оплат); без него чипов оплаты нет, остаются дата, места и состояние.
+ */
+const props = defineProps<{
+  event: EventListItem
+  tz: string
+  to: string
+  pending?: number | null
+}>()
+const chips = computed(() => organizerEventChips(props.event, props.pending ?? null))
+const forecast = computed(() => splitForecastLabel(props.event))
 const dateParts = computed(() =>
   new Intl.DateTimeFormat('ru-RU', { timeZone: props.tz, day: 'numeric', weekday: 'short' })
     .formatToParts(new Date(props.event.startsAt))
@@ -29,6 +42,19 @@ const venue = computed(() => props.event.venue?.name ?? props.event.locationText
       <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <VtStateChip class="organizer-event-status" :event="event" />
         <VtSeatsMini :taken="event.taken" :capacity="event.capacity" :event="event" :width="96" />
+        <span v-if="forecast" class="vt-mono text-xs text-vt-mute-2" data-split-forecast>{{
+          forecast
+        }}</span>
+      </div>
+      <div v-if="chips.length" class="mt-1.5 flex flex-wrap items-center gap-1.5">
+        <span
+          v-for="chip in chips"
+          :key="chip.text"
+          class="vt-chip"
+          :class="`vt-chip--${chip.tone}`"
+          :data-pay-chip="chip.tone"
+          >{{ chip.text }}</span
+        >
       </div>
     </div>
   </NuxtLink>

@@ -11,7 +11,7 @@ import {
 
 import { displayName, formatPrice, formatMoneyRu } from '~/utils/labels'
 import { pendingPaymentsForEvent } from '~/utils/organizer-miniapp'
-import { pendingVerb, waitlistCaption } from '~/utils/status-model'
+import { pendingOf, pendingVerb, waitlistCaption } from '~/utils/status-model'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
 interface PendingPayment {
@@ -94,9 +94,14 @@ const busy = ref(false)
 let settlementOperation = 0
 const paymentBusy = ref<number | null>(null)
 const mutationBusy = computed(() => busy.value || paymentBusy.value !== null)
-const activeTab = ref<'roster' | 'payments'>('roster')
-const rosterTab = ref<HTMLButtonElement | null>(null)
-const paymentsTab = ref<HTMLButtonElement | null>(null)
+type Tab = 'roster' | 'payments' | 'share'
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'roster', label: 'Состав' },
+  { id: 'payments', label: 'Платежи' },
+  { id: 'share', label: 'Шеринг' },
+]
+const activeTab = ref<Tab>('roster')
+const tabEls: Partial<Record<Tab, HTMLButtonElement | null>> = {}
 const tabPrefix = computed(() => `event-${orgId.value}-${eventId.value}`)
 const eventPayments = computed(() => pendingPaymentsForEvent(payments.value, eventId.value))
 let rosterRequest = 0
@@ -150,22 +155,30 @@ watch(routeKey, () => {
   void Promise.all([loadRoster(), loadPayments()])
 })
 
-async function switchTab(tab: 'roster' | 'payments', focus = false) {
+async function switchTab(tab: Tab, focus = false) {
   activeTab.value = tab
   if (focus) {
     await nextTick()
-    ;(tab === 'roster' ? rosterTab.value : paymentsTab.value)?.focus()
+    tabEls[tab]?.focus()
   }
 }
 
 function onTabKeydown(event: KeyboardEvent) {
-  if (event.key === 'ArrowLeft' || event.key === 'Home') {
-    event.preventDefault()
-    void switchTab('roster', true)
-  } else if (event.key === 'ArrowRight' || event.key === 'End') {
-    event.preventDefault()
-    void switchTab('payments', true)
-  }
+  const index = TABS.findIndex((tab) => tab.id === activeTab.value)
+  const last = TABS.length - 1
+  const next =
+    event.key === 'ArrowLeft'
+      ? Math.max(0, index - 1)
+      : event.key === 'ArrowRight'
+        ? Math.min(last, index + 1)
+        : event.key === 'Home'
+          ? 0
+          : event.key === 'End'
+            ? last
+            : null
+  if (next === null) return
+  event.preventDefault()
+  void switchTab(TABS[next]!.id, true)
 }
 
 const inRoster = computed(() =>
@@ -175,6 +188,25 @@ const inRoster = computed(() =>
 )
 const waitlist = computed(() => rows.value.filter((b) => b.status === 'waitlisted'))
 const started = computed(() => !!ev.value && new Date(ev.value.startsAt) <= new Date())
+// «ждут оплаты» в составе считается по записям состава (`pendingOf`), как строка «ждёт оплаты» в нём
+const rosterPending = computed(() => pendingOf(inRoster.value))
+
+// Шеринг: публичная страница события `/e/<slug>` (20.6.1)
+// origin берём из окна: Mini App открыт на том же хосте, что и публичная страница события
+const shareUrl = computed(() =>
+  ev.value?.publicSlug ? `${window.location.origin}/e/${ev.value.publicSlug}` : '',
+)
+const copyState = ref<'idle' | 'copied' | 'failed'>('idle')
+async function copyShareLink() {
+  if (!shareUrl.value) return
+  try {
+    await navigator.clipboard.writeText(shareUrl.value)
+    copyState.value = 'copied'
+    haptic('light')
+  } catch {
+    copyState.value = 'failed'
+  }
+}
 
 async function settlePricing() {
   const target = ev.value
@@ -368,15 +400,7 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
           <div class="flex justify-center">
             <VtSeatsMini :taken="ev.taken" :capacity="ev.capacity" :event="ev" :width="48" />
           </div>
-          <div class="vt-cap !text-[10px]">в составе</div>
-        </div>
-        <div class="vt-card p-2.5">
-          <div class="vt-mono font-bold text-lg">
-            {{ paymentsLoading || paymentsError ? '—' : eventPayments.length }}
-          </div>
-          <div class="vt-cap !text-[10px]">
-            {{ pendingVerb(paymentsLoading || paymentsError ? 0 : eventPayments.length) }} оплаты
-          </div>
+          <div class="vt-cap !text-[10px]">мест занято</div>
         </div>
         <div class="vt-card p-2.5">
           <div class="vt-mono font-bold text-lg">
@@ -386,6 +410,22 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
             {{ waitlistCaption(ev.waitlist, ev.waitlistSeats) }}
           </div>
         </div>
+        <button
+          type="button"
+          class="vt-card p-2.5 text-center"
+          data-pending-tile
+          @click="switchTab('payments')"
+        >
+          <div
+            class="vt-mono font-bold text-lg"
+            :class="rosterLoading || rosterError || rosterPending === 0 ? '' : 'text-vt-amber-ink'"
+          >
+            {{ rosterLoading || rosterError ? '—' : rosterPending }}
+          </div>
+          <div class="vt-cap !text-[10px]">
+            {{ pendingVerb(rosterLoading || rosterError ? 0 : rosterPending) }} оплаты
+          </div>
+        </button>
       </div>
 
       <div v-if="ev.status === 'draft'" class="manage-draft vt-card p-3.5 flex items-center gap-3">
@@ -412,55 +452,28 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
       >
         Обновить событие
       </button>
-      <EventPricingPanel
-        v-if="ev.pricing?.mode === 'split'"
-        :pricing="ev.pricing"
-        :financials="ev.pricingFinancials ?? null"
-        :currency="ev.currency"
-        :tz="tz"
-        :can-settle="ev.pricingPermissions?.canSettle === true"
-        :pending="mutationBusy"
-        @settle="settlePricing"
-      />
 
-      <div
-        role="tablist"
-        aria-label="Управление событием"
-        class="manage-tabs flex gap-2 border-b border-[var(--vt-stroke)]"
-      >
+      <div role="tablist" aria-label="Управление событием" class="manage-tabs flex gap-1">
         <button
-          :id="`${tabPrefix}-roster-tab`"
-          ref="rosterTab"
+          v-for="tab in TABS"
+          :id="`${tabPrefix}-${tab.id}-tab`"
+          :key="tab.id"
+          :ref="(el) => (tabEls[tab.id] = el as HTMLButtonElement | null)"
           type="button"
           role="tab"
-          :aria-selected="activeTab === 'roster'"
-          :aria-controls="`${tabPrefix}-roster-panel`"
-          :tabindex="activeTab === 'roster' ? 0 : -1"
-          class="min-h-[44px] px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
+          :aria-selected="activeTab === tab.id"
+          :aria-controls="`${tabPrefix}-${tab.id}-panel`"
+          :tabindex="activeTab === tab.id ? 0 : -1"
+          class="manage-tab min-h-[44px] flex-1 rounded-full px-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2"
           :class="
-            activeTab === 'roster' ? 'border-b-2 border-current text-vt-ink' : 'text-vt-mute-2'
+            activeTab === tab.id
+              ? 'bg-vt-ink font-semibold text-vt-paper'
+              : 'font-medium text-vt-mute-2'
           "
-          @click="switchTab('roster')"
+          @click="switchTab(tab.id)"
           @keydown="onTabKeydown"
         >
-          Состав
-        </button>
-        <button
-          :id="`${tabPrefix}-payments-tab`"
-          ref="paymentsTab"
-          type="button"
-          role="tab"
-          :aria-selected="activeTab === 'payments'"
-          :aria-controls="`${tabPrefix}-payments-panel`"
-          :tabindex="activeTab === 'payments' ? 0 : -1"
-          class="min-h-[44px] px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
-          :class="
-            activeTab === 'payments' ? 'border-b-2 border-current text-vt-ink' : 'text-vt-mute-2'
-          "
-          @click="switchTab('payments')"
-          @keydown="onTabKeydown"
-        >
-          Оплаты
+          {{ tab.label }}
         </button>
       </div>
 
@@ -562,8 +575,19 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
         role="tabpanel"
         :aria-labelledby="`${tabPrefix}-payments-tab`"
         tabindex="0"
+        class="space-y-3"
       >
-        <h2 class="vt-cap mb-2">Ожидают подтверждения</h2>
+        <EventPricingPanel
+          v-if="ev.pricing?.mode === 'split'"
+          :pricing="ev.pricing"
+          :financials="ev.pricingFinancials ?? null"
+          :currency="ev.currency"
+          :tz="tz"
+          :can-settle="ev.pricingPermissions?.canSettle === true"
+          :pending="mutationBusy"
+          @settle="settlePricing"
+        />
+        <h2 class="vt-cap">Ожидают подтверждения</h2>
         <SkeletonList v-if="paymentsLoading" :count="2" />
         <ErrorState v-else-if="paymentsError" :message="paymentsError" @retry="loadPayments" />
         <EmptyState
@@ -613,6 +637,44 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
           </li>
         </ul>
       </section>
+
+      <section
+        v-show="activeTab === 'share'"
+        :id="`${tabPrefix}-share-panel`"
+        role="tabpanel"
+        :aria-labelledby="`${tabPrefix}-share-tab`"
+        tabindex="0"
+        class="space-y-3"
+      >
+        <div class="vt-card space-y-3 p-4">
+          <h2 class="vt-cap">Публичная ссылка</h2>
+          <label class="sr-only" for="event-share-link">Публичная ссылка на событие</label>
+          <input
+            id="event-share-link"
+            class="vt-field vt-mono text-xs"
+            readonly
+            :value="shareUrl"
+            @focus="($event.target as HTMLInputElement).select()"
+          />
+          <button
+            type="button"
+            class="vt-btn vt-btn--ink vt-btn--full"
+            :disabled="!shareUrl"
+            @click="copyShareLink"
+          >
+            <VtIcon name="link" :size="14" /> Скопировать
+          </button>
+          <p v-if="copyState === 'copied'" class="text-sm text-vt-grass-ink" role="status">
+            Ссылка скопирована
+          </p>
+          <p v-else-if="copyState === 'failed'" class="text-sm text-vt-rose-ink" role="alert">
+            Не удалось скопировать: выделите ссылку и скопируйте вручную
+          </p>
+          <p v-if="ev.status === 'draft'" class="text-sm text-vt-mute-2">
+            Событие — черновик: игроки увидят его по ссылке после публикации.
+          </p>
+        </div>
+      </section>
     </main>
   </div>
 </template>
@@ -627,7 +689,7 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
     gap: 0;
   }
 
-  .manage-tabs button {
+  .manage-tabs .manage-tab {
     min-width: 0;
     flex: 1 1 0;
     padding-inline: 0.25rem;

@@ -3,9 +3,12 @@ import { describe, expect, it } from 'vitest'
 import {
   organizerMenuLinks,
   organizerHomeSubtitle,
+  organizerEventChips,
   organizerTabItems,
+  pendingCountsByEvent,
   pendingPaymentsForEvent,
   projectOrganizerHome,
+  splitForecastLabel,
 } from './organizer-miniapp'
 
 const base = '/m/orgs/7'
@@ -215,5 +218,93 @@ describe('organizer Home projection', () => {
     expect(
       projectOrganizerHome(7, organization, member, { ...dashboard, isManager: false }),
     ).toBeNull()
+  })
+})
+
+describe('organizer event chips (21.1.1)', () => {
+  const ev = { status: 'published', taken: 12, waitlist: 0, price: 1000 }
+
+  it('counts pending payments per event', () => {
+    const counts = pendingCountsByEvent([
+      { event: { id: 1 } },
+      { event: { id: 1 } },
+      { event: { id: 2 } },
+      { event: null },
+    ])
+    expect([...counts]).toEqual([
+      [1, 2],
+      [2, 1],
+    ])
+  })
+
+  it('says how many wait for payment with number agreement', () => {
+    expect(organizerEventChips(ev, 1)).toEqual([{ tone: 'amber', text: '1 ждёт оплаты' }])
+    expect(organizerEventChips(ev, 2)).toEqual([{ tone: 'amber', text: '2 ждут оплаты' }])
+    expect(organizerEventChips(ev, 21)[0]?.text).toBe('21 ждёт оплаты')
+  })
+
+  it('shows green only when money was actually collected and nothing waits', () => {
+    const paid = { paymentTotals: { paid: 3000, pending: 0 } }
+    expect(organizerEventChips({ ...ev, ...paid }, 0)).toEqual([
+      { tone: 'grass', text: 'все оплатили' },
+    ])
+    // нет данных о деньгах (главная) или ничего не получено (онлайн-записи без платёжных строк)
+    expect(organizerEventChips(ev, 0)).toEqual([])
+    expect(organizerEventChips({ ...ev, paymentTotals: { paid: 0, pending: 0 } }, 0)).toEqual([])
+    expect(organizerEventChips({ ...ev, ...paid, taken: 0 }, 0)).toEqual([])
+    expect(organizerEventChips({ ...ev, ...paid, price: 0 }, 0)).toEqual([])
+  })
+
+  it('never shows green for an unsettled split event', () => {
+    const open = {
+      ...ev,
+      price: 0,
+      paymentTotals: { paid: 3000, pending: 0 },
+      pricing: { mode: 'split', settledAt: null, basis: 'current' },
+    }
+    expect(organizerEventChips(open, 0)).toEqual([])
+    expect(organizerEventChips(open, 2)).toEqual([{ tone: 'amber', text: '2 ждут оплаты' }])
+  })
+
+  it('asks to distribute a closed unsettled split event', () => {
+    const closed = {
+      ...ev,
+      status: 'closed',
+      price: 0,
+      pricing: { mode: 'split', settledAt: null, basis: 'capacity' },
+    }
+    expect(organizerEventChips(closed, 0)).toEqual([{ tone: 'amber', text: 'нужно распределить' }])
+    expect(organizerEventChips(closed, null)).toEqual([
+      { tone: 'amber', text: 'нужно распределить' },
+    ])
+    const settled = { ...closed, pricing: { mode: 'split', settledAt: '2027-01-01T00:00:00Z' } }
+    expect(organizerEventChips(settled, 0)).toEqual([])
+  })
+
+  it('draws no payment chip while pending data is unknown, nor for drafts and cancelled', () => {
+    expect(organizerEventChips(ev, null)).toEqual([])
+    expect(organizerEventChips({ ...ev, status: 'draft' }, 3)).toEqual([])
+    expect(organizerEventChips({ ...ev, status: 'cancelled' }, 3)).toEqual([])
+  })
+
+  it('adds a neutral queue chip with people and seats', () => {
+    expect(organizerEventChips({ ...ev, waitlist: 2 }, 0)[0]).toEqual({
+      tone: 'state',
+      text: 'очередь · 2 чел.',
+    })
+    expect(organizerEventChips({ ...ev, waitlist: 2, waitlistSeats: 3 }, 0)[0]?.text).toBe(
+      'очередь · 2 чел. · 3 места',
+    )
+  })
+
+  it('labels the split price per seat as a forecast until settled', () => {
+    const base = { status: 'published', currency: 'BYN' }
+    const pricing = { mode: 'split', maxAmount: 3000, basis: 'current' }
+    expect(splitForecastLabel({ ...base, pricing })).toBe('≈ 30,00 BYN')
+    expect(splitForecastLabel({ ...base, pricing: { ...pricing, basis: 'settled' } })).toBe(
+      '30,00 BYN',
+    )
+    expect(splitForecastLabel({ ...base, pricing: { ...pricing, mode: 'fixed' } })).toBeNull()
+    expect(splitForecastLabel({ ...base, status: 'cancelled', pricing })).toBeNull()
   })
 })

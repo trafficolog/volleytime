@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import type { Organization, OrganizationMember } from '@volley-time/db'
-import { formatDay, formatShortDate, formatTime, type EventPricingView } from '@volley-time/shared'
+import { formatShortDate, type EventPricingView } from '@volley-time/shared'
 
 import type { EventListItem } from '~/components/EventCard.vue'
 import GroupSwitcher from '~/components/GroupSwitcher.vue'
 import PlayerHomeBento from '~/components/PlayerHomeBento.vue'
 import PlayerHomeTiles from '~/components/PlayerHomeTiles.vue'
+import { eventBalanceCard } from '~/utils/cabinet-shell'
 import { groupEntryState, visibleGroup } from '~/utils/group-entry-state'
 import { groupMonogram } from '~/utils/group-monogram'
 import { formatMoneyRu } from '~/utils/labels'
 import {
   organizerHomeSubtitle,
+  pendingCountsByEvent,
   projectOrganizerHome,
   type OrganizerBalance,
 } from '~/utils/organizer-miniapp'
@@ -105,6 +107,12 @@ const sessions = computed(() =>
   sessionsTile(org.value?.subscriptionsEnabled === true, dash.value?.subscription ?? null),
 )
 const home = computed(() => projectOrganizerHome(orgId.value, org.value, me.value, dash.value))
+// Данные плиток, которых нет в дашборде: ожидающие платежи по событиям (чипы строк) и баланс событий.
+// Только управляющему; сбой одного запроса не ломает главную: плитка показывает «нет данных».
+const pendingByEvent = shallowRef<Map<number, number> | null>(null)
+const eventBalance = shallowRef<{ balance: number; low: boolean } | null>(null)
+const eventBalanceFailed = ref(false)
+const balanceTile = computed(() => eventBalanceCard(eventBalance.value, eventBalanceFailed.value))
 const roleMismatch = computed(() => !!dash.value && dash.value.isManager !== activeManager.value)
 
 async function refreshDash() {
@@ -119,6 +127,7 @@ async function refreshDash() {
     if (!request.isCurrent()) return
     dashboard.value = response
     dashboardOrgId.value = requestedOrgId
+    if (response.isManager) void loadManagerExtras(requestedOrgId, request.isCurrent)
   } catch (error) {
     if (request.isCurrent())
       dashError.value = apiErrorMessage(error, 'Не удалось загрузить данные группы')
@@ -126,6 +135,28 @@ async function refreshDash() {
     if (request.isCurrent()) dashLoading.value = false
   }
 }
+async function loadManagerExtras(requestedOrgId: number, isCurrent: () => boolean) {
+  pendingByEvent.value = null
+  eventBalance.value = null
+  eventBalanceFailed.value = false
+  const [payments, balance] = await Promise.allSettled([
+    $fetch<{ payments?: { event?: { id: number } | null }[] }>(
+      `/api/organizations/${requestedOrgId}/payments`,
+    ),
+    $fetch<{ eventBalance?: { balance: number; low: boolean } }>(
+      `/api/organizations/${requestedOrgId}/event-balance`,
+    ),
+  ])
+  if (!isCurrent()) return
+  pendingByEvent.value =
+    payments.status === 'fulfilled' && Array.isArray(payments.value?.payments)
+      ? pendingCountsByEvent(payments.value.payments)
+      : null
+  if (balance.status === 'fulfilled' && balance.value?.eventBalance)
+    eventBalance.value = balance.value.eventBalance
+  else eventBalanceFailed.value = true
+}
+
 await refreshDash()
 watch(orgId, () => void refreshDash())
 
@@ -316,27 +347,23 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
                     <span class="mt-1 block text-xs">Ждут подтверждения</span>
                   </span>
                 </NuxtLink>
-                <NuxtLink
-                  :to="
-                    home.nextEvent
-                      ? `${base}/events/${home.nextEvent.id}/manage`
-                      : `${base}/events/new`
-                  "
+                <div
                   class="vt-card flex min-w-0 flex-col justify-between p-4"
+                  data-event-balance
+                  role="group"
+                  aria-label="Баланс событий"
                 >
                   <VtIcon name="calendar" :size="20" />
                   <span class="mt-3 min-w-0">
-                    <span class="vt-cap block">Ближайшее событие</span>
-                    <span v-if="home.nextEvent" class="mt-1 block text-sm font-bold break-words">{{
-                      home.nextEvent.title
+                    <span class="vt-mono block text-3xl font-bold leading-none">{{
+                      balanceTile.value
                     }}</span>
-                    <span v-else class="mt-1 block text-xs text-vt-mute-2">Создать тренировку</span>
-                    <span v-if="home.nextEvent" class="mt-1 block text-xs text-vt-mute-2">
-                      {{ formatDay(home.nextEvent.startsAt, tz) }} ·
-                      {{ formatTime(home.nextEvent.startsAt, tz) }}
-                    </span>
+                    <span class="mt-1 block text-xs break-words">{{ balanceTile.caption }}</span>
+                    <span v-if="balanceTile.low" class="mt-1 block text-xs text-vt-rose-ink"
+                      >Баланс заканчивается</span
+                    >
                   </span>
-                </NuxtLink>
+                </div>
               </div>
             </section>
             <nav
@@ -437,7 +464,7 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
           >
             <div class="organizer-events-heading flex items-center justify-between mb-2">
               <h2 :class="home ? 'vt-cap' : 'font-display font-bold text-xl uppercase'">
-                {{ home ? 'Ближайшие события' : 'Расписание' }}
+                {{ home ? 'События' : 'Расписание' }}
               </h2>
               <NuxtLink
                 :to="`${base}/events`"
@@ -465,7 +492,12 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
             </p>
             <ul v-else-if="home" class="divide-y divide-[var(--vt-stroke)]">
               <li v-for="ev in home.upcoming" :key="ev.id">
-                <OrganizerEventRow :event="ev" :tz="tz" :to="`${base}/events/${ev.id}/manage`" />
+                <OrganizerEventRow
+                  :event="ev"
+                  :tz="tz"
+                  :to="`${base}/events/${ev.id}/manage`"
+                  :pending="pendingByEvent ? (pendingByEvent.get(ev.id) ?? 0) : null"
+                />
               </li>
             </ul>
             <ul v-else class="player-schedule">

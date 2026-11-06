@@ -3,6 +3,7 @@ import {
   dateToZonedInput,
   formatDay,
   formatShortDate,
+  formatTime,
   toMinor,
   zonedInputToDate,
 } from '@volley-time/shared'
@@ -218,7 +219,7 @@ const EXPENSE_CATS = ['rent', 'equipment', 'salary', 'other']
 const INCOME_CATS = ['contribution', 'carryover', 'donation', 'sponsorship', 'other_income']
 
 function entrySubtitle(e: Entry): string {
-  const parts: string[] = []
+  const parts: string[] = [formatTime(e.occurredAt, tz.value)]
   if (e.payer) parts.push(displayName(e.payer))
   if (e.event) parts.push(`${e.event.title}, ${formatDay(e.event.startsAt, tz.value)}`)
   if (e.description && e.category !== 'payment_income') parts.push(e.description)
@@ -245,7 +246,7 @@ function entrySubtitle(e: Entry): string {
             class="vt-card vt-card--hero cashbox-balance-hero p-5 text-white"
             aria-label="Баланс кассы"
           >
-            <div class="vt-cap">Баланс</div>
+            <div class="vt-cap">Баланс кассы</div>
             <div
               class="vt-mono text-3xl font-bold mt-2 break-words"
               :class="balance.balance < 0 ? 'text-[var(--vt-amber)]' : ''"
@@ -254,13 +255,13 @@ function entrySubtitle(e: Entry): string {
             </div>
             <div class="cashbox-balance-breakdown grid grid-cols-2 gap-3 mt-5 text-sm">
               <div>
-                <div class="text-xs opacity-75">Доходы</div>
-                <div class="vt-mono font-semibold break-words">
+                <div class="text-xs opacity-75">Поступило</div>
+                <div class="vt-mono font-semibold break-words text-[var(--vt-amber)]">
                   +{{ formatMoneyRu(balance.income, balance.currency) }}
                 </div>
               </div>
               <div>
-                <div class="text-xs opacity-75">Расходы</div>
+                <div class="text-xs opacity-75">Списано</div>
                 <div class="vt-mono font-semibold break-words">
                   −{{ formatMoneyRu(balance.expense, balance.currency) }}
                 </div>
@@ -333,7 +334,7 @@ function entrySubtitle(e: Entry): string {
                       : 'bg-[var(--vt-rose-soft)] text-vt-rose-ink'
                   "
                 >
-                  <VtIcon :name="e.type === 'income' ? 'arrow-r' : 'wallet'" :size="15" />
+                  <VtIcon :name="e.type === 'income' ? 'arrow-d' : 'arrow-u'" :size="15" />
                 </span>
                 <div class="flex-1 min-w-0">
                   <div class="text-[13px] font-semibold">
