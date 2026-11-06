@@ -7,11 +7,14 @@ import {
   computed,
   defineComponent,
   h,
+  nextTick,
   onBeforeUnmount,
+  onMounted,
   onUnmounted,
   reactive,
   ref,
   Suspense,
+  watchEffect,
 } from 'vue'
 
 import EventForm from '../../app/components/EventForm.vue'
@@ -19,6 +22,8 @@ import DesktopEdit from '../../app/pages/app/orgs/[orgId]/events/[eventId]/edit.
 import DesktopNew from '../../app/pages/app/orgs/[orgId]/events/new.vue'
 import MiniEdit from '../../app/pages/m/orgs/[orgId]/events/[eventId]/edit.vue'
 import MiniNew from '../../app/pages/m/orgs/[orgId]/events/new.vue'
+
+import { createMainButton } from '../../app/utils/telegram-shell'
 
 import { createTestApi } from './harness'
 
@@ -53,8 +58,13 @@ describe('real manager API through both organizer edit forms (5.16.2)', () => {
       computed,
       reactive,
       ref,
+      nextTick,
       onBeforeUnmount,
+      onMounted,
       onUnmounted,
+      watchEffect,
+      createMainButton,
+      useTelegram: () => ({ isTelegram: ref(false), webApp: undefined }),
       definePageMeta: () => undefined,
       useRoute: () => route,
       useRouter: () => ({ currentRoute: ref(route) }),

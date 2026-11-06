@@ -70,9 +70,26 @@ const props = defineProps<{
   inviteModeEnabled?: boolean
   /** Блок повтора: только при создании и только там, где хост умеет показать итог серии. */
   allowSeries?: boolean
+  /** Скрыть кнопку отправки: хост сам вызывает `submit` (системная MainButton Telegram, 21.1.2). */
+  hideSubmit?: boolean
   pricingPermissions?: PricingPermissions
 }>()
 const emit = defineEmits<{ saved: [event: Event]; seriesCreated: [result: SeriesCreated] }>()
+
+// Хост с собственной кнопкой (MainButton) читает состояние и вызывает отправку через ссылку на форму.
+// Объявлено до первого await (иначе expose не сработает); значения читаются лениво, при обращении.
+defineExpose({
+  submit: () => submit(),
+  get submitDisabled() {
+    return submitDisabled.value
+  },
+  get submitText() {
+    return submitText.value
+  },
+  get saving() {
+    return saving.value
+  },
+})
 
 const uid = useId()
 const i = props.initial
@@ -1008,6 +1025,7 @@ const seatsText = computed(() => {
 
     <p v-if="error" id="ev-form-error" class="text-sm text-vt-rose-ink" role="alert">{{ error }}</p>
     <button
+      v-if="!hideSubmit"
       type="submit"
       class="vt-btn vt-btn--primary vt-btn--lg vt-btn--full"
       :disabled="submitDisabled"

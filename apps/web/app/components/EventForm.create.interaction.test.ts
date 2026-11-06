@@ -465,7 +465,46 @@ describe('create a series with preview', () => {
     wrapper.unmount()
   })
 
-  it('does not offer a series when the host does not allow it (Mini App until 21.1.2)', async () => {
+  it('hides the submit button for a host with its own button and exposes the form state', async () => {
+    const { wrapper } = await renderForm({ hideSubmit: true })
+    expect(wrapper.find('button[type="submit"]').exists()).toBe(false)
+    await choose(wrapper, 'Каждую неделю')
+    const handle = wrapper.findComponent(EventForm).vm as unknown as {
+      submit: () => Promise<void>
+      submitDisabled: boolean
+      submitText: string
+    }
+    expect(handle.submitText).toBe('Создать 2 события')
+    expect(handle.submitDisabled).toBe(false)
+    await handle.submit()
+    await settle()
+    expect(calls('/series')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('sends exactly one series request when submit is triggered twice before it resolves', async () => {
+    const { wrapper } = await renderForm({ hideSubmit: true })
+    await choose(wrapper, 'Каждую неделю')
+    let release!: (v: unknown) => void
+    const pending = new Promise((resolve) => (release = resolve))
+    const base = apiFetch.getMockImplementation()!
+    apiFetch.mockImplementation(async (url: string, opts?: { method?: string }) =>
+      url.endsWith('/series') && opts?.method === 'POST' ? pending : base(url, opts),
+    )
+    const handle = wrapper.findComponent(EventForm).vm as unknown as { submit: () => Promise<void> }
+    const first = handle.submit()
+    const second = handle.submit()
+    await settle()
+    expect(calls('/series')).toHaveLength(1)
+    release(mocks.seriesPost)
+    await Promise.all([first, second])
+    await settle()
+    expect(calls('/series')).toHaveLength(1)
+    expect(wrapper.findComponent(EventForm).emitted('seriesCreated')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('does not offer a series when the host does not allow it', async () => {
     const { wrapper } = await renderForm({ allowSeries: false })
     expect(wrapper.find('[data-testid="series-block"]').exists()).toBe(false)
     wrapper.unmount()
