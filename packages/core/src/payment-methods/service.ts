@@ -2,18 +2,11 @@ import { and, eq, organizationPaymentMethods, organizations } from '@volley-time
 
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
-import {
-  OrganizationArchivedError,
-  OrganizationNotFoundError,
-} from '../organizations/errors'
+import { OrganizationArchivedError, OrganizationNotFoundError } from '../organizations/errors'
 import { actorUserId, getDb, inTransaction, type ServiceContext } from '../shared/context'
 
 import { PaymentMethodInvalidError } from './errors'
-import {
-  PAYMENT_METHOD_CODES,
-  UpdatePaymentMethodInput,
-  type PaymentMethodCode,
-} from './schemas'
+import { PAYMENT_METHOD_CODES, UpdatePaymentMethodInput, type PaymentMethodCode } from './schemas'
 
 /** Способ оплаты группы для кабинета и экрана оплаты игрока. Полного номера карты нет нигде. */
 export interface PaymentMethodView {

@@ -96,9 +96,9 @@ describe('payment methods API (HTTP integration)', () => {
       recipient: 'Иван П.',
     })
 
-    expect((await request('PATCH', one('cash'), { user: ownerId, body: { enabled: false } })).status).toBe(
-      200,
-    )
+    expect(
+      (await request('PATCH', one('cash'), { user: ownerId, body: { enabled: false } })).status,
+    ).toBe(200)
     const afterOff = await request('GET', list(), { user: playerId })
     expect(methodsOf(afterOff.body).map((m) => m.method)).toEqual(['transfer'])
     const manager = await request('GET', list(), { user: organizerId })
@@ -161,8 +161,12 @@ describe('payment methods API (HTTP integration)', () => {
       expect(res.text).not.toContain(FULL_CARD)
       expect(res.text).not.toContain('4111')
     }
-    expect((await request('PATCH', one('online'), { user: ownerId, body: { enabled: true } })).status).toBe(404)
-    expect((await request('PATCH', one('erip'), { user: ownerId, body: { enabled: true } })).status).toBe(404)
+    expect(
+      (await request('PATCH', one('online'), { user: ownerId, body: { enabled: true } })).status,
+    ).toBe(404)
+    expect(
+      (await request('PATCH', one('erip'), { user: ownerId, body: { enabled: true } })).status,
+    ).toBe(404)
     expect(methodsOf((await request('GET', list(), { user: ownerId })).body)).toEqual([
       { method: 'cash', enabled: true, bank: null, cardLast4: null, recipient: null },
       { method: 'transfer', enabled: true, bank: null, cardLast4: null, recipient: null },

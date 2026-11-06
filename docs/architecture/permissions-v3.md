@@ -63,38 +63,40 @@ Mini App и Login Widget сходятся в одну Telegram-личность:
 
 ## Существующие ресурсы (`main`, R0.7 + 19.2.2)
 
-| Ресурс           | Действие и эндпоинт `/api/organizations/{orgId}/…`               | Уровень | Примечание                                                  |
-| ---------------- | ---------------------------------------------------------------- | ------- | ----------------------------------------------------------- |
-| Группа           | `GET /`                                                          | tenant  |                                                             |
-|                  | `PATCH /`, `POST /archive`                                       | owner   |                                                             |
-| Настройки группы | `GET /settings`                                                  | manager | 19.2.2                                                      |
-|                  | `PATCH /settings`                                                | owner   | история в `audit_log`                                       |
-| Участники        | `GET /members`                                                   | member  | статусы кроме `active` — manager                            |
-|                  | `POST /members/{id}/approve\|reject\|block\|unblock`             | manager | organizer — только `player`/`assistant`; не себя и не owner |
-|                  | `PATCH /members/{id}` (роль)                                     | owner   | owner не назначается                                        |
-|                  | `PATCH /members/{id}/level` (уровень В1–В4+)                     | manager | только участник своей группы; чужой id — 404                |
-|                  | `POST /members/leave`                                            | tenant  | owner не может выйти                                        |
-| Приглашения      | `GET /invites`, `POST /invites/{id}/revoke`                      | manager |                                                             |
-|                  | `POST /invites`                                                  | manager | роль `organizer`/`assistant` — только owner                 |
-| Залы             | `GET /venues`                                                    | member  |                                                             |
-|                  | `POST /venues`                                                   | manager |                                                             |
-| События          | `GET /events`, `GET /events/{id}`                                | member  | черновики и денежные поля — manager                         |
-|                  | `POST /events`, `PATCH /events/{id}`, `POST /events/{id}/cancel` | manager | `venueId` из тела — только своей группы                     |
-|                  | `POST /events/{id}/settle`, `POST /events/{id}/attendance`       | manager | `bookingId` из тела — только этого события                  |
-| Записи           | `POST /events/{id}/bookings`                                     | member  | `subscriptionId` — только свой и своей группы               |
-|                  | `GET /events/{id}/bookings`                                      | manager | без приватных полей                                         |
-|                  | `GET /bookings/my`                                               | member  | только свои                                                 |
-|                  | `POST /bookings/{id}/cancel`                                     | self    | manager — любую запись группы                               |
-| Планы            | `GET /plans`                                                     | member  |                                                             |
-|                  | `POST /plans`, `PATCH /plans/{id}`, `POST /plans/{id}/archive`   | manager |                                                             |
-| Абонементы       | `POST /subscriptions`, `GET /subscriptions/my`                   | member  | `planId` — только своей группы                              |
-| Платежи          | `GET /payments`, `GET /payments/history`                         | manager |                                                             |
-|                  | `POST /payments/{id}/confirm\|reject`                            | manager |                                                             |
-| Касса            | `GET /ledger`, `POST /ledger/income\|expense`                    | manager | `eventId` из тела — только своей группы                     |
-|                  | `GET /ledger/export` (CSV)                                       | manager | 21.2.3; фильтры те же, что у журнала; в IDOR-таблице        |
-| Журнал           | `GET /audit`                                                     | manager |                                                             |
-| Дашборд          | `GET /dashboard`                                                 | member  | денежные блоки — manager                                    |
-| Поиск кабинета   | `GET /search?q=`                                                 | member  | 20.5.2; платежи, черновики, заявки и гости — только manager |
+| Ресурс           | Действие и эндпоинт `/api/organizations/{orgId}/…`               | Уровень | Примечание                                                                |
+| ---------------- | ---------------------------------------------------------------- | ------- | ------------------------------------------------------------------------- |
+| Группа           | `GET /`                                                          | tenant  |                                                                           |
+|                  | `PATCH /`, `POST /archive`                                       | owner   |                                                                           |
+| Настройки группы | `GET /settings`                                                  | manager | 19.2.2                                                                    |
+|                  | `PATCH /settings`                                                | owner   | история в `audit_log`                                                     |
+| Участники        | `GET /members`                                                   | member  | статусы кроме `active` — manager                                          |
+|                  | `POST /members/{id}/approve\|reject\|block\|unblock`             | manager | organizer — только `player`/`assistant`; не себя и не owner               |
+|                  | `PATCH /members/{id}` (роль)                                     | owner   | owner не назначается                                                      |
+|                  | `PATCH /members/{id}/level` (уровень В1–В4+)                     | manager | только участник своей группы; чужой id — 404                              |
+|                  | `POST /members/leave`                                            | tenant  | owner не может выйти                                                      |
+| Приглашения      | `GET /invites`, `POST /invites/{id}/revoke`                      | manager |                                                                           |
+|                  | `POST /invites`                                                  | manager | роль `organizer`/`assistant` — только owner                               |
+| Залы             | `GET /venues`                                                    | member  |                                                                           |
+|                  | `POST /venues`                                                   | manager |                                                                           |
+| Способы оплаты   | `GET /payment-methods`                                           | member  | 21.2.11; игрок — только включённые, реквизиты — банк, 4 цифры, получатель |
+|                  | `PATCH /payment-methods/{method}`                                | manager | 21.2.11; audit с автором; в IDOR-таблице                                  |
+| События          | `GET /events`, `GET /events/{id}`                                | member  | черновики и денежные поля — manager                                       |
+|                  | `POST /events`, `PATCH /events/{id}`, `POST /events/{id}/cancel` | manager | `venueId` из тела — только своей группы                                   |
+|                  | `POST /events/{id}/settle`, `POST /events/{id}/attendance`       | manager | `bookingId` из тела — только этого события                                |
+| Записи           | `POST /events/{id}/bookings`                                     | member  | `subscriptionId` — только свой и своей группы                             |
+|                  | `GET /events/{id}/bookings`                                      | manager | без приватных полей                                                       |
+|                  | `GET /bookings/my`                                               | member  | только свои                                                               |
+|                  | `POST /bookings/{id}/cancel`                                     | self    | manager — любую запись группы                                             |
+| Планы            | `GET /plans`                                                     | member  |                                                                           |
+|                  | `POST /plans`, `PATCH /plans/{id}`, `POST /plans/{id}/archive`   | manager |                                                                           |
+| Абонементы       | `POST /subscriptions`, `GET /subscriptions/my`                   | member  | `planId` — только своей группы                                            |
+| Платежи          | `GET /payments`, `GET /payments/history`                         | manager |                                                                           |
+|                  | `POST /payments/{id}/confirm\|reject`                            | manager |                                                                           |
+| Касса            | `GET /ledger`, `POST /ledger/income\|expense`                    | manager | `eventId` из тела — только своей группы                                   |
+|                  | `GET /ledger/export` (CSV)                                       | manager | 21.2.3; фильтры те же, что у журнала; в IDOR-таблице                      |
+| Журнал           | `GET /audit`                                                     | manager |                                                                           |
+| Дашборд          | `GET /dashboard`                                                 | member  | денежные блоки — manager                                                  |
+| Поиск кабинета   | `GET /search?q=`                                                 | member  | 20.5.2; платежи, черновики, заявки и гости — только manager               |
 
 Вне tenant-префикса: `GET/POST /api/organizations` — auth (свои группы, создание); `GET /api/invites/{token}`, `POST /api/invites/{token}/redeem` — auth; `GET /api/events/{id}/locate` — member группы события, иначе 404; `/api/internal/**` — общий секрет бота, не пользовательская сессия.
 

@@ -18,7 +18,14 @@ export interface GroupSettings {
 }
 
 export type SettingsSectionKey =
-  'profile' | 'bookings' | 'venues' | 'payments' | 'team' | 'notifications' | 'integrations' | 'danger'
+  | 'profile'
+  | 'bookings'
+  | 'venues'
+  | 'payments'
+  | 'team'
+  | 'notifications'
+  | 'integrations'
+  | 'danger'
 
 export const SETTINGS_SECTIONS: { key: SettingsSectionKey; label: string; ownerOnly?: boolean }[] =
   [

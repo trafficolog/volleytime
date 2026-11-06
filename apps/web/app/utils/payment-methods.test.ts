@@ -43,16 +43,18 @@ describe('requisites', () => {
 
   it('validates the card tail, text length and full numbers', () => {
     expect(validateRequisites({ bank: '', cardLast4: '', recipient: '' })).toEqual({})
-    expect(validateRequisites({ bank: 'Банк №5', cardLast4: '3214', recipient: 'Иван П.' })).toEqual(
-      {},
-    )
-    expect(validateRequisites({ bank: '', cardLast4: '123', recipient: '' }).cardLast4).toBeDefined()
+    expect(
+      validateRequisites({ bank: 'Банк №5', cardLast4: '3214', recipient: 'Иван П.' }),
+    ).toEqual({})
+    expect(
+      validateRequisites({ bank: '', cardLast4: '123', recipient: '' }).cardLast4,
+    ).toBeDefined()
     expect(
       validateRequisites({ bank: '', cardLast4: '4111111111111111', recipient: '' }).cardLast4,
     ).toBeDefined()
-    expect(validateRequisites({ bank: 'x'.repeat(101), cardLast4: '', recipient: '' }).bank).toContain(
-      '100',
-    )
+    expect(
+      validateRequisites({ bank: 'x'.repeat(101), cardLast4: '', recipient: '' }).bank,
+    ).toContain('100')
     for (const value of ['4111 1111 1111 1111', '4111-1111-1111-1111', '123456789']) {
       expect(validateRequisites({ bank: value, cardLast4: '', recipient: '' }).bank).toContain(
         'Номер карты не принимается',
@@ -72,9 +74,7 @@ describe('requisites', () => {
     expect(
       requisitesPatch(transfer(), { bank: ' Приор ', cardLast4: '3214', recipient: '' }),
     ).toEqual({ bank: 'Приор', recipient: null })
-    expect(
-      requisitesPatch(cash(), { bank: '', cardLast4: '', recipient: '' }),
-    ).toEqual({})
+    expect(requisitesPatch(cash(), { bank: '', cardLast4: '', recipient: '' })).toEqual({})
   })
 })
 

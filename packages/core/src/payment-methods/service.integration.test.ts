@@ -269,7 +269,10 @@ describe('paymentMethodService (integration)', () => {
           method,
         })
         expect(booking.status).toBe('pending_payment')
-        const [payment] = await db.select().from(payments).where(eq(payments.id, booking.paymentId!))
+        const [payment] = await db
+          .select()
+          .from(payments)
+          .where(eq(payments.id, booking.paymentId!))
         expect(payment).toMatchObject({ method, status: 'pending', amount: 1500 })
 
         const confirmed = await paymentService.confirm(ctx(), booking.paymentId!, { orgId })
@@ -303,7 +306,10 @@ describe('paymentMethodService (integration)', () => {
       const [after] = await db.select().from(payments).where(eq(payments.id, booking.paymentId!))
       expect(after).toMatchObject({ status: 'succeeded', method: 'transfer' })
       expect(
-        await db.select().from(ledgerEntries).where(eq(ledgerEntries.paymentId, booking.paymentId!)),
+        await db
+          .select()
+          .from(ledgerEntries)
+          .where(eq(ledgerEntries.paymentId, booking.paymentId!)),
       ).toHaveLength(1)
     })
 
