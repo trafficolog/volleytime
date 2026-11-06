@@ -171,7 +171,9 @@ interface ChipEvent {
   waitlistSeats?: number
   price: number
   priceMode?: 'fixed' | 'split'
-  pricing?: { mode: string }
+  pricing?: { mode: string; settledAt?: string | null; basis?: string }
+  /** Суммы платежей события (список кабинета); на главной из дашборда их нет. */
+  paymentTotals?: { paid: number; pending: number }
 }
 
 /**
@@ -185,10 +187,23 @@ export function organizerEventChips(
 ): OrganizerEventChip[] {
   const chips: OrganizerEventChip[] = []
   const split = event.pricing?.mode === 'split' || event.priceMode === 'split'
+  const unsettledSplit = split && !event.pricing?.settledAt && event.pricing?.basis !== 'settled'
   const live = event.status !== 'cancelled' && event.status !== 'draft'
-  if (live && pending !== null) {
-    if (pending > 0) chips.push({ tone: 'amber', text: `${pendingLabel(pending)} оплаты` })
-    else if (event.taken > 0 && (split || event.price > 0))
+  if (live) {
+    if (unsettledSplit && event.status === 'closed')
+      chips.push({ tone: 'amber', text: 'нужно распределить' })
+    else if (pending !== null && pending > 0)
+      chips.push({ tone: 'amber', text: `${pendingLabel(pending)} оплаты` })
+    else if (
+      pending === 0 &&
+      !unsettledSplit &&
+      event.taken > 0 &&
+      event.price > 0 &&
+      (event.paymentTotals?.paid ?? 0) > 0 &&
+      (event.paymentTotals?.pending ?? 0) === 0
+    )
+      // зелёный только по фактически полученным деньгам: у онлайн-записей и у split до закрытия
+      // платёжных строк ещё нет, «нет ожидающих» там не значит «все оплатили»
       chips.push({ tone: 'grass', text: 'все оплатили' })
   }
   if (live && event.waitlist > 0)

@@ -86,11 +86,13 @@ describe('organizer event row payment chips (21.1.1)', () => {
     expect(two.get('[data-pay-chip="amber"]').text()).toBe('2 ждут оплаты')
   })
 
-  it('shows a green chip when everybody paid and nothing without pending data', () => {
-    expect(mountRow('published', 5, { pending: 0 }).get('[data-pay-chip="grass"]').text()).toBe(
-      'все оплатили',
-    )
-    expect(mountRow('published', 5).find('[data-pay-chip]').exists()).toBe(false)
+  it('shows a green chip only with collected money and nothing without pending data', () => {
+    const paid = { paymentTotals: { paid: 1000, pending: 0 } }
+    expect(
+      mountRow('published', 5, { pending: 0, event: paid }).get('[data-pay-chip="grass"]').text(),
+    ).toBe('все оплатили')
+    expect(mountRow('published', 5, { pending: 0 }).find('[data-pay-chip]').exists()).toBe(false)
+    expect(mountRow('published', 5, { event: paid }).find('[data-pay-chip]').exists()).toBe(false)
   })
 
   it('adds the neutral queue chip and keeps the closed state a separate grey word', () => {

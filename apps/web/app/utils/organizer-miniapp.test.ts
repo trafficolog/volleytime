@@ -243,13 +243,42 @@ describe('organizer event chips (21.1.1)', () => {
     expect(organizerEventChips(ev, 21)[0]?.text).toBe('21 ждёт оплаты')
   })
 
-  it('shows green only when somebody is booked and the event is paid', () => {
-    expect(organizerEventChips(ev, 0)).toEqual([{ tone: 'grass', text: 'все оплатили' }])
-    expect(organizerEventChips({ ...ev, taken: 0 }, 0)).toEqual([])
-    expect(organizerEventChips({ ...ev, price: 0 }, 0)).toEqual([])
-    expect(organizerEventChips({ ...ev, price: 0, pricing: { mode: 'split' } }, 0)).toEqual([
+  it('shows green only when money was actually collected and nothing waits', () => {
+    const paid = { paymentTotals: { paid: 3000, pending: 0 } }
+    expect(organizerEventChips({ ...ev, ...paid }, 0)).toEqual([
       { tone: 'grass', text: 'все оплатили' },
     ])
+    // нет данных о деньгах (главная) или ничего не получено (онлайн-записи без платёжных строк)
+    expect(organizerEventChips(ev, 0)).toEqual([])
+    expect(organizerEventChips({ ...ev, paymentTotals: { paid: 0, pending: 0 } }, 0)).toEqual([])
+    expect(organizerEventChips({ ...ev, ...paid, taken: 0 }, 0)).toEqual([])
+    expect(organizerEventChips({ ...ev, ...paid, price: 0 }, 0)).toEqual([])
+  })
+
+  it('never shows green for an unsettled split event', () => {
+    const open = {
+      ...ev,
+      price: 0,
+      paymentTotals: { paid: 3000, pending: 0 },
+      pricing: { mode: 'split', settledAt: null, basis: 'current' },
+    }
+    expect(organizerEventChips(open, 0)).toEqual([])
+    expect(organizerEventChips(open, 2)).toEqual([{ tone: 'amber', text: '2 ждут оплаты' }])
+  })
+
+  it('asks to distribute a closed unsettled split event', () => {
+    const closed = {
+      ...ev,
+      status: 'closed',
+      price: 0,
+      pricing: { mode: 'split', settledAt: null, basis: 'capacity' },
+    }
+    expect(organizerEventChips(closed, 0)).toEqual([{ tone: 'amber', text: 'нужно распределить' }])
+    expect(organizerEventChips(closed, null)).toEqual([
+      { tone: 'amber', text: 'нужно распределить' },
+    ])
+    const settled = { ...closed, pricing: { mode: 'split', settledAt: '2027-01-01T00:00:00Z' } }
+    expect(organizerEventChips(settled, 0)).toEqual([])
   })
 
   it('draws no payment chip while pending data is unknown, nor for drafts and cancelled', () => {
@@ -259,11 +288,11 @@ describe('organizer event chips (21.1.1)', () => {
   })
 
   it('adds a neutral queue chip with people and seats', () => {
-    expect(organizerEventChips({ ...ev, waitlist: 2 }, 0)[1]).toEqual({
+    expect(organizerEventChips({ ...ev, waitlist: 2 }, 0)[0]).toEqual({
       tone: 'state',
       text: 'очередь · 2 чел.',
     })
-    expect(organizerEventChips({ ...ev, waitlist: 2, waitlistSeats: 3 }, 0)[1]?.text).toBe(
+    expect(organizerEventChips({ ...ev, waitlist: 2, waitlistSeats: 3 }, 0)[0]?.text).toBe(
       'очередь · 2 чел. · 3 места',
     )
   })

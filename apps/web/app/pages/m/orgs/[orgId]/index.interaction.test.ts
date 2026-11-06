@@ -781,7 +781,8 @@ describe('organizer Home v3 bento (21.1.1)', () => {
       .filter((li) => li.text().includes('Открытая игра') || li.text().includes('Основа'))
     const byTitle = (title: string) => rows.find((li) => li.text().includes(title))!
     expect(byTitle('Основа').get('[data-pay-chip="amber"]').text()).toBe('2 ждут оплаты')
-    expect(byTitle('Открытая игра').get('[data-pay-chip="grass"]').text()).toBe('все оплатили')
+    // на главной нет данных о полученных деньгах: «все оплатили» не обещаем
+    expect(byTitle('Открытая игра').find('[data-pay-chip]').exists()).toBe(false)
     wrapper.unmount()
   })
 
@@ -796,6 +797,24 @@ describe('organizer Home v3 bento (21.1.1)', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('Основа')
     expect(wrapper.find('[data-pay-chip]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('does not request pending payments or the event balance for a non-manager', async () => {
+    orgData.value.myMember.role = 'player'
+    fetchDashboard.mockImplementationOnce(async () => ({
+      isManager: false,
+      manager: null,
+      myBookings: [],
+      bookingsCount: 0,
+      bookingsAwaitingPayment: 0,
+      subscription: null,
+      upcoming: [],
+    }))
+    const wrapper = mount(HomeHost, { global: { components: { OrganizerEventRow }, stubs } })
+    await flushPromises()
+    const urls = (fetchDashboard.mock.calls as unknown as string[][]).map((call) => call[0])
+    expect(urls).toEqual(['/api/organizations/30/dashboard'])
     wrapper.unmount()
   })
 })
