@@ -3,13 +3,10 @@ import {
   bookings,
   eq,
   events,
-  gt,
   gte,
   inArray,
-  isNull,
   lt,
   notInArray,
-  or,
   organizations,
   sql,
   subscriptions,
@@ -20,6 +17,7 @@ import { OCCUPYING_STATUSES } from '../bookings/seats'
 import { ledgerService } from '../ledger/service'
 import { paymentService } from '../payments/service'
 import { getDb, type ServiceContext } from '../shared/context'
+import { usableSubscriptionWhere } from '../subscriptions/predicates'
 
 /** События, которые не считаются в обзоре: черновик не виден игрокам, отменённое не состоялось. */
 const EXCLUDED_EVENT_STATUSES = ['draft', 'cancelled'] as const
@@ -73,14 +71,7 @@ export const overviewService = {
       db
         .select({ count: sql<number>`count(*)::int` })
         .from(subscriptions)
-        .where(
-          and(
-            eq(subscriptions.organizationId, orgId),
-            eq(subscriptions.status, 'active'),
-            sql`${subscriptions.usedSessions} < ${subscriptions.totalSessions}`,
-            or(isNull(subscriptions.expiresAt), gt(subscriptions.expiresAt, now)),
-          ),
-        ),
+        .where(usableSubscriptionWhere(orgId, now)),
       paymentService.listPending(ctx, orgId),
       Promise.all(weeks.map((w) => ledgerService.getPeriodTotals(ctx, orgId, w))),
     ])

@@ -1,4 +1,5 @@
 import type { Organization } from '@volley-time/db'
+import type { PlayerStats } from '@volley-time/shared'
 
 export type OrganizationListItem = Organization & {
   membershipStatus: 'active' | 'pending'
@@ -59,6 +60,8 @@ export interface MemberRow {
   level: string | null
   /** Код амплуа (`setter`…`utility`, 21.2.22) или null/отсутствует, если не задано. */
   position?: string | null
+  /** Агрегаты игрока (21.2.20): приходят только управляющему по `?stats=1`. */
+  stats?: PlayerStats
   joinedAt: string | null
   createdAt: string
   user: { id: number; name: string | null; telegramUsername: string | null; image: string | null }

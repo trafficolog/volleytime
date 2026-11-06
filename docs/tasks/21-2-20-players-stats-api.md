@@ -2,11 +2,11 @@
 id: '21.2.20'
 phase: '21'
 epic: '21.2'
-status: todo
+status: in_progress
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-11-04
-status_note: 'Выделена из 21.2.2 решением владельца 2026-11-04 (журнал решений, «Кабинет «Игроки» (21.2.2)»).'
+status_note: 'Реализовано в PR (ожидает независимого ревью claude-opus-5-5 и CI): агрегаты playerStatsService (packages/core/src/players), GET members?stats=1 только для управляющего, колонки и блок карточки в кабинете. Отчёт сверки: docs/operations/qa/2026-11-05-21-2-20-players-stats-visual.md.'
 ref_id: 'W-06'
 complexity: M
 impl_model: claude-sonnet-5-5
