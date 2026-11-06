@@ -7,6 +7,7 @@ import {
   memberService,
   organizationService,
   planService,
+  scheduleSlotService,
   seriesService,
   telegramChatService,
   venueService,
@@ -30,6 +31,7 @@ import {
   organizationMembers,
   organizations,
   organizationTelegramChats,
+  scheduleSlots,
   payments,
   subscriptionPlans,
   subscriptions,
@@ -292,6 +294,17 @@ const ROUTES: OrgRouteTable = {
     body: () => ({ name: 'Зал переименован' }),
   },
   'DELETE /api/organizations/:orgId/venues/:venueId': { access: 'manager' },
+  // 21.2.12: слоты расписания — только manager, слот чужой группы недоступен
+  'GET /api/organizations/:orgId/schedule-slots': { access: 'manager' },
+  'POST /api/organizations/:orgId/schedule-slots': {
+    access: 'manager',
+    body: () => ({ weekday: 2, startTime: '19:00', title: 'Вечер', capacity: 10 }),
+  },
+  'PATCH /api/organizations/:orgId/schedule-slots/:slotId': {
+    access: 'manager',
+    body: () => ({ title: 'Слот переименован' }),
+  },
+  'DELETE /api/organizations/:orgId/schedule-slots/:slotId': { access: 'manager' },
 }
 
 function seriesBody(extra: Record<string, unknown> = {}) {
@@ -402,6 +415,14 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
         expiresAt: new Date(Date.now() + 30 * 60_000),
       })
       .returning()
+    // слот расписания с залом группы (21.2.12)
+    const slot = await scheduleSlotService.create({ userId: owner }, org.id, {
+      weekday: 1,
+      startTime: '20:00',
+      title: `Слот ${marker}`,
+      capacity: 12,
+      venueId: venue.id,
+    })
     // активный сбор с ожидающим взносом игрока (21.2.4)
     const collection = await collectionService.create({ userId: owner }, org.id, {
       title: `Сбор ${marker}`,
@@ -420,6 +441,7 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
       ids: {
         orgId: org.id,
         venueId: venue.id,
+        slotId: slot.id,
         eventId: ev.id,
         bookingId: booking.id,
         memberId: playerMember.id,
@@ -450,6 +472,7 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
       db.select().from(organizations).where(eq(organizations.id, orgId)),
       db.select().from(organizationMembers).where(eq(organizationMembers.organizationId, orgId)),
       db.select().from(venues).where(eq(venues.organizationId, orgId)),
+      db.select().from(scheduleSlots).where(eq(scheduleSlots.organizationId, orgId)),
       db.select().from(events).where(eq(events.organizationId, orgId)),
       db.select().from(eventSeries).where(eq(eventSeries.organizationId, orgId)),
       db.select().from(bookings).where(eq(bookings.organizationId, orgId)),

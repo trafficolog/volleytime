@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { DB } from './client'
 import { runMigrations } from './migrate'
+import { rollbackScheduleSlots } from './migration-test-helpers'
 import { rollbackLastMigration } from './rollback'
 import * as schema from './schema'
 import { seedDemo } from './seed-demo'
@@ -74,6 +75,7 @@ describe('migration 0034 player position (integration)', { timeout: 60_000 }, ()
         SELECT unnest(enum_range(NULL::player_position))::text AS v`
       expect(values.map((r) => r.v)).toEqual(CODES)
 
+      await rollbackScheduleSlots(url) // 21.2.12: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await objects(sql)).toBe(0)
 
@@ -88,6 +90,7 @@ describe('migration 0034 player position (integration)', { timeout: 60_000 }, ()
     const { url, sql } = await scratchDb()
     try {
       await runMigrations(url)
+      await rollbackScheduleSlots(url) // 21.2.12: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG) // теперь БД на 0033
       const a = await org(sql, 'pp-a')
       await sql`UPDATE organization_members SET level = 'v2' WHERE organization_id = ${a.o}`
@@ -139,6 +142,7 @@ describe('migration 0034 player position (integration)', { timeout: 60_000 }, ()
       await runMigrations(url)
       const a = await org(sql, 'pp-guard')
       await sql`UPDATE organization_members SET position = 'libero' WHERE organization_id = ${a.o}`
+      await rollbackScheduleSlots(url) // 21.2.12: новая миграция откатывается первой
       await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0034 refused/)
       expect(await objects(sql)).toBe(2)
       const [m] =
@@ -168,6 +172,7 @@ describe('migration 0034 player position (integration)', { timeout: 60_000 }, ()
       expect(await sql`SELECT 1 FROM organization_members WHERE position IS NOT NULL`).toHaveLength(
         0,
       )
+      await rollbackScheduleSlots(url) // 21.2.12: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await sql`SELECT 1 FROM organization_members`).toHaveLength(members!.n)
       await runMigrations(url)
