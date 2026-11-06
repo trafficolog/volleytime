@@ -51,13 +51,43 @@ const writeText = vi.fn()
 let wrapper: VueWrapper | undefined
 let invites: unknown[] = []
 let actorRole = 'owner'
+let withStats = false
+
+const STATS_PERIOD = { from: '2026-02-20', to: '2026-05-20' }
+const emptyStats = {
+  attendance: { visits: 0, noShows: 0, cancellations: 0, ratePercent: null, lastVisitAt: null },
+  subscription: null,
+  debt: { amount: 0, seats: 0, currency: 'BYN' },
+}
+/** Агрегаты API 21.2.20: у игрока 1 — визиты, абонемент и долг; у остальных пусто. */
+function statsFor(id: number) {
+  if (id !== 1) return emptyStats
+  return {
+    attendance: {
+      visits: 24,
+      noShows: 2,
+      cancellations: 1,
+      ratePercent: 92,
+      lastVisitAt: '2026-04-30T21:30:00.000Z',
+    },
+    subscription: { remaining: 5, total: 8, expiresAt: '2026-06-30T00:00:00.000Z', count: 1 },
+    debt: { amount: 3700, seats: 3, currency: 'BYN' },
+  }
+}
 
 beforeEach(() => {
   writeText.mockReset().mockResolvedValue(undefined)
   invites = []
   actorRole = 'owner'
+  withStats = false
   apiFetch.mockReset().mockImplementation(async (url: string, opts?: { method?: string }) => {
-    if (url === '/api/organizations/30/members') return { members: structuredClone(all) }
+    if (url === '/api/organizations/30/members')
+      return withStats
+        ? {
+            members: structuredClone(all).map((m) => ({ ...m, stats: statsFor(m.id) })),
+            statsPeriod: STATS_PERIOD,
+          }
+        : { members: structuredClone(all) }
     if (url === '/api/organizations/30/invites' && !opts?.method) return { invites }
     if (url === '/api/organizations/30/invites')
       return { deeplinkUrl: 'https://t.me/bot?start=new' }
@@ -176,6 +206,82 @@ describe('desktop players (W-06)', () => {
     expect(w.text()).toContain('уровень В1')
     expect(w.text()).toContain('@synthetic_one')
     expect(w.text()).not.toMatch(/Абонемент|Задолж/)
+  })
+
+  describe('player stats (21.2.20)', () => {
+    it('asks for the stats only as a manager, never as an assistant', async () => {
+      await render()
+      expect(
+        apiFetch.mock.calls.find(([url]) => url === '/api/organizations/30/members')![1].query,
+      ).toMatchObject({ stats: '1' })
+      wrapper?.unmount()
+      apiFetch.mockClear()
+      actorRole = 'assistant'
+      await render()
+      const query = apiFetch.mock.calls.find(([url]) => url === '/api/organizations/30/members')![1]
+        .query
+      expect(query.stats).toBeUndefined()
+    })
+
+    it('adds the activity, subscription and debt columns from the API data', async () => {
+      withStats = true
+      const w = await render()
+      expect(w.findAll('thead th').map((th) => th.text())).toEqual([
+        'Игрок',
+        'Телеграм',
+        'Амплуа',
+        'Роль',
+        'Активность',
+        'Абонемент',
+        'Задолженность',
+        'Действия',
+      ])
+      const first = w.findAll('tbody tr')[0]!
+      expect(first.get('[data-col="activity"]').text()).toBe('24 тр.посл. 01.05.2026')
+      expect(first.get('[data-col="subscription"]').text()).toBe('5 / 8до 30.06.2026')
+      expect(first.get('[data-col="debt"]').text()).toBe('37.00 BYN3 места')
+      const second = w.findAll('tbody tr')[1]!
+      expect(second.get('[data-col="activity"]').text()).toBe('0 тр.нет визитов')
+      expect(second.get('[data-col="subscription"]').text()).toBe('—')
+      expect(second.get('[data-col="debt"]').text()).toBe('—')
+    })
+
+    it('does not show the columns when the API sent no stats', async () => {
+      const w = await render()
+      expect(w.find('[data-col]').exists()).toBe(false)
+      expect(w.text()).not.toMatch(/Абонемент|Задолж|Активность/)
+    })
+
+    it('shows the stats and the period in the player card', async () => {
+      withStats = true
+      const w = await render()
+      await w.findAll('tbody .vt-desktop-members__name')[0]!.trigger('click')
+      const card = w.get('[role="dialog"]')
+      expect(card.text()).toContain('за период 20.02.2026 — 20.05.2026')
+      expect(card.get('[data-stat="visits"]').text()).toBe('24')
+      expect(card.get('[data-stat="rate"]').text()).toBe('92%')
+      expect(card.get('[data-stat="no-shows"]').text()).toBe('2')
+      expect(card.get('[data-stat="cancellations"]').text()).toBe('1')
+      expect(card.get('[data-stat="last"]').text()).toBe('01.05.2026')
+      expect(card.get('[data-stat="subscription"]').text()).toBe('5 / 8 до 30.06.2026')
+      expect(card.get('[data-stat="debt"]').text()).toBe('37.00 BYN 3 места')
+    })
+
+    it('shows "no debt" and dashes for a player without activity', async () => {
+      withStats = true
+      const w = await render()
+      await w.findAll('tbody .vt-desktop-members__name')[1]!.trigger('click')
+      const card = w.get('[role="dialog"]')
+      expect(card.get('[data-stat="debt"]').text()).toBe('Нет')
+      expect(card.get('[data-stat="subscription"]').text()).toBe('—')
+      expect(card.get('[data-stat="rate"]').text()).toBe('—')
+    })
+
+    it('keeps the card without a stats block when the API sent none', async () => {
+      const w = await render()
+      await w.findAll('tbody .vt-desktop-members__name')[0]!.trigger('click')
+      expect(w.find('[data-stat]').exists()).toBe(false)
+    })
   })
 
   it('opens the card, sets a position via PATCH and shows it in the list (21.2.22)', async () => {

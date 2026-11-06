@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import type { OrganizationMember } from '@volley-time/db'
-import { formatDay } from '@volley-time/shared'
+import { formatDay, type PlayersStatsPeriod } from '@volley-time/shared'
 
 import type { MemberRow } from '~/composables/useOrganizations'
 import { desktopMemberActions, type DesktopMemberAction } from '~/utils/desktop-member-actions'
 import { isLiveDesktopRoute } from '~/utils/desktop-org-ui'
+import {
+  activityView,
+  debtView,
+  playerStatsPeriodLabel,
+  subscriptionView,
+} from '~/utils/desktop-players-stats'
 import {
   PLAYER_FETCH_STATUSES,
   PLAYER_TABS,
@@ -59,6 +65,9 @@ const tab = ref<PlayersTab>('all')
 const query = ref('')
 const levelFilter = ref(LEVEL_FILTER_ALL)
 const members = ref<MemberRow[]>([])
+/** Окно посещаемости ответа API; есть только у управляющего (агрегаты 21.2.20). */
+const statsPeriod = ref<PlayersStatsPeriod | null>(null)
+const showStats = computed(() => canManage.value && statsPeriod.value !== null)
 const loading = ref(false)
 const error = ref('')
 const actionError = ref('')
@@ -102,14 +111,22 @@ async function load() {
   loading.value = true
   error.value = ''
   members.value = []
+  statsPeriod.value = null
   selectedId.value = null
   try {
-    const result = await $fetch<{ members: MemberRow[] }>(
+    // агрегаты игроков (посещаемость, абонемент, долг) запрашивает только управляющий
+    const result = await $fetch<{ members: MemberRow[]; statsPeriod?: PlayersStatsPeriod }>(
       `/api/organizations/${targetOrgId}/members`,
-      { query: { statuses: PLAYER_FETCH_STATUSES.join(',') } },
+      {
+        query: {
+          statuses: PLAYER_FETCH_STATUSES.join(','),
+          ...(canManage.value ? { stats: '1' } : {}),
+        },
+      },
     )
     if (!alive || token !== generation || orgId.value !== targetOrgId) return
     members.value = result.members
+    statsPeriod.value = result.statsPeriod ?? null
     for (const member of result.members) {
       if (member.role !== 'owner') selectedRoles[member.id] = member.role
     }
@@ -367,6 +384,13 @@ const filtered = computed(() => query.value.trim() !== '' || levelFilter.value !
             <th scope="col" class="vt-cap">Телеграм</th>
             <th scope="col" class="vt-cap">Амплуа</th>
             <th scope="col" class="vt-cap">Роль</th>
+            <template v-if="showStats">
+              <th scope="col" class="vt-cap" :title="playerStatsPeriodLabel(statsPeriod!)">
+                Активность
+              </th>
+              <th scope="col" class="vt-cap">Абонемент</th>
+              <th scope="col" class="vt-cap">Задолженность</th>
+            </template>
             <th scope="col" class="vt-cap"><span class="sr-only">Действия</span></th>
           </tr>
         </thead>
@@ -427,6 +451,28 @@ const filtered = computed(() => query.value.trim() !== '' || levelFilter.value !
                 }}</VtChip
               >
             </td>
+            <template v-if="showStats && member.stats">
+              <td data-col="activity">
+                <strong>{{ activityView(member.stats, tz).visits }}</strong>
+                <small class="text-vt-mute-2">{{ activityView(member.stats, tz).last }}</small>
+              </td>
+              <td data-col="subscription">
+                <template v-if="subscriptionView(member.stats, tz)">
+                  <strong>{{ subscriptionView(member.stats, tz)!.label }}</strong>
+                  <small class="text-vt-mute-2">{{
+                    subscriptionView(member.stats, tz)!.hint
+                  }}</small>
+                </template>
+                <span v-else class="text-vt-mute-2">—</span>
+              </td>
+              <td data-col="debt">
+                <template v-if="debtView(member.stats)">
+                  <strong class="text-vt-rose-ink">{{ debtView(member.stats)!.label }}</strong>
+                  <small class="text-vt-mute-2">{{ debtView(member.stats)!.hint }}</small>
+                </template>
+                <span v-else class="text-vt-mute-2">—</span>
+              </td>
+            </template>
             <td>
               <div v-if="actions(member).length" class="vt-desktop-members__actions">
                 <template v-if="actions(member).includes('changeRole')">
@@ -490,6 +536,8 @@ const filtered = computed(() => query.value.trim() !== '' || levelFilter.value !
       :busy="busy"
       :level-error="levelError"
       :position-error="positionError"
+      :stats-period="showStats ? statsPeriod : null"
+      :timezone="tz"
       @act="(action) => selected && act(selected, action)"
       @set-level="(level) => selected && setLevel(selected, level)"
       @set-position="(position) => selected && setPosition(selected, position)"
