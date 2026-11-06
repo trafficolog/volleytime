@@ -179,7 +179,9 @@ export async function excludeMember(
           eq(inviteLinks.isRevoked, false),
           or(isNull(inviteLinks.expiresAt), gt(inviteLinks.expiresAt, now)),
           sql`(${inviteLinks.maxUses} IS NULL OR ${inviteLinks.usesCount} < ${inviteLinks.maxUses})`,
-          issuedIds.length > 0 ? or(ownedByPlayer, inArray(inviteLinks.id, issuedIds)) : ownedByPlayer,
+          issuedIds.length > 0
+            ? or(ownedByPlayer, inArray(inviteLinks.id, issuedIds))
+            : ownedByPlayer,
         ),
       )
       .returning({ id: inviteLinks.id })

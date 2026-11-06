@@ -32,6 +32,10 @@ const props = defineProps<{
   busy: boolean
   levelError: string
   positionError?: string
+  /** Можно ли исключить игрока из группы (21.2.21): владелец/организатор, не владелец и не он сам. */
+  canExclude?: boolean
+  /** Ошибка исключения (ответ API). */
+  excludeError?: string
   /** Период посещаемости ответа API (локальные даты группы); без него подпись периода не рисуется. */
   statsPeriod?: PlayersStatsPeriod | null
   /** Часовой пояс группы для дат статистики. */
@@ -41,7 +45,23 @@ const emit = defineEmits<{
   act: [action: DesktopMemberAction]
   setLevel: [level: string | null]
   setPosition: [position: string | null]
+  exclude: [reason: string]
 }>()
+
+/** Подтверждение исключения: последствия перечислены до действия (21.2.21). */
+const confirmingExclude = ref(false)
+const excludeReason = ref('')
+watch(
+  () => props.member?.id,
+  () => {
+    confirmingExclude.value = false
+    excludeReason.value = ''
+  },
+)
+
+function confirmExclude() {
+  emit('exclude', excludeReason.value.trim())
+}
 
 const moderation = computed(() => props.actions.filter((a) => a !== 'changeRole'))
 const chatUrl = computed(() => telegramChatUrl(props.member?.user.telegramUsername))
@@ -222,6 +242,65 @@ function onPosition(event: Event) {
           {{ ACTION_LABELS[action] }}
         </button>
       </div>
+      <section
+        v-if="canExclude"
+        class="vt-player-drawer__exclude"
+        aria-label="Удаление из группы"
+        data-testid="player-exclude"
+      >
+        <button
+          v-if="!confirmingExclude"
+          type="button"
+          class="vt-btn vt-btn--danger vt-btn--sm"
+          :disabled="busy"
+          @click="confirmingExclude = true"
+        >
+          Удалить из группы
+        </button>
+        <div v-else>
+          <p class="vt-label">Удалить {{ displayName(member.user) }} из группы?</p>
+          <ul class="vt-player-drawer__consequences">
+            <li>Будущие записи игрока отменятся, места освободятся, очередь сдвинется.</li>
+            <li>Оплаченные места автоматически не возвращаются: деньги нужно вернуть вручную.</li>
+            <li>
+              Игрок будет снят с листов ожидания, его неиспользованные ссылки-приглашения отзовутся.
+            </li>
+            <li>Абонемент останется за игроком и заработает снова, если он вернётся.</li>
+            <li>Долг и ожидающие оплаты останутся в кассе, ничего не списывается.</li>
+            <li>
+              Игрок получит уведомление. Это не блокировка: вернуться можно по новому приглашению.
+            </li>
+          </ul>
+          <label class="vt-label" for="player-drawer-exclude-reason">Причина (для журнала)</label>
+          <input
+            id="player-drawer-exclude-reason"
+            v-model="excludeReason"
+            class="vt-field"
+            type="text"
+            maxlength="500"
+            :disabled="busy"
+          />
+          <div class="vt-player-drawer__actions">
+            <button
+              type="button"
+              class="vt-btn vt-btn--danger vt-btn--sm"
+              :disabled="busy"
+              @click="confirmExclude"
+            >
+              Удалить из группы
+            </button>
+            <button
+              type="button"
+              class="vt-btn vt-btn--ghost vt-btn--sm"
+              :disabled="busy"
+              @click="confirmingExclude = false"
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
+        <p v-if="excludeError" role="alert" class="text-vt-rose-ink">{{ excludeError }}</p>
+      </section>
       <button type="button" class="vt-btn vt-btn--ghost vt-btn--sm" @click="open = false">
         Закрыть
       </button>

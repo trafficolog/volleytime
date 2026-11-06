@@ -53,7 +53,9 @@ describe('excludeMember (21.2.21, PostgreSQL)', () => {
     const m = await memberService.add(owner(), { organizationId: orgId, userId, role })
     return { userId, memberId: m.id }
   }
-  const makeEvent = (over: { capacity?: number; price?: number; joinMode?: 'open' | 'invite' } = {}) =>
+  const makeEvent = (
+    over: { capacity?: number; price?: number; joinMode?: 'open' | 'invite' } = {},
+  ) =>
     eventService.create(owner(), orgId, {
       title: 'Игра',
       startsAt: future(),
@@ -65,7 +67,9 @@ describe('excludeMember (21.2.21, PostgreSQL)', () => {
   const booking = (id: number) =>
     db.query.bookings.findFirst({ where: eq(bookings.id, id) }).then((b) => b!)
   const memberRow = (id: number) =>
-    db.query.organizationMembers.findFirst({ where: eq(organizationMembers.id, id) }).then((m) => m!)
+    db.query.organizationMembers
+      .findFirst({ where: eq(organizationMembers.id, id) })
+      .then((m) => m!)
   const exclude = (memberId: number, actor = ownerId, input: { reason?: string } = {}) =>
     excludeMember({ userId: actor }, memberId, input)
 
@@ -93,8 +97,12 @@ describe('excludeMember (21.2.21, PostgreSQL)', () => {
     const multi = await makeEvent({ capacity: 3, price: 1000 })
     const queued = await makeEvent({ capacity: 1 })
 
-    const bFree = await bookingService.book({ userId: p.userId }, orgId, free.id, { method: 'free' })
-    const bPaid = await bookingService.book({ userId: p.userId }, orgId, paid.id, { method: 'cash' })
+    const bFree = await bookingService.book({ userId: p.userId }, orgId, free.id, {
+      method: 'free',
+    })
+    const bPaid = await bookingService.book({ userId: p.userId }, orgId, paid.id, {
+      method: 'cash',
+    })
     await paymentService.confirm(owner(), bPaid.paymentId!, { orgId })
     const bMulti = await bookingService.book({ userId: p.userId }, orgId, multi.id, {
       method: 'cash',
@@ -162,14 +170,15 @@ describe('excludeMember (21.2.21, PostgreSQL)', () => {
     // очередь продвинута: место получил следующий (в основе, ждёт оплаты)
     expect(await booking(bThird.id)).toMatchObject({ status: 'pending_payment' })
     // кассовые записи на месте
-    expect(
-      (await db.select().from(payments).where(eq(payments.userId, p.userId))).length,
-    ).toBe(3)
+    expect((await db.select().from(payments).where(eq(payments.userId, p.userId))).length).toBe(3)
 
     // уведомления: игроку и управляющим; продвинутый из очереди — по общим правилам
     const byType = (t: string) => notifications.filter((n) => n.type === t)
     expect(byType('member_excluded')).toEqual([
-      expect.objectContaining({ userId: p.userId, params: expect.objectContaining({ cancelledBookings: 4 }) }),
+      expect.objectContaining({
+        userId: p.userId,
+        params: expect.objectContaining({ cancelledBookings: 4 }),
+      }),
     ])
     expect(byType('member_excluded_organizer').map((n) => n.userId)).toEqual([ownerId])
     expect(byType('member_excluded_organizer')[0]!.params).toMatchObject({
@@ -204,13 +213,21 @@ describe('excludeMember (21.2.21, PostgreSQL)', () => {
     const sub = await subscriptionService.createFromPlan({ userId: p.userId }, orgId, plan.id, {
       autoActivate: true,
     })
-    await bookingService.book({ userId: p.userId }, orgId, ev.id, { method: 'subscription', seats: 2 })
+    await bookingService.book({ userId: p.userId }, orgId, ev.id, {
+      method: 'subscription',
+      seats: 2,
+    })
     expect((await subscriptionService.getById(owner(), sub.id)).usedSessions).toBe(2)
 
     await exclude(p.memberId)
 
     const kept = await subscriptionService.getById(owner(), sub.id)
-    expect(kept).toMatchObject({ userId: p.userId, status: 'active', totalSessions: 4, usedSessions: 0 })
+    expect(kept).toMatchObject({
+      userId: p.userId,
+      status: 'active',
+      totalSessions: 4,
+      usedSessions: 0,
+    })
 
     // возвращение по приглашению: абонемент снова работает
     const invite = await inviteService.create(owner(), { organizationId: orgId })
@@ -291,9 +308,9 @@ describe('excludeMember (21.2.21, PostgreSQL)', () => {
     const invite = await inviteService.create(owner(), { organizationId: orgId })
     const rejoined = await inviteService.redeem({ userId: p.userId }, invite.token)
     expect(rejoined).toMatchObject({ id: p.memberId, status: 'active', role: 'player' })
-    const actions = (await db.select().from(auditLog).where(eq(auditLog.organizationId, orgId))).map(
-      (a) => a.action,
-    )
+    const actions = (
+      await db.select().from(auditLog).where(eq(auditLog.organizationId, orgId))
+    ).map((a) => a.action)
     expect(actions).toContain(AUDIT_ACTIONS.MEMBER_EXCLUDED)
     expect(actions).toContain(AUDIT_ACTIONS.MEMBER_REJOINED)
   })
@@ -350,7 +367,8 @@ describe('excludeMember (21.2.21, PostgreSQL)', () => {
       code: 'forbidden.exclude',
     })
     // никто из отказанных не затронут
-    for (const m of [assistant, org2, p1]) expect(await memberRow(m.memberId)).toMatchObject({ status: 'active' })
+    for (const m of [assistant, org2, p1])
+      expect(await memberRow(m.memberId)).toMatchObject({ status: 'active' })
 
     await exclude(p1.memberId, organizer.userId)
     await exclude(assistant.memberId, ownerId)
@@ -365,7 +383,9 @@ describe('excludeMember (21.2.21, PostgreSQL)', () => {
     const otherOwner = await newUser('Чужой')
     const otherOrg = await organizationService.create({ userId: otherOwner }, { name: 'Чужая' })
     // менеджер чужой группы: в этой группе его членства нет → отказ, участник не тронут
-    await expect(exclude(p.memberId, otherOwner)).rejects.toMatchObject({ code: 'forbidden.exclude' })
+    await expect(exclude(p.memberId, otherOwner)).rejects.toMatchObject({
+      code: 'forbidden.exclude',
+    })
     // контекст запроса чужой группы: участник «не найден»
     await expect(
       excludeMember({ userId: otherOwner, organization: otherOrg }, p.memberId),
@@ -409,21 +429,28 @@ describe('excludeMember (21.2.21, PostgreSQL)', () => {
     })
     expect(pendingRow!.status).toBe('cancelled')
     // ссылка группы перестаёт работать у исключённого организатора, владельца — нет
-    await expect(inviteService.redeem({ userId: await newUser() }, byOrganizer.token)).rejects.toMatchObject({
+    await expect(
+      inviteService.redeem({ userId: await newUser() }, byOrganizer.token),
+    ).rejects.toMatchObject({
       code: 'invite.revoked',
     })
 
     const [entry] = await db
       .select()
       .from(auditLog)
-      .where(and(eq(auditLog.action, AUDIT_ACTIONS.MEMBER_EXCLUDED), eq(auditLog.entityId, p.memberId)))
+      .where(
+        and(eq(auditLog.action, AUDIT_ACTIONS.MEMBER_EXCLUDED), eq(auditLog.entityId, p.memberId)),
+      )
     expect(entry).toMatchObject({ userId: ownerId, organizationId: orgId, entityType: 'member' })
     expect(entry!.newValue).toMatchObject({ status: 'left', reason: 'Переехал' })
     const [orgEntry] = await db
       .select()
       .from(auditLog)
       .where(
-        and(eq(auditLog.action, AUDIT_ACTIONS.MEMBER_EXCLUDED), eq(auditLog.entityId, organizer.memberId)),
+        and(
+          eq(auditLog.action, AUDIT_ACTIONS.MEMBER_EXCLUDED),
+          eq(auditLog.entityId, organizer.memberId),
+        ),
       )
     expect(orgEntry!.newValue).toMatchObject({ reason: 'Не ходит' })
     void eventInviteService
@@ -458,9 +485,9 @@ describe('excludeMember (21.2.21, PostgreSQL)', () => {
       // либо записи не было (отказ «не участник»), либо она отменена исключением
       expect(live.every((b) => b.status === 'cancelled')).toBe(true)
       // состав мест цел: у события не больше вместимости занятых мест
-      const taken = (
-        await db.select().from(bookings).where(eq(bookings.eventId, ev.id))
-      ).filter((b) => b.status === 'confirmed' || b.status === 'pending_payment')
+      const taken = (await db.select().from(bookings).where(eq(bookings.eventId, ev.id))).filter(
+        (b) => b.status === 'confirmed' || b.status === 'pending_payment',
+      )
       expect(taken.reduce((s, b) => s + b.seats, 0)).toBeLessThanOrEqual(2)
       // вернуть игрока для следующей итерации
       const invite = await inviteService.create(owner(), { organizationId: orgId })

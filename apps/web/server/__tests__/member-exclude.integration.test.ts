@@ -25,9 +25,13 @@ describe('member exclude API (HTTP integration)', () => {
   const url = (memberId: number, id = orgId) =>
     `/api/organizations/${id}/members/${memberId}/exclude`
   const statusOf = async (memberId: number) => {
-    const res = await request('GET', `/api/organizations/${orgId}/members?statuses=active,left,blocked`, {
-      user: ownerId,
-    })
+    const res = await request(
+      'GET',
+      `/api/organizations/${orgId}/members?statuses=active,left,blocked`,
+      {
+        user: ownerId,
+      },
+    )
     return (res.body as { members: { id: number; status: string }[] }).members.find(
       (m) => m.id === memberId,
     )?.status
@@ -93,9 +97,9 @@ describe('member exclude API (HTTP integration)', () => {
     })
     expect(await statusOf(playerMemberId)).toBe('left')
     // доступа к группе нет
-    expect((await request('GET', `/api/organizations/${orgId}/members`, { user: playerId })).status).toBe(
-      403,
-    )
+    expect(
+      (await request('GET', `/api/organizations/${orgId}/members`, { user: playerId })).status,
+    ).toBe(403)
     const second = await request('POST', url(otherPlayerMemberId), { user: ownerId, body: {} })
     expect(second.status).toBe(200)
     const [entry] = await db
@@ -147,8 +151,9 @@ describe('member exclude API (HTTP integration)', () => {
     expect((await request('POST', url(999_999), { user: ownerId, body: {} })).status).toBe(404)
     expect(await statusOf(playerMemberId)).toBe('active')
     expect(
-      (await memberService.list({ userId: otherOwnerId }, otherOrgId)).find((m) => m.id === otherMemberId)
-        ?.status,
+      (await memberService.list({ userId: otherOwnerId }, otherOrgId)).find(
+        (m) => m.id === otherMemberId,
+      )?.status,
     ).toBe('active')
   })
 

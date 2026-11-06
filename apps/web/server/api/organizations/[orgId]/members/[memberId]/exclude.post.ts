@@ -22,7 +22,9 @@ defineRouteMeta({
         'application/json': {
           schema: {
             type: 'object',
-            properties: { reason: { type: 'string', maxLength: 500 } },
+            properties: {
+              reason: { type: 'string', description: 'причина для журнала, до 500 символов' },
+            },
           },
         },
       },
