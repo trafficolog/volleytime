@@ -7,7 +7,9 @@ import {
   canManageMembers,
   canInviteRole,
   canManageOrgSettings,
+  canExclude,
   canModerate,
+  requireCanExclude,
   requireCanModerate,
   canViewOrgMembers,
   isOrgMember,
@@ -87,6 +89,31 @@ describe('permission policies (pure)', () => {
       expect(canModerate(organizer, organizer)).toBe(false)
       expect(canModerate(player, { role: 'player', userId: 9 })).toBe(false)
       expect(() => requireCanModerate(organizer, owner)).toThrow(ForbiddenError)
+    })
+  })
+
+  describe('canExclude (21.2.21)', () => {
+    const asUser = (role: string, userId: number) =>
+      ({ role, status: 'active', userId }) as OrganizationMember
+    const target = (role: string, userId: number) => ({ role, userId }) as OrganizationMember
+    it('nobody excludes the owner or themselves', () => {
+      expect(canExclude(asUser('owner', 1), target('owner', 2))).toBe(false)
+      expect(canExclude(asUser('organizer', 1), target('owner', 2))).toBe(false)
+      expect(canExclude(asUser('owner', 1), target('player', 1))).toBe(false)
+      expect(canExclude(asUser('organizer', 1), target('player', 1))).toBe(false)
+    })
+    it('admins are excluded only by the owner; players by owner and organizer', () => {
+      for (const role of ['organizer', 'assistant']) {
+        expect(canExclude(asUser('owner', 1), target(role, 2))).toBe(true)
+        expect(canExclude(asUser('organizer', 3), target(role, 2))).toBe(false)
+      }
+      expect(canExclude(asUser('organizer', 3), target('player', 2))).toBe(true)
+      expect(canExclude(asUser('assistant', 3), target('player', 2))).toBe(false)
+      expect(canExclude(asUser('player', 3), target('player', 2))).toBe(false)
+      expect(canExclude(null, target('player', 2))).toBe(false)
+      expect(() => requireCanExclude(asUser('organizer', 3), target('assistant', 2))).toThrow(
+        ForbiddenError,
+      )
     })
   })
 

@@ -313,6 +313,16 @@
       "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
     },
     {
+      "id": "organizer-event-new",
+      "title": "Организатор: новое событие",
+      "viewport": "miniapp",
+      "role": "organizer",
+      "org": "vt",
+      "path": "/m/orgs/{org}/events/new",
+      "references": ["3-miniapp-organizer/05-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
       "id": "organizer-payments",
       "title": "Организатор: платежи",
       "viewport": "miniapp",
@@ -554,6 +564,16 @@
       "org": "vt",
       "path": "/app/orgs/{org}/settings",
       "references": ["4-cabinet/17-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
+      "id": "cabinet-settings-schedule",
+      "title": "Кабинет: настройки · расписание по умолчанию",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/settings?section=schedule",
+      "references": ["4-cabinet/18-screen.png"],
       "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
     },
     {

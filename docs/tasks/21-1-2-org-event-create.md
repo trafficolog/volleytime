@@ -2,11 +2,11 @@
 id: '21.1.2'
 phase: '21'
 epic: '21.1'
-status: todo
+status: in_progress
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-10-12
-status_note: ''
+status_note: 'PR открыт: серия, итог и MainButton в Mini App; QA docs/operations/qa/2026-11-06-21-1-2-org-event-create-visual.md; ждёт ревью и CI'
 ref_id: 'M-23'
 complexity: L
 impl_model: claude-sonnet-5-5

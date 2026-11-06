@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { desktopMemberActions } from './desktop-member-actions'
+import { canExcludeMember, desktopMemberActions } from './desktop-member-actions'
 
 const owner = { role: 'owner' as const, status: 'active' as const, userId: 1 }
 const organizer = { role: 'organizer' as const, status: 'active' as const, userId: 2 }
@@ -40,5 +40,42 @@ describe('desktop member actions', () => {
     expect(
       desktopMemberActions(organizer, { role: 'player', status: 'active', userId: 4 }),
     ).toEqual(['block'])
+  })
+})
+
+describe('canExcludeMember (21.2.21)', () => {
+  const assistant = { role: 'assistant' as const, status: 'active' as const, userId: 5 }
+  const target = (
+    role: 'owner' | 'organizer' | 'assistant' | 'player',
+    status: string,
+    userId = 4,
+  ) => ({ role, status, userId })
+
+  it('never offers the owner or yourself', () => {
+    expect(canExcludeMember(organizer, target('owner', 'active', 1))).toBe(false)
+    expect(canExcludeMember(owner, target('owner', 'active', 9))).toBe(false)
+    expect(canExcludeMember(owner, target('player', 'active', 1))).toBe(false)
+    expect(canExcludeMember(organizer, target('player', 'active', 2))).toBe(false)
+  })
+
+  it('lets only the owner exclude admins; an organizer excludes players', () => {
+    expect(canExcludeMember(owner, target('organizer', 'active'))).toBe(true)
+    expect(canExcludeMember(owner, target('assistant', 'active'))).toBe(true)
+    expect(canExcludeMember(organizer, target('organizer', 'active'))).toBe(false)
+    expect(canExcludeMember(organizer, target('assistant', 'active'))).toBe(false)
+    expect(canExcludeMember(organizer, target('player', 'active'))).toBe(true)
+  })
+
+  it('needs a manager actor and an active or guest target', () => {
+    expect(canExcludeMember(assistant, target('player', 'active'))).toBe(false)
+    expect(canExcludeMember(player, target('player', 'active'))).toBe(false)
+    expect(canExcludeMember(null, target('player', 'active'))).toBe(false)
+    expect(canExcludeMember({ ...owner, status: 'pending' }, target('player', 'active'))).toBe(
+      false,
+    )
+    for (const status of ['pending', 'blocked', 'left', 'rejected']) {
+      expect(canExcludeMember(owner, target('player', status))).toBe(false)
+    }
+    expect(canExcludeMember(owner, target('player', 'guest'))).toBe(true)
   })
 })

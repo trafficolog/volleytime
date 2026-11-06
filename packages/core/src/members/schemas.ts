@@ -25,3 +25,16 @@ export const ChangeMemberRoleInput = z.object({
   role: z.enum(['organizer', 'assistant', 'player']), // owner не назначается через UI
 })
 export type ChangeMemberRoleInput = z.infer<typeof ChangeMemberRoleInput>
+
+/** Исключение из группы (21.2.21): причина необязательна, пишется в журнал аудита. */
+export const ExcludeMemberInput = z
+  .object({
+    reason: z
+      .string()
+      .trim()
+      .max(500)
+      .nullish()
+      .transform((v) => (v ? v : null)),
+  })
+  .strict()
+export type ExcludeMemberInput = z.input<typeof ExcludeMemberInput>

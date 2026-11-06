@@ -382,8 +382,8 @@ describe('EventForm payload and state', () => {
     await flushPromises()
     expect(wrapper.get('[role="alert"]').text()).toContain('цену')
     expect((wrapper.get('#ev-price').element as HTMLInputElement).value).toBe('abc')
-    // только чтения при загрузке формы (залы, настройки группы, справочник уровней)
-    expect(apiFetch).toHaveBeenCalledTimes(3)
+    // только чтения при загрузке формы (залы, настройки группы, слоты расписания, справочник уровней)
+    expect(apiFetch).toHaveBeenCalledTimes(4)
     await fill(wrapper, '#ev-price', '5,00')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
@@ -402,7 +402,7 @@ describe('EventForm payload and state', () => {
     current = false
     await wrapper.get('form').trigger('submit')
     await flushPromises()
-    expect(apiFetch).toHaveBeenCalledTimes(3)
+    expect(apiFetch).toHaveBeenCalledTimes(4)
   })
 
   it('creates a new venue first and sends its id with the event', async () => {

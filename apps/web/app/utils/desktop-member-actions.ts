@@ -29,3 +29,16 @@ export function desktopMemberActions(actor: Actor | null, target: Target): Deskt
   }
   return actions
 }
+
+/**
+ * UI mirror of the API's canExclude (21.2.21): «Удалить из группы» без блокировки. Владельца и себя
+ * исключить нельзя; организатор исключает только игроков, помощников и организаторов — владелец.
+ * Исключается действующий участник (активный или гость); заблокированный остаётся заблокированным.
+ */
+export function canExcludeMember(actor: Actor | null, target: Target): boolean {
+  if (!actor || actor.status !== 'active') return false
+  if (actor.role !== 'owner' && actor.role !== 'organizer') return false
+  if (target.role === 'owner' || target.userId === actor.userId) return false
+  if (target.status !== 'active' && target.status !== 'guest') return false
+  return actor.role === 'owner' || target.role === 'player'
+}

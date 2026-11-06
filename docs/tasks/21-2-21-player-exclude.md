@@ -2,11 +2,11 @@
 id: '21.2.21'
 phase: '21'
 epic: '21.2'
-status: todo
+status: in_progress
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-11-06
-status_note: 'Выделена из 21.2.2 решением владельца 2026-11-04. Семантика решена владельцем 2026-11-06 (журнал решений, «Исключение игрока из группы»); запрет старта снят.'
+status_note: 'Реализовано по решению владельца 2026-11-06 (журнал решений), без миграции: исключение = статус left + отмена будущих записей общим путём bookingService.cancel; PR открыт, ждёт ревью opus+tests.'
 ref_id: 'W-06'
 complexity: M
 impl_model: claude-sonnet-5-5

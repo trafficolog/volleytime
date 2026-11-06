@@ -52,6 +52,7 @@ let wrapper: VueWrapper | undefined
 let invites: unknown[] = []
 let actorRole = 'owner'
 let withStats = false
+let excludeFails = false
 
 const STATS_PERIOD = { from: '2026-02-20', to: '2026-05-20' }
 const emptyStats = {
@@ -80,6 +81,7 @@ beforeEach(() => {
   invites = []
   actorRole = 'owner'
   withStats = false
+  excludeFails = false
   apiFetch.mockReset().mockImplementation(async (url: string, opts?: { method?: string }) => {
     if (url === '/api/organizations/30/members')
       return withStats
@@ -93,6 +95,10 @@ beforeEach(() => {
       return { deeplinkUrl: 'https://t.me/bot?start=new' }
     if (url.endsWith('/level')) return { member: { level: 'v2' } }
     if (url.endsWith('/position')) return { member: { position: 'libero' } }
+    if (url.endsWith('/exclude')) {
+      if (excludeFails) throw { statusCode: 403, data: { code: 'forbidden.exclude' } }
+      return { member: {}, cancelledBookings: 2, paidSeats: 1, revokedInvites: 0 }
+    }
     return {}
   })
   vi.stubGlobal('window', Object.assign(window, { confirm: () => true }))
@@ -365,6 +371,79 @@ describe('desktop players (W-06)', () => {
     expect(
       apiFetch.mock.calls.filter(([url]) => url === '/api/organizations/30/members'),
     ).toHaveLength(2)
+  })
+
+  describe('exclude from the group (21.2.21)', () => {
+    const open = async (w: VueWrapper, index: number) =>
+      w.findAll('tbody .vt-desktop-members__name')[index]!.trigger('click')
+    const excludeCalls = () =>
+      apiFetch.mock.calls.filter(([url]) => String(url).endsWith('/exclude'))
+    const section = (w: VueWrapper) => w.get('[data-testid="player-exclude"]')
+    const sectionButton = (w: VueWrapper, text: string) =>
+      section(w)
+        .findAll('button')
+        .find((b) => b.text() === text)!
+
+    it('lists the consequences first, then posts the reason and reloads the list', async () => {
+      const w = await render()
+      await open(w, 1)
+      expect(w.find('#player-drawer-exclude-reason').exists()).toBe(false)
+      await sectionButton(w, 'Удалить из группы').trigger('click')
+      const text = section(w).text()
+      expect(text).toContain('Будущие записи игрока отменятся')
+      expect(text).toContain('Оплаченные места автоматически не возвращаются')
+      expect(text).toContain('Абонемент останется за игроком')
+      expect(text).toContain('Долг и ожидающие оплаты останутся в кассе')
+      expect(text).toContain('Это не блокировка')
+      expect(excludeCalls()).toHaveLength(0)
+      await w.get('#player-drawer-exclude-reason').setValue('  Переехал  ')
+      await sectionButton(w, 'Удалить из группы').trigger('click')
+      await flushPromises()
+      expect(excludeCalls()).toEqual([
+        [
+          '/api/organizations/30/members/2/exclude',
+          { method: 'POST', body: { reason: 'Переехал' } },
+        ],
+      ])
+      expect(
+        apiFetch.mock.calls.filter(([url]) => url === '/api/organizations/30/members'),
+      ).toHaveLength(2)
+      expect(w.text()).toContain('Отменено записей: 2')
+      expect(w.text()).toContain('Деньги вернуть нужно вручную')
+    })
+
+    it('cancel leaves the player in place and posts nothing', async () => {
+      const w = await render()
+      await open(w, 1)
+      await sectionButton(w, 'Удалить из группы').trigger('click')
+      await sectionButton(w, 'Отмена').trigger('click')
+      expect(excludeCalls()).toHaveLength(0)
+      expect(w.find('#player-drawer-exclude-reason').exists()).toBe(false)
+    })
+
+    it('shows the API error inside the card and keeps the list', async () => {
+      excludeFails = true
+      const w = await render()
+      await open(w, 1)
+      await sectionButton(w, 'Удалить из группы').trigger('click')
+      await sectionButton(w, 'Удалить из группы').trigger('click')
+      await flushPromises()
+      expect(section(w).get('[role="alert"]').text()).not.toBe('')
+      expect(names(w)).toContain('Синтетический Игрок Два')
+    })
+
+    it('is not offered to an assistant', async () => {
+      actorRole = 'assistant'
+      const w = await render()
+      await open(w, 1)
+      expect(w.find('[data-testid="player-exclude"]').exists()).toBe(false)
+    })
+
+    it('is not offered for a blocked player', async () => {
+      const w = await render()
+      await open(w, 4)
+      expect(w.find('[data-testid="player-exclude"]').exists()).toBe(false)
+    })
   })
 
   it('copies an existing player invite link without creating a new one', async () => {

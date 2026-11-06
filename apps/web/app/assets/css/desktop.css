@@ -1574,6 +1574,21 @@ ol.vt-desktop-event-detail__rows > li {
   font-weight: 600;
 }
 
+.vt-player-drawer__exclude {
+  display: grid;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--vt-line, rgb(0 0 0 / 8%));
+}
+
+.vt-player-drawer__consequences {
+  margin: 0.25rem 0 0.5rem;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.25rem;
+  list-style: disc;
+}
+
 .vt-player-drawer__actions {
   display: flex;
   flex-wrap: wrap;
@@ -1898,6 +1913,21 @@ ol.vt-desktop-event-detail__rows > li {
 }
 .vt-settings-venue[data-archived] .vt-settings-venue__text {
   opacity: 0.7;
+}
+.vt-settings-slot {
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+.vt-settings-slot__time {
+  min-width: 3rem;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.vt-settings-slot__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
 }
 .vt-settings-venue-form {
   display: grid;

@@ -28,6 +28,7 @@ import {
   type SeriesSpan,
 } from '~/utils/event-series'
 import { formatMoneyRu } from '~/utils/labels'
+import { nextSlotStart, slotLabel, type ScheduleSlotView } from '~/utils/schedule-slots'
 
 /**
  * Форма события и серии (W-04, 20.5.5). Время — в TZ организации. Создание: одно событие или
@@ -69,9 +70,26 @@ const props = defineProps<{
   inviteModeEnabled?: boolean
   /** Блок повтора: только при создании и только там, где хост умеет показать итог серии. */
   allowSeries?: boolean
+  /** Скрыть кнопку отправки: хост сам вызывает `submit` (системная MainButton Telegram, 21.1.2). */
+  hideSubmit?: boolean
   pricingPermissions?: PricingPermissions
 }>()
 const emit = defineEmits<{ saved: [event: Event]; seriesCreated: [result: SeriesCreated] }>()
+
+// Хост с собственной кнопкой (MainButton) читает состояние и вызывает отправку через ссылку на форму.
+// Объявлено до первого await (иначе expose не сработает); значения читаются лениво, при обращении.
+defineExpose({
+  submit: () => submit(),
+  get submitDisabled() {
+    return submitDisabled.value
+  },
+  get submitText() {
+    return submitText.value
+  },
+  get saving() {
+    return saving.value
+  },
+})
 
 const uid = useId()
 const i = props.initial
@@ -81,6 +99,8 @@ const venues = ref<Venue[]>([])
 const currentVenue = ref<Venue | null>(null)
 const groupSettings = ref<GroupSettingsView | null>(null)
 const levelCatalog = ref<LevelView[]>([])
+// Слоты расписания группы (21.2.12): только при создании; сбой списка не мешает форме.
+const slots = ref<ScheduleSlotView[]>([])
 // Площадки, настройки группы (умолчания P-02) и справочник уровней читаются параллельно; сбой любого
 // не мешает форме: умолчания тогда общие.
 await Promise.all([
@@ -100,6 +120,14 @@ await Promise.all([
     (res) => (groupSettings.value = res?.settings ?? null),
     () => (groupSettings.value = null),
   ),
+  i
+    ? Promise.resolve()
+    : $fetch<{ slots: ScheduleSlotView[] }>(
+        `/api/organizations/${props.orgId}/schedule-slots`,
+      ).then(
+        (res) => (slots.value = Array.isArray(res?.slots) ? res.slots : []),
+        () => (slots.value = []),
+      ),
   $fetch<{ levels: LevelView[] }>('/api/levels').then(
     (res) => (levelCatalog.value = Array.isArray(res?.levels) ? res.levels : []),
     () => (levelCatalog.value = []),
@@ -235,6 +263,42 @@ const venueValue = computed({
   get: () => String(form.venueId),
   set: (v: string) => (form.venueId = v === '' ? '' : Number(v)),
 })
+// --- слот расписания (21.2.12) ----------------------------------------------------------------
+// Выбор слота только подставляет поля; событие по-прежнему создаётся кнопкой формы и контрактом
+// события/серии. Архивный зал слота не подставляется: его выбрать нельзя (event.venue_archived).
+const slotId = ref('')
+const slotVenueNote = ref('')
+const slotOptions = computed(() => [
+  { value: '', label: 'Без шаблона' },
+  ...slots.value.map((s) => ({ value: String(s.id), label: slotLabel(s) })),
+])
+function applySlot(id: string) {
+  const slot = slots.value.find((s) => String(s.id) === id)
+  slotVenueNote.value = ''
+  if (!slot) return
+  form.title = slot.title
+  form.type = slot.type
+  form.startsAt = nextSlotStart(slot, props.tz)
+  form.durationMin = slot.durationMinutes
+  form.capacity = slot.capacity
+  addingVenue.value = false
+  if (slot.venueId !== null && venues.value.some((v) => v.id === slot.venueId)) {
+    form.venueId = slot.venueId
+  } else {
+    form.venueId = ''
+    if (slot.venueId !== null) {
+      slotVenueNote.value = `Зал «${slot.venueName ?? ''}» из слота в архиве или удалён: выберите другой зал.`
+    }
+  }
+}
+const slotValue = computed({
+  get: () => slotId.value,
+  set: (v: string) => {
+    slotId.value = v
+    applySlot(v)
+  },
+})
+
 const levelOptions = computed(() => {
   const allowed = groupSettings.value?.levels ?? []
   const codes = levelCatalog.value
@@ -617,6 +681,14 @@ const seatsText = computed(() => {
     <div class="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
       <div class="vt-card space-y-4 p-5">
         <h2 class="text-base font-bold text-vt-ink">Основное</h2>
+        <div v-if="!initial && slots.length > 0">
+          <span :id="`${uid}-slot`" class="vt-label">Слот расписания</span>
+          <VtSelect v-model="slotValue" :options="slotOptions" :labelledby="`${uid}-slot`" />
+          <p class="mt-1 text-xs text-vt-mute-2">
+            Подставит название, формат, день, время, длительность, зал и места. Событие создаётся
+            только кнопкой ниже.
+          </p>
+        </div>
         <div>
           <label class="vt-label" for="ev-title">Название</label>
           <input
@@ -681,6 +753,14 @@ const seatsText = computed(() => {
           <template v-if="!addingVenue">
             <span :id="`${uid}-venue`" class="vt-label">Зал / площадка</span>
             <VtSelect v-model="venueValue" :options="venueOptions" :labelledby="`${uid}-venue`" />
+            <p
+              v-if="slotVenueNote && form.venueId === ''"
+              class="mt-1 text-xs text-vt-rose-ink"
+              role="status"
+              data-testid="slot-venue-note"
+            >
+              {{ slotVenueNote }}
+            </p>
           </template>
           <div v-else class="space-y-3">
             <div>
@@ -945,6 +1025,7 @@ const seatsText = computed(() => {
 
     <p v-if="error" id="ev-form-error" class="text-sm text-vt-rose-ink" role="alert">{{ error }}</p>
     <button
+      v-if="!hideSubmit"
       type="submit"
       class="vt-btn vt-btn--primary vt-btn--lg vt-btn--full"
       :disabled="submitDisabled"

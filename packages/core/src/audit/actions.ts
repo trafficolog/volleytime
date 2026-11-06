@@ -12,6 +12,8 @@ export const AUDIT_ACTIONS = {
   MEMBER_REJECTED: 'member.rejected',
   MEMBER_REJOINED: 'member.rejoined',
   MEMBER_LEFT: 'member.left',
+  // исключение из группы без блокировки (21.2.21): статус `left`, повторное вступление по приглашению
+  MEMBER_EXCLUDED: 'member.excluded',
   MEMBER_LEVEL_CHANGED: 'member.level_changed',
   MEMBER_POSITION_CHANGED: 'member.position_changed',
   INVITE_CREATED: 'invite.created',
@@ -50,6 +52,10 @@ export const AUDIT_ACTIONS = {
   VENUE_UPDATED: 'venue.updated',
   VENUE_ARCHIVED: 'venue.archived',
   VENUE_DELETED: 'venue.deleted',
+  // шаблоны слотов расписания группы (21.2.12)
+  SCHEDULE_SLOT_CREATED: 'schedule_slot.created',
+  SCHEDULE_SLOT_UPDATED: 'schedule_slot.updated',
+  SCHEDULE_SLOT_DELETED: 'schedule_slot.deleted',
   LEDGER_EXPENSE_ADDED: 'ledger.expense_added',
   LEDGER_INCOME_ADDED: 'ledger.income_added',
   // привязка Telegram-чата к группе (20.3.4); код и Telegram id в журнал не пишутся
@@ -81,6 +87,7 @@ export type AuditEntityType =
   | 'subscription'
   | 'plan'
   | 'venue'
+  | 'schedule_slot'
   | 'payment'
   | 'ledger_entry'
   | 'event_balance_purchase_request'

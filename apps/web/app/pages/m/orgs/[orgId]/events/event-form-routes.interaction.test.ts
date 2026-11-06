@@ -1,7 +1,18 @@
 // @vitest-environment happy-dom
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { computed, defineComponent, h, reactive, ref, Suspense } from 'vue'
+import {
+  computed,
+  defineComponent,
+  h,
+  nextTick,
+  onMounted,
+  onUnmounted,
+  reactive,
+  ref,
+  Suspense,
+  watchEffect,
+} from 'vue'
 
 import EditEvent from './[eventId]/edit.vue'
 import NewEvent from './new.vue'
@@ -25,6 +36,13 @@ vi.stubGlobal('useRouter', () => ({ currentRoute: routerRoute }))
 vi.stubGlobal('navigateTo', navigateTo)
 vi.stubGlobal('useOrgTimezone', () => ({ tz: ref('Europe/Minsk'), load: async () => undefined }))
 vi.stubGlobal('computed', computed)
+vi.stubGlobal('ref', ref)
+vi.stubGlobal('nextTick', nextTick)
+vi.stubGlobal('onMounted', onMounted)
+vi.stubGlobal('onUnmounted', onUnmounted)
+vi.stubGlobal('watchEffect', watchEffect)
+vi.stubGlobal('useTelegram', () => ({ isTelegram: ref(false), webApp: undefined }))
+vi.stubGlobal('createMainButton', () => ({ update: vi.fn(), destroy: vi.fn() }))
 vi.stubGlobal('useFetch', (url: () => string) =>
   url().includes('/events/')
     ? { data: evData, error: evError, status: evStatus }
