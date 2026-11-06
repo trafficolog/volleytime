@@ -246,6 +246,13 @@
       "when": 1793881789383,
       "tag": "0034_player_position",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1793945030360,
+      "tag": "0036_organization_payment_methods",
+      "breakpoints": true
     }
   ]
 }

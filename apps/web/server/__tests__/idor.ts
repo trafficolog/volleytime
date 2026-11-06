@@ -24,6 +24,8 @@ export type OrgAccess =
 /** Идентификаторы ресурсов одной группы, которыми подставляются параметры пути. */
 export interface OrgFixtureIds {
   orgId: number
+  /** Код способа оплаты в пути (21.2.11). */
+  method: string
   venueId: number
   eventId: number
   bookingId: number
