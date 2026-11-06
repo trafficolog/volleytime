@@ -21,6 +21,16 @@ export class CannotBlockOwnerError extends MemberError {
     super('member.cannot_block_owner', 'Owner cannot be blocked')
   }
 }
+export class CannotExcludeOwnerError extends MemberError {
+  constructor() {
+    super('member.cannot_exclude_owner', 'Owner cannot be excluded from the group')
+  }
+}
+export class CannotExcludeSelfError extends MemberError {
+  constructor() {
+    super('member.cannot_exclude_self', 'You cannot exclude yourself from the group')
+  }
+}
 export class CannotChangeOwnerRoleError extends MemberError {
   constructor() {
     super('member.cannot_change_owner_role', 'Owner role cannot be changed')

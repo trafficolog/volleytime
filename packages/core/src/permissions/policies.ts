@@ -111,6 +111,31 @@ export function requireCanModerate(
   }
 }
 
+/**
+ * Исключить участника из группы без блокировки (21.2.21): владельца и себя исключить нельзя;
+ * владелец исключает любого другого, организатор — только игрока (помощников и организаторов — только владелец).
+ */
+export function canExclude(
+  actor: OrganizationMember | null,
+  target: Pick<OrganizationMember, 'role' | 'userId'>,
+): boolean {
+  if (!canManageMembers(actor) || !actor) return false
+  if (target.role === 'owner' || target.userId === actor.userId) return false
+  return actor.role === 'owner' || target.role === 'player'
+}
+
+export function requireCanExclude(
+  actor: OrganizationMember | null,
+  target: Pick<OrganizationMember, 'role' | 'userId'>,
+): void {
+  if (!canExclude(actor, target)) {
+    throw new ForbiddenError(
+      'forbidden.exclude',
+      'Исключить администратора из группы может только владелец',
+    )
+  }
+}
+
 export function requireOrgOwner(member: OrganizationMember | null): void {
   if (!isOrgOwner(member)) {
     throw new ForbiddenError('forbidden.owner_only', 'Действие доступно только владельцу')

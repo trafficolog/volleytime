@@ -12,6 +12,8 @@ export const AUDIT_ACTIONS = {
   MEMBER_REJECTED: 'member.rejected',
   MEMBER_REJOINED: 'member.rejoined',
   MEMBER_LEFT: 'member.left',
+  // исключение из группы без блокировки (21.2.21): статус `left`, повторное вступление по приглашению
+  MEMBER_EXCLUDED: 'member.excluded',
   MEMBER_LEVEL_CHANGED: 'member.level_changed',
   MEMBER_POSITION_CHANGED: 'member.position_changed',
   INVITE_CREATED: 'invite.created',
