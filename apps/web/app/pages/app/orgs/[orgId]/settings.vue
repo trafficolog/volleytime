@@ -5,6 +5,7 @@ import SettingsBookings from '~/components/desktop/settings/SettingsBookings.vue
 import SettingsDanger from '~/components/desktop/settings/SettingsDanger.vue'
 import SettingsIntegrations from '~/components/desktop/settings/SettingsIntegrations.vue'
 import SettingsNotifications from '~/components/desktop/settings/SettingsNotifications.vue'
+import SettingsPaymentMethods from '~/components/desktop/settings/SettingsPaymentMethods.vue'
 import SettingsProfile from '~/components/desktop/settings/SettingsProfile.vue'
 import SettingsSchedule from '~/components/desktop/settings/SettingsSchedule.vue'
 import SettingsTeam from '~/components/desktop/settings/SettingsTeam.vue'
@@ -161,7 +162,9 @@ async function archive() {
       </nav>
       <div class="vt-settings__content">
         <p
-          v-if="!isOwner && section !== 'venues' && section !== 'schedule'"
+          v-if="
+            !isOwner && section !== 'venues' && section !== 'schedule' && section !== 'payments'
+          "
           class="vt-settings-note"
           role="note"
         >
@@ -189,6 +192,12 @@ async function archive() {
         />
         <SettingsVenues
           v-else-if="section === 'venues'"
+          :org-id="orgId"
+          :can-manage="true"
+          @toast="toast.show"
+        />
+        <SettingsPaymentMethods
+          v-else-if="section === 'payments'"
           :org-id="orgId"
           :can-manage="true"
           @toast="toast.show"

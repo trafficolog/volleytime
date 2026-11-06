@@ -22,6 +22,7 @@ export type SettingsSectionKey =
   | 'schedule'
   | 'bookings'
   | 'venues'
+  | 'payments'
   | 'team'
   | 'notifications'
   | 'integrations'
@@ -33,6 +34,7 @@ export const SETTINGS_SECTIONS: { key: SettingsSectionKey; label: string; ownerO
     { key: 'schedule', label: 'Расписание по умолчанию' },
     { key: 'bookings', label: 'Записи и оплата' },
     { key: 'venues', label: 'Залы и площадки' },
+    { key: 'payments', label: 'Способы оплаты' },
     { key: 'team', label: 'Команда' },
     { key: 'notifications', label: 'Уведомления' },
     { key: 'integrations', label: 'Интеграции' },
