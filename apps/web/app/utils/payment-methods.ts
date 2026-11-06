@@ -16,8 +16,8 @@ export interface PaymentMethodView {
 }
 
 export const REQUISITE_LIMIT = 100
-/** Серия из 9+ цифр (с пробелами или дефисами) — похоже на полный номер карты; как на сервере. */
-const LONG_DIGIT_RUN = /\d(?:[\s-]?\d){8,}/
+/** 9+ цифр с любыми разделителями и любыми Unicode-цифрами — полный номер карты; как на сервере. */
+const LONG_DIGIT_RUN = /\p{Nd}(?:[\s\p{Pd}._/\\,:;|]*\p{Nd}){8,}/u
 
 export const PAYMENT_METHOD_TITLES: Record<PaymentMethodCode, string> = {
   cash: 'Наличными организатору',

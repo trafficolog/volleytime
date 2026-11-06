@@ -5,8 +5,12 @@ export const PAYMENT_METHOD_CODES = ['cash', 'transfer'] as const
 export const PaymentMethodCode = z.enum(PAYMENT_METHOD_CODES)
 export type PaymentMethodCode = z.infer<typeof PaymentMethodCode>
 
-/** Серия из 9+ цифр (с пробелами или дефисами) в тексте — похоже на номер карты или счёта. */
-const LONG_DIGIT_RUN = /\d(?:[\s-]?\d){8,}/
+/**
+ * 9+ цифр подряд в тексте — похоже на номер карты или счёта. Между цифрами допускается любая
+ * серия разделителей (пробелы, любые тире, точки, слэши, подчёркивания и т. п.), цифры — любые
+ * Unicode (в том числе полноширинные), чтобы запись не обходила проверку.
+ */
+const LONG_DIGIT_RUN = /\p{Nd}(?:[\s\p{Pd}._/\\,:;|]*\p{Nd}){8,}/u
 
 const detailText = z
   .string()
