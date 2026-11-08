@@ -1,6 +1,6 @@
 {
-  "id": "55f6e045-48f4-4f3a-8a85-8dc06129764c",
-  "prevId": "58d3ec2d-8250-4e83-b48f-a216581ca802",
+  "id": "f76473c6-91bc-4c2d-9bd1-14bfa042df60",
+  "prevId": "1aec4e81-fc70-4c3d-aa4f-a52b2a20be3a",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -630,6 +630,137 @@
         "organizations_cancellation_deadline_non_negative": {
           "name": "organizations_cancellation_deadline_non_negative",
           "value": "\"organizations\".\"cancellation_deadline_hours\" IS NULL OR \"organizations\".\"cancellation_deadline_hours\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.organization_payment_methods": {
+      "name": "organization_payment_methods",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "method": {
+          "name": "method",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "bank": {
+          "name": "bank",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "card_last4": {
+          "name": "card_last4",
+          "type": "varchar(4)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "recipient": {
+          "name": "recipient",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_by_user_id": {
+          "name": "updated_by_user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "org_payment_methods_org_method_uniq": {
+          "name": "org_payment_methods_org_method_uniq",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "method",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "organization_payment_methods_organization_id_organizations_id_fk": {
+          "name": "organization_payment_methods_organization_id_organizations_id_fk",
+          "tableFrom": "organization_payment_methods",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "organization_payment_methods_updated_by_user_id_users_id_fk": {
+          "name": "organization_payment_methods_updated_by_user_id_users_id_fk",
+          "tableFrom": "organization_payment_methods",
+          "tableTo": "users",
+          "columnsFrom": [
+            "updated_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "org_payment_methods_method_chk": {
+          "name": "org_payment_methods_method_chk",
+          "value": "\"organization_payment_methods\".\"method\" IN ('cash', 'transfer')"
+        },
+        "org_payment_methods_card_last4_chk": {
+          "name": "org_payment_methods_card_last4_chk",
+          "value": "\"organization_payment_methods\".\"card_last4\" IS NULL OR \"organization_payment_methods\".\"card_last4\" ~ '^[0-9]{4}$'"
+        },
+        "org_payment_methods_details_chk": {
+          "name": "org_payment_methods_details_chk",
+          "value": "\"organization_payment_methods\".\"method\" = 'transfer' OR (\"organization_payment_methods\".\"bank\" IS NULL AND \"organization_payment_methods\".\"card_last4\" IS NULL AND \"organization_payment_methods\".\"recipient\" IS NULL)"
         }
       },
       "isRLSEnabled": false
