@@ -153,22 +153,21 @@ async function load() {
   selectedId.value = null
   try {
     // агрегаты игроков (посещаемость, абонемент, долг) запрашивает только управляющий
-    const result = await $fetch<{ members: MemberRow[]; statsPeriod?: PlayersStatsPeriod }>(
-      `/api/organizations/${targetOrgId}/members`,
-      {
-        query: {
-          statuses: PLAYER_FETCH_STATUSES.join(','),
-          ...(canManage.value ? { stats: '1' } : {}),
+    // исключённые: отдельный запрос параллельно, статус `left` включает и вышедших добровольно (21.2.24)
+    const [result, excludedResult] = await Promise.all([
+      $fetch<{ members: MemberRow[]; statsPeriod?: PlayersStatsPeriod }>(
+        `/api/organizations/${targetOrgId}/members`,
+        {
+          query: {
+            statuses: PLAYER_FETCH_STATUSES.join(','),
+            ...(canManage.value ? { stats: '1' } : {}),
+          },
         },
-      },
-    )
-    if (!alive || token !== generation || orgId.value !== targetOrgId) return
-    // исключённые: отдельный запрос, статус `left` включает и вышедших добровольно (21.2.24)
-    const excludedResult = canManage.value
-      ? await $fetch<{ members: ExcludedRow[] }>(
-          `/api/organizations/${targetOrgId}/members/excluded`,
-        )
-      : { members: [] }
+      ),
+      canManage.value
+        ? $fetch<{ members: ExcludedRow[] }>(`/api/organizations/${targetOrgId}/members/excluded`)
+        : Promise.resolve({ members: [] as ExcludedRow[] }),
+    ])
     if (!alive || token !== generation || orgId.value !== targetOrgId) return
     members.value = result.members
     excluded.value = excludedResult.members

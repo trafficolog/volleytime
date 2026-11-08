@@ -126,9 +126,68 @@ describe('excluded players (21.2.24, PostgreSQL)', () => {
       (a) => a === AUDIT_ACTIONS.MEMBER_BLOCKED,
     )
     expect(blockedAudits).toHaveLength(1)
-    // заблокированный уже не в списке исключённых и может быть разблокирован как обычно
+    // заблокированный уже не в списке исключённых
     expect(await excludedIds()).toEqual([])
-    expect((await memberService.unblock(owner(), excluded.memberId)).status).toBe('active')
+  })
+
+  it('unblock restores left for an excluded player: back in the excluded list, no auto-reactivation', async () => {
+    const p = await member()
+    await excludeMember(owner(), p.memberId, { reason: 'Спор' })
+    await memberService.block(owner(), p.memberId)
+    expect(await excludedIds()).toEqual([])
+
+    const restored = await memberService.unblock(owner(), p.memberId)
+    expect(restored.status).toBe('left')
+    expect(await excludedIds()).toEqual([p.memberId])
+    const unblockAudit = (
+      await db
+        .select()
+        .from(auditLog)
+        .where(and(eq(auditLog.entityType, 'member'), eq(auditLog.entityId, p.memberId)))
+    ).find((r) => r.action === AUDIT_ACTIONS.MEMBER_UNBLOCKED)
+    expect(unblockAudit!.oldValue).toMatchObject({ status: 'blocked' })
+    expect(unblockAudit!.newValue).toMatchObject({ status: 'left' })
+    // повторная разблокировка не меняет статус
+    await expect(memberService.unblock(owner(), p.memberId)).rejects.toMatchObject({
+      code: 'member.invalid_transition',
+    })
+    expect((await memberRow(p.memberId)).status).toBe('left')
+  })
+
+  it('unblock of a voluntary leaver restores left and does not make them excluded', async () => {
+    const p = await member()
+    await memberService.leaveOrg({ userId: p.userId }, orgId)
+    await memberService.block(owner(), p.memberId)
+    expect((await memberService.unblock(owner(), p.memberId)).status).toBe('left')
+    expect(await excludedIds()).toEqual([])
+  })
+
+  it('exclude, block, unblock, then rejoin by invite succeeds', async () => {
+    const p = await member()
+    const invite = await inviteService.create(owner(), { organizationId: orgId })
+    await excludeMember(owner(), p.memberId)
+    await memberService.block(owner(), p.memberId)
+    await memberService.unblock(owner(), p.memberId)
+    expect((await memberRow(p.memberId)).status).toBe('left')
+
+    await inviteService.redeem({ userId: p.userId }, invite.token)
+    expect((await memberRow(p.memberId)).status).toBe('active')
+    expect(await excludedIds()).toEqual([])
+  })
+
+  it('a plain block of an active member followed by unblock still gives active', async () => {
+    const p = await member()
+    await memberService.block(owner(), p.memberId)
+    expect((await memberService.unblock(owner(), p.memberId)).status).toBe('active')
+    // последняя блокировка определяет статус: left-блокировка, затем возврат и active-блокировка
+    const q = await member()
+    await excludeMember(owner(), q.memberId)
+    await memberService.block(owner(), q.memberId)
+    await memberService.unblock(owner(), q.memberId)
+    const invite = await inviteService.create(owner(), { organizationId: orgId })
+    await inviteService.redeem({ userId: q.userId }, invite.token)
+    await memberService.block(owner(), q.memberId)
+    expect((await memberService.unblock(owner(), q.memberId)).status).toBe('active')
   })
 
   it('a player blocked after exclusion cannot return by a reusable invite link', async () => {

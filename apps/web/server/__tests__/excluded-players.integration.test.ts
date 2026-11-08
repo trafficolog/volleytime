@@ -134,6 +134,24 @@ describe('excluded players API (HTTP integration)', () => {
     expect(await statusOf(playerMemberId)).toBe('blocked')
   })
 
+  it('unblock restores left for an excluded player (back in the list), active for a plain block', async () => {
+    await request('POST', `${base()}/${playerMemberId}/exclude`, { user: ownerId, body: {} })
+    await request('POST', `${base()}/${playerMemberId}/block`, { user: organizerId })
+    expect(await excludedIds()).toEqual([])
+    const res = await request('POST', `${base()}/${playerMemberId}/unblock`, { user: organizerId })
+    expect(res.status).toBe(200)
+    expect(res.body).toMatchObject({ member: { status: 'left' } })
+    expect(await excludedIds()).toEqual([playerMemberId])
+    // вернуться можно только по приглашению, автоматической активации нет
+    expect(await statusOf(playerMemberId)).toBe('left')
+
+    await request('POST', `${base()}/${player2MemberId}/block`, { user: organizerId })
+    const plain = await request('POST', `${base()}/${player2MemberId}/unblock`, {
+      user: organizerId,
+    })
+    expect(plain.body).toMatchObject({ member: { status: 'active' } })
+  })
+
   it('an organizer cannot exclude+block or block an excluded organizer/assistant; the owner can', async () => {
     for (const memberId of [organizer2MemberId, assistantMemberId]) {
       const res = await request('POST', `${base()}/${memberId}/exclude`, {
