@@ -255,6 +255,13 @@
       "breakpoints": true
     },
     {
+      "idx": 36,
+      "version": "7",
+      "when": 1793946312405,
+      "tag": "0036_organization_payment_methods",
+      "breakpoints": true
+    },
+    {
       "idx": 37,
       "version": "7",
       "when": 1793964885298,

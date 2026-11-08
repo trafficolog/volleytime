@@ -12,12 +12,12 @@ import * as schema from './schema'
 import { seedDemo } from './seed-demo'
 
 const TAG = '0037_org_notification_settings'
-const TAG35 = '0035_schedule_slots'
+const TAG36 = '0036_organization_payment_methods'
 const BASE_URL = process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL ?? ''
 
 /**
  * Task 21.2.14: переключатели уведомлений группы. Миграция аддитивна (новая таблица, строки нет =
- * тип включён): применяется и откатывается на пустой базе, после demo-сида и на базе на 0035 с
+ * тип включён): применяется и откатывается на пустой базе, после demo-сида и на базе на 0036 с
  * группами. Откат отказывает, пока выключено хотя бы одно напоминание; CHECK пускает в таблицу
  * только переключаемые типы; строки уходят вместе с группой.
  */
@@ -77,11 +77,11 @@ describe('migration 0037 org notification settings (integration)', { timeout: 60
     }
   })
 
-  it('keeps 0035 groups unchanged and defaults every group to "nothing switched off"', async () => {
+  it('keeps 0036 groups unchanged and defaults every group to "nothing switched off"', async () => {
     const { url, sql } = await scratchDb()
     try {
       await runMigrations(url)
-      await rollbackNotificationSettings(url) // теперь БД на 0035
+      await rollbackNotificationSettings(url) // теперь БД на 0036
       const a = await org(sql, 'ns-a')
       await runMigrations(url)
       expect(await sql`SELECT 1 FROM organizations WHERE id = ${a}`).toHaveLength(1)
@@ -125,7 +125,7 @@ describe('migration 0037 org notification settings (integration)', { timeout: 60
       await sql`UPDATE organization_notification_settings SET enabled = true`
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await tableExists(sql)).toBe(false)
-      expect(await rollbackLastMigration(url)).toBe(TAG35)
+      expect(await rollbackLastMigration(url)).toBe(TAG36)
     } finally {
       await sql.end()
     }
