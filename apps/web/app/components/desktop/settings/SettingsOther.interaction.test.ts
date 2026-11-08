@@ -4,7 +4,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import SettingsDanger from './SettingsDanger.vue'
 import SettingsIntegrations from './SettingsIntegrations.vue'
-import SettingsNotifications from './SettingsNotifications.vue'
 import SettingsTeam from './SettingsTeam.vue'
 import { makeController, stubs } from './settings-fixtures'
 
@@ -64,16 +63,6 @@ describe('SettingsTeam', () => {
       '/app/orgs/7/members',
       '/app/orgs/7/invite',
     ])
-  })
-})
-
-describe('SettingsNotifications', () => {
-  it('lists what the bot sends without fake switches', () => {
-    const wrapper = mount(SettingsNotifications)
-    expect(wrapper.text()).toContain('Напоминания за 24 часа и за 2 часа')
-    expect(wrapper.text()).toContain('Оплата ждёт подтверждения')
-    expect(wrapper.find('[role="switch"]').exists()).toBe(false)
-    expect(wrapper.text()).toContain('бот шлёт их всегда')
   })
 })
 

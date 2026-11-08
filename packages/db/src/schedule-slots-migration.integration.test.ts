@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { DB } from './client'
 import { runMigrations } from './migrate'
+import { rollbackNotificationSettings } from './migration-test-helpers'
 import { rollbackLastMigration } from './rollback'
 import * as schema from './schema'
 import { seedDemo } from './seed-demo'
@@ -81,6 +82,7 @@ describe('migration 0035 schedule slots (integration)', { timeout: 60_000 }, () 
       await runMigrations(url)
       expect(await tableExists(sql)).toBe(true)
 
+      await rollbackNotificationSettings(url) // 21.2.14: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await tableExists(sql)).toBe(false)
 
@@ -95,6 +97,7 @@ describe('migration 0035 schedule slots (integration)', { timeout: 60_000 }, () 
     const { url, sql } = await scratchDb()
     try {
       await runMigrations(url)
+      await rollbackNotificationSettings(url) // 21.2.14: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG) // теперь БД на 0034
       const a = await org(sql, 'ss-a')
       await sql`INSERT INTO venues (organization_id, name) VALUES (${a}, 'Школа №24')`
@@ -168,6 +171,7 @@ describe('migration 0035 schedule slots (integration)', { timeout: 60_000 }, () 
       await runMigrations(url)
       const a = await org(sql, 'ss-guard')
       await insertSlot(sql, a)
+      await rollbackNotificationSettings(url) // 21.2.14: новая миграция откатывается первой
       await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0035 refused/)
       expect(await tableExists(sql)).toBe(true)
       expect(await sql`SELECT 1 FROM schedule_slots`).toHaveLength(1)
@@ -191,6 +195,7 @@ describe('migration 0035 schedule slots (integration)', { timeout: 60_000 }, () 
       const [groups] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM organizations`
       // сид слотов не создаёт, поэтому откат проходит и не трогает группы
       expect(await sql`SELECT 1 FROM schedule_slots`).toHaveLength(0)
+      await rollbackNotificationSettings(url) // 21.2.14: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await sql`SELECT 1 FROM organizations`).toHaveLength(groups!.n)
       await runMigrations(url)

@@ -253,6 +253,13 @@
       "when": 1793916649710,
       "tag": "0035_schedule_slots",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1793964885298,
+      "tag": "0037_org_notification_settings",
+      "breakpoints": true
     }
   ]
 }

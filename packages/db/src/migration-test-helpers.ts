@@ -3,11 +3,24 @@ import postgres from 'postgres'
 import { rollbackLastMigration } from './rollback'
 
 /**
+ * Откат 0037 (21.2.14) отказывает, пока в группах выключены напоминания; тесты старых миграций
+ * работают на базах без выключенных типов. Помощник откатывает 0037 и возвращает тег; следующая
+ * миграция добавляет свой шаг сюда.
+ */
+export async function rollbackNotificationSettings(url: string): Promise<string> {
+  const tag = await rollbackLastMigration(url)
+  if (tag !== '0037_org_notification_settings')
+    throw new Error(`expected 0037 to roll back first, got ${tag}`)
+  return tag
+}
+
+/**
  * Откат 0035 (21.2.12) отказывает, пока есть слоты расписания; тесты старых миграций работают на
  * базах без слотов. Помощник откатывает 0035 и возвращает тег; следующая миграция добавляет свой
  * шаг сюда.
  */
 export async function rollbackScheduleSlots(url: string): Promise<string> {
+  await rollbackNotificationSettings(url) // 21.2.14: новая миграция откатывается первой
   const tag = await rollbackLastMigration(url)
   if (tag !== '0035_schedule_slots') throw new Error(`expected 0035 to roll back first, got ${tag}`)
   return tag
