@@ -168,6 +168,15 @@ const priceLabel = computed(() =>
 const paymentLabel = computed(() =>
   ev.value && my.value ? splitBookingPaymentLabel(ev.value.pricing, my.value.status) : null,
 )
+// «Как оплатить» (21.2.11): только показ способов группы у ждущей оплаты записи наличными или
+// переводом; у split до распределения суммы платить ещё нечего. На запись и платёж не влияет.
+const showPayInstructions = computed(
+  () =>
+    !!my.value &&
+    my.value.status === 'pending_payment' &&
+    (my.value.method === 'cash' || my.value.method === 'transfer') &&
+    !(ev.value?.pricing.mode === 'split' && ev.value.pricing.myAllocatedAmount === null),
+)
 const paymentChip = computed(() =>
   my.value ? bookingPaymentChip(my.value.status, ev.value?.pricing) : null,
 )
@@ -1262,6 +1271,7 @@ async function reduceMySeats(kept: number) {
             paymentLabel.text
           }}</VtChip>
         </div>
+        <PlayerPaymentInstructions v-if="showPayInstructions" :org-id="orgId" />
         <button
           v-if="canCancel"
           type="button"

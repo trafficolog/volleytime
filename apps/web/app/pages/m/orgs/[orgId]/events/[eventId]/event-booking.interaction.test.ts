@@ -142,6 +142,10 @@ async function render() {
             template: '<div v-if="modelValue" role="dialog"><slot /></div>',
           },
           ErrorState: { props: ['message'], template: '<div role="alert">{{ message }}</div>' },
+          PlayerPaymentInstructions: {
+            props: ['orgId'],
+            template: '<div data-test="pay-instructions">{{ orgId }}</div>',
+          },
         },
       },
     },
@@ -675,5 +679,52 @@ describe('review #156 follow-ups', () => {
     await open()
     await sheet().get('[aria-label="Больше мест"]').trigger('click')
     expect(sheet().get('.sr-only[aria-live="polite"]').text()).toBe('2 места')
+  })
+})
+
+/**
+ * Task 21.2.11: экран «ждёт оплаты» показывает способы оплаты группы. Только показ: кнопки и
+ * запросы записи не меняются, способ записи по-прежнему выбирается из наличных и перевода.
+ */
+describe('pay instructions on a pending booking (21.2.11)', () => {
+  const myBooking = (extra: Partial<NonNullable<MyBooking>> = {}): MyBooking => ({
+    id: 5,
+    status: 'pending_payment',
+    method: 'transfer',
+    paymentId: 9,
+    seats: 1,
+    ...extra,
+  })
+
+  it.each(['cash', 'transfer'])('is shown for a pending %s booking', async (method) => {
+    data.value.event.myBooking = myBooking({ method })
+    wrapper = await render()
+    expect(wrapper.find('[data-test="pay-instructions"]').text()).toBe('30')
+  })
+
+  it('is hidden for a subscription booking, a confirmed booking and no booking', async () => {
+    for (const mine of [
+      myBooking({ method: 'subscription' }),
+      myBooking({ status: 'confirmed' }),
+      null,
+    ]) {
+      data.value.event.myBooking = mine
+      wrapper = await render()
+      expect(wrapper.find('[data-test="pay-instructions"]').exists()).toBe(false)
+      wrapper.unmount()
+    }
+    wrapper = undefined
+  })
+
+  it('does not change what the booking sheet offers or sends', async () => {
+    wrapper = await render()
+    await open()
+    expect(sheet().text()).toContain('Наличными организатору')
+    expect(sheet().text()).toContain('Переводом')
+    await sheetButton('Записаться')!.trigger('click')
+    await flushPromises()
+    expect(lastBookingBody()).toEqual({ method: 'cash' })
+    // запрос способов оплаты экран записи не делает: его рисует только блок «ждёт оплаты»
+    expect(post.mock.calls.some(([url]) => url.endsWith('/payment-methods'))).toBe(false)
   })
 })

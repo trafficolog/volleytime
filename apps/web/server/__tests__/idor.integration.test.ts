@@ -6,6 +6,7 @@ import {
   inviteService,
   memberService,
   organizationService,
+  paymentMethodService,
   planService,
   scheduleSlotService,
   seriesService,
@@ -29,6 +30,7 @@ import {
   ledgerEntries,
   organizationEventBalances,
   organizationMembers,
+  organizationPaymentMethods,
   organizations,
   organizationTelegramChats,
   scheduleSlots,
@@ -290,6 +292,12 @@ const ROUTES: OrgRouteTable = {
     body: () => ({}),
   },
   'POST /api/organizations/:orgId/venues': { access: 'manager', body: () => ({ name: 'Зал 2' }) },
+  // 21.2.11: способы оплаты — читают участники (игрок видит только включённые), правит manager
+  'GET /api/organizations/:orgId/payment-methods': { access: 'member' },
+  'PATCH /api/organizations/:orgId/payment-methods/:method': {
+    access: 'manager',
+    body: () => ({ enabled: true, bank: 'Банк', cardLast4: '3214', recipient: 'Иван П.' }),
+  },
   // 21.2.13: правка и удаление/архив зала — manager, зал чужой группы недоступен
   'PATCH /api/organizations/:orgId/venues/:venueId': {
     access: 'manager',
@@ -439,9 +447,16 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
         method: 'cash',
       },
     )
+    // реквизиты перевода с маркером группы: чужая группа их не увидит и не изменит (21.2.11)
+    await paymentMethodService.update({ userId: owner }, org.id, 'transfer', {
+      bank: `Банк ${marker}`,
+      cardLast4: '3214',
+      recipient: 'Иван П.',
+    })
     return {
       ids: {
         orgId: org.id,
+        method: 'transfer',
         venueId: venue.id,
         slotId: slot.id,
         eventId: ev.id,
@@ -475,6 +490,10 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
       db.select().from(organizationMembers).where(eq(organizationMembers.organizationId, orgId)),
       db.select().from(venues).where(eq(venues.organizationId, orgId)),
       db.select().from(scheduleSlots).where(eq(scheduleSlots.organizationId, orgId)),
+      db
+        .select()
+        .from(organizationPaymentMethods)
+        .where(eq(organizationPaymentMethods.organizationId, orgId)),
       db.select().from(events).where(eq(events.organizationId, orgId)),
       db.select().from(eventSeries).where(eq(eventSeries.organizationId, orgId)),
       db.select().from(bookings).where(eq(bookings.organizationId, orgId)),
