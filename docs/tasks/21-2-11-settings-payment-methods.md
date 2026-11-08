@@ -2,11 +2,11 @@
 id: '21.2.11'
 phase: '21'
 epic: '21.2'
-status: in_progress
+status: done
 release: 'v0.3.0'
 sync_state: synced
-last_reviewed: 2026-10-15
-status_note: 'Реализация в PR (ветка trafficolog/feat/21.2.11-payment-methods): миграция 0036, GET/PATCH …/payment-methods, подраздел кабинета, блок «Как оплатить» на экране ждущей оплаты записи. Решение владельца 2026-11-06 (вариант A): выключение влияет только на экран оплаты. Ждёт ревью и CI.'
+last_reviewed: 2026-11-08
+status_note: 'Выполнено: PR #225 смёржен (ревью Opus и CI пройдены). Миграция 0036 (способы оплаты группы), GET/PATCH payment-methods, подраздел кабинета и блок «Как оплатить» в Mini App; вариант A «только показ» (решение владельца 2026-11-06). Отчёт сверки: docs/operations/qa/2026-11-06-21-2-11-settings-payment-methods-visual.md.'
 ref_id: 'W-11'
 complexity: L
 impl_model: claude-sonnet-5-5
@@ -15,7 +15,7 @@ review_gate: opus
 roles: [BE, FE]
 depends_on: ['19.2.2', '20.4.5', '20.5.7', '21.2.3']
 supersedes: []
-decisions: []
+decisions: ['Настройки группы: способы оплаты, уведомления, логотип (журнал решений, 2026-11-08)']
 estimated_hours: '8-16'
 reference:
   spec: 'docs/design/reference-v3/specs/03-organizer-web/W-11-settings.md'
