@@ -33,6 +33,7 @@ import { collectNotification } from '../notifier/collect'
 import { OrganizationNotFoundError } from '../organizations/errors'
 import { paymentService } from '../payments/service'
 import { requireCanManageContent } from '../permissions/policies'
+import { normalizeSearchQuery, toContainsPattern } from '../search/query'
 import { schedulerEnabled } from '../scheduler/capability'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
 import { CurrencyMismatchError } from '../shared/currency'
@@ -272,6 +273,54 @@ export async function insertEvent(
   return event!
 }
 
+type ParsedListQuery = ReturnType<typeof ListEventsQuery.parse>
+
+/**
+ * Условие списка событий: группа, видимость черновиков, фильтры `filter`/`status`, период, зал и поиск.
+ * Общее для списка, счётчика «из M» и CSV, чтобы три ответа не расходились (21.2.10).
+ */
+async function listWhere(
+  ctx: ServiceContext,
+  orgId: number,
+  opts: ParsedListQuery,
+  access: { includeDrafts?: boolean },
+) {
+  const db = getDb(ctx)
+  const now = new Date()
+  const conds = [eq(events.organizationId, orgId)]
+  // черновики видят только управляющие (5.13.11): поиск и фильтр статуса их не раскрывают
+  if (!access.includeDrafts) conds.push(ne(events.status, 'draft'))
+  if (opts.filter === 'upcoming') conds.push(gte(events.startsAt, now))
+  if (opts.filter === 'past') conds.push(lt(events.startsAt, now))
+  if (opts.status) conds.push(eq(events.status, opts.status))
+  if (opts.venueId) conds.push(eq(events.venueId, opts.venueId))
+  const text = normalizeSearchQuery(opts.q ?? '')
+  if (text) {
+    const pattern = toContainsPattern(text)
+    conds.push(
+      or(
+        sql`${events.title} ILIKE ${pattern} ESCAPE '\\'`,
+        sql`${events.locationText} ILIKE ${pattern} ESCAPE '\\'`,
+        // колонки зала — буквально: реляционный запрос переписывает ссылки на таблицы в алиас events
+        sql`EXISTS (SELECT 1 FROM venues v WHERE v.id = ${events.venueId} AND v.organization_id = ${orgId} AND v.name ILIKE ${pattern} ESCAPE '\\')`,
+      )!,
+    )
+  }
+  if (opts.from && opts.to) {
+    const org = await db.query.organizations.findFirst({
+      where: eq(organizations.id, orgId),
+      columns: { defaultTimezone: true },
+    })
+    const tz = org?.defaultTimezone ?? DEFAULT_TIMEZONE
+    const nextDay = new Date(Date.parse(`${opts.to}T00:00:00Z`) + 86_400_000)
+      .toISOString()
+      .slice(0, 10)
+    conds.push(gte(events.startsAt, zonedInputToDate(`${opts.from}T00:00`, tz)))
+    conds.push(lt(events.startsAt, zonedInputToDate(`${nextDay}T00:00`, tz)))
+  }
+  return and(...conds)
+}
+
 export const eventService = {
   async create(ctx: ServiceContext, orgId: number, input: CreateInput): Promise<Event> {
     const data = CreateEventInput.parse(input)
@@ -298,31 +347,55 @@ export const eventService = {
     access: { includeDrafts?: boolean } = {},
   ): Promise<Event[]> {
     const opts = ListEventsQuery.parse(query)
-    const db = getDb(ctx)
-    const now = new Date()
-    const conds = [eq(events.organizationId, orgId)]
-    // черновики видят только управляющие (5.13.11)
-    if (!access.includeDrafts) conds.push(ne(events.status, 'draft'))
-    if (opts.filter === 'upcoming') conds.push(gte(events.startsAt, now))
-    if (opts.filter === 'past') conds.push(lt(events.startsAt, now))
-    if (opts.status) conds.push(eq(events.status, opts.status))
-    if (opts.from && opts.to) {
-      const org = await db.query.organizations.findFirst({
-        where: eq(organizations.id, orgId),
-        columns: { defaultTimezone: true },
-      })
-      const tz = org?.defaultTimezone ?? DEFAULT_TIMEZONE
-      const nextDay = new Date(Date.parse(`${opts.to}T00:00:00Z`) + 86_400_000)
-        .toISOString()
-        .slice(0, 10)
-      conds.push(gte(events.startsAt, zonedInputToDate(`${opts.from}T00:00`, tz)))
-      conds.push(lt(events.startsAt, zonedInputToDate(`${nextDay}T00:00`, tz)))
-    }
-    return db.query.events.findMany({
-      where: and(...conds),
-      orderBy: opts.filter === 'past' ? [desc(events.startsAt)] : [asc(events.startsAt)],
+    const where = await listWhere(ctx, orgId, opts, access)
+    return getDb(ctx).query.events.findMany({
+      where,
+      // id — детерминированный хвост: события с одним началом не «прыгают» между страницами (21.2.10)
+      orderBy:
+        opts.filter === 'past'
+          ? [desc(events.startsAt), desc(events.id)]
+          : [asc(events.startsAt), asc(events.id)],
       limit: opts.limit ?? (opts.from ? 500 : 50),
       offset: opts.offset,
+    })
+  },
+
+  /** Сколько событий подходит под фильтры списка (без `limit`/`offset`): «Показано N из M», 21.2.10. */
+  async count(
+    ctx: ServiceContext,
+    orgId: number,
+    query: ListQuery = {},
+    access: { includeDrafts?: boolean } = {},
+  ): Promise<number> {
+    const opts = ListEventsQuery.parse(query)
+    const where = await listWhere(ctx, orgId, opts, access)
+    const [row] = await getDb(ctx)
+      .select({ total: sql<number>`count(*)::int` })
+      .from(events)
+      .where(where)
+    return row?.total ?? 0
+  },
+
+  /**
+   * События для CSV (21.2.10): те же фильтры, что у списка, без страницы; до `limit` + 1 строк, чтобы
+   * вызывающий отличил «ровно лимит» от «больше лимита».
+   */
+  async listForExport(
+    ctx: ServiceContext,
+    orgId: number,
+    query: ListQuery,
+    limit: number,
+    access: { includeDrafts?: boolean } = {},
+  ): Promise<Event[]> {
+    const opts = ListEventsQuery.parse({ ...query, limit: undefined, offset: undefined })
+    const where = await listWhere(ctx, orgId, opts, access)
+    return getDb(ctx).query.events.findMany({
+      where,
+      orderBy:
+        opts.filter === 'past'
+          ? [desc(events.startsAt), desc(events.id)]
+          : [asc(events.startsAt), asc(events.id)],
+      limit: limit + 1,
     })
   },
 

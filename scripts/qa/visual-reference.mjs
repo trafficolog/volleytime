@@ -419,7 +419,8 @@ try {
             result.diffPercent = d.percent
             result.diffImage = diffFile
           }
-          if (result.finalUrl !== result.url) {
+          // query не в счёт: состояние экрана (вид, фильтры) живёт в адресе, редирект меняет путь (21.2.10)
+          if (result.finalUrl.split('?')[0] !== result.url.split('?')[0]) {
             // снимок сохраняется, но прогон считается неуспешным (exit code 1)
             result.warning = `редирект: открылось ${result.finalUrl} вместо ${result.url}`
             exitCode = 1
