@@ -1,4 +1,4 @@
-import { ORGANIZATION_LOGO_MAX_BYTES, ORGANIZATION_LOGO_MIME_TYPES } from '@volley-time/db'
+import { ORGANIZATION_LOGO_MAX_BYTES, type ORGANIZATION_LOGO_MIME_TYPES } from '@volley-time/db'
 
 import { LogoInvalidError, LogoTooLargeError } from './errors'
 

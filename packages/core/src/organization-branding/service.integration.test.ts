@@ -1,12 +1,4 @@
-import {
-  auditLog,
-  closeDb,
-  db,
-  eq,
-  organizationLogos,
-  organizations,
-  users,
-} from '@volley-time/db'
+import { auditLog, closeDb, db, eq, organizationLogos, organizations, users } from '@volley-time/db'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { AUDIT_ACTIONS } from '../audit/actions'
@@ -193,7 +185,10 @@ describe('organizationBrandingService (integration)', () => {
       const rejected = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[]
       expect(rejected).toHaveLength(1)
       expect(rejected[0]!.reason).toBeInstanceOf(ShortLinkTakenError)
-      const winners = await db.select().from(organizations).where(eq(organizations.shortLink, 'race-name'))
+      const winners = await db
+        .select()
+        .from(organizations)
+        .where(eq(organizations.shortLink, 'race-name'))
       expect(winners).toHaveLength(1)
     })
 

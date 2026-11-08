@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import { LogoInvalidError, LogoTooLargeError } from './errors'
 import { LOGO_MAX_BYTES, detectLogoMime, validateLogoUpload } from './logo'
-import { SetShortLinkInput } from './short-link'
 import { isReservedShortLink, RESERVED_SHORT_LINKS } from './reserved'
+import { SetShortLinkInput } from './short-link'
 
 const PNG = Buffer.concat([
   Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex'),
@@ -15,11 +15,15 @@ describe('validateLogoUpload', () => {
   it('accepts PNG and JPEG whose declared type matches the bytes', () => {
     expect(validateLogoUpload({ declaredType: 'image/png', data: PNG })).toBe('image/png')
     expect(validateLogoUpload({ declaredType: 'image/jpeg', data: JPEG })).toBe('image/jpeg')
-    expect(validateLogoUpload({ declaredType: 'IMAGE/PNG; charset=x', data: PNG })).toBe('image/png')
+    expect(validateLogoUpload({ declaredType: 'IMAGE/PNG; charset=x', data: PNG })).toBe(
+      'image/png',
+    )
   })
 
   it('rejects SVG, GIF, HTML and scripts by content, whatever the declared type', () => {
-    const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>')
+    const svg = Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
+    )
     const html = Buffer.from('<html><script>alert(1)</script></html>')
     const gif = Buffer.from('GIF89a' + 'x'.repeat(40))
     for (const [declaredType, data] of [
@@ -91,12 +95,21 @@ describe('SetShortLinkInput', () => {
     expect(parse('a1-2b').success).toBe(true)
   })
 
-  it.each(['ab', 'a'.repeat(33), '-abc', 'abc-', 'a--b', 'a_b', 'abc.de', 'абв', 'a b', 'ab/c', ''])(
-    'rejects %j',
-    (value) => {
-      expect(parse(value).success).toBe(false)
-    },
-  )
+  it.each([
+    'ab',
+    'a'.repeat(33),
+    '-abc',
+    'abc-',
+    'a--b',
+    'a_b',
+    'abc.de',
+    'абв',
+    'a b',
+    'ab/c',
+    '',
+  ])('rejects %j', (value) => {
+    expect(parse(value).success).toBe(false)
+  })
 
   it('rejects unknown keys and non-strings', () => {
     expect(SetShortLinkInput.safeParse({ shortLink: 'abc', slug: 'x' }).success).toBe(false)

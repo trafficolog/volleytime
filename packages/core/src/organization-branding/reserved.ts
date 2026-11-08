@@ -19,6 +19,8 @@ export const RESERVED_SHORT_LINKS: readonly string[] = [
   'logo',
   'health',
   'internal',
+  'levels',
+  'notifications',
   // служебные и вероятные будущие маршруты
   'logout',
   'register',

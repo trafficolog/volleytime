@@ -6,7 +6,14 @@ import { ref } from 'vue'
 import GroupSwitcher from './GroupSwitcher.vue'
 
 const groups = ref<
-  { id: number; name: string; city: string | null; status: string; membershipStatus: string }[]
+  {
+    id: number
+    name: string
+    city: string | null
+    status: string
+    membershipStatus: string
+    logoUpdatedAt?: string | null
+  }[]
 >([])
 const fetchAll = vi.fn(async () => undefined)
 const selectOrg = vi.fn()
@@ -94,6 +101,20 @@ describe('GroupSwitcher (M-04 «Мои группы»)', () => {
     const wrapper = mountSwitcher()
     await flushPromises()
     expect(wrapper.get('a[href="/m/orgs/31"] [data-monogram]').text()).toBe('МВ')
+    wrapper.unmount()
+  })
+
+  it('shows the uploaded logo instead of the monogram, and falls back if it fails to load', async () => {
+    const iso = '2026-11-08T10:00:00.000Z'
+    groups.value = groups.value.map((g) => (g.id === 30 ? { ...g, logoUpdatedAt: iso } : g))
+    const wrapper = mountSwitcher()
+    await flushPromises()
+    const logo = wrapper.get('a[href="/m/orgs/30"] [data-logo]')
+    expect(logo.attributes('src')).toBe(`/api/organizations/30/logo?v=${Date.parse(iso)}`)
+    expect(wrapper.find('a[href="/m/orgs/30"] [data-monogram]').exists()).toBe(false)
+    expect(wrapper.find('a[href="/m/orgs/31"] [data-monogram]').exists()).toBe(true)
+    await logo.trigger('error')
+    expect(wrapper.get('a[href="/m/orgs/30"] [data-monogram]').text()).toBe('VM')
     wrapper.unmount()
   })
 

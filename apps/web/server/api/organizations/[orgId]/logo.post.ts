@@ -33,7 +33,9 @@ defineRouteMeta({
       410: { description: 'Группа в архиве (organization.archived)' },
       411: { description: 'Нет Content-Length' },
       413: { description: 'Файл больше 512 КБ (logo.too_large)' },
-      422: { description: 'Не PNG/JPEG, тип не совпадает с содержимым, пустой файл (logo.invalid)' },
+      422: {
+        description: 'Не PNG/JPEG, тип не совпадает с содержимым, пустой файл (logo.invalid)',
+      },
     },
   },
 })

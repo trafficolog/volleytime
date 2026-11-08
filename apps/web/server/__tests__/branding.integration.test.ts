@@ -211,7 +211,10 @@ describe('organization logo and short link API (HTTP integration)', () => {
 
   describe('short link', () => {
     it('owner and organizer set the link; every member sees it on the group', async () => {
-      const set = await request('PUT', link(), { user: organizerId, body: { shortLink: 'Brand-1' } })
+      const set = await request('PUT', link(), {
+        user: organizerId,
+        body: { shortLink: 'Brand-1' },
+      })
       expect(set.status, set.text).toBe(200)
       expect(set.body).toEqual({ shortLink: 'brand-1' })
       const org = await request('GET', `/api/organizations/${orgId}`, { user: playerId })
@@ -228,7 +231,9 @@ describe('organization logo and short link API (HTTP integration)', () => {
         expect(res.status).toBe(403)
       }
       const org = await request('GET', `/api/organizations/${orgId}`, { user: ownerId })
-      expect((org.body as { organization: { shortLink: unknown } }).organization.shortLink).toBeNull()
+      expect(
+        (org.body as { organization: { shortLink: unknown } }).organization.shortLink,
+      ).toBeNull()
     })
 
     it('answers 422 for format and reserved words, 409 for a taken address', async () => {

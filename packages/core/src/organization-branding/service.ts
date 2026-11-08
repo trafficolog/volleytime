@@ -25,7 +25,7 @@ export interface LogoFile {
 
 /** Нарушение уникального индекса короткой ссылки (гонка двух групп на один адрес). */
 function isShortLinkUniqueViolation(error: unknown): boolean {
-  for (let e = error as { code?: string; message?: string; cause?: unknown } | undefined; e; ) {
+  for (let e = error as { code?: string; message?: string; cause?: unknown } | undefined; e;) {
     if (e.code === '23505' && /organizations_short_link_uniq/.test(e.message ?? '')) return true
     e = e.cause as typeof e
   }
