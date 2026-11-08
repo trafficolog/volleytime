@@ -1,5 +1,5 @@
 import type { Organization } from '@volley-time/db'
-import type { PlayerStats } from '@volley-time/shared'
+import type { PlayerStats, PlayersStatsPeriod } from '@volley-time/shared'
 
 export type OrganizationListItem = Organization & {
   membershipStatus: 'active' | 'pending'
@@ -70,18 +70,25 @@ export interface MemberRow {
 export function useMembers(orgId: Ref<number> | number) {
   const orgIdRef = isRef(orgId) ? orgId : ref(orgId)
   const members = ref<MemberRow[]>([])
+  /** Окно посещаемости ответа API (`stats`, 21.2.20); `null` без агрегатов. */
+  const statsPeriod = ref<PlayersStatsPeriod | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  async function fetch(statuses: MemberRow['status'][] = ['active']) {
+  /** `options.stats` — агрегаты игроков (посещаемость, абонемент, долг); только управляющему. */
+  async function fetch(
+    statuses: MemberRow['status'][] = ['active'],
+    options: { stats?: boolean } = {},
+  ) {
     loading.value = true
     error.value = null
     try {
-      const data = await $fetch<{ members: MemberRow[] }>(
+      const data = await $fetch<{ members: MemberRow[]; statsPeriod?: PlayersStatsPeriod }>(
         `/api/organizations/${orgIdRef.value}/members`,
-        { query: { statuses: statuses.join(',') } },
+        { query: { statuses: statuses.join(','), ...(options.stats ? { stats: '1' } : {}) } },
       )
       members.value = data.members
+      statsPeriod.value = data.statsPeriod ?? null
     } catch (e) {
       error.value = apiErrorMessage(e)
     } finally {
@@ -89,5 +96,5 @@ export function useMembers(orgId: Ref<number> | number) {
     }
   }
 
-  return { members, loading, error, fetch }
+  return { members, statsPeriod, loading, error, fetch }
 }

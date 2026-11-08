@@ -2,10 +2,22 @@
 import type { OrganizationMember } from '@volley-time/db'
 
 import type { MemberRow } from '~/composables/useOrganizations'
+import {
+  activityView,
+  debtView,
+  playerStatsPeriodLabel,
+  subscriptionView,
+} from '~/utils/desktop-players-stats'
+import { countPlayerTabs, filterPlayers } from '~/utils/desktop-players'
 import { ROLE_LABELS, displayName, label } from '~/utils/labels'
 import {
+  MINIAPP_FETCH_STATUSES,
+  MINIAPP_PLAYER_TABS,
+  playersSummary,
+  type MiniappPlayersTab,
+} from '~/utils/miniapp-players'
+import {
   LEVEL_FILTER_ALL,
-  filterByLevel,
   levelFilterOptions,
   levelTitle,
   type PlayerLevelView,
@@ -14,7 +26,8 @@ definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
 const route = useRoute()
 const orgId = computed(() => Number(route.params.orgId))
-const { members, loading, error, fetch } = useMembers(orgId)
+const { members, statsPeriod, loading, error, fetch } = useMembers(orgId)
+const { tz } = useOrgTimezone(orgId)
 const { confirm } = useTelegram()
 
 const { data: orgData } = await useFetch<{ myMember: OrganizationMember }>(
@@ -29,36 +42,37 @@ const isManager = computed(
   () => me.value?.status === 'active' && ['owner', 'organizer'].includes(me.value.role),
 )
 
-type Segment = 'active' | 'pending' | 'blocked'
-const segment = ref<Segment>('active')
-const SEGMENTS: { id: Segment; label: string }[] = [
-  { id: 'active', label: 'Активные' },
-  { id: 'pending', label: 'Заявки' },
-  { id: 'blocked', label: 'Заблокированные' },
-]
-const pendingCount = ref(0)
+const segment = ref<MiniappPlayersTab>('active')
+const SEGMENTS = MINIAPP_PLAYER_TABS
+const query = ref('')
 
 const levelFilter = ref(LEVEL_FILTER_ALL)
 const levelOptions = computed(() => levelFilterOptions(levels.value))
-/** Фильтр по уровню только для списков игроков; заявки показываются целиком. */
+const counts = computed(() => countPlayerTabs(members.value))
+const pendingCount = computed(() => counts.value.pending)
+/** Агрегаты (21.2.20) есть только у управляющего; окно посещаемости — в подписи сводки. */
+const showStats = computed(() => isManager.value && statsPeriod.value !== null)
+const summary = computed(() => playersSummary(members.value))
+/** Вкладка → поиск → уровень; заявки показываются без фильтра по уровню. */
 const visibleMembers = computed(() =>
-  segment.value === 'pending' ? members.value : filterByLevel(members.value, levelFilter.value),
+  filterPlayers(members.value, {
+    tab: segment.value,
+    query: query.value,
+    level: segment.value === 'pending' ? LEVEL_FILTER_ALL : levelFilter.value,
+  }),
+)
+const filtered = computed(
+  () =>
+    query.value.trim() !== '' ||
+    (segment.value !== 'pending' && levelFilter.value !== LEVEL_FILTER_ALL),
 )
 
+/** Управляющий получает весь состав с агрегатами одним запросом; вкладки — на клиенте. */
 async function load() {
-  await fetch([segment.value])
-  if (isManager.value && segment.value !== 'pending') {
-    const data = await $fetch<{ members: MemberRow[] }>(
-      `/api/organizations/${orgId.value}/members`,
-      { query: { statuses: 'pending' } },
-    ).catch(() => ({ members: [] }))
-    pendingCount.value = data.members.length
-  } else if (segment.value === 'pending') {
-    pendingCount.value = members.value.length
-  }
+  if (isManager.value) await fetch([...MINIAPP_FETCH_STATUSES], { stats: true })
+  else await fetch(['active'])
 }
 await load()
-watch(segment, load)
 
 const ROLE_TONE: Record<string, 'solid' | 'flame' | 'default'> = {
   owner: 'solid',
@@ -75,6 +89,8 @@ function canModerate(m: MemberRow): boolean {
 const busy = ref<number | null>(null)
 const actionError = ref('')
 const sheetFor = ref<MemberRow | null>(null)
+const rowStats = (m: MemberRow) => (showStats.value && m.stats ? m.stats : null)
+
 const sheetOpen = computed({
   get: () => sheetFor.value !== null,
   set: (v) => {
@@ -102,13 +118,22 @@ async function act(m: MemberRow, action: 'approve' | 'reject' | 'block' | 'unblo
   <div class="min-h-screen pb-20">
     <VtMiniHeader title="Игроки" :back="`/m/orgs/${orgId}`">
       <template v-if="isManager" #right>
-        <NuxtLink
-          :to="`/m/orgs/${orgId}/invite`"
-          class="vt-btn vt-btn--ghost vt-btn--sm !px-2"
-          aria-label="Пригласить"
-        >
-          <VtIcon name="plus" :size="16" />
-        </NuxtLink>
+        <div class="flex items-center gap-1">
+          <NuxtLink
+            :to="`/m/orgs/${orgId}/reports`"
+            class="vt-btn vt-btn--ghost vt-btn--sm vt-hit-44 !px-2"
+            aria-label="Отчёт за месяц"
+          >
+            <VtIcon name="chart" :size="16" />
+          </NuxtLink>
+          <NuxtLink
+            :to="`/m/orgs/${orgId}/invite`"
+            class="vt-btn vt-btn--ghost vt-btn--sm !px-2"
+            aria-label="Пригласить"
+          >
+            <VtIcon name="plus" :size="16" />
+          </NuxtLink>
+        </div>
       </template>
     </VtMiniHeader>
 
@@ -130,6 +155,12 @@ async function act(m: MemberRow, action: 'approve' | 'reject' | 'block' | 'unblo
           :class="segment === s.id ? 'bg-white/20' : 'bg-vt-amber text-[#0e0e10]'"
           >{{ pendingCount }}</span
         >
+        <span
+          v-else-if="s.id !== 'pending'"
+          class="text-[10px] px-1.5 rounded-full"
+          :class="segment === s.id ? 'bg-white/20' : 'bg-vt-bone-2'"
+          >{{ counts[s.id] }}</span
+        >
       </button>
     </div>
 
@@ -138,6 +169,43 @@ async function act(m: MemberRow, action: 'approve' | 'reject' | 'block' | 'unblo
       <p v-if="segment === 'pending'" class="text-[12.5px] text-vt-mute-2 px-1 pb-3">
         Заявки на вступление по приглашению. Примите, чтобы открыть доступ к событиям.
       </p>
+      <ul
+        v-if="showStats && segment !== 'pending' && !loading && !error"
+        class="grid grid-cols-3 gap-1.5 pb-3.5"
+        aria-label="Сводка по игрокам"
+        :title="statsPeriod ? playerStatsPeriodLabel(statsPeriod) : undefined"
+      >
+        <li class="vt-card px-2 py-2.5 text-center">
+          <strong class="vt-mono block text-lg" data-summary="active">{{ summary.active }}</strong>
+          <span class="vt-cap text-[10px] text-vt-mute-2">активных</span>
+        </li>
+        <li class="vt-card px-2 py-2.5 text-center">
+          <strong class="vt-mono block text-lg" data-summary="subscription">{{
+            summary.withSubscription
+          }}</strong>
+          <span class="vt-cap text-[10px] text-vt-mute-2">с абон.</span>
+        </li>
+        <li class="vt-card px-2 py-2.5 text-center">
+          <strong
+            class="vt-mono block text-lg"
+            :class="{ 'text-vt-rose-ink': (summary.withDebt ?? 0) > 0 }"
+            data-summary="debt"
+            >{{ summary.withDebt }}</strong
+          >
+          <span class="vt-cap text-[10px] text-vt-mute-2">с долгом</span>
+        </li>
+      </ul>
+      <div v-if="members.length > 0 && !loading && !error" class="pb-3">
+        <label class="sr-only" for="m-players-search">Поиск по имени</label>
+        <input
+          id="m-players-search"
+          v-model="query"
+          class="vt-field w-full"
+          type="search"
+          placeholder="Поиск по имени"
+          autocomplete="off"
+        />
+      </div>
       <div v-if="segment !== 'pending' && members.length > 0" class="pb-3 -mx-1 overflow-x-auto">
         <VtSegment
           v-model="levelFilter"
@@ -150,24 +218,23 @@ async function act(m: MemberRow, action: 'approve' | 'reject' | 'block' | 'unblo
       <SkeletonList v-if="loading" :count="4" />
       <ErrorState v-else-if="error" :message="error" @retry="load" />
       <EmptyState
-        v-else-if="members.length === 0"
-        icon="users"
-        :title="
-          segment === 'pending'
-            ? 'Новых заявок нет'
-            : segment === 'blocked'
-              ? 'Заблокированных нет'
-              : 'В составе пока никого'
-        "
-      />
-      <EmptyState
         v-else-if="visibleMembers.length === 0"
         icon="users"
-        title="Нет игроков с этим уровнем"
+        :title="
+          query.trim() !== ''
+            ? 'Никого не нашли'
+            : filtered
+              ? 'Нет игроков с этим уровнем'
+              : segment === 'pending'
+                ? 'Новых заявок нет'
+                : segment === 'all'
+                  ? 'Игроков пока нет'
+                  : 'В составе пока никого'
+        "
       />
 
       <ul v-else-if="segment === 'pending'" class="space-y-2.5">
-        <li v-for="m in members" :key="m.id" class="vt-card p-3.5 flex items-center gap-3">
+        <li v-for="m in visibleMembers" :key="m.id" class="vt-card p-3.5 flex items-center gap-3">
           <VtAvatar :name="displayName(m.user)" :src="m.user.image" />
           <div class="flex-1 min-w-0">
             <div class="text-sm font-semibold truncate">{{ displayName(m.user) }}</div>
@@ -204,12 +271,40 @@ async function act(m: MemberRow, action: 'approve' | 'reject' | 'block' | 'unblo
             <VtAvatar :name="displayName(m.user)" :src="m.user.image" />
             <div class="flex-1 min-w-0">
               <div class="text-[13.5px] font-semibold truncate">{{ displayName(m.user) }}</div>
-              <div v-if="m.user.telegramUsername && m.user.name" class="text-[11px] text-vt-mute-2">
-                @{{ m.user.telegramUsername }}
+              <div class="text-[11px] text-vt-mute-2 truncate">
+                {{
+                  levelTitle(m.level, levels)
+                    ? `уровень ${levelTitle(m.level, levels)}`
+                    : 'уровень не назначен'
+                }}<template v-if="rowStats(m)">
+                  · {{ activityView(rowStats(m)!, tz).last }}</template
+                ><template v-if="m.user.telegramUsername && m.user.name">
+                  · @{{ m.user.telegramUsername }}</template
+                >
               </div>
             </div>
-            <VtChip v-if="levelTitle(m.level, levels)">{{ levelTitle(m.level, levels) }}</VtChip>
-            <VtChip :tone="ROLE_TONE[m.role] ?? 'default'">{{ label(ROLE_LABELS, m.role) }}</VtChip>
+            <div v-if="rowStats(m)" class="text-right" data-col="visits">
+              <div class="vt-mono text-sm font-semibold">
+                {{ rowStats(m)!.attendance.visits }}
+              </div>
+              <div class="vt-cap text-[10px] text-vt-mute-2">трен.</div>
+            </div>
+            <VtChip v-if="rowStats(m) && debtView(rowStats(m)!)" tone="rose" data-col="debt"
+              >−{{ debtView(rowStats(m)!)!.label }}</VtChip
+            >
+            <VtChip v-else-if="rowStats(m) && subscriptionView(rowStats(m)!, tz)" data-col="sub">{{
+              subscriptionView(rowStats(m)!, tz)!.label
+            }}</VtChip>
+            <VtChip
+              v-if="m.status !== 'active'"
+              :tone="m.status === 'pending' ? 'amber' : 'default'"
+              >{{
+                m.status === 'pending' ? 'Заявка' : m.status === 'guest' ? 'Гость' : 'Заблокирован'
+              }}</VtChip
+            >
+            <VtChip v-if="m.role !== 'player'" :tone="ROLE_TONE[m.role] ?? 'default'">{{
+              label(ROLE_LABELS, m.role)
+            }}</VtChip>
             <VtIcon v-if="canModerate(m)" name="more" :size="14" class="text-vt-mute" />
           </component>
         </li>
@@ -218,6 +313,24 @@ async function act(m: MemberRow, action: 'approve' | 'reject' | 'block' | 'unblo
 
     <VtSheet v-model="sheetOpen" :title="sheetFor ? displayName(sheetFor.user) : ''">
       <div v-if="sheetFor" class="flex flex-col gap-2">
+        <template v-if="sheetFor.status === 'pending'">
+          <button
+            type="button"
+            class="vt-btn vt-btn--primary vt-btn--full"
+            :disabled="busy === sheetFor.id"
+            @click="act(sheetFor, 'approve')"
+          >
+            Принять
+          </button>
+          <button
+            type="button"
+            class="vt-btn vt-btn--ghost vt-btn--full"
+            :disabled="busy === sheetFor.id"
+            @click="act(sheetFor, 'reject')"
+          >
+            Отклонить
+          </button>
+        </template>
         <button
           v-if="sheetFor.status === 'blocked'"
           type="button"

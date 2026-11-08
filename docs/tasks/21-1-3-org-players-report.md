@@ -2,11 +2,11 @@
 id: '21.1.3'
 phase: '21'
 epic: '21.1'
-status: todo
+status: in_progress
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-10-12
-status_note: ''
+status_note: 'Реализация в PR (ветка trafficolog/feat/21.1.3-org-players-report): вкладки Активные/Заявки/Все, сводка и агрегаты игроков из 21.2.20, отчёт за месяц из 21.2.7; ждёт ревью и CI.'
 ref_id: 'M-24'
 complexity: M
 impl_model: claude-sonnet-5-5
