@@ -2,11 +2,11 @@
 id: '21.2.24'
 phase: '21'
 epic: '21.2'
-status: in_progress
+status: done
 release: 'v0.3.0'
 sync_state: synced
-last_reviewed: 2026-11-06
-status_note: 'В работе: PR #229, ревью opus+tests. Без миграции: исключённый определяется по последней записи аудита (member.excluded против member.left). Визуальная сверка: docs/operations/qa/2026-11-08-21-2-24-excluded-players-visual.md.'
+last_reviewed: 2026-11-08
+status_note: 'Выполнено: PR #229 смёржен (merge-коммит 84574c1 на main; ревью opus закончилось вердиктом merge, CI зелёный на 84574c1). Без миграции: исключённый определяется по последней записи аудита (member.excluded против member.left). Отклонение: исходные тесты написаны после кода, не RED-first; исправляющий коммит ревью выполнен RED→GREEN. Найденное ревью поведение: разблокировка возвращает статус до блокировки, игрок, заблокированный из left, возвращается в left, для возвращения нужно приглашение — сохраняет семантику 21.2.21, не новое решение. Визуальная сверка: docs/operations/qa/2026-11-08-21-2-24-excluded-players-visual.md.'
 ref_id: 'W-06'
 complexity: M
 impl_model: claude-sonnet-5-5
