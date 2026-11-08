@@ -4,6 +4,8 @@ export const AUDIT_ACTIONS = {
   ORG_UPDATED: 'organization.updated',
   ORG_ARCHIVED: 'organization.archived',
   ORG_SETTINGS_UPDATED: 'organization.settings_updated',
+  // способы оплаты группы (21.2.11): включение и реквизиты перевода; полный номер карты не пишется
+  ORG_PAYMENT_METHOD_UPDATED: 'organization.payment_method_updated',
   MEMBER_ADDED: 'member.added',
   MEMBER_ROLE_CHANGED: 'member.role_changed',
   MEMBER_BLOCKED: 'member.blocked',
