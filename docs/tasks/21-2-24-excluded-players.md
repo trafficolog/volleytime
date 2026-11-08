@@ -2,11 +2,11 @@
 id: '21.2.24'
 phase: '21'
 epic: '21.2'
-status: todo
+status: in_progress
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-11-06
-status_note: 'Продолжение 21.2.21 по решению владельца 2026-11-06 (журнал решений, «Исключённые игроки»).'
+status_note: 'В работе: PR #229, ревью opus+tests. Без миграции: исключённый определяется по последней записи аудита (member.excluded против member.left). Визуальная сверка: docs/operations/qa/2026-11-08-21-2-24-excluded-players-visual.md.'
 ref_id: 'W-06'
 complexity: M
 impl_model: claude-sonnet-5-5

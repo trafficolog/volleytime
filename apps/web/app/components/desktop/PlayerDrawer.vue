@@ -45,7 +45,7 @@ const emit = defineEmits<{
   act: [action: DesktopMemberAction]
   setLevel: [level: string | null]
   setPosition: [position: string | null]
-  exclude: [reason: string]
+  exclude: [reason: string, block: boolean]
 }>()
 
 /** Подтверждение исключения: последствия перечислены до действия (21.2.21). */
@@ -59,8 +59,8 @@ watch(
   },
 )
 
-function confirmExclude() {
-  emit('exclude', excludeReason.value.trim())
+function confirmExclude(block = false) {
+  emit('exclude', excludeReason.value.trim(), block)
 }
 
 const moderation = computed(() => props.actions.filter((a) => a !== 'changeRole'))
@@ -268,7 +268,9 @@ function onPosition(event: Event) {
             <li>Абонемент останется за игроком и заработает снова, если он вернётся.</li>
             <li>Долг и ожидающие оплаты останутся в кассе, ничего не списывается.</li>
             <li>
-              Игрок получит уведомление. Это не блокировка: вернуться можно по новому приглашению.
+              Игрок получит уведомление. «Удалить из группы» не блокирует: вернуться можно по новому
+              приглашению. «Исключить и заблокировать» делает оба действия сразу: по ссылке игрок не
+              вернётся.
             </li>
           </ul>
           <label class="vt-label" for="player-drawer-exclude-reason">Причина (для журнала)</label>
@@ -285,9 +287,18 @@ function onPosition(event: Event) {
               type="button"
               class="vt-btn vt-btn--danger vt-btn--sm"
               :disabled="busy"
-              @click="confirmExclude"
+              @click="confirmExclude(false)"
             >
               Удалить из группы
+            </button>
+            <button
+              type="button"
+              class="vt-btn vt-btn--danger vt-btn--sm"
+              data-testid="exclude-and-block"
+              :disabled="busy"
+              @click="confirmExclude(true)"
+            >
+              Исключить и заблокировать
             </button>
             <button
               type="button"
