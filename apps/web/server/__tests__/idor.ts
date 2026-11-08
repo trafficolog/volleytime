@@ -24,6 +24,8 @@ export type OrgAccess =
 /** Идентификаторы ресурсов одной группы, которыми подставляются параметры пути. */
 export interface OrgFixtureIds {
   orgId: number
+  /** Код способа оплаты в пути (21.2.11). */
+  method: string
   venueId: number
   /** Слот расписания группы (21.2.12). */
   slotId: number
@@ -100,5 +102,6 @@ export function expectDenied(res: TestResponse, label: string, leakMarkers: stri
 }
 
 export function hasRouteParams(route: string): boolean {
-  return /:(?!orgId\b)[A-Za-z]+/.test(route)
+  // :method — код способа оплаты (21.2.11), а не ресурс группы: подставляется одинаково
+  return /:(?!orgId\b)(?!method\b)[A-Za-z]+/.test(route)
 }

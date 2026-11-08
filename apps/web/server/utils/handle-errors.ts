@@ -15,6 +15,7 @@ import {
   SeriesError,
   TelegramChatError,
   CollectionError,
+  PaymentMethodError,
   ScheduleSlotError,
 } from '@volley-time/core'
 
@@ -27,6 +28,7 @@ const CODE_STATUS: Record<string, number> = {
   'organization.slug_taken': 409,
   'organization.subscriptions_disabled': 409,
   'organization.invalid_settings': 422,
+  'payment_method.invalid': 422,
   // member
   'member.already_exists': 409,
   'member.not_found': 404,
@@ -158,6 +160,7 @@ export function handleServiceError(e: unknown): never {
     e instanceof SeriesError ||
     e instanceof TelegramChatError ||
     e instanceof CollectionError ||
+    e instanceof PaymentMethodError ||
     e instanceof ScheduleSlotError
   ) {
     const status = CODE_STATUS[e.code] ?? 400

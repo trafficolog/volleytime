@@ -253,6 +253,13 @@
       "when": 1793916649710,
       "tag": "0035_schedule_slots",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1793946312405,
+      "tag": "0036_organization_payment_methods",
+      "breakpoints": true
     }
   ]
 }

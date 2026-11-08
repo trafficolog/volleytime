@@ -607,6 +607,16 @@
       "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
     },
     {
+      "id": "cabinet-settings-payments",
+      "title": "Кабинет: настройки · способы оплаты",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/settings?section=payments",
+      "references": ["4-cabinet/21-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
       "id": "cabinet-settings-team",
       "title": "Кабинет: настройки · команда",
       "viewport": "cabinet",
