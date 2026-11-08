@@ -80,6 +80,9 @@ Mini App и Login Widget сходятся в одну Telegram-личность:
 |                  | `POST /venues`                                                   | manager |                                                                           |
 | Способы оплаты   | `GET /payment-methods`                                           | member  | 21.2.11; игрок — только включённые, реквизиты — банк, 4 цифры, получатель |
 |                  | `PATCH /payment-methods/{method}`                                | manager | 21.2.11; audit с автором; в IDOR-таблице                                  |
+| Логотип          | `GET /logo`                                                      | member  | 21.2.16; PNG/JPEG, nosniff, CSP sandbox, ETag; чужая группа — 403         |
+|                  | `POST /logo`, `DELETE /logo`                                     | manager | 21.2.16; до 512 КБ, проверка по содержимому; audit; в IDOR-таблице        |
+| Короткая ссылка  | `PUT /short-link`                                                | manager | 21.2.16; формат, зарезервированные слова, уникальность; audit             |
 | События          | `GET /events`, `GET /events/{id}`                                | member  | черновики и денежные поля — manager                                       |
 |                  | `POST /events`, `PATCH /events/{id}`, `POST /events/{id}/cancel` | manager | `venueId` из тела — только своей группы                                   |
 |                  | `POST /events/{id}/settle`, `POST /events/{id}/attendance`       | manager | `bookingId` из тела — только этого события                                |

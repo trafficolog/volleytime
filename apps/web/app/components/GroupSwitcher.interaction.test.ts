@@ -114,7 +114,7 @@ describe('GroupSwitcher (M-04 «Мои группы»)', () => {
     expect(wrapper.find('a[href="/m/orgs/30"] [data-monogram]').exists()).toBe(false)
     expect(wrapper.find('a[href="/m/orgs/31"] [data-monogram]').exists()).toBe(true)
     await logo.trigger('error')
-    expect(wrapper.get('a[href="/m/orgs/30"] [data-monogram]').text()).toBe('VM')
+    expect(wrapper.get('a[href="/m/orgs/30"] [data-monogram]').text()).toBe('VМ')
     wrapper.unmount()
   })
 
