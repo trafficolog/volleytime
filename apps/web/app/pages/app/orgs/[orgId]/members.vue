@@ -4,6 +4,7 @@ import { formatDay, type PlayersStatsPeriod } from '@volley-time/shared'
 
 import type { MemberRow } from '~/composables/useOrganizations'
 import {
+  canBlockExcludedMember,
   canExcludeMember,
   desktopMemberActions,
   type DesktopMemberAction,
@@ -23,6 +24,7 @@ import {
   filterPlayers,
   pickPlayerInvite,
   playersSubtitle,
+  searchPlayers,
   type PlayersTab,
 } from '~/utils/desktop-players'
 import { ROLE_LABELS, displayName, label } from '~/utils/labels'
@@ -47,6 +49,13 @@ type InviteRow = {
   defaultMemberStatus: string
 }
 
+/** Исключённый игрок (21.2.24): участник в `left` + кто, когда и почему исключил. */
+type ExcludedRow = MemberRow & {
+  excludedAt: string
+  excludedBy: { id: number; name: string | null; telegramUsername: string | null } | null
+  reason: string | null
+}
+
 const route = useRoute()
 const orgId = computed(() => Number(route.params.orgId))
 const path = computed(() => `/app/orgs/${orgId.value}/members`)
@@ -69,6 +78,7 @@ const tab = ref<PlayersTab>('all')
 const query = ref('')
 const levelFilter = ref(LEVEL_FILTER_ALL)
 const members = ref<MemberRow[]>([])
+const excluded = ref<ExcludedRow[]>([])
 /** Окно посещаемости ответа API; есть только у управляющего (агрегаты 21.2.20). */
 const statsPeriod = ref<PlayersStatsPeriod | null>(null)
 const showStats = computed(() => canManage.value && statsPeriod.value !== null)
@@ -85,11 +95,25 @@ const selectedRoles = reactive<Record<number, 'organizer' | 'assistant' | 'playe
 let generation = 0
 let alive = true
 
-const counts = computed(() => countPlayerTabs(members.value))
+const counts = computed(() => ({
+  ...countPlayerTabs(members.value),
+  excluded: excluded.value.length,
+}))
+const tabs = computed(() => PLAYER_TABS.filter((t) => t.id !== 'excluded' || canManage.value))
 const subtitle = computed(() => playersSubtitle(counts.value))
-const visible = computed(() =>
-  filterPlayers(members.value, { tab: tab.value, query: query.value, level: levelFilter.value }),
+const visible = computed<MemberRow[]>(() =>
+  tab.value === 'excluded'
+    ? searchPlayers(excluded.value, query.value)
+    : filterPlayers(members.value, {
+        tab: tab.value,
+        query: query.value,
+        level: levelFilter.value,
+      }),
 )
+const excludedTab = computed(() => tab.value === 'excluded')
+function excludedRow(member: MemberRow): ExcludedRow {
+  return member as ExcludedRow
+}
 const selected = computed(() => members.value.find((m) => m.id === selectedId.value) ?? null)
 const drawerOpen = computed({
   get: () => selected.value !== null,
@@ -124,6 +148,7 @@ async function load() {
   loading.value = true
   error.value = ''
   members.value = []
+  excluded.value = []
   statsPeriod.value = null
   selectedId.value = null
   try {
@@ -138,7 +163,15 @@ async function load() {
       },
     )
     if (!alive || token !== generation || orgId.value !== targetOrgId) return
+    // исключённые: отдельный запрос, статус `left` включает и вышедших добровольно (21.2.24)
+    const excludedResult = canManage.value
+      ? await $fetch<{ members: ExcludedRow[] }>(
+          `/api/organizations/${targetOrgId}/members/excluded`,
+        )
+      : { members: [] }
+    if (!alive || token !== generation || orgId.value !== targetOrgId) return
     members.value = result.members
+    excluded.value = excludedResult.members
     statsPeriod.value = result.statsPeriod ?? null
     for (const member of result.members) {
       if (member.role !== 'owner') selectedRoles[member.id] = member.role
@@ -206,7 +239,7 @@ async function act(member: MemberRow, action: DesktopMemberAction) {
 }
 
 /** «Удалить из группы» (21.2.21): подтверждение с последствиями — в карточке игрока. */
-async function exclude(member: MemberRow, reason: string) {
+async function exclude(member: MemberRow, reason: string, block = false) {
   if (busy.value || !canExcludeMember(actor.value, memberTarget(member))) return
   const targetOrgId = orgId.value
   const expectedPath = path.value
@@ -217,12 +250,15 @@ async function exclude(member: MemberRow, reason: string) {
   try {
     const result = await $fetch<{ cancelledBookings: number; paidSeats: number }>(
       `/api/organizations/${targetOrgId}/members/${member.id}/exclude`,
-      { method: 'POST', body: reason ? { reason } : {} },
+      {
+        method: 'POST',
+        body: { ...(reason ? { reason } : {}), ...(block ? { block: true } : {}) },
+      },
     )
     if (!alive || !isLiveDesktopRoute(route.path, expectedPath) || orgId.value !== targetOrgId)
       return
     inviteNotice.value =
-      `${displayName(member.user)} удалён из группы. Отменено записей: ${result.cancelledBookings}.` +
+      `${displayName(member.user)} ${block ? 'удалён из группы и заблокирован' : 'удалён из группы'}. Отменено записей: ${result.cancelledBookings}.` +
       (result.paidSeats > 0
         ? ` Оплаченных мест: ${result.paidSeats}. Деньги вернуть нужно вручную.`
         : '')
@@ -276,6 +312,29 @@ async function setPosition(member: MemberRow, position: string | null) {
   } catch (cause) {
     if (alive && isLiveDesktopRoute(route.path, expectedPath))
       positionError.value = apiErrorMessage(cause, 'Не удалось задать амплуа')
+  } finally {
+    busy.value = false
+  }
+}
+
+/** «Заблокировать» исключённого игрока из вкладки «Исключённые» (21.2.24). */
+async function blockExcluded(member: MemberRow) {
+  if (busy.value || !canBlockExcludedMember(actor.value, memberTarget(member))) return
+  if (
+    !window.confirm(`Заблокировать ${displayName(member.user)}? Вернуться по ссылке он не сможет.`)
+  )
+    return
+  const targetOrgId = orgId.value
+  const expectedPath = path.value
+  busy.value = true
+  actionError.value = ''
+  try {
+    await $fetch(`/api/organizations/${targetOrgId}/members/${member.id}/block`, { method: 'POST' })
+    if (alive && isLiveDesktopRoute(route.path, expectedPath) && orgId.value === targetOrgId)
+      await load()
+  } catch (cause) {
+    if (alive && isLiveDesktopRoute(route.path, expectedPath))
+      actionError.value = apiErrorMessage(cause, 'Не удалось заблокировать')
   } finally {
     busy.value = false
   }
@@ -341,6 +400,7 @@ const EMPTY_TITLES: Record<PlayersTab, string> = {
   pending: 'Новых заявок нет',
   guest: 'Гостей нет',
   blocked: 'Заблокированных нет',
+  excluded: 'Исключённых нет',
 }
 const filtered = computed(() => query.value.trim() !== '' || levelFilter.value !== LEVEL_FILTER_ALL)
 </script>
@@ -371,7 +431,7 @@ const filtered = computed(() => query.value.trim() !== '' || levelFilter.value !
 
     <div class="vt-desktop-events__filters" role="group" aria-label="Статус участников">
       <button
-        v-for="item in PLAYER_TABS"
+        v-for="item in tabs"
         :key="item.id"
         type="button"
         class="vt-btn vt-btn--sm"
@@ -427,7 +487,12 @@ const filtered = computed(() => query.value.trim() !== '' || levelFilter.value !
             <th scope="col" class="vt-cap">Телеграм</th>
             <th scope="col" class="vt-cap">Амплуа</th>
             <th scope="col" class="vt-cap">Роль</th>
-            <template v-if="showStats">
+            <template v-if="excludedTab">
+              <th scope="col" class="vt-cap">Исключён</th>
+              <th scope="col" class="vt-cap">Кем</th>
+              <th scope="col" class="vt-cap">Причина</th>
+            </template>
+            <template v-else-if="showStats">
               <th scope="col" class="vt-cap" :title="playerStatsPeriodLabel(statsPeriod!)">
                 Активность
               </th>
@@ -490,11 +555,28 @@ const filtered = computed(() => query.value.trim() !== '' || levelFilter.value !
                     ? 'Заявка'
                     : member.status === 'guest'
                       ? 'Гость'
-                      : 'Заблокирован'
+                      : member.status === 'left'
+                        ? 'Исключён'
+                        : 'Заблокирован'
                 }}</VtChip
               >
             </td>
-            <template v-if="showStats && member.stats">
+            <template v-if="excludedTab">
+              <td data-col="excluded-at">{{ formatDay(excludedRow(member).excludedAt, tz) }}</td>
+              <td data-col="excluded-by">
+                <template v-if="excludedRow(member).excludedBy">{{
+                  displayName(excludedRow(member).excludedBy!)
+                }}</template>
+                <span v-else class="text-vt-mute-2">—</span>
+              </td>
+              <td data-col="excluded-reason">
+                <template v-if="excludedRow(member).reason">{{
+                  excludedRow(member).reason
+                }}</template>
+                <span v-else class="text-vt-mute-2">—</span>
+              </td>
+            </template>
+            <template v-else-if="showStats && member.stats">
               <td data-col="activity">
                 <strong>{{ activityView(member.stats, tz).visits }}</strong>
                 <small class="text-vt-mute-2">{{ activityView(member.stats, tz).last }}</small>
@@ -516,7 +598,20 @@ const filtered = computed(() => query.value.trim() !== '' || levelFilter.value !
                 <span v-else class="text-vt-mute-2">—</span>
               </td>
             </template>
-            <td>
+            <td v-if="excludedTab">
+              <button
+                v-if="canBlockExcludedMember(actor, memberTarget(member))"
+                type="button"
+                class="vt-btn vt-btn--danger vt-btn--sm"
+                data-testid="excluded-block"
+                :disabled="busy"
+                :aria-label="`Заблокировать: ${displayName(member.user)}`"
+                @click="blockExcluded(member)"
+              >
+                Заблокировать
+              </button>
+            </td>
+            <td v-else>
               <div v-if="actions(member).length" class="vt-desktop-members__actions">
                 <template v-if="actions(member).includes('changeRole')">
                   <label class="sr-only" :for="`member-role-${member.id}`"
@@ -586,7 +681,7 @@ const filtered = computed(() => query.value.trim() !== '' || levelFilter.value !
       @act="(action) => selected && act(selected, action)"
       @set-level="(level) => selected && setLevel(selected, level)"
       @set-position="(position) => selected && setPosition(selected, position)"
-      @exclude="(reason) => selected && exclude(selected, reason)"
+      @exclude="(reason, block) => selected && exclude(selected, reason, block)"
     />
   </section>
 </template>

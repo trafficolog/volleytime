@@ -224,6 +224,7 @@ export const memberService = {
     to: 'active' | 'rejected' | 'blocked',
     allowedFrom: OrganizationMember['status'][],
     action: (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS],
+    options: { idempotent?: boolean } = {},
   ): Promise<OrganizationMember> {
     return inTransaction(ctx, async (tx) => {
       const m = await this.getById(tx, memberId)
@@ -231,6 +232,8 @@ export const memberService = {
         throw new MemberNotFoundError(memberId)
       }
       if (m.role === 'owner') throw new CannotBlockOwnerError()
+      // повторное действие в целевом статусе: без изменений и без записи в audit
+      if (options.idempotent && m.status === to) return m
       if (!allowedFrom.includes(m.status)) throw new MemberInvalidTransitionError(m.status, to)
 
       const [updated] = await getDb(tx)
@@ -255,14 +258,19 @@ export const memberService = {
     })
   },
 
-  /** Заблокировать участника (active/pending). Owner заблокировать нельзя. */
+  /**
+   * Заблокировать участника (active/pending/guest, а также `left`: вышедший или исключённый, 21.2.24,
+   * чтобы он не вернулся по многоразовой ссылке). Owner заблокировать нельзя. Повторная блокировка
+   * идемпотентна: статус и audit не меняются.
+   */
   async block(ctx: ServiceContext, memberId: number): Promise<OrganizationMember> {
     return this.transition(
       ctx,
       memberId,
       'blocked',
-      ['active', 'pending', 'guest'],
+      ['active', 'pending', 'guest', 'left'],
       AUDIT_ACTIONS.MEMBER_BLOCKED,
+      { idempotent: true },
     )
   },
 

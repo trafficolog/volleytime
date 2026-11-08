@@ -27,7 +27,7 @@ function row(
   return {
     id,
     organizationId: 30,
-    role: 'player' as const,
+    role: 'player' as 'player' | 'assistant',
     status,
     level,
     joinedAt: '2026-09-29T07:00:00.000Z',
@@ -53,6 +53,14 @@ let invites: unknown[] = []
 let actorRole = 'owner'
 let withStats = false
 let excludeFails = false
+const excludedRows = [
+  {
+    ...row(7, 'Синтетический Исключённый', 'left'),
+    excludedAt: '2026-11-05T10:00:00.000Z',
+    excludedBy: { id: 9, name: 'Синтетический Владелец', telegramUsername: null },
+    reason: 'Спор о взносах',
+  },
+]
 
 const STATS_PERIOD = { from: '2026-02-20', to: '2026-05-20' }
 const emptyStats = {
@@ -93,6 +101,8 @@ beforeEach(() => {
     if (url === '/api/organizations/30/invites' && !opts?.method) return { invites }
     if (url === '/api/organizations/30/invites')
       return { deeplinkUrl: 'https://t.me/bot?start=new' }
+    if (url === '/api/organizations/30/members/excluded')
+      return { members: structuredClone(excludedRows) }
     if (url.endsWith('/level')) return { member: { level: 'v2' } }
     if (url.endsWith('/position')) return { member: { position: 'libero' } }
     if (url.endsWith('/exclude')) {
@@ -394,7 +404,7 @@ describe('desktop players (W-06)', () => {
       expect(text).toContain('Оплаченные места автоматически не возвращаются')
       expect(text).toContain('Абонемент останется за игроком')
       expect(text).toContain('Долг и ожидающие оплаты останутся в кассе')
-      expect(text).toContain('Это не блокировка')
+      expect(text).toContain('не блокирует')
       expect(excludeCalls()).toHaveLength(0)
       await w.get('#player-drawer-exclude-reason').setValue('  Переехал  ')
       await sectionButton(w, 'Удалить из группы').trigger('click')
@@ -410,6 +420,22 @@ describe('desktop players (W-06)', () => {
       ).toHaveLength(2)
       expect(w.text()).toContain('Отменено записей: 2')
       expect(w.text()).toContain('Деньги вернуть нужно вручную')
+    })
+
+    it('«Исключить и заблокировать» posts reason and block in one request', async () => {
+      const w = await render()
+      await open(w, 1)
+      await sectionButton(w, 'Удалить из группы').trigger('click')
+      await w.get('#player-drawer-exclude-reason').setValue('Спор')
+      await sectionButton(w, 'Исключить и заблокировать').trigger('click')
+      await flushPromises()
+      expect(excludeCalls()).toEqual([
+        [
+          '/api/organizations/30/members/2/exclude',
+          { method: 'POST', body: { reason: 'Спор', block: true } },
+        ],
+      ])
+      expect(w.text()).toContain('удалён из группы и заблокирован')
     })
 
     it('cancel leaves the player in place and posts nothing', async () => {
@@ -443,6 +469,58 @@ describe('desktop players (W-06)', () => {
       const w = await render()
       await open(w, 4)
       expect(w.find('[data-testid="player-exclude"]').exists()).toBe(false)
+    })
+  })
+
+  describe('excluded tab (21.2.24)', () => {
+    const openTab = async (w: VueWrapper) => {
+      await w
+        .findAll('button')
+        .find((b) => b.text().startsWith('Исключённые'))!
+        .trigger('click')
+    }
+
+    it('shows only excluded players with date, actor and reason (not voluntary leavers)', async () => {
+      const w = await render()
+      await openTab(w)
+      expect(names(w)).toEqual(['Синтетический Исключённый'])
+      expect(w.text()).not.toContain('Синтетический Вышедший')
+      expect(w.text()).toContain('Синтетический Владелец')
+      expect(w.text()).toContain('Спор о взносах')
+    })
+
+    it('blocks from the tab and reloads', async () => {
+      const w = await render()
+      await openTab(w)
+      await w.get('[data-testid="excluded-block"]').trigger('click')
+      await flushPromises()
+      expect(
+        apiFetch.mock.calls.filter(([url]) => url === '/api/organizations/30/members/7/block'),
+      ).toEqual([['/api/organizations/30/members/7/block', { method: 'POST' }]])
+      expect(
+        apiFetch.mock.calls.filter(([url]) => url === '/api/organizations/30/members/excluded'),
+      ).toHaveLength(2)
+    })
+
+    it('an organizer cannot block an excluded admin', async () => {
+      actorRole = 'organizer'
+      excludedRows[0]!.role = 'assistant'
+      try {
+        const w = await render()
+        await openTab(w)
+        expect(w.find('[data-testid="excluded-block"]').exists()).toBe(false)
+      } finally {
+        excludedRows[0]!.role = 'player'
+      }
+    })
+
+    it('an assistant has no tab and never requests the list', async () => {
+      actorRole = 'assistant'
+      const w = await render()
+      expect(w.findAll('button').some((b) => b.text().startsWith('Исключённые'))).toBe(false)
+      expect(
+        apiFetch.mock.calls.some(([url]) => url === '/api/organizations/30/members/excluded'),
+      ).toBe(false)
     })
   })
 

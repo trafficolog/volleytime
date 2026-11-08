@@ -182,6 +182,7 @@ const ROUTES: OrgRouteTable = {
     access: 'manager',
     body: () => ({}),
   },
+  'GET /api/organizations/:orgId/members/excluded': { access: 'manager' },
   'POST /api/organizations/:orgId/members/:memberId/exclude': {
     access: 'manager',
     body: () => ({ reason: 'test' }),

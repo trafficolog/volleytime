@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { canExcludeMember, desktopMemberActions } from './desktop-member-actions'
+import {
+  canBlockExcludedMember,
+  canExcludeMember,
+  desktopMemberActions,
+} from './desktop-member-actions'
 
 const owner = { role: 'owner' as const, status: 'active' as const, userId: 1 }
 const organizer = { role: 'organizer' as const, status: 'active' as const, userId: 2 }
@@ -77,5 +81,31 @@ describe('canExcludeMember (21.2.21)', () => {
       expect(canExcludeMember(owner, target('player', status))).toBe(false)
     }
     expect(canExcludeMember(owner, target('player', 'guest'))).toBe(true)
+  })
+})
+
+describe('canBlockExcludedMember (21.2.24)', () => {
+  const t = (
+    role: 'owner' | 'organizer' | 'assistant' | 'player',
+    status = 'left',
+    userId = 4,
+  ) => ({
+    role,
+    status,
+    userId,
+  })
+  it('lets the owner block any excluded non-owner; an organizer only players', () => {
+    expect(canBlockExcludedMember(owner, t('organizer'))).toBe(true)
+    expect(canBlockExcludedMember(owner, t('assistant'))).toBe(true)
+    expect(canBlockExcludedMember(organizer, t('player'))).toBe(true)
+    expect(canBlockExcludedMember(organizer, t('assistant'))).toBe(false)
+    expect(canBlockExcludedMember(organizer, t('organizer'))).toBe(false)
+  })
+  it('refuses owner, self, non-left targets and non-managers', () => {
+    expect(canBlockExcludedMember(owner, t('owner'))).toBe(false)
+    expect(canBlockExcludedMember(owner, t('player', 'left', 1))).toBe(false)
+    expect(canBlockExcludedMember(owner, t('player', 'active'))).toBe(false)
+    expect(canBlockExcludedMember(player, t('player'))).toBe(false)
+    expect(canBlockExcludedMember(null, t('player'))).toBe(false)
   })
 })
