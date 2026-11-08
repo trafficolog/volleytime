@@ -6,6 +6,10 @@ export const AUDIT_ACTIONS = {
   ORG_SETTINGS_UPDATED: 'organization.settings_updated',
   // способы оплаты группы (21.2.11): включение и реквизиты перевода; полный номер карты не пишется
   ORG_PAYMENT_METHOD_UPDATED: 'organization.payment_method_updated',
+  // логотип и короткая ссылка группы (21.2.16); байты логотипа в журнал не пишутся
+  ORG_LOGO_UPDATED: 'organization.logo_updated',
+  ORG_LOGO_REMOVED: 'organization.logo_removed',
+  ORG_SHORT_LINK_UPDATED: 'organization.short_link_updated',
   MEMBER_ADDED: 'member.added',
   MEMBER_ROLE_CHANGED: 'member.role_changed',
   MEMBER_BLOCKED: 'member.blocked',

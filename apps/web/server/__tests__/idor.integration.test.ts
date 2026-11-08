@@ -5,6 +5,7 @@ import {
   eventService,
   inviteService,
   memberService,
+  organizationBrandingService,
   organizationService,
   paymentMethodService,
   planService,
@@ -29,6 +30,7 @@ import {
   inviteLinks,
   ledgerEntries,
   organizationEventBalances,
+  organizationLogos,
   organizationMembers,
   organizationPaymentMethods,
   organizations,
@@ -298,6 +300,14 @@ const ROUTES: OrgRouteTable = {
     access: 'manager',
     body: () => ({ enabled: true, bank: 'Банк', cardLast4: '3214', recipient: 'Иван П.' }),
   },
+  // 21.2.16: логотип читает участник, грузит и удаляет manager; короткую ссылку задаёт manager
+  'GET /api/organizations/:orgId/logo': { access: 'member' },
+  'POST /api/organizations/:orgId/logo': { access: 'manager', body: () => logoForm() },
+  'DELETE /api/organizations/:orgId/logo': { access: 'manager' },
+  'PUT /api/organizations/:orgId/short-link': {
+    access: 'manager',
+    body: (ids) => ({ shortLink: `idor-link-${ids.orgId}` }),
+  },
   // 21.2.13: правка и удаление/архив зала — manager, зал чужой группы недоступен
   'PATCH /api/organizations/:orgId/venues/:venueId': {
     access: 'manager',
@@ -315,6 +325,18 @@ const ROUTES: OrgRouteTable = {
     body: () => ({ title: 'Слот переименован' }),
   },
   'DELETE /api/organizations/:orgId/schedule-slots/:slotId': { access: 'manager' },
+}
+
+/** Минимальный допустимый PNG: сигнатура, IHDR и заполнитель до 33 байт. */
+const PNG_BYTES = Buffer.concat([
+  Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex'),
+  Buffer.alloc(17, 1),
+])
+
+function logoForm(): FormData {
+  const form = new FormData()
+  form.set('file', new Blob([PNG_BYTES], { type: 'image/png' }), 'logo.png')
+  return form
 }
 
 function seriesBody(extra: Record<string, unknown> = {}) {
@@ -453,6 +475,14 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
       cardLast4: '3214',
       recipient: 'Иван П.',
     })
+    // логотип и короткая ссылка группы (21.2.16): чужая группа их не увидит и не изменит
+    await organizationBrandingService.setLogo({ userId: owner }, org.id, {
+      declaredType: 'image/png',
+      data: PNG_BYTES,
+    })
+    await organizationBrandingService.setShortLink({ userId: owner }, org.id, {
+      shortLink: `fixture-${label.toLowerCase()}-${marker.slice(-6)}`,
+    })
     return {
       ids: {
         orgId: org.id,
@@ -490,6 +520,7 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
       db.select().from(organizationMembers).where(eq(organizationMembers.organizationId, orgId)),
       db.select().from(venues).where(eq(venues.organizationId, orgId)),
       db.select().from(scheduleSlots).where(eq(scheduleSlots.organizationId, orgId)),
+      db.select().from(organizationLogos).where(eq(organizationLogos.organizationId, orgId)),
       db
         .select()
         .from(organizationPaymentMethods)

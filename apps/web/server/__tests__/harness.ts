@@ -51,6 +51,8 @@ export interface TestResponse {
   status: number
   body: unknown
   text: string
+  /** Сырое тело (бинарные ответы: логотип, 21.2.16). */
+  bytes: Buffer
   headers: Headers
 }
 
@@ -69,6 +71,8 @@ export async function createTestApi() {
     getCookie: h3.getCookie,
     setResponseStatus: h3.setResponseStatus,
     setResponseHeader: h3.setResponseHeader,
+    setResponseHeaders: h3.setResponseHeaders,
+    readMultipartFormData: h3.readMultipartFormData,
     useRuntimeConfig: () => ({ public: {} }),
     // макрос Nitro (OpenAPI): в сборке вырезается, в харнессе — no-op
     defineRouteMeta: () => undefined,
@@ -113,24 +117,36 @@ export async function createTestApi() {
     url: string,
     opts: { user?: number; body?: unknown; headers?: Record<string, string> } = {},
   ): Promise<TestResponse> {
+    // FormData (загрузка файла, 21.2.16) уходит как multipart с Content-Length, как у браузера
+    let payload: BodyInit | undefined
+    const headers: Record<string, string> = {
+      'content-type': 'application/json',
+      ...(opts.user ? { 'x-test-user': String(opts.user) } : {}),
+    }
+    if (opts.body instanceof FormData) {
+      const encoded = new Response(opts.body)
+      const bytes = await encoded.arrayBuffer()
+      headers['content-type'] = encoded.headers.get('content-type')!
+      headers['content-length'] = String(bytes.byteLength)
+      payload = bytes
+    } else if (opts.body !== undefined) {
+      payload = JSON.stringify(opts.body)
+    }
     const res = await web(
       new Request(`http://test${url}`, {
         method,
-        headers: {
-          'content-type': 'application/json',
-          ...(opts.user ? { 'x-test-user': String(opts.user) } : {}),
-          ...opts.headers,
-        },
-        body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+        headers: { ...headers, ...opts.headers },
+        body: payload,
       }),
     )
-    const text = await res.text()
+    const bytes = Buffer.from(await res.arrayBuffer())
+    const text = bytes.toString('utf8')
     let body: unknown = null
     try {
       body = JSON.parse(text)
     } catch {
       body = text
     }
-    return { status: res.status, body, text, headers: res.headers }
+    return { status: res.status, body, text, bytes, headers: res.headers }
   }
 }
