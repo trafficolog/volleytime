@@ -6,6 +6,8 @@ import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import DesktopEvents from './index.vue'
 
 import DesktopEventCalendar from '~/components/desktop/EventCalendar.vue'
+import DesktopEventFilters from '~/components/desktop/EventFilters.vue'
+import DesktopEventPager from '~/components/desktop/EventPager.vue'
 import DesktopEventRowMenu from '~/components/desktop/EventRowMenu.vue'
 import DesktopEventTable from '~/components/desktop/EventTable.vue'
 import Alert from '~/components/vt/Alert.vue'
@@ -19,7 +21,17 @@ import StateChip from '~/components/vt/StateChip.vue'
 import Toast from '~/components/vt/Toast.vue'
 import { useToast } from '~/composables/useToast'
 
-const route = reactive({ params: { orgId: '30' }, path: '/app/orgs/30/events' })
+const route = reactive({
+  params: { orgId: '30' },
+  path: '/app/orgs/30/events',
+  query: {} as Record<string, string>,
+})
+// router.replace меняет query маршрута, как адресная строка
+const router = {
+  replace: vi.fn(async ({ query }: { query: Record<string, string> }) => {
+    route.query = query
+  }),
+}
 const ev = (id: number, title: string, startsAt: string, extra: Record<string, unknown> = {}) => ({
   id,
   title,
@@ -43,6 +55,7 @@ const events = [
   ev(4, 'Вечерняя', '2026-05-28T17:00:00Z', { status: 'cancelled' }),
 ]
 let listEvents: typeof events = events
+let listTotal: number | null = null
 let rangeEvents: typeof events | null = null
 let holdRange: Promise<void> | null = null
 let chatLink: { status: string; invalidReason?: string | null } | null = { status: 'active' }
@@ -53,11 +66,13 @@ const apiFetch = vi.fn(async (url: string, opts?: { query?: Record<string, unkno
     if (chatFails) throw new Error('boom')
     return { link: chatLink }
   }
-  if (opts?.query?.from) {
+  if (url.endsWith('/venues')) return { venues: [{ id: 7, name: 'Школа №24' }] }
+  // календарь грузит месяц по from/to без limit; список — страницами (limit/offset)
+  if (opts?.query?.from && !opts.query.limit) {
     if (holdRange) await holdRange
     return { events: rangeEvents ?? events }
   }
-  return { events: listEvents }
+  return { events: listEvents, total: listTotal ?? listEvents.length }
 })
 
 Object.entries({
@@ -67,6 +82,7 @@ Object.entries({
   onBeforeUnmount,
   nextTick,
   useRoute: () => route,
+  useRouter: () => router,
   definePageMeta: () => undefined,
   useOrgTimezone: () => ({ tz: ref('Europe/Minsk') }),
   useToast,
@@ -81,6 +97,8 @@ function render() {
     global: {
       components: {
         DesktopEventCalendar,
+        DesktopEventFilters,
+        DesktopEventPager,
         DesktopEventRowMenu,
         DesktopEventTable,
         VtAlert: Alert,
@@ -117,6 +135,9 @@ beforeEach(() => {
   chatFails = false
   useToast().dismiss()
   listEvents = events
+  listTotal = null
+  route.query = {}
+  router.replace.mockClear()
   rangeEvents = null
   holdRange = null
 })
@@ -171,7 +192,7 @@ describe('cabinet events list (W-03)', () => {
     await flushPromises()
     await filterRadios(wrapper)[2]!.trigger('click')
     await flushPromises()
-    const calls = apiFetch.mock.calls.filter(([, o]) => !o?.query?.from).length
+    const calls = apiFetch.mock.calls.filter(([, o]) => !o?.query?.from || o.query.limit).length
     const checked = () => wrapper.get('[aria-label="Фильтр событий"] [aria-checked="true"]').text()
 
     await viewRadios(wrapper)[1]!.trigger('click')
@@ -181,7 +202,9 @@ describe('cabinet events list (W-03)', () => {
     await viewRadios(wrapper)[0]!.trigger('click')
     expect(wrapper.find('tbody tr').exists()).toBe(true)
     expect(checked()).toBe('Прошедшие')
-    expect(apiFetch.mock.calls.filter(([, o]) => !o?.query?.from)).toHaveLength(calls)
+    expect(apiFetch.mock.calls.filter(([, o]) => !o?.query?.from || o.query.limit)).toHaveLength(
+      calls,
+    )
     wrapper.unmount()
   })
 })
