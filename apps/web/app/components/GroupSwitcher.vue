@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 
-import { groupMonogram } from '~/utils/group-monogram'
+import GroupLogo from '~/components/GroupLogo.vue'
 import { playerGroupOptions } from '~/utils/player-navigation'
 
 /**
@@ -54,13 +54,7 @@ function chooseGroup(group: { id: number }) {
           class="vt-card !flex min-h-11 items-center gap-3 p-3 no-underline"
           @click="chooseGroup(group)"
         >
-          <span
-            data-monogram
-            aria-hidden="true"
-            class="font-display flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-base font-bold"
-            :class="groupMonogram(group.name).className"
-            >{{ groupMonogram(group.name).initials }}</span
-          >
+          <GroupLogo :org-id="group.id" :name="group.name" :logo-updated-at="group.logoUpdatedAt" />
           <span class="min-w-0 flex-1">
             <span class="block truncate font-semibold">{{ group.name }}</span>
             <span v-if="group.city" class="mt-0.5 block text-xs text-vt-mute-2">
@@ -81,13 +75,7 @@ function chooseGroup(group: { id: number }) {
           </span>
         </NuxtLink>
         <div v-else aria-disabled="true" class="vt-card !flex min-h-11 items-center gap-3 p-3">
-          <span
-            data-monogram
-            aria-hidden="true"
-            class="font-display flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-base font-bold"
-            :class="groupMonogram(group.name).className"
-            >{{ groupMonogram(group.name).initials }}</span
-          >
+          <GroupLogo :org-id="group.id" :name="group.name" :logo-updated-at="group.logoUpdatedAt" />
           <span class="min-w-0 flex-1">
             <span class="block truncate font-semibold">{{ group.name }}</span>
             <span class="mt-0.5 block text-xs text-vt-mute-2">

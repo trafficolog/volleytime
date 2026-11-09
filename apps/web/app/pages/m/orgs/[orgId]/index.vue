@@ -3,12 +3,12 @@ import type { Organization, OrganizationMember } from '@volley-time/db'
 import { formatShortDate, type EventPricingView } from '@volley-time/shared'
 
 import type { EventListItem } from '~/components/EventCard.vue'
+import GroupLogo from '~/components/GroupLogo.vue'
 import GroupSwitcher from '~/components/GroupSwitcher.vue'
 import PlayerHomeBento from '~/components/PlayerHomeBento.vue'
 import PlayerHomeTiles from '~/components/PlayerHomeTiles.vue'
 import { eventBalanceCard } from '~/utils/cabinet-shell'
 import { groupEntryState, visibleGroup } from '~/utils/group-entry-state'
-import { groupMonogram } from '~/utils/group-monogram'
 import { formatMoneyRu } from '~/utils/labels'
 import {
   organizerHomeSubtitle,
@@ -182,13 +182,18 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
     >
       <template #title>
         <div class="flex min-w-0 items-center gap-2.5">
+          <GroupLogo
+            v-if="org"
+            :org-id="org.id"
+            :name="org.name"
+            :logo-updated-at="org.logoUpdatedAt"
+          />
           <span
+            v-else
             data-monogram
             aria-hidden="true"
-            class="font-display flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-base font-bold"
-            :class="org ? groupMonogram(org.name).className : 'bg-vt-bone'"
-            >{{ org ? groupMonogram(org.name).initials : '' }}</span
-          >
+            class="flex h-10 w-10 shrink-0 rounded-xl bg-vt-bone"
+          />
           <h1 class="min-w-0 text-base font-semibold">
             <button
               type="button"
@@ -226,13 +231,18 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
         :aria-expanded="groupsOpen"
         @click="groupsOpen = true"
       >
+        <GroupLogo
+          v-if="org"
+          :org-id="org.id"
+          :name="org.name"
+          :logo-updated-at="org.logoUpdatedAt"
+        />
         <span
+          v-else
           data-monogram
           aria-hidden="true"
-          class="font-display flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-base font-bold"
-          :class="org ? groupMonogram(org.name).className : 'bg-vt-bone'"
-          >{{ org ? groupMonogram(org.name).initials : '' }}</span
-        >
+          class="flex h-10 w-10 shrink-0 rounded-xl bg-vt-bone"
+        />
         <span class="min-w-0">
           <span class="font-semibold text-[15px] truncate flex items-center gap-1">
             {{ org?.name ?? 'Группа' }} <VtIcon name="chevron-r" :size="14" class="rotate-90" />

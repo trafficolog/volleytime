@@ -8,6 +8,10 @@ export const AUDIT_ACTIONS = {
   ORG_NOTIFICATIONS_UPDATED: 'organization.notifications_updated',
   // способы оплаты группы (21.2.11): включение и реквизиты перевода; полный номер карты не пишется
   ORG_PAYMENT_METHOD_UPDATED: 'organization.payment_method_updated',
+  // логотип и короткая ссылка группы (21.2.16); байты логотипа в журнал не пишутся
+  ORG_LOGO_UPDATED: 'organization.logo_updated',
+  ORG_LOGO_REMOVED: 'organization.logo_removed',
+  ORG_SHORT_LINK_UPDATED: 'organization.short_link_updated',
   MEMBER_ADDED: 'member.added',
   MEMBER_ROLE_CHANGED: 'member.role_changed',
   MEMBER_BLOCKED: 'member.blocked',
@@ -68,6 +72,7 @@ export const AUDIT_ACTIONS = {
   TELEGRAM_CHAT_STATUS_CHANGED: 'telegram_chat.status_changed',
   TELEGRAM_CHAT_UNLINKED: 'telegram_chat.unlinked',
   TELEGRAM_CHAT_ANNOUNCED: 'telegram_chat.event_announced',
+  TELEGRAM_CHAT_TEST_SENT: 'telegram_chat.test_sent',
   // баланс событий (20.2.1); начисления и решения root пишет операторская команда (packages/db)
   EVENT_BALANCE_PURCHASE_REQUESTED: 'event_balance.purchase_requested',
   // сборы (21.2.4): жизненный цикл сбора и решения по взносам (платежам сбора)

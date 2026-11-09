@@ -31,6 +31,7 @@ export function playerGroupOptions(
     city: string | null
     status: string
     membershipStatus: string
+    logoUpdatedAt?: string | Date | null
   }[],
   selectedId: number,
 ) {
@@ -40,6 +41,7 @@ export function playerGroupOptions(
       id: group.id,
       name: group.name,
       city: group.city,
+      logoUpdatedAt: group.logoUpdatedAt,
       selectable,
       statusLabel:
         group.status === 'suspended'

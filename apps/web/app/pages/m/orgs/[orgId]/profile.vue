@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { Organization, OrganizationMember } from '@volley-time/db'
 
-import { groupMonogram } from '~/utils/group-monogram'
+import GroupLogo from '~/components/GroupLogo.vue'
 import { playerHomeAccess } from '~/utils/player-home'
 import { levelTitle, type PlayerLevelView } from '~/utils/player-level'
-import { positionTitle } from '~/utils/player-position'
 import { playerGroupOptions, playerProfileFields } from '~/utils/player-navigation'
+import { positionTitle } from '~/utils/player-position'
 
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
@@ -187,13 +187,12 @@ const access = computed(() =>
                 :aria-current="group.selected ? 'true' : undefined"
                 @click="chooseGroup(group)"
               >
-                <span
-                  data-monogram
-                  aria-hidden="true"
-                  class="font-display flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold"
-                  :class="groupMonogram(group.name).className"
-                  >{{ groupMonogram(group.name).initials }}</span
-                >
+                <GroupLogo
+                  :org-id="group.id"
+                  :name="group.name"
+                  :logo-updated-at="group.logoUpdatedAt"
+                  size-class="h-9 w-9 text-sm"
+                />
                 <span class="min-w-0 flex-1">
                   <span class="block truncate text-[15px] font-semibold">{{ group.name }}</span>
                   <span

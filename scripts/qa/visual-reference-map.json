@@ -598,6 +598,16 @@
       "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
     },
     {
+      "id": "cabinet-notifications",
+      "title": "Кабинет: уведомления (лента)",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/notifications",
+      "references": ["4-cabinet/15-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
       "id": "cabinet-settings",
       "title": "Кабинет: настройки",
       "viewport": "cabinet",

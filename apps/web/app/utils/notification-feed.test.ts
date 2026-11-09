@@ -55,6 +55,18 @@ describe('notificationView', () => {
     expect(v.to).toBe('/m/orgs/7/subscriptions')
   })
 
+  it('в кабинете цель «абонементы» ведёт на план абонементов группы (21.2.9)', () => {
+    const v = notificationView(
+      item(
+        { type: 'payment_confirmed', eventId: null },
+        { planName: '8 сессий', amount: 11000, currency: 'BYN', target: 'subscriptions' },
+      ),
+      '/app/orgs/7',
+      '/app/orgs/7/plans',
+    )
+    expect(v.to).toBe('/app/orgs/7/plans')
+  })
+
   it('заявка на оплату организатору ведёт на оплаты', () => {
     const v = notificationView(
       item({ type: 'organizer_action_required' }, { playerName: 'Иван', target: 'payments' }),

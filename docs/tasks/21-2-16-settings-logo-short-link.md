@@ -2,11 +2,11 @@
 id: '21.2.16'
 phase: '21'
 epic: '21.2'
-status: todo
+status: done
 release: 'v0.3.0'
 sync_state: synced
-last_reviewed: 2026-10-15
-status_note: ''
+last_reviewed: 2026-11-09
+status_note: 'Выполнено: PR #232 смёржен (merge-коммит 1a68c9f на main; ревью Opus и CI пройдены, вердикт merge). Миграция 0038 (логотип в Postgres, отдельная колонка короткой ссылки); GET/POST/DELETE …/logo, PUT …/short-link и owner-only GET …/short-link/availability; публичный логотип, роли и лимит 1 МБ по решениям владельца 2026-11-08 и 2026-11-09; хвосты — в 21.4.1. Отчёт сверки: docs/operations/qa/2026-11-08-21-2-16-settings-logo-short-link-visual.md.'
 ref_id: 'W-11'
 complexity: L
 impl_model: claude-sonnet-5-5
@@ -15,7 +15,11 @@ review_gate: opus
 roles: [BE, FE]
 depends_on: ['19.2.2', '20.5.7']
 supersedes: []
-decisions: ['Настройки группы: способы оплаты, уведомления, логотип (журнал решений, 2026-11-08)']
+decisions:
+  [
+    'Настройки группы: способы оплаты, уведомления, логотип (журнал решений, 2026-11-08)',
+    'Логотип, короткая ссылка и статус бота (журнал решений, 2026-11-09)',
+  ]
 estimated_hours: '8-16'
 reference:
   spec: 'docs/design/reference-v3/specs/03-organizer-web/W-11-settings.md'

@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { DB } from './client'
 import { runMigrations } from './migrate'
-import { rollbackNotificationSettings } from './migration-test-helpers'
+import { rollbackLogoShortLink, rollbackNotificationSettings } from './migration-test-helpers'
 import { rollbackLastMigration } from './rollback'
 import * as schema from './schema'
 import { seedDemo } from './seed-demo'
@@ -117,6 +117,7 @@ describe('migration 0037 org notification settings (integration)', { timeout: 60
       await runMigrations(url)
       const a = await org(sql, 'ns-guard')
       await setting(sql, a, 'reminder_2h', false)
+      await rollbackLogoShortLink(url) // 21.2.16: новая миграция откатывается первой
       await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0037 refused/)
       expect(await tableExists(sql)).toBe(true)
       expect(await sql`SELECT 1 FROM organization_notification_settings`).toHaveLength(1)

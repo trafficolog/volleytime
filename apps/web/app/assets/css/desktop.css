@@ -1958,6 +1958,37 @@ ol.vt-desktop-event-detail__rows > li {
   margin: 0;
   overflow-wrap: anywhere;
 }
+.vt-settings-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-right: 0.375rem;
+}
+.vt-settings-status::before {
+  content: '';
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+.vt-settings-status--ok {
+  color: var(--vt-grass-ink);
+}
+.vt-settings-status--danger {
+  color: var(--vt-rose-ink);
+}
+.vt-settings-status--idle {
+  color: var(--vt-mute-2);
+}
+.vt-settings-invite {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.vt-settings-invite .vt-input {
+  flex: 1;
+  min-width: 0;
+}
 .vt-settings-link {
   color: var(--vt-flame-ink);
   font-weight: 600;

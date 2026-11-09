@@ -2,11 +2,11 @@
 id: '21.2.9'
 phase: '21'
 epic: '21.2'
-status: todo
+status: done
 release: 'v0.3.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-11-09
+status_note: 'Выполнено: PR #237 смёржен (merge-коммит 706b9c0 на main; ревью и CI пройдены, вердикт merge). Страница уведомлений кабинета на API ленты 20.3.2, без миграции. Отклонения: добавлен колокол в верхней панели; чипы категорий не сделаны (открытый вопрос владельцу); ссылка на подписки ведёт на /plans; тесты написаны после кода, не TDD. Хвост — в 21.4.1. Отчёт сверки: docs/operations/qa/2026-11-09-21-2-9-notifications-visual.md.'
 ref_id: 'W-15'
 complexity: S
 impl_model: claude-haiku-5-5

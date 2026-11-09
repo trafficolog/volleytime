@@ -4,6 +4,7 @@ import type { Organization, OrganizationMember } from '@volley-time/db'
 import SettingsBookings from '~/components/desktop/settings/SettingsBookings.vue'
 import SettingsDanger from '~/components/desktop/settings/SettingsDanger.vue'
 import SettingsIntegrations from '~/components/desktop/settings/SettingsIntegrations.vue'
+import SettingsLogoLink from '~/components/desktop/settings/SettingsLogoLink.vue'
 import SettingsNotifications from '~/components/desktop/settings/SettingsNotifications.vue'
 import SettingsPaymentMethods from '~/components/desktop/settings/SettingsPaymentMethods.vue'
 import SettingsProfile from '~/components/desktop/settings/SettingsProfile.vue'
@@ -54,6 +55,12 @@ const { data: levelsData } = useFetch<{
 
 const actor = computed(() => data.value?.myMember ?? null)
 const isOwner = computed(() => actor.value?.role === 'owner' && actor.value.status === 'active')
+// логотип и короткую ссылку меняют владелец и организатор (21.2.16)
+const canManageBranding = computed(
+  () =>
+    actor.value?.status === 'active' &&
+    (actor.value.role === 'owner' || actor.value.role === 'organizer'),
+)
 const section = computed(() => parseSection(route.query.section, isOwner.value))
 const sections = computed(() => visibleSections(isOwner.value))
 
@@ -104,6 +111,23 @@ watch(
     if (previous && previous.name !== value.name) await fetchAll().catch(() => undefined)
   },
 )
+
+async function onBrandingChanged(value: {
+  logoUpdatedAt: string | null
+  shortLink: string | null
+}) {
+  if (data.value) {
+    data.value = {
+      ...data.value,
+      organization: {
+        ...data.value.organization,
+        logoUpdatedAt: value.logoUpdatedAt ? new Date(value.logoUpdatedAt) : null,
+        shortLink: value.shortLink,
+      },
+    }
+  }
+  await fetchAll().catch(() => undefined)
+}
 
 async function retry() {
   await Promise.all([refreshOrg(), refreshSettings()])
@@ -172,15 +196,32 @@ async function archive() {
           class="vt-settings-note"
           role="note"
         >
-          Изменять настройки может только владелец группы. Вы видите текущие значения.
+          <template v-if="section === 'profile'">
+            Название, описание и короткую ссылку меняет только владелец группы; логотип — владелец и
+            организатор. Вы видите текущие значения.
+          </template>
+          <template v-else>
+            Изменять настройки может только владелец группы. Вы видите текущие значения.
+          </template>
         </p>
-        <SettingsProfile
-          v-if="section === 'profile'"
-          :org="profile"
-          :settings="settings"
-          :can-edit="isOwner"
-          :controller="controller"
-        />
+        <div v-if="section === 'profile'" class="vt-settings-stack">
+          <SettingsLogoLink
+            :org-id="orgId"
+            :name="data.organization.name"
+            :logo-updated-at="data.organization.logoUpdatedAt"
+            :short-link="data.organization.shortLink"
+            :can-manage="canManageBranding"
+            :can-edit-link="isOwner"
+            @toast="toast.show"
+            @changed="onBrandingChanged"
+          />
+          <SettingsProfile
+            :org="profile"
+            :settings="settings"
+            :can-edit="isOwner"
+            :controller="controller"
+          />
+        </div>
         <SettingsSchedule
           v-else-if="section === 'schedule'"
           :org-id="orgId"
@@ -220,8 +261,10 @@ async function archive() {
         />
         <SettingsIntegrations
           v-else-if="section === 'integrations'"
+          :org-id="orgId"
           :bot-username="config.public.telegramBotUsername"
           :base="base"
+          @toast="toast.show"
         />
         <SettingsDanger
           v-else-if="section === 'danger' && isOwner"
