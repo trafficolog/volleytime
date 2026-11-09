@@ -52,6 +52,7 @@ describe('desktop players list', () => {
       pending: 1,
       guest: 1,
       blocked: 1,
+      excluded: 0,
     })
   })
 
@@ -59,9 +60,9 @@ describe('desktop players list', () => {
     expect(playersSubtitle(countPlayerTabs(members))).toBe(
       '2 активных · 1 на модерации · 1 заблокирован',
     )
-    expect(playersSubtitle({ all: 0, active: 0, pending: 0, guest: 0, blocked: 0 })).toBe(
-      '0 активных',
-    )
+    expect(
+      playersSubtitle({ all: 0, active: 0, pending: 0, guest: 0, blocked: 0, excluded: 0 }),
+    ).toBe('0 активных')
     expect(pluralRu(21, 'a', 'b', 'c')).toBe('a')
     expect(pluralRu(12, 'a', 'b', 'c')).toBe('c')
     expect(pluralRu(3, 'a', 'b', 'c')).toBe('b')

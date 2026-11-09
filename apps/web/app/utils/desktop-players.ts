@@ -1,7 +1,7 @@
 import type { MemberRow } from '~/composables/useOrganizations'
 import { LEVEL_FILTER_ALL, filterByLevel } from '~/utils/player-level'
 
-export type PlayersTab = 'all' | 'active' | 'pending' | 'guest' | 'blocked'
+export type PlayersTab = 'all' | 'active' | 'pending' | 'guest' | 'blocked' | 'excluded'
 
 /** Все статусы одним запросом; «вышел» и «отклонён» в списке игроков не показываются. */
 export const PLAYER_FETCH_STATUSES = [
@@ -21,6 +21,8 @@ const TAB_STATUSES: Record<PlayersTab, readonly ShownStatus[]> = {
   pending: ['pending'],
   guest: ['guest'],
   blocked: ['blocked'],
+  // исключённые (21.2.24) приходят отдельным запросом: статус `left` включает и вышедших добровольно
+  excluded: [],
 }
 
 export const PLAYER_TABS: { id: PlayersTab; label: string }[] = [
@@ -29,6 +31,7 @@ export const PLAYER_TABS: { id: PlayersTab; label: string }[] = [
   { id: 'pending', label: 'Заявки' },
   { id: 'guest', label: 'Гости' },
   { id: 'blocked', label: 'Заблокированы' },
+  { id: 'excluded', label: 'Исключённые' },
 ]
 
 type WithStatus = Pick<MemberRow, 'status'>
@@ -46,6 +49,7 @@ export function countPlayerTabs(members: readonly WithStatus[]): Record<PlayersT
     pending: count('pending'),
     guest: count('guest'),
     blocked: count('blocked'),
+    excluded: 0,
   }
 }
 

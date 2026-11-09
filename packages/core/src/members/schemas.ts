@@ -35,6 +35,8 @@ export const ExcludeMemberInput = z
       .max(500)
       .nullish()
       .transform((v) => (v ? v : null)),
+    /** 21.2.24: исключить и заблокировать в одной транзакции. */
+    block: z.boolean().optional().default(false),
   })
   .strict()
 export type ExcludeMemberInput = z.input<typeof ExcludeMemberInput>

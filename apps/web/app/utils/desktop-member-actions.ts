@@ -42,3 +42,15 @@ export function canExcludeMember(actor: Actor | null, target: Target): boolean {
   if (target.status !== 'active' && target.status !== 'guest') return false
   return actor.role === 'owner' || target.role === 'player'
 }
+
+/**
+ * UI mirror of the API's block-from-`left` rule (21.2.24): заблокировать исключённого игрока.
+ * Владельца и себя нельзя; организаторов и помощников блокирует только владелец, организатор — игроков.
+ */
+export function canBlockExcludedMember(actor: Actor | null, target: Target): boolean {
+  if (!actor || actor.status !== 'active') return false
+  if (actor.role !== 'owner' && actor.role !== 'organizer') return false
+  if (target.role === 'owner' || target.userId === actor.userId) return false
+  if (target.status !== 'left') return false
+  return actor.role === 'owner' || target.role === 'player'
+}
