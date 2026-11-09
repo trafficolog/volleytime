@@ -16,20 +16,19 @@ export type BalanceSummary = {
   lowThreshold: number
   low: boolean
   packages: BalancePackage[]
-  pendingRequests: { id: number; units: number; amount: number; currency: string; createdAt: string }[]
+  pendingRequests: {
+    id: number
+    units: number
+    amount: number
+    currency: string
+    createdAt: string
+  }[]
 }
 
 export type BalanceEntry = {
   id: number
   delta: number
-  reason:
-    | 'demo_grant'
-    | 'pilot_grant'
-    | 'purchase'
-    | 'grant'
-    | 'spend'
-    | 'refund'
-    | 'correction'
+  reason: 'demo_grant' | 'pilot_grant' | 'purchase' | 'grant' | 'spend' | 'refund' | 'correction'
   balanceAfter: number
   actorKind: 'user' | 'system'
   author: { id: number; name: string | null } | null
@@ -88,6 +87,21 @@ export function formatDelta(delta: number): string {
   if (delta > 0) return `+${delta}`
   if (delta < 0) return `−${Math.abs(delta)}`
   return '0'
+}
+
+/** Дата операции в часовом поясе группы: «25 мая», для прошлых лет — «25 мая 2025». */
+export function entryDate(iso: string, timeZone: string, now = new Date()): string {
+  const date = new Date(iso)
+  const year = (d: Date) =>
+    new Intl.DateTimeFormat('en-GB', { timeZone, year: 'numeric' }).format(d)
+  return new Intl.DateTimeFormat('ru-RU', {
+    timeZone,
+    day: 'numeric',
+    month: 'long',
+    ...(year(date) === year(now) ? {} : { year: 'numeric' }),
+  })
+    .format(date)
+    .replace(/\s?г\.$/, '')
 }
 
 export function entryView(entry: BalanceEntry) {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   balanceSubtitle,
+  entryDate,
   entryView,
   formatDelta,
   lowBalanceWarning,
@@ -88,6 +89,15 @@ describe('balance wording (D-10)', () => {
   })
 })
 
+describe('entry date', () => {
+  it('uses the group time zone and adds the year only for past years', () => {
+    const now = new Date('2026-06-01T10:00:00Z')
+    expect(entryDate('2026-05-25T10:00:00.000Z', 'Europe/Minsk', now)).toBe('25 мая')
+    expect(entryDate('2026-05-24T22:30:00.000Z', 'Europe/Minsk', now)).toBe('25 мая')
+    expect(entryDate('2025-12-31T10:00:00.000Z', 'Europe/Minsk', now)).toBe('31 декабря 2025')
+  })
+})
+
 describe('history rows (W-12)', () => {
   it('describes every reason in the owner vocabulary', () => {
     expect(entryView(entry())).toMatchObject({
@@ -122,7 +132,9 @@ describe('history rows (W-12)', () => {
   })
 
   it('shows the operator comment and falls back when the event was deleted', () => {
-    expect(entryView(entry({ reason: 'grant', delta: 10, event: null, comment: 'промо' }))).toMatchObject({
+    expect(
+      entryView(entry({ reason: 'grant', delta: 10, event: null, comment: 'промо' })),
+    ).toMatchObject({
       note: 'промо',
     })
     expect(entryView(entry({ event: null })).title).toBe('Событие удалено')
