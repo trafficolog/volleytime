@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { DB } from './client'
 import { runMigrations } from './migrate'
+import { rollbackNotificationSettings } from './migration-test-helpers'
 import { rollbackLastMigration } from './rollback'
 import * as schema from './schema'
 import { seedDemo } from './seed-demo'
@@ -62,6 +63,7 @@ describe('migration 0036 organization payment methods (integration)', { timeout:
     try {
       await runMigrations(url)
       expect(await tableExists(sql)).toBe(true)
+      await rollbackNotificationSettings(url) // 21.2.14: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await tableExists(sql)).toBe(false)
       await runMigrations(url)
@@ -127,6 +129,7 @@ describe('migration 0036 organization payment methods (integration)', { timeout:
       const o = await org(sql, 'pm-guard')
       await sql`INSERT INTO organization_payment_methods (organization_id, method, enabled)
         VALUES (${o}, 'cash', false)`
+      await rollbackNotificationSettings(url) // 21.2.14: новая миграция откатывается первой
       await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0036 refused/)
       expect(await tableExists(sql)).toBe(true)
       await sql`UPDATE organization_payment_methods SET enabled = true`
@@ -156,6 +159,7 @@ describe('migration 0036 organization payment methods (integration)', { timeout:
       const [orgs] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM organizations`
       // сид не создаёт способов оплаты: у групп действуют умолчания (оба включены)
       expect(await sql`SELECT 1 FROM organization_payment_methods`).toHaveLength(0)
+      await rollbackNotificationSettings(url) // 21.2.14: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await sql`SELECT 1 FROM organizations`).toHaveLength(orgs!.n)
       await runMigrations(url)
