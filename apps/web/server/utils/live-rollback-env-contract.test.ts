@@ -41,6 +41,8 @@ function fixture(failure = '') {
     EVENT_INVITE_MODE_ENABLED: 'false',
     SCHEDULER_ENABLED: 'false',
     TELEGRAM_LOGIN_WIDGET_ENABLED: 'false',
+    // v0.3.0 collections (21.3.1, item 4): read by web at runtime, same proof as the flags above.
+    COLLECTIONS_ENABLED: 'false',
     SCHEDULER_INTERVAL_MS: '15000',
   }
   const configured: Record<string, string> = {
@@ -56,6 +58,9 @@ function fixture(failure = '') {
   // The Login Widget flag (20.5.1) is read by web at runtime: same proof, no restart means no pass.
   if (failure === 'login widget flag changed without restart')
     configured.TELEGRAM_LOGIN_WIDGET_ENABLED = 'true'
+  // Collections (21.3.1, item 4) are enabled the same way: a flip without recreation is no proof.
+  if (failure === 'collections flag changed without restart')
+    configured.COLLECTIONS_ENABLED = 'true'
   const runtime = [
     'PATH=/old-image',
     'NODE_VERSION=22',
@@ -162,6 +167,7 @@ describe('live rollback environment proof', () => {
     'missing runtime key',
     'release flag changed without restart',
     'login widget flag changed without restart',
+    'collections flag changed without restart',
     'release flag missing from live runtime',
     'extra runtime key',
     'changed image default',
