@@ -281,6 +281,8 @@ export const telegramChatService = {
             eq(organizationMembers.status, 'active'),
             inArray(organizationMembers.role, ['owner', 'organizer']),
             eq(organizations.status, 'active'),
+            // удалённая группа (21.2.17) чат не привязывает
+            isNull(organizations.deletedAt),
           ),
         )
       if (!issuer) return { outcome: 'code_invalid' }

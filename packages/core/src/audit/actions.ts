@@ -12,6 +12,14 @@ export const AUDIT_ACTIONS = {
   ORG_LOGO_UPDATED: 'organization.logo_updated',
   ORG_LOGO_REMOVED: 'organization.logo_removed',
   ORG_SHORT_LINK_UPDATED: 'organization.short_link_updated',
+  // мягкое удаление и восстановление группы (21.2.17, D-15); деньги группы не меняются
+  ORG_DELETED: 'organization.deleted',
+  ORG_RESTORED: 'organization.restored',
+  // передача владения (21.2.17, D-15); токен ссылки в журнал не пишется
+  OWNERSHIP_TRANSFER_STARTED: 'ownership_transfer.started',
+  OWNERSHIP_TRANSFER_CANCELLED: 'ownership_transfer.cancelled',
+  OWNERSHIP_TRANSFER_ACCEPTED: 'ownership_transfer.accepted',
+  OWNERSHIP_TRANSFER_EXPIRED: 'ownership_transfer.expired',
   MEMBER_ADDED: 'member.added',
   MEMBER_ROLE_CHANGED: 'member.role_changed',
   MEMBER_BLOCKED: 'member.blocked',
@@ -105,3 +113,4 @@ export type AuditEntityType =
   | 'waitlist_offer'
   | 'telegram_chat'
   | 'collection'
+  | 'ownership_transfer'

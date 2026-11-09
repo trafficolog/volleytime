@@ -13,6 +13,8 @@ import {
 import type { DbOrTx } from '@volley-time/db'
 import { z } from 'zod'
 
+import { orgNotDeletedSql } from '../organization-lifecycle/live'
+
 export interface FeedItem {
   id: number
   type: (typeof notifications.$inferSelect)['type']
@@ -84,6 +86,8 @@ export const notificationFeedService = {
     const scope = and(
       eq(notifications.recipientUserId, userId),
       opts.organizationId ? eq(notifications.organizationId, opts.organizationId) : undefined,
+      // уведомления удалённой группы (21.2.17) скрыты из ленты до восстановления; строки остаются
+      orgNotDeletedSql(notifications.organizationId),
     )
     const rows = await db
       .select({

@@ -279,6 +279,14 @@ type Gate =
  * получателя в часовом поясе группы-источника откладывают всё, кроме критичных уведомлений.
  */
 async function deliveryGate(db: DbOrTx, job: ClaimedJob, now: Date): Promise<Gate> {
+  // удалённая группа (21.2.17): уведомления по ней не уходят, включая критичные; лента — skipped
+  if (job.organizationId !== null) {
+    const [org] = await db
+      .select({ deletedAt: organizations.deletedAt })
+      .from(organizations)
+      .where(eq(organizations.id, job.organizationId))
+    if (org?.deletedAt) return { action: 'skip', reason: 'group_deleted' }
+  }
   const [user] = await db
     .select({
       botBlockedAt: users.botBlockedAt,

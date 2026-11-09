@@ -7,7 +7,7 @@ export class DeeplinkConfigError extends Error {
   override name = 'DeeplinkConfigError'
 }
 
-export type StartParamKind = 'org' | 'event'
+export type StartParamKind = 'org' | 'event' | 'transfer'
 
 export function buildStartParam(kind: StartParamKind, value: string | number): string {
   const param = `${kind}_${value}`
@@ -73,6 +73,7 @@ export function parseInviteInput(input: string): string | null {
 export type StartTarget =
   | { kind: 'invite'; token: string }
   | { kind: 'event'; eventId: number; inviteToken?: string }
+  | { kind: 'transfer'; token: string }
   | { kind: 'none' }
 
 /** Разбор start_param Mini App (Task 8.8.3). */
@@ -85,5 +86,8 @@ export function resolveStartParam(param: string | null | undefined): StartTarget
   if (event) return { kind: 'event', eventId: Number(event[1]) }
   const invited = raw.match(/^event_(\d{1,12})_([A-Za-z0-9_-]{16,40})$/)
   if (invited) return { kind: 'event', eventId: Number(invited[1]), inviteToken: invited[2]! }
+  // личная ссылка передачи владения (21.2.17): токен 43 символа base64url
+  const transfer = raw.match(/^transfer_([A-Za-z0-9_-]{43})$/)
+  if (transfer) return { kind: 'transfer', token: transfer[1]! }
   return { kind: 'none' }
 }

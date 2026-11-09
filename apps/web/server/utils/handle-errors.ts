@@ -19,6 +19,7 @@ import {
   BrandingError,
   ScheduleSlotError,
   NotificationSettingsError,
+  OrganizationLifecycleError,
 } from '@volley-time/core'
 
 /** HTTP-статусы для доменных error-кодов. */
@@ -39,6 +40,19 @@ const CODE_STATUS: Record<string, number> = {
   'short_link.invalid': 422,
   'short_link.reserved': 422,
   'short_link.taken': 409,
+  // передача владения и мягкое удаление группы (21.2.17)
+  'organization.deleted': 410,
+  'organization.not_deleted': 409,
+  'organization.restore_window_closed': 410,
+  'organization.transfer_pending': 409,
+  'organization.delete_confirmation_mismatch': 422,
+  'ownership_transfer.pending_exists': 409,
+  'ownership_transfer.invalid': 404,
+  'ownership_transfer.expired': 410,
+  'ownership_transfer.cancelled': 410,
+  'ownership_transfer.used': 409,
+  'ownership_transfer.recipient_invalid': 422,
+  'ownership_transfer.recipient_not_member': 409,
   // member
   'member.already_exists': 409,
   'member.not_found': 404,
@@ -176,7 +190,8 @@ export function handleServiceError(e: unknown): never {
     e instanceof PaymentMethodError ||
     e instanceof BrandingError ||
     e instanceof ScheduleSlotError ||
-    e instanceof NotificationSettingsError
+    e instanceof NotificationSettingsError ||
+    e instanceof OrganizationLifecycleError
   ) {
     const status = CODE_STATUS[e.code] ?? 400
     throw createError({ statusCode: status, statusMessage: e.message, data: { code: e.code } })

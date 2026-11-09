@@ -43,6 +43,20 @@ describe('telegram deeplinks (4.9.2)', () => {
     expect(resolveStartParam(null)).toEqual({ kind: 'none' })
   })
 
+  it('ownership transfer start_param carries a 43-char token (21.2.17)', () => {
+    const token = 'A'.repeat(20) + '_-' + 'z9'.repeat(10) + 'Q'
+    expect(token).toHaveLength(43)
+    const param = buildStartParam('transfer', token)
+    expect(param.length).toBeLessThanOrEqual(64)
+    expect(resolveStartParam(param)).toEqual({ kind: 'transfer', token })
+    expect(buildBotStartAppDeeplink('volleytime_bot', param)).toBe(
+      `https://t.me/volleytime_bot?startapp=transfer_${token}`,
+    )
+    // другая длина — не ссылка передачи
+    expect(resolveStartParam(`transfer_${token.slice(1)}`)).toEqual({ kind: 'none' })
+    expect(resolveStartParam(`transfer_${token}x`)).toEqual({ kind: 'none' })
+  })
+
   it('event invite start_param carries event id and token (20.1.3)', () => {
     const token = 'Ab_c-1234567890XYZabcdeF'
     const param = buildEventInviteStartParam(42, token)

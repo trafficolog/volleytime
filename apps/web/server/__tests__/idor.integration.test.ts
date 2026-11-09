@@ -32,6 +32,7 @@ import {
   organizationEventBalances,
   organizationLogos,
   organizationMembers,
+  organizationOwnershipTransfers,
   organizationPaymentMethods,
   organizations,
   organizationTelegramChats,
@@ -336,6 +337,19 @@ const ROUTES: OrgRouteTable = {
     body: () => ({ title: 'Слот переименован' }),
   },
   'DELETE /api/organizations/:orgId/schedule-slots/:slotId': { access: 'manager' },
+  // 21.2.17: передача владения, удаление и восстановление — только owner. Тело удаления нарочно с
+  // неверным названием: положительный контроль проходит проверку доступа (422), фикстуры не удаляются
+  'GET /api/organizations/:orgId/ownership-transfer': { access: 'owner' },
+  'POST /api/organizations/:orgId/ownership-transfer': {
+    access: 'owner',
+    body: (ids) => ({ recipientMemberId: ids.memberId }),
+  },
+  'DELETE /api/organizations/:orgId/ownership-transfer': { access: 'owner' },
+  'POST /api/organizations/:orgId/delete': {
+    access: 'owner',
+    body: () => ({ confirmName: 'не то название' }),
+  },
+  'POST /api/organizations/:orgId/restore': { access: 'owner', body: () => ({}) },
   // 21.2.14: переключатели уведомлений группы — только manager, чужая группа недоступна
   'GET /api/organizations/:orgId/notification-settings': { access: 'manager' },
   'PATCH /api/organizations/:orgId/notification-settings': {
@@ -567,6 +581,10 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
         .select()
         .from(telegramChatLinkCodes)
         .where(eq(telegramChatLinkCodes.organizationId, orgId)),
+      db
+        .select()
+        .from(organizationOwnershipTransfers)
+        .where(eq(organizationOwnershipTransfers.organizationId, orgId)),
       db.select().from(auditLog).orderBy(asc(auditLog.id)),
       db.select().from(users).orderBy(asc(users.id)),
     ])
