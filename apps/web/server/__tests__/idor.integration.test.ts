@@ -301,13 +301,18 @@ const ROUTES: OrgRouteTable = {
     access: 'manager',
     body: () => ({ enabled: true, bank: 'Банк', cardLast4: '3214', recipient: 'Иван П.' }),
   },
-  // 21.2.16: логотип читает участник, грузит и удаляет manager; короткую ссылку задаёт manager
-  'GET /api/organizations/:orgId/logo': { access: 'member' },
+  // 21.2.16: логотип читают все без входа (решение владельца 2026-11-09), грузит и удаляет manager;
+  // короткую ссылку и предпроверку адреса — только owner
+  'GET /api/organizations/:orgId/logo': { access: 'public' },
   'POST /api/organizations/:orgId/logo': { access: 'manager', body: () => logoForm() },
   'DELETE /api/organizations/:orgId/logo': { access: 'manager' },
   'PUT /api/organizations/:orgId/short-link': {
-    access: 'manager',
+    access: 'owner',
     body: (ids) => ({ shortLink: `idor-link-${ids.orgId}` }),
+  },
+  'GET /api/organizations/:orgId/short-link/availability': {
+    access: 'owner',
+    query: '?value=idor-free-link',
   },
   // 21.2.13: правка и удаление/архив зала — manager, зал чужой группы недоступен
   'PATCH /api/organizations/:orgId/venues/:venueId': {
@@ -582,7 +587,7 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
     await assertRouteTableComplete(ROUTES)
   })
 
-  it.each(ENTRIES)(
+  it.each(ENTRIES.filter(([, spec]) => spec.access !== 'public'))(
     '%s: member of another group (any role) gets 403 and nothing changes',
     async (key, spec) => {
       const { method, route } = splitRouteKey(key)
@@ -615,7 +620,7 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
     },
   )
 
-  it.each(ENTRIES.filter(([, spec]) => spec.access !== 'tenant'))(
+  it.each(ENTRIES.filter(([, spec]) => spec.access !== 'tenant' && spec.access !== 'public'))(
     '%s: role below the matrix minimum is denied with 403',
     async (key, spec) => {
       const { method, route } = splitRouteKey(key)
@@ -636,6 +641,45 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
       expect(await snapshot(A.ids.orgId)).toBe(before)
     },
   )
+
+  // 21.2.16: логотип публичен (решение владельца 2026-11-09): без входа отдаётся логотип именно
+  // запрошенной группы; нет логотипа, нет группы и неверный id неразличимы (404); изменяют только manager
+  it('public logo: anonymous reads exactly the requested group, misses are one 404', async () => {
+    const a = await request('GET', `/api/organizations/${A.ids.orgId}/logo`)
+    const b = await request('GET', `/api/organizations/${B.ids.orgId}/logo`)
+    expect(a.status).toBe(200)
+    expect(a.headers.get('content-type')).toBe('image/png')
+    expect(a.headers.get('x-content-type-options')).toBe('nosniff')
+    expect(a.headers.get('content-security-policy')).toContain('sandbox')
+    expect(a.headers.get('cache-control')).toContain('public')
+    expect(Buffer.compare(a.bytes, PNG_BYTES)).toBe(0)
+    expect(b.status).toBe(200)
+    await organizationBrandingService.removeLogo({ userId: B.owner }, B.ids.orgId)
+    const noLogo = await request('GET', `/api/organizations/${B.ids.orgId}/logo`)
+    const missing = await request('GET', '/api/organizations/2147483000/logo')
+    const garbage = await request('GET', '/api/organizations/abc/logo')
+    for (const res of [noLogo, missing, garbage]) {
+      expect(res.status).toBe(404)
+      expect(res.text).toBe(noLogo.text)
+    }
+    // изменять анонимно нельзя
+    for (const method of ['POST', 'DELETE'] as const) {
+      const res = await request(method, `/api/organizations/${A.ids.orgId}/logo`, {
+        body: method === 'POST' ? logoForm() : undefined,
+      })
+      expect(res.status).toBe(401)
+    }
+    // обычный игрок чужой группы не может ни загрузить, ни удалить
+    const foreign = await request('DELETE', `/api/organizations/${A.ids.orgId}/logo`, {
+      user: B.owner,
+    })
+    expect(foreign.status).toBe(403)
+    expect((await request('GET', `/api/organizations/${A.ids.orgId}/logo`)).status).toBe(200)
+    await organizationBrandingService.setLogo({ userId: B.owner }, B.ids.orgId, {
+      declaredType: 'image/png',
+      data: PNG_BYTES,
+    })
+  })
 
   // 20.5.2: поиск по маркеру чужой группы ничего не находит, по своему — находит; игрок не видит платежи
   it('search: finds only own-group data and keeps payments manager-only', async () => {
@@ -762,6 +806,7 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
         member: C.player,
         manager: C.organizer,
         owner: C.owner,
+        public: undefined,
       }[spec.access]
       const res = await request(method, buildPath(route, C.ids) + (spec.query ?? ''), {
         user,

@@ -24,6 +24,7 @@ function mountCard(
     logoUpdatedAt: string | null
     shortLink: string | null
     canManage: boolean
+    canEditLink: boolean
   }> = {},
 ) {
   return mount(SettingsLogoLink, {
@@ -33,6 +34,7 @@ function mountCard(
       logoUpdatedAt: null,
       shortLink: null,
       canManage: true,
+      canEditLink: true,
       ...props,
     },
     global: { components: { GroupLogo } },
@@ -126,8 +128,19 @@ describe('SettingsLogoLink: logo', () => {
     expect(wrapper.emitted('changed')![0]![0]).toEqual({ logoUpdatedAt: null, shortLink: null })
   })
 
+  it('an organizer changes the logo but sees the short link read-only', () => {
+    const wrapper = mountCard({ canManage: true, canEditLink: false, shortLink: 'vt-minsk' })
+    expect(wrapper.find('[data-logo-choose]').exists()).toBe(true)
+    expect(wrapper.find('[data-link-save]').exists()).toBe(false)
+    expect(
+      wrapper.find<HTMLInputElement>('[data-settings-field="shortLink"]').element.readOnly,
+    ).toBe(true)
+    expect(wrapper.text()).toContain('только владелец')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('is read-only without the right to manage', () => {
-    const wrapper = mountCard({ canManage: false, shortLink: 'vt-minsk' })
+    const wrapper = mountCard({ canManage: false, canEditLink: false, shortLink: 'vt-minsk' })
     expect(wrapper.find('[data-logo-choose]').exists()).toBe(false)
     expect(wrapper.find('[data-link-save]').exists()).toBe(false)
     expect(
@@ -198,5 +211,75 @@ describe('SettingsLogoLink: short link', () => {
       body: { shortLink: null },
     })
     expect(wrapper.emitted('toast')![0]).toEqual(['Короткая ссылка снята', 'ok'])
+  })
+})
+
+describe('SettingsLogoLink: availability pre-check', () => {
+  const input = (w: ReturnType<typeof mountCard>) =>
+    w.find<HTMLInputElement>('[data-settings-field="shortLink"]')
+  const status = (w: ReturnType<typeof mountCard>) => w.find('[data-link-status]')
+
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  it('debounces typing into one request and shows the result', async () => {
+    fetchMock.mockResolvedValue({ status: 'available', value: 'vt-brest' })
+    const wrapper = mountCard()
+    for (const v of ['vt-b', 'vt-br', 'vt-bre', 'vt-brest']) await input(wrapper).setValue(v)
+    expect(status(wrapper).text()).toContain('Проверяем')
+    expect(fetchMock).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(450)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledWith('/api/organizations/7/short-link/availability', {
+      query: { value: 'vt-brest' },
+    })
+    expect(status(wrapper).text()).toContain('Адрес свободен')
+    expect(wrapper.find('[data-link-save]').attributes('disabled')).toBeUndefined()
+  })
+
+  it.each([
+    ['taken', 'занят другой группой'],
+    ['reserved', 'занято приложением'],
+  ])('%s blocks saving with an explanation', async (result, text) => {
+    fetchMock.mockResolvedValue({ status: result })
+    const wrapper = mountCard()
+    await input(wrapper).setValue('some-name')
+    await vi.advanceTimersByTimeAsync(450)
+    expect(status(wrapper).text()).toContain(text)
+    expect(wrapper.find('[data-link-save]').attributes('disabled')).toBeDefined()
+  })
+
+  it('checks the format locally without a request, and ignores the unchanged current value', async () => {
+    const wrapper = mountCard({ shortLink: 'vt-minsk' })
+    await input(wrapper).setValue('a--b')
+    await vi.advanceTimersByTimeAsync(450)
+    expect(status(wrapper).attributes('data-status')).toBe('invalid')
+    await input(wrapper).setValue('vt-minsk')
+    expect(status(wrapper).exists()).toBe(false)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('drops a stale answer when the value changed meanwhile', async () => {
+    let resolveFirst: (v: unknown) => void = () => undefined
+    fetchMock
+      .mockReturnValueOnce(new Promise((r) => (resolveFirst = r)))
+      .mockResolvedValueOnce({ status: 'available' })
+    const wrapper = mountCard()
+    await input(wrapper).setValue('first-name')
+    await vi.advanceTimersByTimeAsync(450)
+    await input(wrapper).setValue('second-name')
+    await vi.advanceTimersByTimeAsync(450)
+    resolveFirst({ status: 'taken' })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(status(wrapper).text()).toContain('Адрес свободен')
+  })
+
+  it('does not block saving when the pre-check itself fails (the save decides)', async () => {
+    fetchMock.mockRejectedValue(new Error('offline'))
+    const wrapper = mountCard()
+    await input(wrapper).setValue('some-name')
+    await vi.advanceTimersByTimeAsync(450)
+    expect(status(wrapper).exists()).toBe(false)
+    expect(wrapper.find('[data-link-save]').attributes('disabled')).toBeUndefined()
   })
 })

@@ -155,7 +155,7 @@ describe('organization logo and short link API (HTTP integration)', () => {
       expect(res.headers.get('content-type')).toBe('image/png')
       expect(res.headers.get('x-content-type-options')).toBe('nosniff')
       expect(res.headers.get('content-security-policy')).toBe("default-src 'none'; sandbox")
-      expect(res.headers.get('cache-control')).toBe('private, no-cache')
+      expect(res.headers.get('cache-control')).toBe('public, max-age=300, must-revalidate')
       expect(res.headers.get('etag')).toMatch(/^"\d+"$/)
     })
 
@@ -179,14 +179,36 @@ describe('organization logo and short link API (HTTP integration)', () => {
       expect(fresh.headers.get('etag')).not.toBe(etag)
     })
 
-    it('hides the logo from other groups and anonymous callers', async () => {
-      expect((await request('GET', logo())).status).toBe(401)
-      const foreign = await request('GET', logo(), { user: outsiderId })
-      expect(foreign.status).toBe(403)
-      const otherOwner = await request('GET', logo(), { user: otherOwnerId })
-      expect(otherOwner.status).toBe(403)
+    it('is public: anonymous callers and non-members read it, with the same sandbox headers', async () => {
+      for (const user of [undefined, outsiderId, otherOwnerId]) {
+        const res = await request('GET', logo(), user ? { user } : {})
+        expect(res.status).toBe(200)
+        expect(Buffer.compare(res.bytes, PNG)).toBe(0)
+        expect(res.headers.get('x-content-type-options')).toBe('nosniff')
+        expect(res.headers.get('content-security-policy')).toContain('sandbox')
+      }
       // у другой группы своего логотипа нет, и она не получает чужой
-      expect((await request('GET', logo(otherOrgId), { user: otherOwnerId })).status).toBe(404)
+      expect((await request('GET', logo(otherOrgId))).status).toBe(404)
+    })
+
+    it('a missing group, a group without a logo and a bad id give the same 404', async () => {
+      const noLogo = await request('GET', logo(otherOrgId))
+      const missing = await request('GET', logo(2_147_000_000))
+      const bad = await request('GET', '/api/organizations/abc/logo')
+      const zero = await request('GET', logo(0))
+      for (const res of [noLogo, missing, bad, zero]) {
+        expect(res.status).toBe(404)
+        expect(res.text).toBe(noLogo.text)
+      }
+    })
+
+    it('stays protected for changes: anonymous 401, non-member and player 403', async () => {
+      expect((await request('DELETE', logo())).status).toBe(401)
+      expect((await request('POST', logo(), { body: form(PNG, 'image/png') })).status).toBe(401)
+      for (const user of [outsiderId, playerId]) {
+        expect((await request('DELETE', logo(), { user })).status).toBe(403)
+      }
+      expect((await request('GET', logo())).status).toBe(200)
     })
 
     it('deletes the logo and falls back to the monogram state', async () => {
@@ -210,9 +232,9 @@ describe('organization logo and short link API (HTTP integration)', () => {
   })
 
   describe('short link', () => {
-    it('owner and organizer set the link; every member sees it on the group', async () => {
+    it('only the owner sets the link; every member sees it on the group', async () => {
       const set = await request('PUT', link(), {
-        user: organizerId,
+        user: ownerId,
         body: { shortLink: 'Brand-1' },
       })
       expect(set.status, set.text).toBe(200)
@@ -225,8 +247,10 @@ describe('organization logo and short link API (HTTP integration)', () => {
       expect(clear.body).toEqual({ shortLink: null })
     })
 
-    it('a player and a non-member cannot set it', async () => {
-      for (const user of [playerId, outsiderId]) {
+    it('an organizer, a player and a non-member cannot set it or check availability', async () => {
+      for (const user of [organizerId, playerId, outsiderId]) {
+        const check = await request('GET', `${link()}/availability?value=free-name`, { user })
+        expect(check.status).toBe(403)
         const res = await request('PUT', link(), { user, body: { shortLink: 'nope-nope' } })
         expect(res.status).toBe(403)
       }
@@ -253,6 +277,44 @@ describe('organization logo and short link API (HTTP integration)', () => {
       })
       expect(taken.status).toBe(409)
       expect((taken.body as { data: { code: string } }).data.code).toBe('short_link.taken')
+    })
+
+    it('availability: available, taken, reserved, invalid; own address stays available', async () => {
+      const check = async (value: string, user = ownerId, id = orgId) =>
+        (
+          await request('GET', `${link(id)}/availability?value=${encodeURIComponent(value)}`, {
+            user,
+          })
+        ).body as { status: string; value: string | null }
+      expect(await check('free-name')).toEqual({ status: 'available', value: 'free-name' })
+      expect((await check('FREE-Name')).value).toBe('free-name')
+      expect((await check('admin')).status).toBe('reserved')
+      expect((await check('app')).status).toBe('reserved')
+      for (const bad of ['', 'ab', 'a--b', 'a_b', 'абв']) {
+        expect((await check(bad)).status, bad).toBe('invalid')
+      }
+      const missing = await request('GET', `${link()}/availability`, { user: ownerId })
+      expect((missing.body as { status: string }).status).toBe('invalid')
+      await request('PUT', link(), { user: ownerId, body: { shortLink: 'mine-name' } })
+      expect((await check('mine-name')).status).toBe('available')
+      expect((await check('mine-name', otherOwnerId, otherOrgId)).status).toBe('taken')
+      // проверка ничего не записывает
+      const [row] = await db.select().from(organizations).where(eq(organizations.id, otherOrgId))
+      expect(row!.shortLink).toBeNull()
+      // чужая группа: владелец другой группы получает 403
+      const foreign = await request('GET', `${link()}/availability?value=x-name`, {
+        user: otherOwnerId,
+      })
+      expect(foreign.status).toBe(403)
+    })
+
+    it('the save still answers 409 on a race the pre-check could not see', async () => {
+      await request('PUT', link(), { user: ownerId, body: { shortLink: 'race-name' } })
+      const res = await request('PUT', link(otherOrgId), {
+        user: otherOwnerId,
+        body: { shortLink: 'race-name' },
+      })
+      expect(res.status).toBe(409)
     })
 
     it("an owner of another group cannot change this group's link", async () => {

@@ -205,6 +205,23 @@ describe('organizationBrandingService (integration)', () => {
       expect(rows[1]!.newValue).toEqual({ shortLink: null })
     })
 
+    it('pre-check reports available, taken, reserved and invalid without writing', async () => {
+      await service.setShortLink(ctx(), orgId, { shortLink: 'pre-taken' })
+      expect(await service.checkShortLink(ctx(), otherOrgId, 'Pre-Free')).toEqual({
+        status: 'available',
+        value: 'pre-free',
+      })
+      expect((await service.checkShortLink(ctx(), otherOrgId, 'PRE-taken')).status).toBe('taken')
+      // собственный адрес группы доступен
+      expect((await service.checkShortLink(ctx(), orgId, 'pre-taken')).status).toBe('available')
+      expect((await service.checkShortLink(ctx(), orgId, 'admin')).status).toBe('reserved')
+      for (const bad of ['', 'ab', 'a--b', '-abc', 'абв']) {
+        expect((await service.checkShortLink(ctx(), orgId, bad)).status, bad).toBe('invalid')
+      }
+      expect((await orgRow(otherOrgId)).shortLink).toBeNull()
+      expect(await audit(AUDIT_ACTIONS.ORG_SHORT_LINK_UPDATED)).toHaveLength(1)
+    })
+
     it('refuses an archived or missing group', async () => {
       await organizationService.archive(ctx(), orgId)
       await expect(

@@ -147,6 +147,29 @@ export const organizationBrandingService = {
   },
 
   /**
+   * Предпроверка адреса для поля ввода (21.2.16): `available` / `taken` / `reserved` / `invalid`.
+   * Те же формат и список зарезервированных, что при сохранении; собственный текущий адрес группы —
+   * `available`. Это подсказка: решает сохранение (уникальный индекс, 409 при гонке).
+   */
+  async checkShortLink(
+    ctx: ServiceContext,
+    orgId: number,
+    raw: string,
+  ): Promise<{ status: 'available' | 'taken' | 'reserved' | 'invalid'; value: string | null }> {
+    const parsed = SetShortLinkInput.safeParse({ shortLink: raw })
+    if (!parsed.success || parsed.data.shortLink === null) {
+      return { status: 'invalid', value: null }
+    }
+    const value = parsed.data.shortLink
+    if (isReservedShortLink(value)) return { status: 'reserved', value }
+    const [other] = await getDb(ctx)
+      .select({ id: organizations.id })
+      .from(organizations)
+      .where(and(eq(organizations.shortLink, value), ne(organizations.id, orgId)))
+    return { status: other ? 'taken' : 'available', value }
+  },
+
+  /**
    * Задать или снять (`null`) короткую ссылку группы. Формат и регистр — `SetShortLinkInput`
    * (хранится строчными), зарезервированные слова отклоняются, занятый адрес — `ShortLinkTakenError`.
    * Гонку двух групп решает уникальный индекс: побеждает одна. Публичную страницу по адресу

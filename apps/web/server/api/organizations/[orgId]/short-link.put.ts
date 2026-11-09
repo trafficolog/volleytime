@@ -1,4 +1,4 @@
-import { organizationBrandingService, requireCanManageContent } from '@volley-time/core'
+import { organizationBrandingService, requireOrgOwner } from '@volley-time/core'
 
 defineRouteMeta({
   openAPI: {
@@ -10,7 +10,7 @@ defineRouteMeta({
       'Зарезервированные слова (app, m, api, admin, login и маршруты приложения) — 422 ' +
       '(short_link.reserved), занятый адрес — 409 (short_link.taken). Отдельное значение, не slug ' +
       'группы. Текущее значение читается из GET /api/organizations/{orgId} (organization.shortLink). ' +
-      'Публичную страницу по адресу строит 24.1.2. Владелец и организатор.',
+      'Публичную страницу по адресу строит 24.1.2. Только владелец (решение владельца 2026-11-09).',
     parameters: [{ in: 'path', name: 'orgId', required: true, schema: { type: 'integer' } }],
     requestBody: {
       required: true,
@@ -27,7 +27,7 @@ defineRouteMeta({
     responses: {
       200: { description: '{ shortLink: string | null }' },
       401: { description: 'Нет сессии' },
-      403: { description: 'Роль ниже организатора (forbidden.manage_content)' },
+      403: { description: 'Не владелец группы (forbidden.owner_only)' },
       404: { description: 'Группа не найдена' },
       409: { description: 'Адрес занят (short_link.taken)' },
       410: { description: 'Группа в архиве (organization.archived)' },
@@ -37,7 +37,7 @@ defineRouteMeta({
 })
 
 export default defineApiHandler(async (event) => {
-  requireCanManageContent(event.context.member ?? null)
+  requireOrgOwner(event.context.member ?? null)
   const body = await readBody(event)
   return organizationBrandingService.setShortLink(
     createServiceContextFromEvent(event),

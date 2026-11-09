@@ -26,7 +26,10 @@ const props = defineProps<{
   name: string
   logoUpdatedAt: string | Date | null
   shortLink: string | null
+  /** Логотип: владелец и организатор. */
   canManage: boolean
+  /** Короткая ссылка: только владелец (решение владельца 2026-11-09). */
+  canEditLink: boolean
 }>()
 const emit = defineEmits<{
   toast: [message: string, tone: 'ok' | 'danger']
@@ -124,7 +127,57 @@ const linkDraft = ref(props.shortLink ?? '')
 const linkError = ref('')
 const linkBusy = ref(false)
 const normalized = computed(() => linkDraft.value.trim().toLowerCase())
+
+// Предпроверка адреса при вводе (debounce): формат — в браузере, занятость и зарезервированные
+// слова — сервер. Подсказка: окончательно решает сохранение (409 при гонке).
+type Availability = 'checking' | 'available' | 'taken' | 'reserved' | 'invalid'
+const availability = ref<Availability | null>(null)
+const CHECK_DELAY_MS = 400
+let checkTimer: ReturnType<typeof setTimeout> | undefined
+let checkSeq = 0
+onBeforeUnmount(() => clearTimeout(checkTimer))
+
+const AVAILABILITY_TEXT: Record<Availability, string> = {
+  checking: 'Проверяем адрес…',
+  available: 'Адрес свободен',
+  taken: 'Этот адрес уже занят другой группой',
+  reserved: 'Это слово занято приложением',
+  invalid: 'Строчные латинские буквы, цифры и дефис; от 3 до 32 знаков',
+}
 const linkDirty = computed(() => normalized.value !== (props.shortLink ?? ''))
+watch(normalized, (value) => {
+  clearTimeout(checkTimer)
+  const seq = ++checkSeq
+  linkError.value = ''
+  if (!props.canEditLink || value === (props.shortLink ?? '') || value === '') {
+    availability.value = null
+    return
+  }
+  if (validateShortLink(value)) {
+    availability.value = 'invalid'
+    return
+  }
+  availability.value = 'checking'
+  checkTimer = setTimeout(async () => {
+    try {
+      const res = await $fetch<{ status: Exclude<Availability, 'checking'> }>(
+        `${base.value}/short-link/availability`,
+        { query: { value } },
+      )
+      if (seq === checkSeq) availability.value = res.status
+    } catch {
+      // подсказка недоступна: сохранение всё равно проверит адрес
+      if (seq === checkSeq) availability.value = null
+    }
+  }, CHECK_DELAY_MS)
+})
+const linkBlocked = computed(
+  () =>
+    availability.value === 'taken' ||
+    availability.value === 'reserved' ||
+    availability.value === 'invalid',
+)
+
 watch(
   () => props.shortLink,
   (value) => {
@@ -133,7 +186,7 @@ watch(
 )
 
 async function saveLink() {
-  if (!props.canManage || linkBusy.value || !linkDirty.value) return
+  if (!props.canEditLink || linkBusy.value || !linkDirty.value) return
   linkError.value = ''
   const value = normalized.value === '' ? null : normalized.value
   if (value !== null) {
@@ -151,6 +204,7 @@ async function saveLink() {
       body: { shortLink: value },
     })
     linkDraft.value = res.shortLink ?? ''
+    availability.value = null
     emit('changed', {
       logoUpdatedAt: props.logoUpdatedAt ? new Date(props.logoUpdatedAt).toISOString() : null,
       shortLink: res.shortLink,
@@ -269,12 +323,22 @@ async function saveLink() {
             placeholder="vt-minsk"
             :aria-describedby="describedby"
             :aria-invalid="invalid"
-            :readonly="!canManage"
+            :readonly="!canEditLink"
             :disabled="linkBusy"
           />
         </div>
+        <p
+          v-if="availability"
+          data-link-status
+          :data-status="availability"
+          class="vt-settings-hint"
+          role="status"
+          aria-live="polite"
+        >
+          {{ AVAILABILITY_TEXT[availability] }}
+        </p>
       </SettingsField>
-      <div v-if="canManage" class="vt-settings-actions">
+      <div v-if="canEditLink" class="vt-settings-actions">
         <button
           type="button"
           class="vt-btn vt-btn--ghost vt-btn--sm"
@@ -287,12 +351,12 @@ async function saveLink() {
           type="submit"
           class="vt-btn vt-btn--ink vt-btn--sm"
           data-link-save
-          :disabled="!linkDirty || linkBusy"
+          :disabled="!linkDirty || linkBusy || linkBlocked"
         >
           {{ linkBusy ? 'Сохраняем…' : 'Сохранить ссылку' }}
         </button>
       </div>
-      <p v-else class="vt-settings-hint">Менять логотип и ссылку могут владелец и организатор.</p>
+      <p v-else class="vt-settings-hint">Менять короткую ссылку может только владелец группы.</p>
     </form>
   </section>
 </template>

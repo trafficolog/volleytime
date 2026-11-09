@@ -196,7 +196,13 @@ async function archive() {
           class="vt-settings-note"
           role="note"
         >
-          Изменять настройки может только владелец группы. Вы видите текущие значения.
+          <template v-if="section === 'profile'">
+            Название, описание и короткую ссылку меняет только владелец группы; логотип — владелец и
+            организатор. Вы видите текущие значения.
+          </template>
+          <template v-else>
+            Изменять настройки может только владелец группы. Вы видите текущие значения.
+          </template>
         </p>
         <div v-if="section === 'profile'" class="vt-settings-stack">
           <SettingsLogoLink
@@ -205,6 +211,7 @@ async function archive() {
             :logo-updated-at="data.organization.logoUpdatedAt"
             :short-link="data.organization.shortLink"
             :can-manage="canManageBranding"
+            :can-edit-link="isOwner"
             @toast="toast.show"
             @changed="onBrandingChanged"
           />
