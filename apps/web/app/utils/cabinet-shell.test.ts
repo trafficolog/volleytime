@@ -15,14 +15,15 @@ describe('cabinet sidebar sections (20.5.3)', () => {
       'collections',
       'reports',
     ])
-    expect(sections[1]!.items.map((i) => i.key)).toEqual(['settings'])
-    expect(sections[1]!.items[0]!.to).toBe('/app/orgs/7/settings')
+    expect(sections[1]!.items.map((i) => i.key)).toEqual(['billing', 'settings'])
+    expect(sections[1]!.items[0]!.to).toBe('/app/orgs/7/billing')
+    expect(sections[1]!.items[1]!.to).toBe('/app/orgs/7/settings')
   })
 
   it('hides Абонементы when subscriptions are off and never links to pages that do not exist yet', () => {
     const keys = cabinetNavSections(7, false).flatMap((s) => s.items.map((i) => i.key))
     expect(keys).not.toContain('plans')
-    expect(keys).not.toContain('billing')
+    expect(keys).toContain('billing')
     expect(keys).not.toContain('payments')
   })
 

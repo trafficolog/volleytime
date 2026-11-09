@@ -2,11 +2,11 @@
 id: '21.2.15'
 phase: '21'
 epic: '21.2'
-status: in_progress
+status: done
 release: 'v0.3.0'
 sync_state: synced
-last_reviewed: 2026-10-15
-status_note: 'Реализация в PR (ветка feat/21.2.15-bot-status): статус из GET telegram-chat, тест-сообщение POST telegram-chat/test-message (3/мин на группу), переподключение = отвязка + новый код /link, invite-ссылка с копированием. Число участников чата не реализовано: нужен новый контракт бота (getChatMemberCount) — вопрос владельцу. Визуальная сверка и ревью Opus — до merge.'
+last_reviewed: 2026-11-09
+status_note: 'Выполнено: PR #235 смёржен (merge-коммит c2804b1 на main; ревью Opus и CI пройдены, вердикт merge). Статус из GET telegram-chat, тест-сообщение POST telegram-chat/test-message (3/мин на группу), «Переподключить» = отвязка + новый код /link с подтверждением (решение владельца 2026-11-09), invite-ссылка с копированием. Число участников чата и статус webhook перенесены в v0.3.1, карточка 21.4.6 (новый контракт web↔bot); хвосты — в 21.4.1. Отчёт сверки: docs/operations/qa/2026-11-09-21-2-15-settings-bot-status-visual.md.'
 ref_id: 'W-11'
 complexity: M
 impl_model: claude-sonnet-5-5
@@ -15,7 +15,7 @@ review_gate: opus
 roles: [BE, FE]
 depends_on: ['20.3.3', '20.5.7']
 supersedes: []
-decisions: []
+decisions: ['Логотип, короткая ссылка и статус бота (журнал решений, 2026-11-09)']
 estimated_hours: '4-8'
 reference:
   spec: 'docs/design/reference-v3/specs/03-organizer-web/W-11-settings.md'

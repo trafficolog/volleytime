@@ -2,11 +2,11 @@
 id: '21.2.8'
 phase: '21'
 epic: '21.2'
-status: todo
+status: in_progress
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-10-12
-status_note: ''
+status_note: 'Реализовано в PR (ветка trafficolog/feat/21.2.8-balance-billing): страница /app/orgs/:orgId/billing, пункт «Баланс и оплата» в разделе «Платформа»; только FE поверх API 20.2.1, без миграций и серверных изменений. Визуальная сверка: docs/operations/qa/2026-11-09-21-2-8-balance-billing-visual.md. Ждёт ревью Opus и CI.'
 ref_id: 'W-12'
 complexity: M
 impl_model: claude-sonnet-5-5

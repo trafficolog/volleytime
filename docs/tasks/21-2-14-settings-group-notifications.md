@@ -2,11 +2,11 @@
 id: '21.2.14'
 phase: '21'
 epic: '21.2'
-status: in_progress
+status: done
 release: 'v0.3.0'
 sync_state: synced
-last_reviewed: 2026-10-15
-status_note: 'Реализовано в PR (ветка trafficolog/feat/21.2.14-group-notifications): миграция 0037, API notification-settings, проверка в deliveryGate, подраздел «Уведомления». Отчёт сверки: docs/operations/qa/2026-11-08-21-2-14-settings-notifications-visual.md. Ждёт ревью Opus и CI.'
+last_reviewed: 2026-11-09
+status_note: 'Выполнено: PR #231 смёржен (merge-коммит e19e3b2 на main; ревью Opus и CI пройдены, вердикт merge). Миграция 0037, API notification-settings, проверка в deliveryGate, подраздел «Уведомления»; переключаются только напоминания за 24 и 2 часа (решение владельца 2026-11-06, журнал 2026-11-08); хвост — в 21.4.1. Отчёт сверки: docs/operations/qa/2026-11-08-21-2-14-settings-notifications-visual.md.'
 ref_id: 'W-11'
 complexity: M
 impl_model: claude-sonnet-5-5
@@ -15,7 +15,7 @@ review_gate: opus
 roles: [BE, FE]
 depends_on: ['20.3.2', '20.3.3', '20.5.7']
 supersedes: []
-decisions: []
+decisions: ['Настройки группы: способы оплаты, уведомления, логотип (журнал решений, 2026-11-08)']
 estimated_hours: '4-8'
 reference:
   spec: 'docs/design/reference-v3/specs/03-organizer-web/W-11-settings.md'

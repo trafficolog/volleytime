@@ -578,6 +578,16 @@
       "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
     },
     {
+      "id": "cabinet-billing",
+      "title": "Кабинет: баланс и оплата",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/billing",
+      "references": ["4-cabinet/16-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
       "id": "cabinet-collections-new",
       "title": "Кабинет: новый сбор",
       "viewport": "cabinet",
@@ -585,6 +595,16 @@
       "org": "vt",
       "path": "/app/orgs/{org}/collections/new",
       "references": ["4-cabinet/12-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
+      "id": "cabinet-notifications",
+      "title": "Кабинет: уведомления (лента)",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/notifications",
+      "references": ["4-cabinet/15-screen.png"],
       "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
     },
     {

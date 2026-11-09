@@ -125,6 +125,7 @@ useHead(() => ({
               :org-id="organization.id"
               :time-zone="organization.defaultTimezone"
             />
+            <NotificationBell :org-id="organization.id" :to="`${base}/notifications`" />
           </div>
           <NuxtLink to="/app?choose=1" class="vt-btn vt-btn--ghost vt-btn--sm"
             >Сменить группу</NuxtLink
