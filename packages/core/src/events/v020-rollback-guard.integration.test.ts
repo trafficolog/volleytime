@@ -120,6 +120,18 @@ const cases: Array<{
       })
     },
   },
+  // мягко удалённая группа (21.2.17): прежний runtime снова показал бы её участникам, открыл
+  // запись и оплату, а планировщик зафиксировал бы split — деньги в окне восстановления изменились бы
+  {
+    capability: 'groupSoftDelete',
+    name: 'group-soft-delete',
+    data: 'soft-deleted group',
+    seed: (s) =>
+      db
+        .update(organizations)
+        .set({ deletedAt: sql`now()`, restoreUntil: sql`now() + interval '30 days'` })
+        .where(eq(organizations.id, s.organizationId)),
+  },
 ]
 
 afterAll(closeDb)
@@ -158,6 +170,7 @@ describe(
             inviteMode: '1',
             scheduler: '1',
             collections: '1',
+            groupSoftDelete: '1',
           }
           f.targets.bot = { ...f.targets.web }
           f.targets.web[capability] = '<no value>'
@@ -195,6 +208,7 @@ const vectorIndex: Record<RollbackCapability, number> = {
   inviteMode: 2,
   scheduler: 3,
   collections: 4,
+  groupSoftDelete: 5,
 }
 type Ids = { org: number; user: number; event: number }
 // Boundary rows that must NOT require the capability, each paired with the minimal change that does.
@@ -283,6 +297,21 @@ const boundaries: Array<{
       `WITH c AS (INSERT INTO collections (organization_id, title, status, created_by_user_id) VALUES (${org}, 'Форма', 'active', ${user}) RETURNING id) INSERT INTO payments (organization_id, user_id, collection_id, amount, method, status) SELECT ${org}, ${user}, c.id, 1500, 'cash', '${status}' FROM c`,
     positive: () => `UPDATE payments SET status = 'pending' WHERE collection_id IS NOT NULL`,
   })),
+  {
+    name: 'restored group',
+    capability: 'groupSoftDelete',
+    negative: ({ org }) =>
+      `UPDATE organizations SET deleted_at = now() - interval '1 day', restore_until = now() + interval '29 days' WHERE id = ${org}; UPDATE organizations SET deleted_at = NULL, restore_until = NULL WHERE id = ${org}`,
+    positive: ({ org }) =>
+      `UPDATE organizations SET deleted_at = now(), restore_until = now() + interval '30 days' WHERE id = ${org}`,
+  },
+  {
+    name: 'archived group',
+    capability: 'groupSoftDelete',
+    negative: ({ org }) => `UPDATE organizations SET status = 'archived' WHERE id = ${org}`,
+    positive: ({ org }) =>
+      `UPDATE organizations SET deleted_at = now() - interval '40 days', restore_until = now() - interval '10 days' WHERE id = ${org}`,
+  },
 ]
 
 class Rollback extends Error {}
@@ -295,8 +324,8 @@ function lastResult(result: unknown): Row[] {
 }
 
 describe('v0.2.0 rollback data guard boundaries (real PostgreSQL)', () => {
-  it('reads exactly the five guard predicates from the script', () => {
-    expect(guardRows).toHaveLength(5)
+  it('reads exactly the six guard predicates from the script', () => {
+    expect(guardRows).toHaveLength(6)
     expect(guardRows[vectorIndex.multiSeat]).toContain('waitlist_seats > 0')
   })
   it('a schema shadowing public earlier in the session search_path cannot answer the guard', async () => {
@@ -307,6 +336,9 @@ describe('v0.2.0 rollback data guard boundaries (real PostgreSQL)', () => {
             'TRUNCATE events, bookings, invite_links, waitlist_offers, payments, collections CASCADE',
           ),
         )
+        await tx.execute(
+          sql.raw('UPDATE organizations SET deleted_at = NULL, restore_until = NULL'),
+        )
         // Every shadow table holds exactly the row each predicate looks for.
         for (const statement of [
           'CREATE SCHEMA vt_guard_shadow',
@@ -315,6 +347,7 @@ describe('v0.2.0 rollback data guard boundaries (real PostgreSQL)', () => {
           "CREATE TABLE vt_guard_shadow.invite_links AS SELECT 'event_join'::text AS type, false AS is_revoked, NULL::timestamptz AS expires_at, NULL::int AS max_uses, 0 AS uses_count",
           "CREATE TABLE vt_guard_shadow.waitlist_offers AS SELECT 'offered'::text AS status",
           "CREATE TABLE vt_guard_shadow.payments AS SELECT 1 AS collection_id, 'pending'::text AS status",
+          'CREATE TABLE vt_guard_shadow.organizations AS SELECT now() AS deleted_at',
           'SET LOCAL search_path TO vt_guard_shadow, public',
         ])
           await tx.execute(sql.raw(statement))
@@ -324,7 +357,7 @@ describe('v0.2.0 rollback data guard boundaries (real PostgreSQL)', () => {
           vector += Object.values(row!)[0] ? 't' : 'f'
         }
         // The guard reads only public, which is clean: the shadow rows neither deny nor allow.
-        expect(vector).toBe('fffff')
+        expect(vector).toBe('ffffff')
         throw new Rollback()
       })
       .catch((error: unknown) => {
@@ -352,6 +385,9 @@ describe('v0.2.0 rollback data guard boundaries (real PostgreSQL)', () => {
               'TRUNCATE events, bookings, invite_links, waitlist_offers, payments, collections CASCADE',
             ),
           )
+          await tx.execute(
+            sql.raw('UPDATE organizations SET deleted_at = NULL, restore_until = NULL'),
+          )
           const [user] = await tx
             .insert(users)
             .values({ email: `v020-boundary-${crypto.randomUUID()}@test.by` })
@@ -376,11 +412,11 @@ describe('v0.2.0 rollback data guard boundaries (real PostgreSQL)', () => {
             })
             .returning()
           const ids = { org: org!.id, user: user!.id, event: event!.id }
-          expect(await vector(), 'clean slate').toBe('fffff')
+          expect(await vector(), 'clean slate').toBe('ffffff')
           for (const statement of negative(ids).split('; ')) await tx.execute(sql.raw(statement))
-          expect(await vector(), 'boundary row').toBe('fffff')
+          expect(await vector(), 'boundary row').toBe('ffffff')
           await tx.execute(sql.raw(positive(ids)))
-          const expected = ['f', 'f', 'f', 'f', 'f']
+          const expected = ['f', 'f', 'f', 'f', 'f', 'f']
           expected[vectorIndex[capability]] = 't'
           expect(await vector(), 'paired positive row').toBe(expected.join(''))
           throw new Rollback()

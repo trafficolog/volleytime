@@ -12,8 +12,10 @@ const props = withDefaults(
     danger?: boolean
     /** Шире 360 px: диалог с перечнем последствий (20.5.6). */
     wide?: boolean
+    /** Подтверждение недоступно, пока не выполнено условие (ввод названия группы, 21.2.17). */
+    confirmDisabled?: boolean
   }>(),
-  { cancelLabel: 'Отмена', wide: false },
+  { cancelLabel: 'Отмена', wide: false, confirmDisabled: false },
 )
 const emit = defineEmits<{ confirm: [] }>()
 
@@ -27,7 +29,12 @@ let trigger: HTMLElement | null = null
 const previousInert = new Map<HTMLElement, boolean>()
 
 function controls(): HTMLElement[] {
-  return [...(panel.value?.querySelectorAll<HTMLElement>('button:not([disabled])') ?? [])]
+  // поля в теле диалога (ввод названия группы, 21.2.17) входят в цикл фокуса вместе с кнопками
+  return [
+    ...(panel.value?.querySelectorAll<HTMLElement>(
+      'input:not([disabled]), textarea:not([disabled]), button:not([disabled])',
+    ) ?? []),
+  ]
 }
 
 function restore() {
@@ -38,6 +45,7 @@ function restore() {
 }
 
 function confirm() {
+  if (props.confirmDisabled) return
   emit('confirm')
   open.value = false
 }
@@ -141,6 +149,7 @@ onUnmounted(restore)
             type="button"
             class="vt-btn vt-btn--sm"
             :class="danger ? 'vt-btn--rose' : 'vt-btn--ink'"
+            :disabled="confirmDisabled"
             @click="confirm"
           >
             {{ confirmLabel }}

@@ -1873,6 +1873,30 @@ ol.vt-desktop-event-detail__rows > li {
 .vt-settings-actions--start {
   justify-content: flex-start;
 }
+/* личная ссылка передачи владения (21.2.17): поле только для чтения и «Скопировать» */
+.vt-settings-transfer-links {
+  display: grid;
+  gap: 0.75rem;
+  padding: 14px;
+  border-radius: var(--r-chip);
+  border: 1px dashed color-mix(in oklab, var(--vt-rose) 35%, transparent);
+}
+.vt-settings-copy {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.vt-settings-copy .vt-input {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-xs);
+}
+/* группа удалена (21.2.17): окно восстановления вместо кабинета */
+.vt-group-deleted {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 32rem;
+}
 .vt-settings-stepper {
   display: flex;
   align-items: center;

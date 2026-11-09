@@ -38,6 +38,14 @@ describe('desktop organization entry', () => {
     expect(resolveDesktopOrgAccess(null, null, 7, 503)).toBe('error')
     expect(resolveDesktopOrgAccess(null, null, 7)).toBe('error')
   })
+
+  it('shows the deleted state instead of the cabinet (21.2.17)', () => {
+    // участникам удалённой группы сервер отвечает 410, владельцу — карточкой с deletedAt
+    expect(resolveDesktopOrgAccess(null, null, 7, 410, 'organization.deleted')).toBe('deleted')
+    const deleted = { id: 7, status: 'active', deletedAt: '2026-11-09T10:00:00.000Z' }
+    expect(resolveDesktopOrgAccess(deleted, owner, 7)).toBe('deleted')
+    expect(resolveDesktopOrgAccess({ ...deleted, deletedAt: null }, owner, 7)).toBe('ready')
+  })
 })
 
 describe('desktop navigation', () => {
