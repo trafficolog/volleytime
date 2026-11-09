@@ -1,5 +1,6 @@
 import { memberService, organizationService } from '@volley-time/core'
 import { closeDb, db, eq, events, organizations, users, venues } from '@volley-time/db'
+import { dateToZonedInput } from '@volley-time/shared'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { createTestApi } from './harness'
@@ -126,8 +127,12 @@ describe('cabinet events: search, pagination and export (21.2.10)', () => {
     // чужой зал не раскрывает ничего и не ломает запрос
     expect(await list(ownerId, `&venueId=${otherHallId}`)).toMatchObject({ total: 0, events: [] })
 
-    const iso = (d: Date) => d.toISOString().slice(0, 10)
-    const day1 = iso(inHall.startsAt)
+    // календарный день события — в часовом поясе группы (как фильтр), а не по UTC
+    const org = await db.query.organizations.findFirst({
+      where: eq(organizations.id, orgId),
+      columns: { defaultTimezone: true },
+    })
+    const day1 = dateToZonedInput(inHall.startsAt, org!.defaultTimezone).slice(0, 10)
     const exact = await list(ownerId, `&from=${day1}&to=${day1}`)
     expect(exact.total).toBe(2)
     const before = await list(ownerId, `&from=2000-01-01&to=2000-01-02`)
