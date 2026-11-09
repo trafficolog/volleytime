@@ -18,6 +18,7 @@ describe('organizer Mini App navigation', () => {
     expect(organizerMenuLinks(base, { role: 'owner', status: 'active' }, true)).toEqual([
       { to: `${base}/events/new`, label: 'Создать событие' },
       { to: `${base}/invite`, label: 'Пригласить' },
+      { to: `${base}/reports`, label: 'Отчёт за месяц' },
       { to: `${base}/plans`, label: 'Планы' },
       { to: `${base}/settings`, label: 'Настройки' },
       { to: `${base}/audit`, label: 'Журнал' },
@@ -28,6 +29,7 @@ describe('organizer Mini App navigation', () => {
     expect(organizerMenuLinks(base, { role: 'organizer', status: 'active' }, false)).toEqual([
       { to: `${base}/events/new`, label: 'Создать событие' },
       { to: `${base}/invite`, label: 'Пригласить' },
+      { to: `${base}/reports`, label: 'Отчёт за месяц' },
       { to: `${base}/audit`, label: 'Журнал' },
     ])
   })

@@ -5,6 +5,7 @@ import {
   eq,
   eventBalanceEntries,
   events,
+  organizationNotificationSettings,
   organizations,
   payments,
   scheduledJobs,
@@ -914,6 +915,102 @@ describe('event jobs (20.3.1, PostgreSQL)', { timeout: 60_000 }, () => {
       expect(all).toHaveLength(2)
       expect(all[1]!.text).toContain('Через 2 часа')
       expect(ev.id).toBeGreaterThan(0)
+    })
+
+    describe('group switches (21.2.14)', () => {
+      const setOff = (org: number, type: 'reminder_24h' | 'reminder_2h') =>
+        db
+          .insert(organizationNotificationSettings)
+          .values({ organizationId: org, type, enabled: false })
+      const jobOf = (eventId: number, kind: string) =>
+        db
+          .select()
+          .from(scheduledJobs)
+          .where(eq(scheduledJobs.eventId, eventId))
+          .then((rows) => rows.find((r) => r.kind === kind))
+
+      it('does not send a switched-off reminder to this group only; other types and groups are unaffected', async () => {
+        const ev = await makeEvent({ capacity: 5, price: 0 })
+        const [a] = await players(1)
+        await bookingService.book({ userId: a! }, orgId, ev.id, { method: 'free' })
+        // вторая группа с тем же событием и игроком: настройка первой её не касается
+        const otherOwner = (
+          await db
+            .insert(users)
+            .values({ email: `ej-o2-${crypto.randomUUID()}@t.by` })
+            .returning()
+        )[0]!
+        const otherOrg = (
+          await organizationService.create({ userId: otherOwner.id }, { name: 'Other' })
+        ).id
+        const [p2] = await db
+          .insert(users)
+          .values({
+            email: `ej-p2-${crypto.randomUUID()}@t.by`,
+            telegramUserId: BigInt(Math.floor(Math.random() * 1e12)),
+          })
+          .returning()
+        await memberService.add(
+          { userId: otherOwner.id },
+          { organizationId: otherOrg, userId: p2!.id },
+        )
+        const ev2 = await eventService.create({ userId: otherOwner.id }, otherOrg, {
+          title: 'Чужая',
+          startsAt: new Date(BASE + 48 * H),
+          endsAt: new Date(BASE + 50 * H),
+          price: 0,
+          capacity: 5,
+        })
+        await bookingService.book({ userId: p2!.id }, otherOrg, ev2.id, { method: 'free' })
+
+        await setOff(orgId, 'reminder_24h')
+        at(24 * H)
+        await tick()
+        await tick()
+        expect(await sentTo(a!)).toHaveLength(0)
+        expect(await sentTo(p2!.id)).toHaveLength(1)
+        expect(await jobOf(ev.id, 'reminder_24h')).toMatchObject({
+          status: 'skipped',
+          lastError: 'group_disabled',
+        })
+
+        // напоминание за 2 часа в той же группе по-прежнему приходит
+        at(46 * H)
+        await tick()
+        await tick()
+        expect(await sentTo(a!)).toHaveLength(1)
+        expect((await sentTo(a!))[0]!.text).toContain('Через 2 часа')
+      })
+
+      it('sends again after the type is switched back on', async () => {
+        const ev = await makeEvent({ capacity: 5, price: 0 })
+        const [a] = await players(1)
+        await bookingService.book({ userId: a! }, orgId, ev.id, { method: 'free' })
+        await setOff(orgId, 'reminder_2h')
+        await db
+          .update(organizationNotificationSettings)
+          .set({ enabled: true })
+          .where(eq(organizationNotificationSettings.organizationId, orgId))
+        at(46 * H)
+        await tick()
+        await tick()
+        expect(await sentTo(a!)).toHaveLength(1)
+      })
+
+      it('always delivers critical notifications even if every switchable type is off', async () => {
+        const [a] = await players(1)
+        await setOff(orgId, 'reminder_24h')
+        await setOff(orgId, 'reminder_2h')
+        await enqueueNotification(db, {
+          type: 'payment_confirmed',
+          userId: a!,
+          params: { organizationId: orgId },
+          dedupKey: `payment_confirmed:test:${a}`,
+          organizationId: orgId,
+        })
+        await processDueJobs({ now: new Date(), paceMs: 0 })
+        expect(await sentTo(a!)).toHaveLength(1)
+      })
     })
 
     it('retries delivery with backoff when the bot is down, without duplicates', async () => {

@@ -44,8 +44,10 @@ beforeEach(() => {
   vi.stubGlobal('definePageMeta', () => undefined)
   vi.stubGlobal('useRoute', () => ({ params: { orgId: '30' } }))
   vi.stubGlobal('useTelegram', () => ({ confirm: () => Promise.resolve(true) }))
+  vi.stubGlobal('useOrgTimezone', () => ({ tz: ref('Europe/Minsk') }))
   vi.stubGlobal('useMembers', () => ({
     members: ref(activeMembers),
+    statsPeriod: ref(null),
     loading: ref(false),
     error: ref(null),
     fetch: vi.fn(),
