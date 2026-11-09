@@ -1,6 +1,7 @@
 import { closeDb, db, eq, events, eventSeries, organizations, users } from '@volley-time/db'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
+import { buildSeriesRule } from '../../app/utils/event-series'
 import { buildWizardSeries, wizardStartDate } from '../../app/utils/org-wizard'
 
 import { createTestApi } from './harness'
@@ -109,8 +110,25 @@ describe('group creation wizard API flow (HTTP integration)', () => {
   it('one key per wizard run: retry replays, an edited schedule gets 409, one series and one charge', async () => {
     const org = await createGroup()
     const startDate = wizardStartDate(new Date(), org.defaultTimezone)
-    const make = (days: number[]) =>
-      buildWizardSeries({ name: 'Волейбол по средам', days, time: '20:00', seats: '14', startDate })
+    // Серия ограничена двумя событиями (а не «месяцем»): число сред в месяце зависит от даты
+    // запуска (4 или 5), и при 5 событиях баланс 5 обнулился бы — тест зависел бы от календаря.
+    const make = (days: number[]) => ({
+      ...buildWizardSeries({
+        name: 'Волейбол по средам',
+        days,
+        time: '20:00',
+        seats: '14',
+        startDate,
+      }),
+      rule: buildSeriesRule({
+        freq: 'weekly',
+        weekdays: days,
+        startDate,
+        endMode: 'count',
+        span: 'month',
+        count: 2,
+      }),
+    })
     const key = 'wizard-run-key-0002'
     const post = (body: ReturnType<typeof make>) =>
       request('POST', `/api/organizations/${org.id}/series`, {
@@ -118,7 +136,7 @@ describe('group creation wizard API flow (HTTP integration)', () => {
         body: { ...body, idempotencyKey: key },
       })
 
-    // одна дата в неделю: событий меньше баланса, остаток остаётся выше нуля
+    // два события при балансе 5: остаток всегда выше нуля, на любую дату запуска
     const first = await post(make([3]))
     expect(first.status, first.text).toBe(200)
     const created = first.body as { published: number; balanceAfter: number }
