@@ -100,11 +100,7 @@ export async function closeDueEvents(now: Date, limit = 100): Promise<CloseSumma
         // группу могли удалить между выборкой и lock: проверка под блокировкой строки группы
         if (!event || (await isOrgDeletedLocked(tx, event.organizationId)))
           return 'skipped' as const
-        if (
-          !isAutoCloseCandidate(event) ||
-          event.startsAt <= now ||
-          closeMomentOf(event) > now
-        )
+        if (!isAutoCloseCandidate(event) || event.startsAt <= now || closeMomentOf(event) > now)
           return 'skipped' as const
         // метка ручного закрытия могла появиться между выборкой и lock (переоткрытие в окне)
         const [manual] = await tx
