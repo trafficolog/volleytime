@@ -42,6 +42,7 @@ export function desktopNavItems(orgId: number, subscriptionsEnabled: boolean) {
     { key: 'cashbox', label: 'Касса', to: `${base}/cashbox` },
     { key: 'collections', label: 'Сборы', to: `${base}/collections` },
     { key: 'reports', label: 'Отчёты', to: `${base}/reports` },
+    { key: 'billing', label: 'Баланс и оплата', to: `${base}/billing` },
     { key: 'settings', label: 'Настройки', to: `${base}/settings` },
   ]
 }

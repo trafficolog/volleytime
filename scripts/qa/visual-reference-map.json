@@ -578,6 +578,16 @@
       "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
     },
     {
+      "id": "cabinet-billing",
+      "title": "Кабинет: баланс и оплата",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/billing",
+      "references": ["4-cabinet/16-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
       "id": "cabinet-collections-new",
       "title": "Кабинет: новый сбор",
       "viewport": "cabinet",
