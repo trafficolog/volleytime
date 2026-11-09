@@ -2,11 +2,11 @@
 id: '21.2.8'
 phase: '21'
 epic: '21.2'
-status: in_progress
+status: done
 release: 'v0.3.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: 'Реализовано в PR (ветка trafficolog/feat/21.2.8-balance-billing): страница /app/orgs/:orgId/billing, пункт «Баланс и оплата» в разделе «Платформа»; только FE поверх API 20.2.1, без миграций и серверных изменений. Визуальная сверка: docs/operations/qa/2026-11-09-21-2-8-balance-billing-visual.md. Ждёт ревью Opus и CI.'
+last_reviewed: 2026-11-10
+status_note: 'Выполнено: PR #236 смёржен (merge-коммит 7701e39 на main; ревью Opus — вердикт merge, CI зелёный). Страница /app/orgs/:orgId/billing, пункт «Баланс и оплата» в разделе «Платформа»; только FE поверх API 20.2.1, без миграций и серверных изменений. Отклонения от макета: нет помесячного графика расхода и оценки; кнопка «Купить» у каждого пакета; подтверждение покупки на месте; формат суммы «50,00 BYN»; в строках истории нет суммы; в боковой панели нет «Пополнить». Хвосты — в 21.4.1. Отчёт сверки: docs/operations/qa/2026-11-09-21-2-8-balance-billing-visual.md.'
 ref_id: 'W-12'
 complexity: M
 impl_model: claude-sonnet-5-5

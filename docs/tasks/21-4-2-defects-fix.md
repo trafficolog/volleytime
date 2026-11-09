@@ -6,7 +6,7 @@ status: todo
 release: 'v0.3.1'
 sync_state: synced
 last_reviewed: 2026-10-27
-status_note: 'Заготовка: состав работ заполняется из бэклога 21.4.1. Крупные группы выносятся в карточки 21.4.7+.'
+status_note: 'Заготовка: состав работ заполняется из бэклога 21.4.1. Крупные группы выносятся в карточки 21.4.8+.'
 ref_id: ''
 complexity: L
 impl_model: claude-sonnet-5-5
