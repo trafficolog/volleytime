@@ -20,6 +20,8 @@ export type OrgAccess =
   | 'manager'
   /** только owner */
   | 'owner'
+  /** без входа и членства (публичный логотип, 21.2.16) */
+  | 'public'
 
 /** Идентификаторы ресурсов одной группы, которыми подставляются параметры пути. */
 export interface OrgFixtureIds {
