@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   acceptFailureState,
@@ -69,5 +69,26 @@ describe('group danger zone helpers (21.2.17)', () => {
     expect(readTransferToken()).toBe(token)
     clearTransferToken()
     expect(readTransferToken()).toBeNull()
+  })
+
+  it('keeps the token in page memory when sessionStorage is unavailable (private mode)', () => {
+    clearTransferToken()
+    const denied = () => {
+      throw new DOMException('denied', 'SecurityError')
+    }
+    const spies = [
+      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(denied),
+      vi.spyOn(Storage.prototype, 'getItem').mockImplementation(denied),
+      vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(denied),
+    ]
+    try {
+      const token = 'y'.repeat(43)
+      stashTransferToken(token)
+      expect(readTransferToken()).toBe(token)
+      clearTransferToken()
+      expect(readTransferToken()).toBeNull()
+    } finally {
+      for (const s of spies) s.mockRestore()
+    }
   })
 })

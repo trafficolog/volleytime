@@ -113,27 +113,32 @@ export const TRANSFER_STATE_TEXT: Record<
 /** Токен ссылки передачи: из фрагмента адреса веба или из startapp Mini App. */
 export const TRANSFER_TOKEN_RE = /^[A-Za-z0-9_-]{43}$/
 const STASH_KEY = 'vt.transferToken'
+/** Запасное место, если sessionStorage недоступен (приватный режим): память текущей страницы. */
+let memoryToken: string | null = null
 
 /** Токен держится только на время сессии вкладки, не в адресе и не в журнале. */
 export function stashTransferToken(token: string): void {
   if (!TRANSFER_TOKEN_RE.test(token)) return
+  memoryToken = token
   try {
     sessionStorage.setItem(STASH_KEY, token)
   } catch {
-    // приватный режим: токен останется только в памяти страницы
+    // приватный режим: токен остаётся только в памяти страницы (memoryToken)
   }
 }
 
 export function readTransferToken(): string | null {
   try {
     const value = sessionStorage.getItem(STASH_KEY)
-    return value && TRANSFER_TOKEN_RE.test(value) ? value : null
+    if (value && TRANSFER_TOKEN_RE.test(value)) return value
   } catch {
-    return null
+    // хранилище недоступно: берём токен из памяти страницы
   }
+  return memoryToken
 }
 
 export function clearTransferToken(): void {
+  memoryToken = null
   try {
     sessionStorage.removeItem(STASH_KEY)
   } catch {
