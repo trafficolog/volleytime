@@ -14,6 +14,7 @@ import {
   type DbOrTx,
 } from '@volley-time/db'
 
+import { isGroupNotificationEnabled } from '../notification-settings/service'
 import { DeliveryError } from '../notifier/delivery-error'
 import { FEED_TYPE, feedKeyOf, isCriticalNotification } from '../notifier/feed-types'
 import { quietHoursEnd } from '../notifier/quiet-hours'
@@ -289,6 +290,13 @@ async function deliveryGate(db: DbOrTx, job: ClaimedJob, now: Date): Promise<Gat
   if (!user) return { action: 'skip', reason: 'no_user' }
   const wasBlocked = user.botBlockedAt !== null
   const critical = isCriticalNotification(job.kind as NotificationType)
+  // группа выключила этот тип (21.2.14); критичные проходят всегда, лента остаётся с итогом skipped
+  if (
+    !critical &&
+    job.organizationId !== null &&
+    !(await isGroupNotificationEnabled(db, job.organizationId, job.kind as NotificationType))
+  )
+    return { action: 'skip', reason: 'group_disabled' }
   // критичные всегда пробуют отправиться: отметка могла устареть (пользователь вернулся), а потеря
   // места из очереди или сообщения об оплате дороже одной лишней попытки
   if (
