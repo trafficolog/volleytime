@@ -12,7 +12,7 @@ export const orgNotDeletedSql = (organizationId: SqlOperand) =>
 
 /**
  * Удалена ли группа, с разделяемой блокировкой её строки (`FOR SHARE`) до конца транзакции.
- * Удаление берёт `FOR UPDATE` той же строки, поэтому фоновый шаг, проверивший группу здесь, не
+ * Удаление берёт `FOR NO KEY UPDATE` той же строки (конфликтует с `FOR SHARE`), поэтому фоновый шаг, проверивший группу здесь, не
  * пересечётся с удалением: либо удаление ждёт конца шага, либо шаг видит уже удалённую группу.
  */
 export async function isOrgDeletedLocked(tx: DbOrTx, organizationId: number): Promise<boolean> {

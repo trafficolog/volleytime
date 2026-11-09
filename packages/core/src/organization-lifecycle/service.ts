@@ -91,7 +91,7 @@ const displayName = (u: { name: string | null; telegramUsername: string | null }
   u?.name ?? (u?.telegramUsername ? `@${u.telegramUsername}` : null)
 
 /**
- * Строка группы под `FOR UPDATE` и проверка, что действующий owner — автор запроса. Права
+ * Строка группы под `FOR NO KEY UPDATE` (не `FOR UPDATE`: вставки в журнал и другие таблицы с FK на группу берут `FOR KEY SHARE`, и полная блокировка давала бы взаимную блокировку с мутациями участников) и проверка, что действующий owner — автор запроса. Права
  * проверяются ещё раз под блокировкой: между tenant middleware и транзакцией владелец мог
  * смениться (параллельное принятие передачи), и прежний owner не должен успеть выполнить действие.
  */
@@ -100,7 +100,7 @@ async function lockOwnedOrg(tx: DbOrTx, userId: number, orgId: number): Promise<
     .select()
     .from(organizations)
     .where(eq(organizations.id, orgId))
-    .for('update')
+    .for('no key update')
   if (!org) throw new OrganizationNotFoundError(orgId)
   const [member] = await tx
     .select({ role: organizationMembers.role, status: organizationMembers.status })
@@ -353,7 +353,7 @@ export const ownershipTransferService = {
   },
 
   /**
-   * Принять передачу по ссылке. В одной транзакции под `FOR UPDATE` группы и передачи: прежний
+   * Принять передачу по ссылке. В одной транзакции под `FOR NO KEY UPDATE` группы и передачи: прежний
    * owner понижается до organizer, получатель становится owner, `organizations.owner_user_id`
    * меняется, передача закрывается; журнал — в той же транзакции. Истёкшая ссылка закрывается
    * как `expired` (это фиксируется) и отклоняется; отменённая, использованная, чужая — отклоняются
@@ -380,7 +380,7 @@ export const ownershipTransferService = {
         .select()
         .from(organizations)
         .where(eq(organizations.id, found.organizationId))
-        .for('update')
+        .for('no key update')
       const [t] = await tx
         .select()
         .from(organizationOwnershipTransfers)
@@ -396,7 +396,11 @@ export const ownershipTransferService = {
       }
       // удалённая группа не принимает передач (удаление невозможно при ожидающей передаче)
       if (org.deletedAt) return new OwnershipTransferInvalidError()
+      // архивная группа передачу не принимает (как и не начинает)
+      if (org.status === 'archived') return new OwnershipTransferInvalidError()
       if (org.ownerUserId !== t.fromUserId) return new OwnershipTransferInvalidError()
+      // строка получателя под FOR UPDATE (порядок «группа → передача → участник»): блокировка
+      // или выход, закоммиченные параллельно, видны до повышения (ревью PR #239)
       const [recipient] = await tx
         .select({ member: organizationMembers, isActive: users.isActive })
         .from(organizationMembers)
@@ -407,6 +411,7 @@ export const ownershipTransferService = {
             eq(organizationMembers.userId, t.toUserId),
           ),
         )
+        .for('update', { of: organizationMembers })
       if (!recipient || recipient.member.status !== 'active' || !recipient.isActive)
         return new OwnershipTransferRecipientGoneError()
 
@@ -474,7 +479,28 @@ export const ownershipTransferService = {
    * перестаёт работать в срок.
    */
   async expireDue(now: Date = new Date(), db: DbOrTx = defaultDb): Promise<number> {
-    return db.transaction((tx) => expireDue(tx, null, now))
+    const due = await db
+      .selectDistinct({ organizationId: organizationOwnershipTransfers.organizationId })
+      .from(organizationOwnershipTransfers)
+      .where(
+        and(
+          eq(organizationOwnershipTransfers.status, 'pending'),
+          lte(organizationOwnershipTransfers.expiresAt, now),
+        ),
+      )
+    let total = 0
+    // по группе, под её блокировкой — тот же порядок «группа → передача», что у принятия и отмены
+    for (const { organizationId } of due) {
+      total += await db.transaction(async (tx) => {
+        await tx
+          .select({ id: organizations.id })
+          .from(organizations)
+          .where(eq(organizations.id, organizationId))
+          .for('no key update')
+        return expireDue(tx, organizationId, now)
+      })
+    }
+    return total
   },
 }
 
