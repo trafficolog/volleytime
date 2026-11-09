@@ -2,11 +2,11 @@
 id: '21.1.3'
 phase: '21'
 epic: '21.1'
-status: in_progress
+status: done
 release: 'v0.3.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: 'Реализация в PR (ветка trafficolog/feat/21.1.3-org-players-report): вкладки Активные/Заявки/Все, сводка и агрегаты игроков из 21.2.20, отчёт за месяц из 21.2.7; ждёт ревью и CI.'
+last_reviewed: 2026-11-09
+status_note: 'Выполнено: PR #234 смёржен (merge-коммит 59e0061 на main; ревью и CI пройдены, вердикт merge). Mini App организатора: вкладки Активные/Заявки/Все, сводка и агрегаты игроков, отчёт за месяц; хвосты ревью — в 21.4.1. Отчёт сверки: docs/operations/qa/2026-11-09-21-1-3-org-players-report-visual.md.'
 ref_id: 'M-24'
 complexity: M
 impl_model: claude-sonnet-5-5
