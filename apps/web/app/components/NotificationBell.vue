@@ -1,10 +1,11 @@
 <script setup lang="ts">
 /**
- * Колокольчик уведомлений в шапке главной игрока (20.4.9, M-13): ссылка на ленту группы и счётчик
- * непрочитанных (`unreadCount` из `GET /api/notifications`, 20.3.2). Ошибка загрузки счётчика не
- * мешает экрану: колокольчик остаётся без отметки.
+ * Колокольчик уведомлений в шапке главной игрока (20.4.9, M-13) и кабинета (21.2.9): ссылка на ленту
+ * группы и счётчик непрочитанных (`unreadCount` из `GET /api/notifications`, 20.3.2). Ошибка загрузки
+ * счётчика не мешает экрану: колокольчик остаётся без отметки.
  */
-const props = defineProps<{ orgId: number }>()
+const props = defineProps<{ orgId: number; to?: string }>()
+const feedTo = computed(() => props.to ?? `/m/orgs/${props.orgId}/notifications`)
 
 const unread = ref(0)
 let seq = 0
@@ -31,7 +32,7 @@ const label = computed(() =>
 
 <template>
   <NuxtLink
-    :to="`/m/orgs/${orgId}/notifications`"
+    :to="feedTo"
     class="vt-btn vt-btn--ghost vt-btn--sm vt-hit-44 relative"
     :aria-label="label"
     data-notification-bell
