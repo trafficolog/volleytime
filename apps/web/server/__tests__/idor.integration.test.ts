@@ -48,7 +48,6 @@ import {
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { createTestApi } from './harness'
-import { pngBytes } from './logo-fixtures'
 import {
   assertRouteTableComplete,
   buildPath,
@@ -58,6 +57,7 @@ import {
   type OrgFixtureIds,
   type OrgRouteTable,
 } from './idor'
+import { pngBytes } from './logo-fixtures'
 
 /**
  * Task 19.3.1: IDOR-контракт для всех org-scoped эндпоинтов.

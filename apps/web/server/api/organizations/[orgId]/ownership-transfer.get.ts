@@ -10,7 +10,10 @@ defineRouteMeta({
       'начать новую. restoreWindowDays — окно восстановления после удаления группы. Только владелец.',
     parameters: [{ in: 'path', name: 'orgId', required: true, schema: { type: 'integer' } }],
     responses: {
-      200: { description: '{ transfer: { id, toUserId, toMemberId, toName, expiresAt } | null, restoreWindowDays }' },
+      200: {
+        description:
+          '{ transfer: { id, toUserId, toMemberId, toName, expiresAt } | null, restoreWindowDays }',
+      },
       401: { description: 'Нет сессии' },
       403: { description: 'Не владелец группы (forbidden.owner_only)' },
       410: { description: 'Группа в архиве или удалена' },

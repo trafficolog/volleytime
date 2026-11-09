@@ -14,7 +14,11 @@ defineRouteMeta({
       required: true,
       content: {
         'application/json': {
-          schema: { type: 'object', properties: { token: { type: 'string' } }, required: ['token'] },
+          schema: {
+            type: 'object',
+            properties: { token: { type: 'string' } },
+            required: ['token'],
+          },
         },
       },
     },

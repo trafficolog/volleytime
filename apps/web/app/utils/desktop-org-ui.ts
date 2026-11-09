@@ -2,13 +2,7 @@ type DesktopOrg = { id: number; status: string; deletedAt?: string | Date | null
 type DesktopMember = { role: string; status: string } | null
 
 export type DesktopOrgAccess =
-  | 'ready'
-  | 'login'
-  | 'denied'
-  | 'suspended'
-  | 'archived'
-  | 'deleted'
-  | 'error'
+  'ready' | 'login' | 'denied' | 'suspended' | 'archived' | 'deleted' | 'error'
 
 export function shouldShowDesktopOrgLoading(
   pending: boolean,

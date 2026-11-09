@@ -344,6 +344,11 @@
   width: min(100% - 2rem, 42rem);
   margin: clamp(2rem, 8vh, 6rem) auto;
 }
+/* состояние вместо кабинета (вход, нет доступа, архив, удалена — 21.2.17): на всю ширину сетки,
+   а не в колонку боковой панели */
+.vt-desktop > .vt-desktop__entry {
+  grid-column: 1 / -1;
+}
 
 .vt-desktop-payment-list {
   display: grid;
@@ -1886,7 +1891,7 @@ ol.vt-desktop-event-detail__rows > li {
   align-items: center;
   gap: 0.5rem;
 }
-.vt-settings-copy .vt-input {
+.vt-settings-copy .vt-field {
   flex: 1;
   min-width: 0;
   font-size: var(--fs-xs);

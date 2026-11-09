@@ -74,14 +74,19 @@ describe('ownership transfer and soft delete API (HTTP integration)', { timeout:
 
   const memberRow = (userId: number, org = orgId) =>
     db.query.organizationMembers.findFirst({
-      where: and(eq(organizationMembers.organizationId, org), eq(organizationMembers.userId, userId)),
+      where: and(
+        eq(organizationMembers.organizationId, org),
+        eq(organizationMembers.userId, userId),
+      ),
     })
 
   async function owners(org = orgId) {
     const rows = await db
       .select({ userId: organizationMembers.userId })
       .from(organizationMembers)
-      .where(and(eq(organizationMembers.organizationId, org), eq(organizationMembers.role, 'owner')))
+      .where(
+        and(eq(organizationMembers.organizationId, org), eq(organizationMembers.role, 'owner')),
+      )
     const [o] = await db.select().from(organizations).where(eq(organizations.id, org))
     return { members: rows.map((r) => r.userId), ownerUserId: o!.ownerUserId }
   }
@@ -158,9 +163,7 @@ describe('ownership transfer and soft delete API (HTTP integration)', { timeout:
         const { transfer, links, token } = await start()
         expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/)
         expect(links.web).toBe(`http://localhost:3000/app/transfer#${token}`)
-        expect(links.telegram).toBe(
-          `https://t.me/volleytime_test_bot?startapp=transfer_${token}`,
-        )
+        expect(links.telegram).toBe(`https://t.me/volleytime_test_bot?startapp=transfer_${token}`)
         expect(transfer.toUserId).toBe(playerId)
         // до принятия владелец не меняется
         expect(await owners()).toEqual({ members: [ownerId], ownerUserId: ownerId })
@@ -216,7 +219,14 @@ describe('ownership transfer and soft delete API (HTTP integration)', { timeout:
         await memberService.add({ userId: ownerId }, { organizationId: orgId, userId: leftId })
       ).id
       await excludeMember({ userId: ownerId }, left)
-      for (const recipient of [members.owner, members.applicant, blocked, left, otherMemberId, 2_000_000_000]) {
+      for (const recipient of [
+        members.owner,
+        members.applicant,
+        blocked,
+        left,
+        otherMemberId,
+        2_000_000_000,
+      ]) {
         const res = await request('POST', `${base()}/ownership-transfer`, {
           user: ownerId,
           body: { recipientMemberId: recipient },
@@ -291,7 +301,9 @@ describe('ownership transfer and soft delete API (HTTP integration)', { timeout:
         const denied = await request(method, `${base()}${path}`, { user: ownerId, body })
         expect(denied.status, `${method} ${path}`).toBe(403)
       }
-      expect((await request('GET', `${base()}/ownership-transfer`, { user: playerId })).status).toBe(200)
+      expect(
+        (await request('GET', `${base()}/ownership-transfer`, { user: playerId })).status,
+      ).toBe(200)
       // прежний owner остаётся организатором: управляет контентом
       expect((await request('GET', `${base()}/audit`, { user: ownerId })).status).toBe(200)
       // повторное использование ссылки отклоняется
@@ -341,7 +353,10 @@ describe('ownership transfer and soft delete API (HTTP integration)', { timeout:
               .update(organizationMembers)
               .set({ role: 'owner' })
               .where(eq(organizationMembers.id, members.owner))
-            await tx.update(organizations).set({ ownerUserId: ownerId }).where(eq(organizations.id, orgId))
+            await tx
+              .update(organizations)
+              .set({ ownerUserId: ownerId })
+              .where(eq(organizations.id, orgId))
           })
         } else {
           expect(t!.status).toBe('cancelled')
@@ -363,7 +378,9 @@ describe('ownership transfer and soft delete API (HTTP integration)', { timeout:
       const acc = await accept(playerId, token)
       expect(acc.status).toBe(410)
       expect(code(acc)).toBe('ownership_transfer.cancelled')
-      expect((await request('GET', `${base()}/ownership-transfer`, { user: ownerId })).body).toMatchObject({
+      expect(
+        (await request('GET', `${base()}/ownership-transfer`, { user: ownerId })).body,
+      ).toMatchObject({
         transfer: null,
       })
       expect(await owners()).toEqual({ members: [ownerId], ownerUserId: ownerId })
@@ -454,7 +471,10 @@ describe('ownership transfer and soft delete API (HTTP integration)', { timeout:
     }
 
     async function fixture() {
-      const venue = await venueService.create({ userId: ownerId }, { organizationId: orgId, name: 'Зал' })
+      const venue = await venueService.create(
+        { userId: ownerId },
+        { organizationId: orgId, name: 'Зал' },
+      )
       const ev = await eventService.create({ userId: ownerId }, orgId, {
         title: 'Будущая игра',
         venueId: venue.id,
@@ -463,12 +483,16 @@ describe('ownership transfer and soft delete API (HTTP integration)', { timeout:
         capacity: 10,
         price: 1500,
       })
-      const booking = await bookingService.book({ userId: playerId }, orgId, ev.id, { method: 'cash' })
+      const booking = await bookingService.book({ userId: playerId }, orgId, ev.id, {
+        method: 'cash',
+      })
       const plan = await planService.create(
         { userId: ownerId },
         { organizationId: orgId, name: 'Абонемент', totalSessions: 8, price: 8000 },
       )
-      await subscriptionService.purchase({ userId: organizerId }, orgId, plan.id, { method: 'cash' })
+      await subscriptionService.purchase({ userId: organizerId }, orgId, plan.id, {
+        method: 'cash',
+      })
       await ledgerService.addExpense({ userId: ownerId }, orgId, {
         category: 'rent',
         amount: 5000,
@@ -539,7 +563,9 @@ describe('ownership transfer and soft delete API (HTTP integration)', { timeout:
       // участники: группа скрыта из списков и недоступна (410), включая owner вне карточки группы
       for (const user of [organizerId, assistantId, playerId]) {
         const list = await request('GET', '/api/organizations', { user })
-        expect((list.body as { organizations: { id: number }[] }).organizations.map((o) => o.id)).not.toContain(orgId)
+        expect(
+          (list.body as { organizations: { id: number }[] }).organizations.map((o) => o.id),
+        ).not.toContain(orgId)
         expect((list.body as { deletedOrganizations: unknown[] }).deletedOrganizations).toEqual([])
         const org = await request('GET', base(), { user })
         expect(org.status).toBe(410)
@@ -548,7 +574,12 @@ describe('ownership transfer and soft delete API (HTTP integration)', { timeout:
       const ownerList = await request('GET', '/api/organizations', { user: ownerId })
       const ownerBody = ownerList.body as {
         organizations: { id: number }[]
-        deletedOrganizations: { id: number; name: string; restoreUntil: string; restorable: boolean }[]
+        deletedOrganizations: {
+          id: number
+          name: string
+          restoreUntil: string
+          restorable: boolean
+        }[]
       }
       expect(ownerBody.organizations.map((o) => o.id)).not.toContain(orgId)
       expect(ownerBody.deletedOrganizations).toEqual([
@@ -580,16 +611,22 @@ describe('ownership transfer and soft delete API (HTTP integration)', { timeout:
       // публичные страницы и приглашения: как неизвестные
       expect((await request('GET', `/api/public/events/${publicSlug}`)).status).toBe(404)
       expect((await request('GET', `${base()}/logo`)).status).toBe(404)
-      expect((await request('GET', `/api/invites/${invite.token}`, { user: outsiderId })).body).toEqual({
+      expect(
+        (await request('GET', `/api/invites/${invite.token}`, { user: outsiderId })).body,
+      ).toEqual({
         status: 'not_found',
       })
-      const redeem = await request('POST', `/api/invites/${invite.token}/redeem`, { user: outsiderId })
+      const redeem = await request('POST', `/api/invites/${invite.token}/redeem`, {
+        user: outsiderId,
+      })
       expect(redeem.status).toBe(404)
       expect(await memberRow(outsiderId)).toBeUndefined()
       // owner видит карточку удалённой группы с окном восстановления
       const card = await request('GET', base(), { user: ownerId })
       expect(card.status).toBe(200)
-      expect((card.body as { organization: { deletedAt: string; restoreUntil: string } }).organization).toMatchObject({
+      expect(
+        (card.body as { organization: { deletedAt: string; restoreUntil: string } }).organization,
+      ).toMatchObject({
         deletedAt,
         restoreUntil,
       })
@@ -607,7 +644,9 @@ describe('ownership transfer and soft delete API (HTTP integration)', { timeout:
       expect(org).toMatchObject({ deletedAt: null, restoreUntil: null, status: 'active' })
       for (const user of [ownerId, playerId]) {
         const list = await request('GET', '/api/organizations', { user })
-        expect((list.body as { organizations: { id: number }[] }).organizations.map((o) => o.id)).toContain(orgId)
+        expect(
+          (list.body as { organizations: { id: number }[] }).organizations.map((o) => o.id),
+        ).toContain(orgId)
       }
       expect((await request('GET', `/api/public/events/${publicSlug}`)).status).toBe(200)
       expect((await request('GET', `${base()}/logo`)).status).toBe(200)
@@ -619,7 +658,9 @@ describe('ownership transfer and soft delete API (HTTP integration)', { timeout:
       const actions = (
         await db.select().from(auditLog).where(eq(auditLog.organizationId, orgId))
       ).map((e) => e.action)
-      expect(actions).toEqual(expect.arrayContaining(['organization.deleted', 'organization.restored']))
+      expect(actions).toEqual(
+        expect.arrayContaining(['organization.deleted', 'organization.restored']),
+      )
       // повторное восстановление — 409
       const again = await request('POST', `${base()}/restore`, { user: ownerId })
       expect(again.status).toBe(409)
@@ -642,9 +683,9 @@ describe('ownership transfer and soft delete API (HTTP integration)', { timeout:
       expect(res.status).toBe(410)
       expect(code(res)).toBe('organization.restore_window_closed')
       const list = await request('GET', '/api/organizations', { user: ownerId })
-      expect((list.body as { deletedOrganizations: { restorable: boolean }[] }).deletedOrganizations).toEqual([
-        expect.objectContaining({ id: orgId, restorable: false }),
-      ])
+      expect(
+        (list.body as { deletedOrganizations: { restorable: boolean }[] }).deletedOrganizations,
+      ).toEqual([expect.objectContaining({ id: orgId, restorable: false })])
       // очистка не включена: данные и журнал на месте
       expect(await groupState()).toBe(before)
       const audit = await db.select().from(auditLog).where(eq(auditLog.organizationId, orgId))
@@ -685,7 +726,9 @@ describe('ownership transfer and soft delete API (HTTP integration)', { timeout:
 
     it('restore is idempotent under parallel calls', async () => {
       await del(ownerId)
-      const results = await Promise.all([1, 2, 3].map(() => request('POST', `${base()}/restore`, { user: ownerId })))
+      const results = await Promise.all(
+        [1, 2, 3].map(() => request('POST', `${base()}/restore`, { user: ownerId })),
+      )
       expect(results.map((r) => r.status).sort()).toEqual([200, 409, 409])
     })
   })

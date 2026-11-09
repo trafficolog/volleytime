@@ -26,9 +26,24 @@ function route(overrides: Record<string, unknown> = {}) {
     if (key === 'GET /api/organizations/7/members')
       return {
         members: [
-          { id: 1, role: 'owner', status: 'active', user: { id: 100, name: 'Я Владелец', telegramUsername: null } },
-          { id: 2, role: 'organizer', status: 'active', user: { id: 101, name: 'Анна', telegramUsername: null } },
-          { id: 3, role: 'player', status: 'active', user: { id: 102, name: null, telegramUsername: 'boris' } },
+          {
+            id: 1,
+            role: 'owner',
+            status: 'active',
+            user: { id: 100, name: 'Я Владелец', telegramUsername: null },
+          },
+          {
+            id: 2,
+            role: 'organizer',
+            status: 'active',
+            user: { id: 101, name: 'Анна', telegramUsername: null },
+          },
+          {
+            id: 3,
+            role: 'player',
+            status: 'active',
+            user: { id: 102, name: null, telegramUsername: 'boris' },
+          },
         ],
       }
     throw new Error(`unexpected ${key}`)
@@ -47,7 +62,14 @@ afterEach(() => {
 
 const mountDanger = (busy = false, error = '') =>
   mount(SettingsDanger, {
-    props: { busy, error, orgId: 7, orgName: 'VolleyTime Минск', ownerUserId: 100, timeZone: 'Europe/Minsk' },
+    props: {
+      busy,
+      error,
+      orgId: 7,
+      orgName: 'VolleyTime Минск',
+      ownerUserId: 100,
+      timeZone: 'Europe/Minsk',
+    },
     attachTo: document.body,
   })
 
@@ -126,7 +148,10 @@ describe('SettingsDanger: ownership transfer', () => {
     ])
     // пока передача ожидает, удалить группу нельзя
     expect(wrapper.find('[data-danger="delete"]').attributes('disabled')).toBeDefined()
-    expect(wrapper.emitted('toast')![0]).toEqual(['Передача начата: отправьте ссылку получателю', 'ok'])
+    expect(wrapper.emitted('toast')![0]).toEqual([
+      'Передача начата: отправьте ссылку получателю',
+      'ok',
+    ])
   })
 
   it('shows a pending transfer without the link and cancels it after confirmation', async () => {
@@ -155,7 +180,10 @@ describe('SettingsDanger: ownership transfer', () => {
 
   it('explains a refused start (another transfer already pending)', async () => {
     route({
-      'POST /api/organizations/7/ownership-transfer': httpError(409, 'ownership_transfer.pending_exists'),
+      'POST /api/organizations/7/ownership-transfer': httpError(
+        409,
+        'ownership_transfer.pending_exists',
+      ),
     })
     const wrapper = mountDanger()
     await flushPromises()
@@ -163,7 +191,7 @@ describe('SettingsDanger: ownership transfer', () => {
     await flushPromises()
     ;(dialog()!.querySelector('.vt-select__button') as HTMLButtonElement).click()
     await flushPromises()
-    ;(dialog()!.querySelector<HTMLElement>('[role="option"]')!).click()
+    dialog()!.querySelector<HTMLElement>('[role="option"]')!.click()
     await flushPromises()
     confirmButton().click()
     await flushPromises()
@@ -183,7 +211,9 @@ describe('SettingsDanger: delete', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('в течение 30 дней')
     await wrapper.find('[data-danger="delete"]').trigger('click')
-    expect(dialog()!.textContent).toContain('Баланс событий, касса, абонементы и платежи не изменятся')
+    expect(dialog()!.textContent).toContain(
+      'Баланс событий, касса, абонементы и платежи не изменятся',
+    )
     const input = dialog()!.querySelector('[data-delete-confirm]') as HTMLInputElement
     expect(confirmButton().disabled).toBe(true)
     for (const wrong of ['volleytime минск', 'VolleyTime', 'VolleyTime Минск!']) {

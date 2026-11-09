@@ -7,7 +7,9 @@ import { createHash, randomBytes } from 'node:crypto'
  */
 export const DEFAULT_RESTORE_WINDOW_DAYS = 30
 
-export function restoreWindowDays(value: string | undefined = process.env.GROUP_RESTORE_WINDOW_DAYS) {
+export function restoreWindowDays(
+  value: string | undefined = process.env.GROUP_RESTORE_WINDOW_DAYS,
+) {
   if (value === undefined || !/^\d{1,3}$/.test(value.trim())) return DEFAULT_RESTORE_WINDOW_DAYS
   const days = Number(value.trim())
   return days >= 1 && days <= 365 ? days : DEFAULT_RESTORE_WINDOW_DAYS

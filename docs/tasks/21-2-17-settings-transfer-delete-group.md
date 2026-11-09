@@ -6,7 +6,7 @@ status: in_progress
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-10-15
-status_note: 'В работе: ветка trafficolog/feat/21.2.17-transfer-delete-group, PR — по готовности.'
+status_note: 'Реализация в PR (ветка trafficolog/feat/21.2.17-transfer-delete-group): миграция 0039 (organization_ownership_transfers, organizations.deleted_at/restore_until, частичный UNIQUE «один owner»), передача владения по личной ссылке (хеш SHA-256, 72 ч — умолчание оркестратора, одна ожидающая, принятие в одной транзакции, прежний owner → organizer), мягкое удаление с вводом названия и окном GROUP_RESTORE_WINDOW_DAYS (30), восстановление, блокировки tenant/списков/публичных страниц/приглашений/бота/ленты/планировщика, capability group-soft-delete в rollback guard, Опасная зона, страницы принятия в вебе и Mini App, отчёт визуальной сверки. Follow-up по п. 2: уведомления бота о передаче не сделаны — ссылку owner отправляет сам (токен нельзя хранить в ленте открытым). Окончательная очистка не реализована и не включена (п. 5, нужно решение владельца; audit_log.organization_id сейчас ON DELETE CASCADE). Ждёт ревью и CI.'
 ref_id: 'W-11'
 complexity: XL
 impl_model: claude-opus-5-5

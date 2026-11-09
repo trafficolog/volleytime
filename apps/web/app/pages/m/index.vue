@@ -2,8 +2,8 @@
 import { resolveStartParam } from '@volley-time/shared'
 
 import { botLink } from '../../utils/auth-flow'
-import { enterMiniApp } from '../../utils/mini-auth-state'
 import { stashTransferToken } from '../../utils/group-danger'
+import { enterMiniApp } from '../../utils/mini-auth-state'
 import { stashInviteToken } from '../../utils/player-invite'
 definePageMeta({ layout: 'miniapp' })
 

@@ -195,8 +195,7 @@ async function confirmDelete() {
           {{ formatDangerDate(pending.expiresAt, timeZone) }}. До принятия владелец — вы.
         </div>
         <div v-else class="vt-settings-hint">
-          Назначить нового владельца. Он примет передачу по личной ссылке, вы станете
-          организатором.
+          Назначить нового владельца. Он примет передачу по личной ссылке, вы станете организатором.
         </div>
       </div>
       <button
@@ -228,8 +227,12 @@ async function confirmDelete() {
       <div v-if="links.telegram" class="vt-settings-field">
         <label class="vt-label" :for="`${uid}-tg`">Ссылка для Telegram</label>
         <div class="vt-settings-copy">
-          <input :id="`${uid}-tg`" class="vt-input" :value="links.telegram" readonly />
-          <button type="button" class="vt-btn vt-btn--ghost vt-btn--sm" @click="copy(links.telegram)">
+          <input :id="`${uid}-tg`" class="vt-field" :value="links.telegram" readonly />
+          <button
+            type="button"
+            class="vt-btn vt-btn--ghost vt-btn--sm"
+            @click="copy(links.telegram)"
+          >
             Скопировать
           </button>
         </div>
@@ -237,7 +240,7 @@ async function confirmDelete() {
       <div class="vt-settings-field">
         <label class="vt-label" :for="`${uid}-web`">Ссылка для браузера</label>
         <div class="vt-settings-copy">
-          <input :id="`${uid}-web`" class="vt-input" :value="links.web" readonly />
+          <input :id="`${uid}-web`" class="vt-field" :value="links.web" readonly />
           <button type="button" class="vt-btn vt-btn--ghost vt-btn--sm" @click="copy(links.web)">
             Скопировать
           </button>
@@ -273,7 +276,11 @@ async function confirmDelete() {
     <p v-if="pending" class="vt-settings-hint">
       Удалить группу можно после отмены ожидающей передачи владения.
     </p>
-    <p v-if="deleteError && !deleteOpen" class="vt-settings-error vt-settings-error--form" role="alert">
+    <p
+      v-if="deleteError && !deleteOpen"
+      class="vt-settings-error vt-settings-error--form"
+      role="alert"
+    >
       {{ deleteError }}
     </p>
 
@@ -295,8 +302,8 @@ async function confirmDelete() {
       @confirm="startTransfer"
     >
       <p class="vt-alert__body">
-        Получатель станет владельцем, когда примет передачу по личной ссылке. После этого вы
-        станете организатором и потеряете права владельца.
+        Получатель станет владельцем, когда примет передачу по личной ссылке. После этого вы станете
+        организатором и потеряете права владельца.
       </p>
       <div class="vt-settings-field">
         <span :id="`${uid}-recipient`" class="vt-label">Кому передать</span>
@@ -342,7 +349,7 @@ async function confirmDelete() {
         <input
           :id="`${uid}-confirm`"
           v-model="typedName"
-          class="vt-input"
+          class="vt-field"
           autocomplete="off"
           spellcheck="false"
           data-delete-confirm

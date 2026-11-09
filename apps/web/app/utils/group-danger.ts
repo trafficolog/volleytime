@@ -72,14 +72,7 @@ export function dangerErrorMessage(cause: unknown, fallback: string): string {
 
 /** Страница принятия передачи (Mini App и веб): текст по состоянию ссылки. */
 export type TransferPageState =
-  | 'loading'
-  | 'pending'
-  | 'accepted'
-  | 'cancelled'
-  | 'expired'
-  | 'invalid'
-  | 'done'
-  | 'error'
+  'loading' | 'pending' | 'accepted' | 'cancelled' | 'expired' | 'invalid' | 'done' | 'error'
 
 const ACCEPT_MESSAGES: Record<string, TransferPageState> = {
   'ownership_transfer.used': 'accepted',

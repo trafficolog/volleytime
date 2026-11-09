@@ -11,8 +11,8 @@ import {
 } from '@volley-time/db'
 import { quoteEventPrice, type EventPriceQuote } from '@volley-time/shared'
 
-import { bookingService } from '../bookings/service'
 import { OCCUPYING_STATUSES, takenSeatsSql } from '../bookings/seats'
+import { bookingService } from '../bookings/service'
 import { getDb, systemContext, type ServiceContext } from '../shared/context'
 
 import type { EventPriceQuoteView } from './pricing-read-model'

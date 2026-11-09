@@ -105,7 +105,9 @@ async function lockOwnedOrg(tx: DbOrTx, userId: number, orgId: number): Promise<
   const [member] = await tx
     .select({ role: organizationMembers.role, status: organizationMembers.status })
     .from(organizationMembers)
-    .where(and(eq(organizationMembers.organizationId, orgId), eq(organizationMembers.userId, userId)))
+    .where(
+      and(eq(organizationMembers.organizationId, orgId), eq(organizationMembers.userId, userId)),
+    )
   if (
     !member ||
     member.role !== 'owner' ||

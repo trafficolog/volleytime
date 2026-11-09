@@ -18,8 +18,8 @@ import {
 } from '@volley-time/db'
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { botService } from '../bot/service'
 import { bookingService } from '../bookings/service'
+import { botService } from '../bot/service'
 import { eventService } from '../events/service'
 import { memberService } from '../members/service'
 import { notificationFeedService } from '../notifier/feed'
@@ -153,7 +153,10 @@ describe('deleted group and background jobs (21.2.17, PostgreSQL)', { timeout: 6
     const first = await bookingService.book({ userId: a!.id }, orgId, full.id, { method: 'free' })
     await bookingService.book({ userId: d!.id }, orgId, full.id, { method: 'free' })
     await bookingService.cancel({ userId: a!.id }, first.id)
-    const [offer] = await db.select().from(waitlistOffers).where(eq(waitlistOffers.eventId, full.id))
+    const [offer] = await db
+      .select()
+      .from(waitlistOffers)
+      .where(eq(waitlistOffers.eventId, full.id))
     expect(offer?.status).toBe('offered')
     // уведомление, поставленное до удаления, не должно уйти после него
     await enqueueNotification(db, {
@@ -195,16 +198,20 @@ describe('deleted group and background jobs (21.2.17, PostgreSQL)', { timeout: 6
     // события, записи, платежи, касса, баланс событий, абонементы и очередь не изменились
     expect(after).toBe(before)
     // новых задач не поставлено; поставленные до удаления уведомления закрыты без отправки
-    const jobs = await db.select().from(scheduledJobs).where(eq(scheduledJobs.organizationId, orgId))
+    const jobs = await db
+      .select()
+      .from(scheduledJobs)
+      .where(eq(scheduledJobs.organizationId, orgId))
     expect(jobs.map((j) => j.dedupKey).sort()).toEqual(keysBefore)
-    for (const job of jobs) expect(job).toMatchObject({ status: 'skipped', lastError: 'group_deleted' })
+    for (const job of jobs)
+      expect(job).toMatchObject({ status: 'skipped', lastError: 'group_deleted' })
     expect(sent).toHaveLength(sentBefore)
     const splitNow = (await db.query.events.findFirst({ where: eq(events.id, split.id) }))!
     expect(splitNow.status).toBe('published')
     expect(splitNow.pricingSettledAt).toBeNull()
-    expect((await db.select().from(waitlistOffers).where(eq(waitlistOffers.id, offer!.id)))[0]!.status).toBe(
-      'offered',
-    )
+    expect(
+      (await db.select().from(waitlistOffers).where(eq(waitlistOffers.id, offer!.id)))[0]!.status,
+    ).toBe('offered')
 
     // бот не показывает события и записи удалённой группы и не даёт ими управлять
     const tg = String(b!.telegramUserId)
@@ -229,9 +236,9 @@ describe('deleted group and background jobs (21.2.17, PostgreSQL)', { timeout: 6
       .innerJoin(bookings, eq(bookings.id, payments.bookingId))
       .where(eq(bookings.eventId, split.id))
     expect(paid.map((p) => p.amount).sort()).toEqual([333, 334, 334])
-    expect((await db.select().from(waitlistOffers).where(eq(waitlistOffers.id, offer!.id)))[0]!.status).toBe(
-      'expired',
-    )
+    expect(
+      (await db.select().from(waitlistOffers).where(eq(waitlistOffers.id, offer!.id)))[0]!.status,
+    ).toBe('expired')
     expect((await botService.listMyBookings(tg)).length).toBeGreaterThan(0)
     expect(
       (await notificationFeedService.list(a!.id)).items.some((i) => i.organizationId === orgId),
@@ -243,7 +250,9 @@ describe('deleted group and background jobs (21.2.17, PostgreSQL)', { timeout: 6
     const member = (await db.query.organizationMembers.findFirst({
       where: (m, { and, eq: e }) => and(e(m.organizationId, orgId), e(m.userId, p!.id)),
     }))!
-    await ownershipTransferService.start({ userId: ownerId }, orgId, { recipientMemberId: member.id })
+    await ownershipTransferService.start({ userId: ownerId }, orgId, {
+      recipientMemberId: member.id,
+    })
     at(72 * H - MIN)
     await tick()
     expect((await db.select().from(organizationOwnershipTransfers))[0]!.status).toBe('pending')
