@@ -372,6 +372,39 @@ describe('telegram chat link API (20.3.4)', () => {
     ).toEqual({ matched: false })
   })
 
+  it('test message (21.2.15): manager-only, own chat, rate limited, errors without internals', async () => {
+    const test = (user = organizerId, org = orgId) =>
+      request('POST', `/api/organizations/${org}/telegram-chat/test-message`, { user, body: {} })
+    expect((await test()).status).toBe(409) // чат не привязан
+    const { code } = (await issue()).body as { code: string }
+    await claim(code)
+    expect((await test(playerId)).status).toBe(403)
+    expect((await test(outsiderId)).status).toBe(403)
+    expect((await test(outsiderId, otherOrgId)).status).toBe(409) // у чужой группы чата нет
+    expect(sent).toHaveLength(0)
+
+    const ok = await test()
+    expect(ok.status, ok.text).toBe(200)
+    expect(ok.body).toEqual({ sent: true })
+    expect(ok.headers.get('cache-control')).toBe('no-store')
+    expect(sent).toHaveLength(1)
+    expect(sent[0]!.telegramId).toBe(chatId)
+
+    failNext = new Error('Bad Request: 123456:SECRET-BOT-TOKEN http://bot:3001')
+    const transient = await test()
+    expect(transient.status).toBe(502)
+    expect(transient.text).not.toContain('SECRET-BOT-TOKEN')
+    expect(transient.text).not.toContain('bot:3001')
+
+    // лимит: 3 запроса в минуту на группу (три уже было), дальше — 429 без отправки
+    const limited = await test()
+    expect(limited.status).toBe(429)
+    expect((limited.body as { data: { code: string } }).data.code).toBe(
+      'telegram_chat.rate_limited',
+    )
+    expect(sent).toHaveLength(1)
+  })
+
   it('Bot API failures reach the organizer as clear codes without tokens or internals', async () => {
     const { code } = (await issue()).body as { code: string }
     await claim(code)

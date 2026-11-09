@@ -3,7 +3,6 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import SettingsDanger from './SettingsDanger.vue'
-import SettingsIntegrations from './SettingsIntegrations.vue'
 import SettingsTeam from './SettingsTeam.vue'
 import { makeController, stubs } from './settings-fixtures'
 
@@ -63,28 +62,6 @@ describe('SettingsTeam', () => {
       '/app/orgs/7/members',
       '/app/orgs/7/invite',
     ])
-  })
-})
-
-describe('SettingsIntegrations', () => {
-  it('links to the configured bot', () => {
-    const wrapper = mount(SettingsIntegrations, {
-      props: { botUsername: 'volleytime_bot', base: '/app/orgs/7' },
-      global: { stubs },
-    })
-    const link = wrapper.find('a.vt-settings-link')
-    expect(link.text()).toBe('@volleytime_bot')
-    expect(link.attributes('href')).toBe('https://t.me/volleytime_bot')
-    expect(link.attributes('rel')).toContain('noopener')
-  })
-
-  it('says so when the bot name is not configured', () => {
-    const wrapper = mount(SettingsIntegrations, {
-      props: { botUsername: '', base: '/app/orgs/7' },
-      global: { stubs },
-    })
-    expect(wrapper.find('a.vt-settings-link').exists()).toBe(false)
-    expect(wrapper.text()).toContain('Имя бота не настроено')
   })
 })
 

@@ -629,4 +629,62 @@ describe('telegram chat link (20.3.4, PostgreSQL)', () => {
       expect(sent[0]!.text).toContain('Основа · Школа №24')
     })
   })
+
+  describe('test message (21.2.15)', () => {
+    const test = (org = orgId, user = organizerId) =>
+      telegramChatService.sendTestMessage({ userId: user }, org)
+
+    it('sends a fixed text with no buttons only to the chat of its own group and audits it', async () => {
+      await linkChat()
+      await linkChat('-1001000000002', otherOrgId, otherOwnerId)
+      expect(await test()).toEqual({ sent: true })
+      expect(send).toHaveBeenCalledTimes(1)
+      expect(sent[0]).toMatchObject({ telegramId: '-1001000000001' })
+      expect(sent[0]!.text).toContain('Группа А')
+      expect(sent[0]!.keyboard).toBeUndefined()
+      const audit = await db.select().from(auditLog).where(eq(auditLog.organizationId, orgId))
+      expect(audit.filter((a) => a.action === 'telegram_chat.test_sent')).toHaveLength(1)
+      expect(JSON.stringify(audit)).not.toContain('1001000000001')
+    })
+
+    it('requires a linked chat and refuses an invalid one with the reason', async () => {
+      expect(await errCode(test())).toBe('telegram_chat.not_linked')
+      await linkChat()
+      await telegramChatService.syncBotMembership({
+        chatId: '-1001000000001',
+        chatType: 'supergroup',
+        status: 'restricted',
+        canPost: false,
+      })
+      expect(await errCode(test())).toBe('telegram_chat.no_rights')
+      await kick()
+      expect(await errCode(test())).toBe('telegram_chat.not_linked')
+      expect(send).not.toHaveBeenCalled()
+    })
+
+    it('an unreachable chat is shown as an error, not as connected', async () => {
+      await linkChat()
+      send.mockRejectedValueOnce(new DeliveryError('blocked', undefined, 'no_rights'))
+      expect(await errCode(test())).toBe('telegram_chat.no_rights')
+      expect(await linkRow()).toMatchObject({ status: 'invalid', invalidReason: 'no_rights' })
+      expect((await telegramChatService.status({ userId: ownerId }, orgId)).link).toMatchObject({
+        status: 'invalid',
+        invalidReason: 'no_rights',
+      })
+      const audit = await db.select().from(auditLog).where(eq(auditLog.organizationId, orgId))
+      expect(audit.filter((a) => a.action === 'telegram_chat.test_sent')).toHaveLength(0)
+    })
+
+    it('reconnect: unlink then a new code relinks the group without a second chat', async () => {
+      await linkChat()
+      await kick()
+      await linkChat()
+      const rows = await db
+        .select()
+        .from(organizationTelegramChats)
+        .where(eq(organizationTelegramChats.organizationId, orgId))
+      expect(rows.filter((r) => r.status !== 'unlinked')).toHaveLength(1)
+      expect(await test()).toEqual({ sent: true })
+    })
+  })
 })

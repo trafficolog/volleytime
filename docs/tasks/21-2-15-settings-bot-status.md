@@ -2,11 +2,11 @@
 id: '21.2.15'
 phase: '21'
 epic: '21.2'
-status: todo
+status: in_progress
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-10-15
-status_note: ''
+status_note: 'Реализация в PR (ветка feat/21.2.15-bot-status): статус из GET telegram-chat, тест-сообщение POST telegram-chat/test-message (3/мин на группу), переподключение = отвязка + новый код /link, invite-ссылка с копированием. Число участников чата не реализовано: нужен новый контракт бота (getChatMemberCount) — вопрос владельцу. Визуальная сверка и ревью Opus — до merge.'
 ref_id: 'W-11'
 complexity: M
 impl_model: claude-sonnet-5-5
