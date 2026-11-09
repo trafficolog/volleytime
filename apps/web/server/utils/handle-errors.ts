@@ -16,6 +16,7 @@ import {
   TelegramChatError,
   CollectionError,
   PaymentMethodError,
+  BrandingError,
   ScheduleSlotError,
   NotificationSettingsError,
 } from '@volley-time/core'
@@ -30,6 +31,14 @@ const CODE_STATUS: Record<string, number> = {
   'organization.subscriptions_disabled': 409,
   'organization.invalid_settings': 422,
   'payment_method.invalid': 422,
+  // логотип и короткая ссылка группы (21.2.16)
+  'logo.not_found': 404,
+  'logo.invalid': 422,
+  'logo.too_large': 413,
+  'logo.not_square': 422,
+  'short_link.invalid': 422,
+  'short_link.reserved': 422,
+  'short_link.taken': 409,
   // member
   'member.already_exists': 409,
   'member.not_found': 404,
@@ -165,6 +174,7 @@ export function handleServiceError(e: unknown): never {
     e instanceof TelegramChatError ||
     e instanceof CollectionError ||
     e instanceof PaymentMethodError ||
+    e instanceof BrandingError ||
     e instanceof ScheduleSlotError ||
     e instanceof NotificationSettingsError
   ) {

@@ -10,6 +10,7 @@ import {
   smallint,
   text,
   timestamp,
+  uniqueIndex,
   varchar,
 } from 'drizzle-orm/pg-core'
 
@@ -55,12 +56,22 @@ export const organizations = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'`),
+    // короткая ссылка группы `volleytime.by/<имя>` (21.2.16); NULL — не задана. Отдельная колонка,
+    // не `slug`. Хранится строчными (CHECK), поэтому уникальность регистронезависима
+    shortLink: varchar('short_link', { length: 32 }),
+    // версия и признак логотипа (21.2.16): NULL — логотипа нет; байты — в organization_logos
+    logoUpdatedAt: timestamp('logo_updated_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index('organizations_owner_idx').on(t.ownerUserId),
     index('organizations_status_idx').on(t.status),
+    uniqueIndex('organizations_short_link_uniq').on(t.shortLink),
+    check(
+      'organizations_short_link_format',
+      sql`${t.shortLink} IS NULL OR (${t.shortLink} ~ '^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$' AND ${t.shortLink} !~ '--')`,
+    ),
     check(
       'organizations_max_seats_range',
       sql`${t.maxSeatsPerBooking} >= 1 AND ${t.maxSeatsPerBooking} <= 10`,
