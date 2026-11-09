@@ -1,4 +1,9 @@
-import { memberService, requireCanModerate, type ServiceContext } from '@volley-time/core'
+import {
+  memberService,
+  requireCanExclude,
+  requireCanModerate,
+  type ServiceContext,
+} from '@volley-time/core'
 import type { H3Event } from 'h3'
 
 type Action = 'approve' | 'reject' | 'block' | 'unblock'
@@ -15,6 +20,10 @@ export async function moderateMember(event: H3Event, action: Action) {
     throw createError({ statusCode: 404, statusMessage: 'Member not found' })
   }
   requireCanModerate(event.context.member ?? null, target)
+  // блокировка вышедшего или исключённого (21.2.24): организаторов и помощников — только владелец
+  if (action === 'block' && target.status === 'left') {
+    requireCanExclude(event.context.member ?? null, target)
+  }
   const member = await memberService[action](ctx, memberId)
   return { member }
 }

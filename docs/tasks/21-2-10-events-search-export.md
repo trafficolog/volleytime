@@ -2,11 +2,11 @@
 id: '21.2.10'
 phase: '21'
 epic: '21.2'
-status: in_progress
+status: done
 release: 'v0.3.0'
 sync_state: synced
-last_reviewed: 2026-10-14
-status_note: 'реализовано в ветке trafficolog/feat/21.2.10-events-search-export (PR открыт, ревью Opus ожидается): GET /events принимает q, venueId, from/to и отдаёт total; GET /events/export (CSV, manager-only); поиск, панель «Фильтры», страницы «Показано N из M» и экспорт в кабинете, состояние в URL.'
+last_reviewed: 2026-11-08
+status_note: 'Выполнено: PR #228 смёржен (ревью и CI пройдены). Поиск, фильтры, пагинация «Показано N из M» и CSV-выгрузка списка событий кабинета, без миграции; хвосты (индекс pg_trgm, период 62 дня, счётчик чипа отменённых, проверка редиректа харнесса) — в 21.4.1. Отчёт сверки: docs/operations/qa/2026-11-06-21-2-10-events-search-export-visual.md.'
 ref_id: 'W-03'
 complexity: M
 impl_model: claude-sonnet-5-5

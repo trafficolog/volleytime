@@ -33,6 +33,7 @@ import {
   MemberNotFoundError,
 } from './errors'
 import { ExcludeMemberInput } from './schemas'
+import { memberService } from './service'
 
 /** Исключить можно действующего участника; заявка отклоняется, заблокированный остаётся заблокированным. */
 const EXCLUDABLE_STATUSES: OrganizationMember['status'][] = ['active', 'guest']
@@ -45,6 +46,8 @@ export interface ExcludeMemberResult {
   paidSeats: number
   /** Отозванные неиспользованные ссылки-приглашения (созданные игроком и выданные ему). */
   revokedInvites: number
+  /** Игрок заблокирован в той же транзакции («Исключить и заблокировать», 21.2.24). */
+  blocked: boolean
 }
 
 /**
@@ -52,7 +55,8 @@ export interface ExcludeMemberResult {
  * переходит в `left` (вернуться можно по приглашению, как после выхода), а последствия делают
  * существующие сервисы: отмена записей (`bookingService.cancel`: места освобождаются, очередь
  * продвигается, неоплаченные места отменяются, оплаченные освобождаются без возврата, занятия
- * абонемента восстанавливаются) и отзыв запросов приглашений. Абонемент, долг, платежи, посещения и
+ * абонемента восстанавливаются) и отзыв запросов приглашений. С `block` (21.2.24) игрок в той же
+ * транзакции блокируется через `memberService.block`, чтобы не вернуться по многоразовой ссылке. Абонемент, долг, платежи, посещения и
  * кассовые записи не трогаются. Всё в одной транзакции; аудит пишет исполнителя и причину.
  *
  * Гонка с записью: сначала под advisory-lock берутся все будущие события группы (по возрастанию id,
@@ -64,7 +68,7 @@ export async function excludeMember(
   memberId: number,
   input: ExcludeMemberInput = {},
 ): Promise<ExcludeMemberResult> {
-  const { reason } = ExcludeMemberInput.parse(input)
+  const { reason, block } = ExcludeMemberInput.parse(input)
   return inTransaction(ctx, async (tx) => {
     const db = getDb(tx)
     const now = new Date()
@@ -199,8 +203,13 @@ export async function excludeMember(
         cancelledBookingIds: cancelledIds,
         paidSeats,
         revokedInviteIds: revoked.map((r) => r.id),
+        blocked: block,
       },
     })
+
+    // «Исключить и заблокировать» (21.2.24): общая логика блокировки в той же транзакции, сбой
+    // откатывает и исключение. Права уже проверены requireCanExclude (строже прав модерации).
+    const member = block ? await memberService.block(tx, memberId) : updated
 
     // уведомления уходят после коммита (collect-then-notify)
     const [org, player, managers] = await Promise.all([
@@ -242,10 +251,11 @@ export async function excludeMember(
     }
 
     return {
-      member: updated,
+      member,
       cancelledBookings: cancelledIds.length,
       paidSeats,
       revokedInvites: revoked.length,
+      blocked: block,
     }
   })
 }
