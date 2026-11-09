@@ -1855,6 +1855,12 @@ ol.vt-desktop-event-detail__rows > li {
   gap: 2px;
   min-width: 0;
 }
+.vt-settings-row__heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
 .vt-settings-row__title {
   font-size: var(--fs-base);
   font-weight: 600;

@@ -316,6 +316,12 @@ const ROUTES: OrgRouteTable = {
     body: () => ({ title: 'Слот переименован' }),
   },
   'DELETE /api/organizations/:orgId/schedule-slots/:slotId': { access: 'manager' },
+  // 21.2.14: переключатели уведомлений группы — только manager, чужая группа недоступна
+  'GET /api/organizations/:orgId/notification-settings': { access: 'manager' },
+  'PATCH /api/organizations/:orgId/notification-settings': {
+    access: 'manager',
+    body: () => ({ reminder_24h: false }),
+  },
 }
 
 function seriesBody(extra: Record<string, unknown> = {}) {

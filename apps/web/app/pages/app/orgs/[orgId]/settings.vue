@@ -163,7 +163,11 @@ async function archive() {
       <div class="vt-settings__content">
         <p
           v-if="
-            !isOwner && section !== 'venues' && section !== 'schedule' && section !== 'payments'
+            !isOwner &&
+            section !== 'venues' &&
+            section !== 'schedule' &&
+            section !== 'notifications' &&
+            section !== 'payments'
           "
           class="vt-settings-note"
           role="note"
@@ -209,7 +213,11 @@ async function archive() {
           :can-edit="isOwner"
           :controller="controller"
         />
-        <SettingsNotifications v-else-if="section === 'notifications'" />
+        <SettingsNotifications
+          v-else-if="section === 'notifications'"
+          :org-id="orgId"
+          @toast="toast.show"
+        />
         <SettingsIntegrations
           v-else-if="section === 'integrations'"
           :bot-username="config.public.telegramBotUsername"

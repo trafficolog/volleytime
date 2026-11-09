@@ -17,6 +17,7 @@ import {
   CollectionError,
   PaymentMethodError,
   ScheduleSlotError,
+  NotificationSettingsError,
 } from '@volley-time/core'
 
 /** HTTP-статусы для доменных error-кодов. */
@@ -58,6 +59,9 @@ const CODE_STATUS: Record<string, number> = {
   // шаблоны слотов расписания (21.2.12)
   'schedule_slot.not_found': 404,
   'schedule_slot.limit_reached': 422,
+  // переключатели уведомлений группы (21.2.14)
+  'notification_settings.mandatory': 422,
+  'notification_settings.empty': 422,
   'event.not_found': 404,
   'event.not_editable': 409,
   'event.split_pricing_disabled': 409,
@@ -161,7 +165,8 @@ export function handleServiceError(e: unknown): never {
     e instanceof TelegramChatError ||
     e instanceof CollectionError ||
     e instanceof PaymentMethodError ||
-    e instanceof ScheduleSlotError
+    e instanceof ScheduleSlotError ||
+    e instanceof NotificationSettingsError
   ) {
     const status = CODE_STATUS[e.code] ?? 400
     throw createError({ statusCode: status, statusMessage: e.message, data: { code: e.code } })
