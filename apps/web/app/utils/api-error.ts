@@ -52,6 +52,7 @@ const CODE_MESSAGES: Record<string, string> = {
   'event.venue_not_in_org': 'Выбранной площадки нет в этой группе',
   'event.venue_archived': 'Этот зал в архиве: выберите другой',
   'schedule_slot.not_found': 'Слот не найден: возможно, он уже удалён',
+  'notification_settings.mandatory': 'Это уведомление обязательное: его нельзя выключить',
   'schedule_slot.limit_reached': 'В группе уже максимум слотов расписания: удалите ненужный',
   'event.split_over_capacity':
     'Занято больше мест, чем вместимость события: увеличьте вместимость или снимите лишние записи, затем распределите сумму',

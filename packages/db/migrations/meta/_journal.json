@@ -264,8 +264,15 @@
     {
       "idx": 37,
       "version": "7",
-      "when": 1794155168148,
-      "tag": "0037_organization_logo_short_link",
+      "when": 1794154687852,
+      "tag": "0037_org_notification_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1794217868566,
+      "tag": "0038_organization_logo_short_link",
       "breakpoints": true
     }
   ]

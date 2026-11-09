@@ -10,8 +10,8 @@ import { rollbackLastMigration } from './rollback'
 import * as schema from './schema'
 import { seedDemo } from './seed-demo'
 
-const TAG = '0037_organization_logo_short_link'
-const PREVIOUS = '0036_organization_payment_methods'
+const TAG = '0038_organization_logo_short_link'
+const PREVIOUS = '0037_org_notification_settings'
 const BASE_URL = process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL ?? ''
 
 /**
@@ -21,7 +21,7 @@ const BASE_URL = process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL ?? ''
  * логотип или короткая ссылка.
  */
 describe(
-  'migration 0037 organization logo and short link (integration)',
+  'migration 0038 organization logo and short link (integration)',
   { timeout: 60_000 },
   () => {
     const admin = postgres(BASE_URL, { max: 1 })
@@ -169,17 +169,17 @@ describe(
         await runMigrations(url)
         const o = await org(sql, 'guard-a')
         await sql`UPDATE organizations SET short_link = 'guard-link' WHERE id = ${o}`
-        await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0037 refused/)
+        await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0038 refused/)
         expect(await objects(sql)).toBe(3)
         await sql`UPDATE organizations SET short_link = NULL`
 
         await sql`UPDATE organizations SET logo_updated_at = now() WHERE id = ${o}`
-        await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0037 refused/)
+        await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0038 refused/)
         await sql`UPDATE organizations SET logo_updated_at = NULL`
 
         await sql`INSERT INTO organization_logos (organization_id, data, mime_type, size_bytes)
         VALUES (${o}, ${png}, 'image/png', ${png.length})`
-        await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0037 refused/)
+        await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0038 refused/)
         expect(await sql`SELECT 1 FROM organization_logos`).toHaveLength(1)
         await sql`DELETE FROM organization_logos`
 

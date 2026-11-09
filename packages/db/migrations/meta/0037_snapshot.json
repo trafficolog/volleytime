@@ -1,5 +1,5 @@
 {
-  "id": "0310df6a-381a-42bf-b4c7-7c6d45784470",
+  "id": "f76473c6-91bc-4c2d-9bd1-14bfa042df60",
   "prevId": "1aec4e81-fc70-4c3d-aa4f-a52b2a20be3a",
   "version": "7",
   "dialect": "postgresql",
@@ -549,18 +549,6 @@
           "notNull": true,
           "default": "'{}'"
         },
-        "short_link": {
-          "name": "short_link",
-          "type": "varchar(32)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "logo_updated_at": {
-          "name": "logo_updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -606,21 +594,6 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "organizations_short_link_uniq": {
-          "name": "organizations_short_link_uniq",
-          "columns": [
-            {
-              "expression": "short_link",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
@@ -650,10 +623,6 @@
       },
       "policies": {},
       "checkConstraints": {
-        "organizations_short_link_format": {
-          "name": "organizations_short_link_format",
-          "value": "\"organizations\".\"short_link\" IS NULL OR (\"organizations\".\"short_link\" ~ '^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$' AND \"organizations\".\"short_link\" !~ '--')"
-        },
         "organizations_max_seats_range": {
           "name": "organizations_max_seats_range",
           "value": "\"organizations\".\"max_seats_per_booking\" >= 1 AND \"organizations\".\"max_seats_per_booking\" <= 10"
@@ -661,96 +630,6 @@
         "organizations_cancellation_deadline_non_negative": {
           "name": "organizations_cancellation_deadline_non_negative",
           "value": "\"organizations\".\"cancellation_deadline_hours\" IS NULL OR \"organizations\".\"cancellation_deadline_hours\" >= 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.organization_logos": {
-      "name": "organization_logos",
-      "schema": "",
-      "columns": {
-        "organization_id": {
-          "name": "organization_id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "data": {
-          "name": "data",
-          "type": "bytea",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "mime_type": {
-          "name": "mime_type",
-          "type": "varchar(16)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "size_bytes": {
-          "name": "size_bytes",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_by_user_id": {
-          "name": "updated_by_user_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "organization_logos_organization_id_organizations_id_fk": {
-          "name": "organization_logos_organization_id_organizations_id_fk",
-          "tableFrom": "organization_logos",
-          "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "organization_logos_updated_by_user_id_users_id_fk": {
-          "name": "organization_logos_updated_by_user_id_users_id_fk",
-          "tableFrom": "organization_logos",
-          "tableTo": "users",
-          "columnsFrom": [
-            "updated_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "organization_logos_mime_chk": {
-          "name": "organization_logos_mime_chk",
-          "value": "\"organization_logos\".\"mime_type\" IN ('image/png', 'image/jpeg')"
-        },
-        "organization_logos_size_chk": {
-          "name": "organization_logos_size_chk",
-          "value": "\"organization_logos\".\"size_bytes\" BETWEEN 1 AND 524288"
-        },
-        "organization_logos_data_size_chk": {
-          "name": "organization_logos_data_size_chk",
-          "value": "octet_length(\"organization_logos\".\"data\") = \"organization_logos\".\"size_bytes\""
         }
       },
       "isRLSEnabled": false
@@ -1791,6 +1670,71 @@
         "schedule_slots_type_chk": {
           "name": "schedule_slots_type_chk",
           "value": "\"schedule_slots\".\"type\" <> 'tournament_match'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.organization_notification_settings": {
+      "name": "organization_notification_settings",
+      "schema": "",
+      "columns": {
+        "organization_id": {
+          "name": "organization_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "type": {
+          "name": "type",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "organization_notification_settings_organization_id_organizations_id_fk": {
+          "name": "organization_notification_settings_organization_id_organizations_id_fk",
+          "tableFrom": "organization_notification_settings",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "organization_notification_settings_organization_id_type_pk": {
+          "name": "organization_notification_settings_organization_id_type_pk",
+          "columns": [
+            "organization_id",
+            "type"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "org_notification_settings_type_chk": {
+          "name": "org_notification_settings_type_chk",
+          "value": "\"organization_notification_settings\".\"type\" IN ('reminder_24h', 'reminder_2h')"
         }
       },
       "isRLSEnabled": false

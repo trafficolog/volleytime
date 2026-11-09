@@ -1,4 +1,4 @@
--- Откат 0037 (21.2.16): удаляет логотип группы (organization_logos) и колонки organizations.short_link,
+-- Откат 0038 (21.2.16): удаляет логотип группы (organization_logos) и колонки organizations.short_link,
 -- organizations.logo_updated_at с индексом и CHECK.
 -- Откат допустим, только пока нет данных, которые он потерял бы: загруженного логотипа и заданной
 -- короткой ссылки. Оба значения организатор вводит вручную; ссылка может уже быть разослана игрокам,
@@ -12,7 +12,7 @@ BEGIN
        SELECT 1 FROM "organizations"
        WHERE "short_link" IS NOT NULL OR "logo_updated_at" IS NOT NULL
      ) THEN
-    RAISE EXCEPTION 'rollback 0037 refused: organization logos or short links exist';
+    RAISE EXCEPTION 'rollback 0038 refused: organization logos or short links exist';
   END IF;
 END
 $$;

@@ -3,13 +3,26 @@ import postgres from 'postgres'
 import { rollbackLastMigration } from './rollback'
 
 /**
- * Откат 0037 (21.2.16) отказывает, пока есть логотип или короткая ссылка группы; тесты старых
- * миграций работают на базах без них. Помощник откатывает 0037 и возвращает тег; следующая
+ * Откат 0038 (21.2.16) отказывает, пока есть логотип или короткая ссылка группы; тесты старых
+ * миграций работают на базах без них. Помощник откатывает 0038 и возвращает тег; следующая
  * миграция добавляет свой шаг сюда.
  */
 export async function rollbackLogoShortLink(url: string): Promise<string> {
   const tag = await rollbackLastMigration(url)
-  if (tag !== '0037_organization_logo_short_link')
+  if (tag !== '0038_organization_logo_short_link')
+    throw new Error(`expected 0038 to roll back first, got ${tag}`)
+  return tag
+}
+
+/**
+ * Откат 0037 (21.2.14) отказывает, пока в группах выключены напоминания; тесты старых миграций
+ * работают на базах без выключенных типов. Помощник откатывает 0037 и возвращает тег; следующая
+ * миграция добавляет свой шаг сюда.
+ */
+export async function rollbackNotificationSettings(url: string): Promise<string> {
+  await rollbackLogoShortLink(url) // 21.2.16: новая миграция откатывается первой
+  const tag = await rollbackLastMigration(url)
+  if (tag !== '0037_org_notification_settings')
     throw new Error(`expected 0037 to roll back first, got ${tag}`)
   return tag
 }
@@ -20,7 +33,7 @@ export async function rollbackLogoShortLink(url: string): Promise<string> {
  * следующая миграция добавляет свой шаг сюда.
  */
 export async function rollbackPaymentMethods(url: string): Promise<string> {
-  await rollbackLogoShortLink(url) // 21.2.16: новая миграция откатывается первой
+  await rollbackNotificationSettings(url) // 21.2.14: новая миграция откатывается первой
   const tag = await rollbackLastMigration(url)
   if (tag !== '0036_organization_payment_methods')
     throw new Error(`expected 0036 to roll back first, got ${tag}`)
