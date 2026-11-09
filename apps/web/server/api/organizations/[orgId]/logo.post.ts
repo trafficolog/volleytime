@@ -9,7 +9,7 @@ defineRouteMeta({
     tags: ['organizations'],
     summary: 'Загрузить логотип группы',
     description:
-      '21.2.16. multipart/form-data, поле file: PNG или JPEG до 512 КБ (SVG не принимается). Сервер ' +
+      '21.2.16. multipart/form-data, поле file: PNG или JPEG до 1 МБ (SVG не принимается). Сервер ' +
       'проверяет размер, сигнатуру файла и совпадение заявленного типа с содержимым. Заменяет ' +
       'прежний логотип. Пишет audit organization.logo_updated. Владелец и организатор.',
     parameters: [{ in: 'path', name: 'orgId', required: true, schema: { type: 'integer' } }],
@@ -32,7 +32,7 @@ defineRouteMeta({
       404: { description: 'Группа не найдена' },
       410: { description: 'Группа в архиве (organization.archived)' },
       411: { description: 'Нет Content-Length' },
-      413: { description: 'Файл больше 512 КБ (logo.too_large)' },
+      413: { description: 'Файл больше 1 МБ (logo.too_large)' },
       422: {
         description: 'Не PNG/JPEG, тип не совпадает с содержимым, пустой файл (logo.invalid)',
       },

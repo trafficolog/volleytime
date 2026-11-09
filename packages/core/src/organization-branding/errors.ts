@@ -24,6 +24,12 @@ export class LogoTooLargeError extends BrandingError {
     super('logo.too_large', `Logo is larger than ${maxBytes} bytes`)
   }
 }
+/** Изображение не квадратное (422). */
+export class LogoNotSquareError extends BrandingError {
+  constructor(width: number, height: number) {
+    super('logo.not_square', `Logo must be square, got ${width}x${height}`)
+  }
+}
 /** Короткая ссылка не соответствует формату (422). */
 export class ShortLinkInvalidError extends BrandingError {
   constructor(message: string) {

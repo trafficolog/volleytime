@@ -3,12 +3,10 @@ import { auditLog, closeDb, db, eq, organizations, users } from '@volley-time/db
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { createTestApi } from './harness'
+import { jpegBytes, pngBytes } from './logo-fixtures'
 
-const PNG = Buffer.concat([
-  Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex'),
-  Buffer.alloc(17, 7),
-])
-const JPEG = Buffer.concat([Buffer.from('ffd8ffe000104a464946', 'hex'), Buffer.alloc(40, 9)])
+const PNG = pngBytes(64)
+const JPEG = jpegBytes(64)
 
 function form(data: Buffer | string, type: string, name = 'logo.png', field = 'file'): FormData {
   const f = new FormData()
@@ -101,6 +99,12 @@ describe('organization logo and short link API (HTTP integration)', () => {
         ['gif', form('GIF89a' + 'x'.repeat(40), 'image/gif', 'a.gif'), 422],
         ['empty file', form(Buffer.alloc(0), 'image/png'), 422],
         ['wrong field', form(PNG, 'image/png', 'logo.png', 'avatar'), 422],
+        [
+          'near-miss JPEG signature',
+          form(Buffer.from('ffd800' + '01'.repeat(40), 'hex'), 'image/jpeg'),
+          422,
+        ],
+        ['truncated PNG header', form(PNG.subarray(0, 20), 'image/png'), 422],
       ]
       for (const [label, body, status] of cases) {
         const res = await request('POST', logo(), { user: ownerId, body })
@@ -115,8 +119,21 @@ describe('organization logo and short link API (HTTP integration)', () => {
       expect((await request('GET', logo(), { user: ownerId })).status).toBe(404)
     })
 
-    it('enforces the size limit: 512 KB passes, a bit more is rejected with 413', async () => {
-      const ok = Buffer.concat([PNG, Buffer.alloc(524_288 - PNG.length)])
+    it('rejects non-square images with a clear 422 and stores nothing', async () => {
+      for (const [data, type] of [
+        [pngBytes(64, 32), 'image/png'],
+        [jpegBytes(32, 64), 'image/jpeg'],
+        [jpegBytes(64, 32, 0xc2), 'image/jpeg'],
+      ] as const) {
+        const res = await request('POST', logo(), { user: ownerId, body: form(data, type) })
+        expect(res.status, res.text).toBe(422)
+        expect((res.body as { data: { code: string } }).data.code).toBe('logo.not_square')
+      }
+      expect((await request('GET', logo(), { user: ownerId })).status).toBe(404)
+    })
+
+    it('enforces the size limit: 1 MB passes, a bit more is rejected with 413', async () => {
+      const ok = pngBytes(64, 64, 1_048_576 - pngBytes(64).length)
       const accepted = await request('POST', logo(), { user: ownerId, body: form(ok, 'image/png') })
       expect(accepted.status, accepted.text).toBe(200)
       // чуть больше лимита, но в пределах запаса multipart: отклоняет сервис по размеру файла
@@ -127,7 +144,7 @@ describe('organization logo and short link API (HTTP integration)', () => {
       })
       expect(small.status).toBe(413)
       // заметно больше: отклоняется по Content-Length до чтения тела
-      const huge = Buffer.concat([PNG, Buffer.alloc(600_000)])
+      const huge = Buffer.concat([PNG, Buffer.alloc(1_100_000)])
       const big = await request('POST', logo(), { user: ownerId, body: form(huge, 'image/png') })
       expect(big.status).toBe(413)
       expect((big.body as { data: { code: string } }).data.code).toBe('logo.too_large')

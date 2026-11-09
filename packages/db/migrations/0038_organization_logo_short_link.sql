@@ -6,7 +6,7 @@ CREATE TABLE "organization_logos" (
 	"updated_by_user_id" integer,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "organization_logos_mime_chk" CHECK ("organization_logos"."mime_type" IN ('image/png', 'image/jpeg')),
-	CONSTRAINT "organization_logos_size_chk" CHECK ("organization_logos"."size_bytes" BETWEEN 1 AND 524288),
+	CONSTRAINT "organization_logos_size_chk" CHECK ("organization_logos"."size_bytes" BETWEEN 1 AND 1048576),
 	CONSTRAINT "organization_logos_data_size_chk" CHECK (octet_length("organization_logos"."data") = "organization_logos"."size_bytes")
 );
 --> statement-breakpoint

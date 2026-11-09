@@ -19,14 +19,14 @@ describe('groupLogoUrl', () => {
 describe('validateLogoFile', () => {
   const file = (size: number, type: string) => ({ name: 'l', size, type })
 
-  it('accepts PNG and JPEG up to 512 KB', () => {
+  it('accepts PNG and JPEG up to 1 MB', () => {
     expect(validateLogoFile(file(1, 'image/png'))).toBeNull()
     expect(validateLogoFile(file(LOGO_MAX_BYTES, 'image/jpeg'))).toBeNull()
   })
 
   it('rejects empty, oversized and other types', () => {
     expect(validateLogoFile(file(0, 'image/png'))).not.toBeNull()
-    expect(validateLogoFile(file(LOGO_MAX_BYTES + 1, 'image/png'))).toContain('512 КБ')
+    expect(validateLogoFile(file(LOGO_MAX_BYTES + 1, 'image/png'))).toContain('1 МБ')
     expect(validateLogoFile(file(10, 'image/svg+xml'))).toContain('SVG')
     expect(validateLogoFile(file(10, 'image/gif'))).not.toBeNull()
     expect(validateLogoFile(file(10, ''))).not.toBeNull()

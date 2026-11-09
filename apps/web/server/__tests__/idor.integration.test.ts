@@ -47,6 +47,7 @@ import {
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { createTestApi } from './harness'
+import { pngBytes } from './logo-fixtures'
 import {
   assertRouteTableComplete,
   buildPath,
@@ -339,11 +340,8 @@ const ROUTES: OrgRouteTable = {
   },
 }
 
-/** Минимальный допустимый PNG: сигнатура, IHDR и заполнитель до 33 байт. */
-const PNG_BYTES = Buffer.concat([
-  Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex'),
-  Buffer.alloc(17, 1),
-])
+/** Минимальный допустимый квадратный PNG (заголовок IHDR 64x64). */
+const PNG_BYTES = pngBytes(64)
 
 function logoForm(): FormData {
   const form = new FormData()

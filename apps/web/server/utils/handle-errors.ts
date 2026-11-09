@@ -35,6 +35,7 @@ const CODE_STATUS: Record<string, number> = {
   'logo.not_found': 404,
   'logo.invalid': 422,
   'logo.too_large': 413,
+  'logo.not_square': 422,
   'short_link.invalid': 422,
   'short_link.reserved': 422,
   'short_link.taken': 409,

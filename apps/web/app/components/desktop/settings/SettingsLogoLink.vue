@@ -291,8 +291,8 @@ async function saveLink() {
           </template>
         </div>
         <p class="vt-settings-hint">
-          PNG или JPEG, до {{ LOGO_MAX_LABEL }}. Показывается в шапке и списке ваших групп в
-          приложении; без логотипа — монограмма из названия.
+          PNG или JPEG, до {{ LOGO_MAX_LABEL }}, квадратный. Показывается в шапке и списке ваших
+          групп в приложении; без логотипа — монограмма из названия.
         </p>
         <p v-if="logoError" class="vt-settings-error" role="alert" data-logo-error>
           {{ logoError }}

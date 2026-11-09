@@ -8,17 +8,16 @@ import { organizationService } from '../organizations/service'
 import {
   LogoInvalidError,
   LogoNotFoundError,
+  LogoNotSquareError,
   ShortLinkInvalidError,
   ShortLinkReservedError,
   ShortLinkTakenError,
 } from './errors'
 import { organizationBrandingService as service } from './service'
+import { jpegBytes, pngBytes } from './test-fixtures'
 
-const PNG = Buffer.concat([
-  Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex'),
-  Buffer.alloc(17, 1),
-])
-const JPEG = Buffer.concat([Buffer.from('ffd8ffe000104a464946', 'hex'), Buffer.alloc(40, 2)])
+const PNG = pngBytes(64)
+const JPEG = jpegBytes(64)
 
 let ownerId: number
 let orgId: number
@@ -90,6 +89,12 @@ describe('organizationBrandingService (integration)', () => {
       await expect(
         service.setLogo(ctx(), orgId, { declaredType: 'image/jpeg', data: PNG }),
       ).rejects.toBeInstanceOf(LogoInvalidError)
+      await expect(
+        service.setLogo(ctx(), orgId, { declaredType: 'image/png', data: pngBytes(64, 32) }),
+      ).rejects.toBeInstanceOf(LogoNotSquareError)
+      await expect(
+        service.setLogo(ctx(), orgId, { declaredType: 'image/jpeg', data: jpegBytes(10, 20) }),
+      ).rejects.toBeInstanceOf(LogoNotSquareError)
       expect(await db.select().from(organizationLogos)).toHaveLength(0)
       expect((await orgRow()).logoUpdatedAt).toBeNull()
       expect(await audit(AUDIT_ACTIONS.ORG_LOGO_UPDATED)).toHaveLength(0)
@@ -203,6 +208,49 @@ describe('organizationBrandingService (integration)', () => {
       expect(rows[0]!.newValue).toEqual({ shortLink: 'audit-one' })
       expect(rows[1]!.oldValue).toEqual({ shortLink: 'audit-one' })
       expect(rows[1]!.newValue).toEqual({ shortLink: null })
+    })
+
+    it('maps the unique-index violation to ShortLinkTakenError when the pre-check is bypassed', async () => {
+      await service.setShortLink(ctx(), otherOrgId, { shortLink: 'raced-name' })
+      // гонка: к моменту записи адрес занят, а проверка занятости внутри транзакции его не увидела
+      const blind = {
+        from: () => blind,
+        where: () => blind,
+        then: (ok: (v: unknown[]) => void) => ok([]),
+      }
+      const wrapTx = (tx: object) => {
+        let selects = 0
+        return new Proxy(tx, {
+          get(target, prop) {
+            if (prop === 'select') {
+              return (...args: unknown[]) =>
+                ++selects === 2
+                  ? blind // второй select в setShortLink — проверка «адрес занят другой группой»
+                  : (target as { select: (...a: unknown[]) => unknown }).select(...args)
+            }
+            const value = Reflect.get(target, prop)
+            return typeof value === 'function' ? value.bind(target) : value
+          },
+        })
+      }
+      const racing = new Proxy(db, {
+        get(target, prop) {
+          if (prop === 'transaction') {
+            return (fn: (tx: object) => Promise<unknown>) =>
+              target.transaction((tx) => fn(wrapTx(tx)))
+          }
+          const value = Reflect.get(target, prop)
+          return typeof value === 'function' ? value.bind(target) : value
+        },
+      })
+      const ctxRacing = { userId: ownerId, db: racing as unknown as typeof db }
+      await expect(
+        service.setShortLink(ctxRacing, orgId, { shortLink: 'raced-name' }),
+      ).rejects.toBeInstanceOf(ShortLinkTakenError)
+      // победитель не тронут, проигравший без адреса и без записи в журнал
+      expect((await orgRow(otherOrgId)).shortLink).toBe('raced-name')
+      expect((await orgRow()).shortLink).toBeNull()
+      expect(await audit(AUDIT_ACTIONS.ORG_SHORT_LINK_UPDATED)).toHaveLength(1)
     })
 
     it('pre-check reports available, taken, reserved and invalid without writing', async () => {

@@ -4,8 +4,8 @@
  * логотипа нет, показывается монограмма (`group-monogram.ts`).
  */
 export const LOGO_ACCEPT = 'image/png,image/jpeg'
-export const LOGO_MAX_BYTES = 524_288
-export const LOGO_MAX_LABEL = '512 КБ'
+export const LOGO_MAX_BYTES = 1_048_576
+export const LOGO_MAX_LABEL = '1 МБ'
 
 export function groupLogoUrl(
   orgId: number,

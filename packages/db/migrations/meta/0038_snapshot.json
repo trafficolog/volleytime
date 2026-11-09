@@ -746,7 +746,7 @@
         },
         "organization_logos_size_chk": {
           "name": "organization_logos_size_chk",
-          "value": "\"organization_logos\".\"size_bytes\" BETWEEN 1 AND 524288"
+          "value": "\"organization_logos\".\"size_bytes\" BETWEEN 1 AND 1048576"
         },
         "organization_logos_data_size_chk": {
           "name": "organization_logos_data_size_chk",

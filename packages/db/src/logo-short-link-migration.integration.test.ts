@@ -148,11 +148,11 @@ describe(
         await expect(sql`UPDATE organization_logos SET mime_type = 'image/gif'`).rejects.toThrow(
           /organization_logos_mime_chk/,
         )
-        // size_bytes обязан совпадать с байтами и не превышать 512 КБ
+        // size_bytes обязан совпадать с байтами и не превышать 1 МБ
         await expect(sql`UPDATE organization_logos SET size_bytes = 1`).rejects.toThrow(
           /organization_logos_data_size_chk/,
         )
-        const big = Buffer.alloc(524_289)
+        const big = Buffer.alloc(1_048_577)
         await expect(
           sql`UPDATE organization_logos SET data = ${big}, size_bytes = ${big.length}`,
         ).rejects.toThrow(/organization_logos_size_chk/)
