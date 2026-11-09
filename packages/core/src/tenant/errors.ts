@@ -19,6 +19,12 @@ export class OrgArchivedError extends TenantError {
     super('organization.archived', 'Organization is archived', 410)
   }
 }
+/** Группа мягко удалена (21.2.17): недоступна участникам до восстановления владельцем. */
+export class OrgDeletedError extends TenantError {
+  constructor() {
+    super('organization.deleted', 'Organization is deleted', 410)
+  }
+}
 export class OrgSuspendedError extends TenantError {
   constructor() {
     super('organization.suspended', 'Organization is suspended', 403)

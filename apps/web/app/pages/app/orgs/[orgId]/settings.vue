@@ -133,6 +133,13 @@ async function retry() {
   await Promise.all([refreshOrg(), refreshSettings()])
 }
 
+// группа удалена (21.2.17): карточка группы общая с кабинетом (ключ `desktop-org-<id>`) — после
+// обновления кабинет показывает «Группа удалена, восстановление до …» вместо разделов
+async function onDeleted() {
+  if (!isCurrent()) return
+  await Promise.all([refreshOrg(), fetchAll().catch(() => undefined)])
+}
+
 const archiving = ref(false)
 const archiveError = ref('')
 async function archive() {
@@ -270,7 +277,13 @@ async function archive() {
           v-else-if="section === 'danger' && isOwner"
           :busy="archiving"
           :error="archiveError"
+          :org-id="orgId"
+          :org-name="data.organization.name"
+          :owner-user-id="data.organization.ownerUserId"
+          :time-zone="data.organization.defaultTimezone"
           @archive="archive"
+          @deleted="onDeleted"
+          @toast="toast.show"
         />
       </div>
     </div>

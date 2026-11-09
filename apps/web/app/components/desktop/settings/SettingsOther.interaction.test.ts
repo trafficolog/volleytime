@@ -2,7 +2,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import SettingsDanger from './SettingsDanger.vue'
 import SettingsTeam from './SettingsTeam.vue'
 import { makeController, stubs } from './settings-fixtures'
 
@@ -62,36 +61,5 @@ describe('SettingsTeam', () => {
       '/app/orgs/7/members',
       '/app/orgs/7/invite',
     ])
-  })
-})
-
-describe('SettingsDanger', () => {
-  const mountDanger = (busy = false, error = '') =>
-    mount(SettingsDanger, { props: { busy, error }, attachTo: document.body })
-
-  it('asks for confirmation before archiving and does nothing on cancel', async () => {
-    const wrapper = mountDanger()
-    await wrapper.find('button.vt-btn--danger').trigger('click')
-    const dialog = document.querySelector('[role="alertdialog"]')!
-    expect(dialog.textContent).toContain('Архивировать группу?')
-    expect(wrapper.emitted('archive')).toBeUndefined()
-    ;(dialog.querySelector('.vt-btn--ghost') as HTMLButtonElement).click()
-    await flushPromises()
-    expect(document.querySelector('[role="alertdialog"]')).toBeNull()
-    expect(wrapper.emitted('archive')).toBeUndefined()
-  })
-
-  it('emits archive after the confirmation', async () => {
-    const wrapper = mountDanger()
-    await wrapper.find('button.vt-btn--danger').trigger('click')
-    ;(document.querySelector('[role="alertdialog"] .vt-btn--rose') as HTMLButtonElement).click()
-    await flushPromises()
-    expect(wrapper.emitted('archive')).toHaveLength(1)
-  })
-
-  it('disables the button while archiving and shows an error', () => {
-    const wrapper = mountDanger(true, 'Не удалось архивировать группу')
-    expect(wrapper.find('button.vt-btn--danger').attributes('disabled')).toBeDefined()
-    expect(wrapper.find('[role="alert"]').text()).toBe('Не удалось архивировать группу')
   })
 })

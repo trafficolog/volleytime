@@ -11,8 +11,8 @@ import {
 } from '@volley-time/db'
 import { quoteEventPrice, type EventPriceQuote } from '@volley-time/shared'
 
-import { bookingService } from '../bookings/service'
 import { OCCUPYING_STATUSES, takenSeatsSql } from '../bookings/seats'
+import { bookingService } from '../bookings/service'
 import { getDb, systemContext, type ServiceContext } from '../shared/context'
 
 import type { EventPriceQuoteView } from './pricing-read-model'
@@ -92,6 +92,7 @@ export async function readPublicEvent(
         city: organizations.city,
         timezone: organizations.defaultTimezone,
         status: organizations.status,
+        deletedAt: organizations.deletedAt,
         seoIndex: organizations.seoIndex,
         subscriptionsEnabled: organizations.subscriptionsEnabled,
       },
@@ -103,7 +104,14 @@ export async function readPublicEvent(
     .leftJoin(venues, eq(venues.id, events.venueId))
     .where(eq(events.publicSlug, slug))
     .limit(1)
-  if (!row || row.event.status === 'draft' || row.org.status !== 'active') return null
+  // удалённая группа (21.2.17) скрыта с публичных страниц: ответ как у неизвестного slug
+  if (
+    !row ||
+    row.event.status === 'draft' ||
+    row.org.status !== 'active' ||
+    row.org.deletedAt !== null
+  )
+    return null
   const { event: ev, org } = row
   const status = ev.status as PublicEventView['event']['status']
 

@@ -2,6 +2,7 @@
 import { resolveStartParam } from '@volley-time/shared'
 
 import { botLink } from '../../utils/auth-flow'
+import { stashTransferToken } from '../../utils/group-danger'
 import { enterMiniApp } from '../../utils/mini-auth-state'
 import { stashInviteToken } from '../../utils/player-invite'
 definePageMeta({ layout: 'miniapp' })
@@ -22,6 +23,11 @@ const telegramUrl = computed(() => botLink(runtimeConfig.public.telegramBotUsern
 async function targetRoute(): Promise<string> {
   const target = resolveStartParam(startParam.value)
   if (target.kind === 'invite') return `/m/invite/${encodeURIComponent(target.token)}`
+  // личная ссылка передачи владения (21.2.17): токен — в sessionStorage, не в адресе
+  if (target.kind === 'transfer') {
+    stashTransferToken(target.token)
+    return '/m/transfer'
+  }
   if (target.kind === 'event') {
     // личная ссылка-приглашение (20.1.3): токен ждёт экран события, в адрес он не попадает (20.4.7)
     if (target.inviteToken) stashInviteToken(target.eventId, target.inviteToken)

@@ -2,6 +2,7 @@ import { and, eq, ne, organizationLogos, organizations } from '@volley-time/db'
 
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
+import { orgNotDeletedSql } from '../organization-lifecycle/live'
 import { OrganizationArchivedError, OrganizationNotFoundError } from '../organizations/errors'
 import { actorUserId, getDb, inTransaction, type ServiceContext } from '../shared/context'
 
@@ -58,7 +59,13 @@ export const organizationBrandingService = {
         updatedAt: organizationLogos.updatedAt,
       })
       .from(organizationLogos)
-      .where(eq(organizationLogos.organizationId, orgId))
+      // логотип удалённой группы (21.2.17) не отдаётся: ответ как у группы без логотипа
+      .where(
+        and(
+          eq(organizationLogos.organizationId, orgId),
+          orgNotDeletedSql(organizationLogos.organizationId),
+        ),
+      )
     if (!row) throw new LogoNotFoundError()
     return { ...row, mimeType: row.mimeType as LogoMimeType }
   },

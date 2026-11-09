@@ -98,6 +98,23 @@ export const memberService = {
   },
 
   /**
+   * Строка участника под `FOR UPDATE` (21.2.17, ревью PR #239): проверка «не owner» и изменение
+   * идут по одной версии строки. Принятие передачи владения меняет роль под той же блокировкой,
+   * поэтому мутация, вставшая за ним в очередь, видит уже нового owner, а не устаревшую роль.
+   * Блокируется только строка участника (не группа): порядок «группа → передача → участник»
+   * у принятия не нарушается.
+   */
+  async lockById(ctx: ServiceContext, memberId: number): Promise<OrganizationMember> {
+    const [m] = await getDb(ctx)
+      .select()
+      .from(organizationMembers)
+      .where(eq(organizationMembers.id, memberId))
+      .for('update')
+    if (!m) throw new MemberNotFoundError(memberId)
+    return m
+  },
+
+  /**
    * Сменить роль. Owner-роль неизменяема и не назначается; свою роль сменить нельзя
    * (защита от эскалации, Task 4.9.1). Проверка «только owner» — в политике на API-слое.
    */
@@ -108,7 +125,7 @@ export const memberService = {
   ): Promise<OrganizationMember> {
     const { role: validRole } = ChangeMemberRoleInput.parse({ role })
     return inTransaction(ctx, async (tx) => {
-      const m = await this.getById(tx, memberId)
+      const m = await this.lockById(tx, memberId)
       if (ctx.organization && m.organizationId !== ctx.organization.id) {
         throw new MemberNotFoundError(memberId)
       }
@@ -233,7 +250,7 @@ export const memberService = {
     } = {},
   ): Promise<OrganizationMember> {
     return inTransaction(ctx, async (tx) => {
-      const m = await this.getById(tx, memberId)
+      const m = await this.lockById(tx, memberId)
       if (ctx.organization && m.organizationId !== ctx.organization.id) {
         throw new MemberNotFoundError(memberId)
       }
@@ -321,12 +338,17 @@ export const memberService = {
   async leaveOrg(ctx: ServiceContext, orgId: number): Promise<OrganizationMember> {
     return inTransaction(ctx, async (tx) => {
       const db = getDb(tx)
-      const member = await db.query.organizationMembers.findFirst({
-        where: and(
-          eq(organizationMembers.organizationId, orgId),
-          eq(organizationMembers.userId, ctx.userId),
-        ),
-      })
+      // под FOR UPDATE: роль owner, полученная в параллельном принятии передачи, видна здесь (21.2.17)
+      const [member] = await db
+        .select()
+        .from(organizationMembers)
+        .where(
+          and(
+            eq(organizationMembers.organizationId, orgId),
+            eq(organizationMembers.userId, ctx.userId),
+          ),
+        )
+        .for('update')
       if (!member) throw new MemberNotFoundError(`org ${orgId} user ${ctx.userId}`)
       if (member.status === 'left') return member
       if (member.role === 'owner') throw new OwnerCannotLeaveError()

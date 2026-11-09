@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import type { OrganizationListItem } from '~/composables/useOrganizations'
+import { formatDangerDate } from '~/utils/group-danger'
 
 definePageMeta({ middleware: ['auth'] })
 useHead({ title: 'Мои группы — Volley Time' })
 
-const { orgs, fetchAll } = useOrganizations()
+const { orgs, deletedOrgs, fetchAll } = useOrganizations()
 const router = useRouter()
 const loading = ref(true)
 const error = ref('')
@@ -94,6 +95,31 @@ function groupLabel(org: OrganizationListItem) {
         </li>
       </ul>
       <p v-else class="vt-card p-5">У вас пока нет группы для управления.</p>
+      <section v-if="deletedOrgs.length" class="space-y-3" aria-labelledby="deleted-groups">
+        <h2 id="deleted-groups" class="text-xl">Удалённые группы</h2>
+        <ul class="space-y-3">
+          <li
+            v-for="org in deletedOrgs"
+            :key="org.id"
+            class="vt-card p-5 flex flex-wrap items-center justify-between gap-4"
+            data-deleted-group
+          >
+            <div>
+              <h3 class="text-lg">{{ org.name }}</h3>
+              <p class="text-vt-mute-2">
+                {{
+                  org.restorable
+                    ? `Восстановить можно до ${formatDangerDate(org.restoreUntil)}`
+                    : 'Срок восстановления истёк'
+                }}
+              </p>
+            </div>
+            <NuxtLink v-if="org.restorable" :to="`/app/orgs/${org.id}`" class="vt-btn vt-btn--ghost"
+              >Восстановить</NuxtLink
+            >
+          </li>
+        </ul>
+      </section>
       <NuxtLink to="/app/orgs/new" class="vt-btn vt-btn--ghost">Создать группу</NuxtLink>
     </div>
   </main>

@@ -27,6 +27,7 @@ import {
 import { takenSeatsSql } from '../bookings/seats'
 import { bookingService } from '../bookings/service'
 import type { PendingNotification } from '../notifier/types'
+import { orgNotDeletedSql } from '../organization-lifecycle/live'
 
 /** Сколько строк бот показывает в списках (`/games`, `/my`): сообщение остаётся коротким. */
 const LIST_LIMIT = 5
@@ -83,6 +84,8 @@ const memberOrgs = (userId: number) =>
       and(
         eq(organizationMembers.userId, userId),
         inArray(organizationMembers.status, [...ACTIVE_STATUSES]),
+        // удалённая группа (21.2.17): бот не показывает её события и записи
+        orgNotDeletedSql(organizationMembers.organizationId),
       ),
     )
 
@@ -104,6 +107,8 @@ async function ownBooking(userId: number, eventId: number) {
         eq(bookings.eventId, eventId),
         eq(bookings.userId, userId),
         inArray(organizationMembers.status, [...ACTIVE_STATUSES]),
+        // запись удалённой группы (21.2.17) кнопками бота не отменяется и место не принимается
+        orgNotDeletedSql(bookings.organizationId),
       ),
     )
   return row?.booking ?? null

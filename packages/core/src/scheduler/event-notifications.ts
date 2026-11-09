@@ -14,6 +14,7 @@ import {
 } from '@volley-time/db'
 
 import type { NotificationType } from '../notifier/templates'
+import { orgNotDeletedSql } from '../organization-lifecycle/live'
 
 import { enqueueNotifications, type NotifyJobPayload } from './journal'
 
@@ -94,6 +95,8 @@ export async function enqueueReminders(now: Date): Promise<number> {
           inArray(bookings.status, ['confirmed', 'pending_payment']),
           sql`${bookings.bookedAt} <= ${events.startsAt} - make_interval(secs => ${before / 1000})`,
           notQueued(type),
+          // удалённая группа (21.2.17): уведомления по её событиям не ставятся
+          orgNotDeletedSql(events.organizationId),
         ),
       )
       .limit(1000)
@@ -136,6 +139,7 @@ export async function enqueueBookingOpened(now: Date): Promise<number> {
         lte(events.bookingOpensAt, now),
         gt(events.bookingOpensAt, new Date(now.getTime() - OPENED_STALE_MS)),
         gt(events.startsAt, now),
+        orgNotDeletedSql(events.organizationId),
         sql`NOT EXISTS (SELECT 1 FROM ${scheduledJobs} j WHERE j.dedup_key =
           'booking_opened:event:' || ${events.id} || ':user:' || ${organizationMembers.userId})`,
       ),

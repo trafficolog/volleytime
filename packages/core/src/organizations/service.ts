@@ -2,6 +2,7 @@ import {
   and,
   eq,
   inArray,
+  isNull,
   ne,
   organizationMembers,
   organizations,
@@ -124,6 +125,9 @@ export const organizationService = {
       where: and(
         inArray(organizations.id, [...byOrg.keys()]),
         ne(organizations.status, 'archived'),
+        // удалённые группы (21.2.17) скрыты из шторки и списков всех участников, включая owner;
+        // owner видит их отдельно (`organizationDeletionService.listDeletedForOwner`)
+        isNull(organizations.deletedAt),
       ),
       orderBy: (o, { asc }) => [asc(o.name)],
     })

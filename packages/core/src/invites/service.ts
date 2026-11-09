@@ -138,9 +138,10 @@ export const inviteService = {
 
       const org = await tx.query.organizations.findFirst({
         where: eq(organizations.id, inv.organizationId),
-        columns: { status: true },
+        columns: { status: true, deletedAt: true },
       })
-      if (!org || org.status !== 'active') throw new InviteNotFoundError(token)
+      // удалённая группа (21.2.17) по приглашению не принимает: ссылка выглядит как неизвестная
+      if (!org || org.status !== 'active' || org.deletedAt) throw new InviteNotFoundError(token)
 
       const existing = await tx.query.organizationMembers.findFirst({
         where: and(
@@ -217,7 +218,7 @@ export const inviteService = {
     const org = await db.query.organizations.findFirst({
       where: eq(organizations.id, inv.organizationId),
     })
-    if (!org || org.status !== 'active') return { status: 'not_found' }
+    if (!org || org.status !== 'active' || org.deletedAt) return { status: 'not_found' }
 
     let status: InvitePreview['status'] = 'valid'
     if (inv.isRevoked) status = 'revoked'

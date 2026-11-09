@@ -1,7 +1,8 @@
-type DesktopOrg = { id: number; status: string } | null
+type DesktopOrg = { id: number; status: string; deletedAt?: string | Date | null } | null
 type DesktopMember = { role: string; status: string } | null
 
-export type DesktopOrgAccess = 'ready' | 'login' | 'denied' | 'suspended' | 'archived' | 'error'
+export type DesktopOrgAccess =
+  'ready' | 'login' | 'denied' | 'suspended' | 'archived' | 'deleted' | 'error'
 
 export function shouldShowDesktopOrgLoading(
   pending: boolean,
@@ -20,11 +21,14 @@ export function resolveDesktopOrgAccess(
 ): DesktopOrgAccess {
   if (errorStatus === 401) return 'login'
   if (errorStatus === 410 && errorCode === 'organization.archived') return 'archived'
+  // удалённая группа (21.2.17): участникам — 410, владельцу карточка отдаётся с deletedAt
+  if (errorStatus === 410 && errorCode === 'organization.deleted') return 'deleted'
   if (errorStatus === 403 && errorCode === 'organization.suspended') return 'suspended'
   if (errorStatus === 403 || errorStatus === 404) return 'denied'
   if (errorStatus) return 'error'
   if (!org) return 'error'
   if (org.id !== requestedId || !member) return 'denied'
+  if (org.deletedAt) return 'deleted'
   if (org.status === 'archived') return 'archived'
   if (org.status === 'suspended') return 'suspended'
   if (org.status !== 'active') return 'denied'

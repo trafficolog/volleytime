@@ -3,11 +3,24 @@ import postgres from 'postgres'
 import { rollbackLastMigration } from './rollback'
 
 /**
+ * Откат 0039 (21.2.17) отказывает, пока есть удалённые группы или ожидающие передачи владения;
+ * тесты старых миграций работают на базах без них. Помощник откатывает 0039 и возвращает тег;
+ * следующая миграция добавляет свой шаг сюда.
+ */
+export async function rollbackGroupOwnership(url: string): Promise<string> {
+  const tag = await rollbackLastMigration(url)
+  if (tag !== '0039_group_ownership_soft_delete')
+    throw new Error(`expected 0039 to roll back first, got ${tag}`)
+  return tag
+}
+
+/**
  * Откат 0038 (21.2.16) отказывает, пока есть логотип или короткая ссылка группы; тесты старых
  * миграций работают на базах без них. Помощник откатывает 0038 и возвращает тег; следующая
  * миграция добавляет свой шаг сюда.
  */
 export async function rollbackLogoShortLink(url: string): Promise<string> {
+  await rollbackGroupOwnership(url) // 21.2.17: новая миграция откатывается первой
   const tag = await rollbackLastMigration(url)
   if (tag !== '0038_organization_logo_short_link')
     throw new Error(`expected 0038 to roll back first, got ${tag}`)

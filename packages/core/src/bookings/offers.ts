@@ -16,6 +16,7 @@ import {
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
 import { isBookingClosedBySchedule } from '../events/booking-close'
+import { isOrgDeletedLocked, orgNotDeletedSql } from '../organization-lifecycle/live'
 import { schedulerEnabled } from '../scheduler/capability'
 import { enqueueNotification } from '../scheduler/journal'
 import { getDb, systemContext, type ServiceContext } from '../shared/context'
@@ -248,13 +249,25 @@ export async function expireDueOffers(now: Date, limit = 50): Promise<number> {
   const due = await defaultDb
     .selectDistinct({ eventId: waitlistOffers.eventId })
     .from(waitlistOffers)
-    .where(and(eq(waitlistOffers.status, 'offered'), lte(waitlistOffers.expiresAt, now)))
+    .where(
+      and(
+        eq(waitlistOffers.status, 'offered'),
+        lte(waitlistOffers.expiresAt, now),
+        // удалённая группа (21.2.17): очередь не двигается до восстановления
+        orgNotDeletedSql(waitlistOffers.organizationId),
+      ),
+    )
     .limit(limit)
   let expired = 0
   for (const { eventId } of due) {
     try {
       expired += await defaultDb.transaction(async (tx) => {
         await tx.execute(sql`SELECT pg_advisory_xact_lock(${eventId})`)
+        const [owner] = await tx
+          .select({ organizationId: events.organizationId })
+          .from(events)
+          .where(eq(events.id, eventId))
+        if (!owner || (await isOrgDeletedLocked(tx, owner.organizationId))) return 0
         const ctx = systemContext(tx)
         const count = await expireOffersLocked(ctx, eventId, now)
         const [event] = await tx.select().from(events).where(eq(events.id, eventId)).for('update')
@@ -281,6 +294,7 @@ export async function offerFreeSeatsSweep(now: Date, limit = 50): Promise<number
   const due = await defaultDb.execute(sql`
     SELECT e.id FROM ${events} e
     WHERE e.status = 'published' AND e.pricing_settled_at IS NULL AND e.starts_at > ${at}::timestamptz
+      AND ${orgNotDeletedSql(sql`e.organization_id`)}
       AND EXISTS (SELECT 1 FROM ${bookings} b
         WHERE b.event_id = e.id AND (b.status = 'waitlisted' OR b.waitlist_seats > 0)
           AND NOT EXISTS (SELECT 1 FROM ${waitlistOffers} o
@@ -298,7 +312,8 @@ export async function offerFreeSeatsSweep(now: Date, limit = 50): Promise<number
       created += await defaultDb.transaction(async (tx) => {
         await tx.execute(sql`SELECT pg_advisory_xact_lock(${eventId})`)
         const [event] = await tx.select().from(events).where(eq(events.id, eventId)).for('update')
-        return event ? offerFreeSeats(systemContext(tx), event, now) : 0
+        if (!event || (await isOrgDeletedLocked(tx, event.organizationId))) return 0
+        return offerFreeSeats(systemContext(tx), event, now)
       })
     } catch (e) {
       console.error('[scheduler] offer sweep failed', { eventId, error: e })

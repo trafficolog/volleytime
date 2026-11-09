@@ -1,5 +1,6 @@
 import { expireDueOffers, offerFreeSeatsSweep } from '../bookings/offers'
 import { closeDueEvents, type CloseSummary } from '../events/auto-close'
+import { ownershipTransferService } from '../organization-lifecycle/service'
 
 import { enqueueBookingOpened, enqueueReminders } from './event-notifications'
 import { processDueJobs, purgeCompletedJobs, type DeliverySummary } from './journal'
@@ -55,6 +56,10 @@ export async function runSchedulerTick(
   })
   await step('notify.reminders', async () => {
     summary.enqueued += await enqueueReminders(now)
+  })
+  // передачи владения (21.2.17): истёкшие ссылки закрываются с записью в журнале
+  await step('ownership_transfers.expire', async () => {
+    await ownershipTransferService.expireDue(now)
   })
   if (opts.deliver !== false)
     await step('notify.deliver', async () => {

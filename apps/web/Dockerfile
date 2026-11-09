@@ -29,6 +29,7 @@ LABEL org.volleytime.event-multi-seat="1"
 LABEL org.volleytime.event-invite-mode="1"
 LABEL org.volleytime.event-scheduler="1"
 LABEL org.volleytime.collections="1"
+LABEL org.volleytime.group-soft-delete="1"
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000

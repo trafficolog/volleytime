@@ -6,8 +6,18 @@ export type OrganizationListItem = Organization & {
   membershipRole: 'owner' | 'organizer' | 'assistant' | 'player'
 }
 
+/** Удалённая группа владельца (21.2.17): в общий список не входит, восстанавливается в окне. */
+export interface DeletedOrganizationItem {
+  id: number
+  name: string
+  deletedAt: string
+  restoreUntil: string
+  restorable: boolean
+}
+
 export function useOrganizations() {
   const orgs = useState<OrganizationListItem[]>('orgs.list', () => [])
+  const deletedOrgs = useState<DeletedOrganizationItem[]>('orgs.deleted', () => [])
   const currentOrgId = useState<number | null>('orgs.current', () => null)
   const loading = useState<boolean>('orgs.loading', () => false)
 
@@ -16,8 +26,12 @@ export function useOrganizations() {
   async function fetchAll() {
     loading.value = true
     try {
-      const data = await $fetch<{ organizations: OrganizationListItem[] }>('/api/organizations')
+      const data = await $fetch<{
+        organizations: OrganizationListItem[]
+        deletedOrganizations?: DeletedOrganizationItem[]
+      }>('/api/organizations')
       orgs.value = data.organizations
+      deletedOrgs.value = data.deletedOrganizations ?? []
       const saved = import.meta.client ? localStorage.getItem('current_org_id') : null
       const savedId = saved ? Number(saved) : null
       if (savedId && orgs.value.some((o) => o.id === savedId)) {
@@ -48,7 +62,7 @@ export function useOrganizations() {
     return data.organization
   }
 
-  return { orgs, currentOrgId, currentOrg, loading, fetchAll, selectOrg, create }
+  return { orgs, deletedOrgs, currentOrgId, currentOrg, loading, fetchAll, selectOrg, create }
 }
 
 export interface MemberRow {

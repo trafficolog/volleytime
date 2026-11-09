@@ -15,6 +15,7 @@ import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
 import { revokeEventOffers } from '../bookings/offers'
 import type { PendingNotification } from '../notifier/types'
+import { isOrgDeletedLocked, orgNotDeletedSql } from '../organization-lifecycle/live'
 import { enqueueNotification } from '../scheduler/journal'
 import { systemContext } from '../shared/context'
 
@@ -84,6 +85,9 @@ export async function closeDueEvents(now: Date, limit = 100): Promise<CloseSumma
         noManualCloseSql(events.id),
         sql`NOT EXISTS (SELECT 1 FROM ${scheduledJobs} j
           WHERE j.dedup_key = 'event.close_skipped:event:' || ${events.id})`,
+        // удалённая группа (21.2.17): запись не закрывается, split не фиксируется — деньги в окне
+        // восстановления не меняются
+        orgNotDeletedSql(events.organizationId),
       ),
     )
     .orderBy(events.startsAt, events.id)
@@ -93,12 +97,10 @@ export async function closeDueEvents(now: Date, limit = 100): Promise<CloseSumma
       const outcome = await defaultDb.transaction(async (tx) => {
         await tx.execute(sql`SELECT pg_advisory_xact_lock(${id})`)
         const [event] = await tx.select().from(events).where(eq(events.id, id)).for('update')
-        if (
-          !event ||
-          !isAutoCloseCandidate(event) ||
-          event.startsAt <= now ||
-          closeMomentOf(event) > now
-        )
+        // группу могли удалить между выборкой и lock: проверка под блокировкой строки группы
+        if (!event || (await isOrgDeletedLocked(tx, event.organizationId)))
+          return 'skipped' as const
+        if (!isAutoCloseCandidate(event) || event.startsAt <= now || closeMomentOf(event) > now)
           return 'skipped' as const
         // метка ручного закрытия могла появиться между выборкой и lock (переоткрытие в окне)
         const [manual] = await tx

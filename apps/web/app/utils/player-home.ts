@@ -6,6 +6,8 @@ const DENIED_ORG_ERRORS = new Set([
   'permission.blocked',
   'permission.not_member',
   'permission.no_longer_member',
+  // удалённая группа (21.2.17) для игрока недоступна так же, как чужая
+  'organization.deleted',
 ])
 
 export function isDeniedOrgError(code?: string) {

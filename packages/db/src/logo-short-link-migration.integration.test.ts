@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { DB } from './client'
 import { runMigrations } from './migrate'
+import { rollbackGroupOwnership } from './migration-test-helpers'
 import { rollbackLastMigration } from './rollback'
 import * as schema from './schema'
 import { seedDemo } from './seed-demo'
@@ -74,6 +75,7 @@ describe(
       try {
         await runMigrations(url)
         expect(await objects(sql)).toBe(3)
+        await rollbackGroupOwnership(url) // 21.2.17: новая миграция откатывается первой
         expect(await rollbackLastMigration(url)).toBe(TAG)
         expect(await objects(sql)).toBe(0)
         await runMigrations(url)
@@ -169,6 +171,7 @@ describe(
         await runMigrations(url)
         const o = await org(sql, 'guard-a')
         await sql`UPDATE organizations SET short_link = 'guard-link' WHERE id = ${o}`
+        await rollbackGroupOwnership(url) // 21.2.17: новая миграция откатывается первой
         await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0038 refused/)
         expect(await objects(sql)).toBe(3)
         await sql`UPDATE organizations SET short_link = NULL`
@@ -202,6 +205,7 @@ describe(
         // сид не создаёт логотипов и ссылок, поэтому откат проходит и не трогает группы
         expect(await sql`SELECT 1 FROM organization_logos`).toHaveLength(0)
         expect(await sql`SELECT 1 FROM organizations WHERE short_link IS NOT NULL`).toHaveLength(0)
+        await rollbackGroupOwnership(url) // 21.2.17: новая миграция откатывается первой
         expect(await rollbackLastMigration(url)).toBe(TAG)
         expect(await sql`SELECT 1 FROM organizations`).toHaveLength(orgs!.n)
         await runMigrations(url)

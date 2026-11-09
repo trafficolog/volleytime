@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Organization, OrganizationMember } from '@volley-time/db'
 
+import GroupDeletedNotice from '~/components/desktop/GroupDeletedNotice.vue'
 import { cabinetNavIcon, cabinetNavSections } from '~/utils/cabinet-shell'
 import {
   desktopNavItems,
@@ -34,6 +35,11 @@ const items = computed(() =>
 const sections = computed(() =>
   cabinetNavSections(orgId.value, organization.value?.subscriptionsEnabled === true),
 )
+const { fetchAll } = useOrganizations()
+// восстановленная группа (21.2.17) снова в шторке и в кабинете
+async function onRestored() {
+  await Promise.all([refresh(), fetchAll().catch(() => undefined)])
+}
 const mobileNavOpen = ref(false)
 const mobileMenuButton = ref<HTMLButtonElement | null>(null)
 const base = computed(() => `/app/orgs/${orgId.value}`)
@@ -160,6 +166,15 @@ useHead(() => ({
         <p>Сейчас открыть кабинет этой группы нельзя.</p>
         <NuxtLink to="/app" class="vt-btn vt-btn--ghost">К моим группам</NuxtLink>
       </section>
+      <GroupDeletedNotice
+        v-else-if="access === 'deleted'"
+        :org-id="orgId"
+        :org-name="organization?.name"
+        :restore-until="organization?.restoreUntil ?? null"
+        :can-restore="data?.myMember?.role === 'owner'"
+        :time-zone="organization?.defaultTimezone"
+        @restored="onRestored"
+      />
       <section v-else-if="access === 'archived'" class="vt-card p-6 space-y-4" role="alert">
         <h1>Группа архивирована</h1>
         <p>Кабинет этой группы больше недоступен.</p>
