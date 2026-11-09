@@ -64,7 +64,7 @@ const CODE_MESSAGES: Record<string, string> = {
   'telegram_chat.migrated': 'Чат перенесён в супергруппу: привяжите его заново',
   'telegram_chat.event_not_announceable':
     'Анонс доступен только для опубликованного события, которое ещё не началось',
-  'telegram_chat.rate_limited': 'Слишком часто: повторите анонс через минуту',
+  'telegram_chat.rate_limited': 'Слишком часто: повторите через минуту',
   'telegram_chat.delivery_failed': 'Не удалось отправить анонс в чат. Попробуйте ещё раз',
   'event_balance.insufficient':
     'Не хватает баланса событий. Пополните баланс или сохраните событие как черновик',

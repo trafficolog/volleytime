@@ -261,8 +261,10 @@ async function archive() {
         />
         <SettingsIntegrations
           v-else-if="section === 'integrations'"
+          :org-id="orgId"
           :bot-username="config.public.telegramBotUsername"
           :base="base"
+          @toast="toast.show"
         />
         <SettingsDanger
           v-else-if="section === 'danger' && isOwner"

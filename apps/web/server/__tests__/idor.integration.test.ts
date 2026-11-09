@@ -251,6 +251,10 @@ const ROUTES: OrgRouteTable = {
     access: 'manager',
     body: () => ({}),
   },
+  'POST /api/organizations/:orgId/telegram-chat/test-message': {
+    access: 'manager',
+    body: () => ({}),
+  },
   'POST /api/organizations/:orgId/events/:eventId/telegram-announce': {
     access: 'manager',
     body: () => ({}),
