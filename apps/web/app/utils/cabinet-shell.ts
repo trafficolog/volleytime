@@ -1,6 +1,6 @@
 import { desktopNavItems } from './desktop-org-ui'
 
-/** Разделы сайдбара кабинета v3 (20.5.3, W-01). Страницы «Отчёты», «Баланс» добавят их карточки. */
+/** Разделы сайдбара кабинета v3 (20.5.3, W-01). «Платформа»: баланс и оплата (21.2.8), настройки. */
 export type CabinetNavSection = {
   key: 'organization' | 'platform'
   heading: string
@@ -13,12 +13,12 @@ export function cabinetNavSections(orgId: number, subscriptionsEnabled: boolean)
     {
       key: 'organization',
       heading: 'Организация',
-      items: items.filter((item) => item.key !== 'settings'),
+      items: items.filter((item) => item.key !== 'settings' && item.key !== 'billing'),
     },
     {
       key: 'platform',
       heading: 'Платформа',
-      items: items.filter((item) => item.key === 'settings'),
+      items: items.filter((item) => item.key === 'billing' || item.key === 'settings'),
     },
   ] satisfies CabinetNavSection[]
 }
@@ -32,6 +32,7 @@ const NAV_ICONS: Record<string, string> = {
   cashbox: 'wallet',
   collections: 'gift',
   reports: 'chart',
+  billing: 'card',
   settings: 'settings',
 }
 
@@ -39,7 +40,7 @@ export function cabinetNavIcon(key: string): string {
   return NAV_ICONS[key] ?? 'calendar'
 }
 
-function pluralEvents(n: number): string {
+export function pluralEvents(n: number): string {
   const mod10 = n % 10
   const mod100 = n % 100
   if (mod10 === 1 && mod100 !== 11) return 'событие'
