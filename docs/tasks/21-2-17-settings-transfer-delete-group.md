@@ -2,11 +2,11 @@
 id: '21.2.17'
 phase: '21'
 epic: '21.2'
-status: todo
+status: in_progress
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-10-15
-status_note: ''
+status_note: 'В работе: ветка trafficolog/feat/21.2.17-transfer-delete-group, PR — по готовности.'
 ref_id: 'W-11'
 complexity: XL
 impl_model: claude-opus-5-5
