@@ -6,8 +6,8 @@ import {
   currentMonthKey,
   miniappReportView,
   monthFromQuery,
-  monthPeriod,
-  shiftMonth,
+  reportMonthPeriod,
+  shiftReportMonth,
 } from '~/utils/miniapp-report'
 
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
@@ -23,7 +23,7 @@ const { data: orgData } = await useFetch<{ organization: { defaultTimezone: stri
 const tz = computed(() => orgData.value?.organization.defaultTimezone ?? DEFAULT_TIMEZONE)
 const current = computed(() => currentMonthKey(new Date(), tz.value))
 const month = computed(() => monthFromQuery(route.query.month, current.value))
-const period = computed(() => monthPeriod(month.value))
+const period = computed(() => reportMonthPeriod(month.value))
 const canNext = computed(() => month.value < current.value)
 
 const { data, pending, error, refresh } = await useFetch<ManagerReport>(
@@ -37,7 +37,7 @@ const forbidden = computed(() => apiErrorStatus(error.value) === 403)
 const view = computed(() => (data.value ? miniappReportView(data.value) : null))
 
 function go(delta: number) {
-  void router.replace({ query: { month: shiftMonth(month.value, delta) } })
+  void router.replace({ query: { month: shiftReportMonth(month.value, delta) } })
 }
 </script>
 

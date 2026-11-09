@@ -24,14 +24,14 @@ export function monthFromQuery(value: unknown, current: string): string {
 }
 
 /** Сдвиг месяца `YYYY-MM` на `delta` месяцев. */
-export function shiftMonth(key: string, delta: number): string {
+export function shiftReportMonth(key: string, delta: number): string {
   const [y, m] = key.split('-').map(Number) as [number, number]
   const d = new Date(Date.UTC(y, m - 1 + delta, 1))
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
 }
 
 /** Даты месяца (обе включительно) и подпись «Май 2026» — из тех же пресетов, что в кабинете. */
-export function monthPeriod(key: string): { from: string; to: string; label: string } {
+export function reportMonthPeriod(key: string): { from: string; to: string; label: string } {
   const [y, m] = key.split('-').map(Number) as [number, number]
   const preset = reportPeriodPresets(new Date(Date.UTC(y, m - 1, 15, 12)), 'UTC')[0]!
   return { from: preset.from, to: preset.to, label: preset.label }

@@ -2,13 +2,13 @@
 import type { OrganizationMember } from '@volley-time/db'
 
 import type { MemberRow } from '~/composables/useOrganizations'
+import { countPlayerTabs, filterPlayers } from '~/utils/desktop-players'
 import {
   activityView,
   debtView,
   playerStatsPeriodLabel,
   subscriptionView,
 } from '~/utils/desktop-players-stats'
-import { countPlayerTabs, filterPlayers } from '~/utils/desktop-players'
 import { ROLE_LABELS, displayName, label } from '~/utils/labels'
 import {
   MINIAPP_FETCH_STATUSES,

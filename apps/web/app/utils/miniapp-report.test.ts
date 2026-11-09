@@ -6,8 +6,8 @@ import {
   currentMonthKey,
   miniappReportView,
   monthFromQuery,
-  monthPeriod,
-  shiftMonth,
+  reportMonthPeriod,
+  shiftReportMonth,
 } from './miniapp-report'
 
 const report: ManagerReport = {
@@ -57,18 +57,18 @@ describe('Mini App month report period', () => {
   })
 
   it('shifts across year boundaries', () => {
-    expect(shiftMonth('2026-01', -1)).toBe('2025-12')
-    expect(shiftMonth('2025-12', 1)).toBe('2026-01')
-    expect(shiftMonth('2026-05', -3)).toBe('2026-02')
+    expect(shiftReportMonth('2026-01', -1)).toBe('2025-12')
+    expect(shiftReportMonth('2025-12', 1)).toBe('2026-01')
+    expect(shiftReportMonth('2026-05', -3)).toBe('2026-02')
   })
 
   it('builds inclusive month dates and label from the cabinet presets', () => {
-    expect(monthPeriod('2026-05')).toEqual({
+    expect(reportMonthPeriod('2026-05')).toEqual({
       from: '2026-05-01',
       to: '2026-05-31',
       label: 'Май 2026',
     })
-    expect(monthPeriod('2024-02')).toEqual({
+    expect(reportMonthPeriod('2024-02')).toEqual({
       from: '2024-02-01',
       to: '2024-02-29',
       label: 'Февраль 2024',
