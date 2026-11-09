@@ -7,14 +7,14 @@ import NotificationBell from './NotificationBell.vue'
 
 const fetchApi = vi.fn<(url: string, opts?: Record<string, unknown>) => Promise<unknown>>()
 
-function mountBell() {
+function mountBell(extra: Record<string, unknown> = {}) {
   vi.stubGlobal('ref', ref)
   vi.stubGlobal('computed', computed)
   vi.stubGlobal('watch', watch)
   vi.stubGlobal('onMounted', onMounted)
   vi.stubGlobal('$fetch', fetchApi)
   return mount(NotificationBell, {
-    props: { orgId: 30 },
+    props: { orgId: 30, ...extra },
     global: {
       stubs: {
         VtIcon: { template: '<i />' },
@@ -40,6 +40,13 @@ describe('NotificationBell (20.4.9)', () => {
     expect(w.get('a').attributes('href')).toBe('/m/orgs/30/notifications')
     expect(w.get('a').attributes('aria-label')).toBe('Уведомления, новых: 3')
     expect(w.get('[data-bell-badge]').text()).toBe('3')
+  })
+
+  it('в кабинете ведёт на ленту кабинета, если передан путь (21.2.9)', async () => {
+    fetchApi.mockResolvedValue({ unreadCount: 1 })
+    const w = mountBell({ to: '/app/orgs/30/notifications' })
+    await flushPromises()
+    expect(w.get('a').attributes('href')).toBe('/app/orgs/30/notifications')
   })
 
   it('без непрочитанных отметки нет', async () => {

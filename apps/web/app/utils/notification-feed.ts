@@ -67,14 +67,19 @@ const joinText = (...parts: (string | false | undefined)[]) => parts.filter(Bool
  * Вид записи ленты: заголовок, текст, иконка и переход. Тексты согласованы с шаблонами бота
  * (`renderMessage`, 20.3.2): лента и Telegram — один источник, разные носители. Данные
  * только из `payload`; неполная нагрузка даёт нейтральный текст без `undefined`.
+ * `subscriptionsTo` — куда ведёт цель «абонементы»: в Mini App игрока и в кабинете страницы разные (21.2.9).
  */
-export function notificationView(n: FeedNotification, base: string): NotificationView {
+export function notificationView(
+  n: FeedNotification,
+  base: string,
+  subscriptionsTo = `${base}/subscriptions`,
+): NotificationView {
   const p = paramsOf(n.payload)
   const event = p.eventTitle?.trim() || 'событие'
   const quoted = p.eventTitle?.trim() ? `«${p.eventTitle.trim()}»` : 'событие'
   const to =
     p.target === 'subscriptions'
-      ? `${base}/subscriptions`
+      ? subscriptionsTo
       : p.target === 'payments'
         ? `${base}/payments`
         : n.eventId
