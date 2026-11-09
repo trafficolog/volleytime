@@ -2,11 +2,11 @@
 id: '21.2.9'
 phase: '21'
 epic: '21.2'
-status: todo
+status: in_progress
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-10-12
-status_note: ''
+status_note: 'В работе: ветка trafficolog/feat/21.2.9-notifications от origin/main c8041c17. API ленты 20.3.2 (GET /api/notifications, POST /api/notifications/read) переиспользуется без изменений; схема и миграций нет.'
 ref_id: 'W-15'
 complexity: S
 impl_model: claude-haiku-5-5
