@@ -1,4 +1,13 @@
-import { index, integer, pgTable, serial, timestamp, unique } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
+import {
+  index,
+  integer,
+  pgTable,
+  serial,
+  timestamp,
+  unique,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core'
 
 import { inviteLinks } from './invite-links'
 import { playerLevelEnum, playerPositionEnum } from './level-enums'
@@ -38,6 +47,10 @@ export const organizationMembers = pgTable(
     index('org_members_org_idx').on(t.organizationId),
     index('org_members_user_idx').on(t.userId),
     index('org_members_role_idx').on(t.organizationId, t.role),
+    // ровно один owner на группу (21.2.17): передача владения сначала понижает прежнего owner
+    uniqueIndex('org_members_one_owner_uniq')
+      .on(t.organizationId)
+      .where(sql`${t.role} = 'owner'`),
   ],
 )
 

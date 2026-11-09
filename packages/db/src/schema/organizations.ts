@@ -61,6 +61,11 @@ export const organizations = pgTable(
     shortLink: varchar('short_link', { length: 32 }),
     // версия и признак логотипа (21.2.16): NULL — логотипа нет; байты — в organization_logos
     logoUpdatedAt: timestamp('logo_updated_at', { withTimezone: true }),
+    // мягкое удаление группы (21.2.17, D-15): NULL — не удалена. Удалённая группа скрыта, запись,
+    // оплата и фоновые задачи по ней заблокированы, деньги не меняются; `status` не трогается, поэтому
+    // восстановление в окне (до `restore_until`) возвращает группу в прежнее состояние
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    restoreUntil: timestamp('restore_until', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -71,6 +76,10 @@ export const organizations = pgTable(
     check(
       'organizations_short_link_format',
       sql`${t.shortLink} IS NULL OR (${t.shortLink} ~ '^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$' AND ${t.shortLink} !~ '--')`,
+    ),
+    check(
+      'organizations_deleted_restore_chk',
+      sql`(${t.deletedAt} IS NULL) = (${t.restoreUntil} IS NULL) AND (${t.restoreUntil} IS NULL OR ${t.restoreUntil} > ${t.deletedAt})`,
     ),
     check(
       'organizations_max_seats_range',
