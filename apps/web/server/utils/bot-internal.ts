@@ -15,6 +15,9 @@ const claimByChatLimiter = new RateLimiter({ limit: 20, windowMs: 10 * 60_000 })
 /** Действия организатора с чатом группы (выдача кода, анонс) — защита от флуда. */
 const orgChatLimiter = new RateLimiter({ limit: 10, windowMs: 60_000 })
 
+/** Тестовое сообщение в чат группы (21.2.15): строже общего лимита, единственная отправка «по кнопке». */
+const orgChatTestLimiter = new RateLimiter({ limit: 3, windowMs: 60_000 })
+
 export const TelegramIdParam = z.string().regex(/^\d{1,15}$/)
 export const BotActionBody = z.object({
   telegramId: TelegramIdParam,
@@ -62,6 +65,17 @@ export function limitOrgChatAction(
   const r = orgChatLimiter.check(key)
   if (!r.allowed) {
     // код `telegram_chat.rate_limited` (429), как у лимита Bot API
+    setResponseHeader(event, 'retry-after', r.retryAfterSeconds)
+    throw new TelegramChatRateLimitedError()
+  }
+}
+
+export function limitOrgChatTest(
+  event: Parameters<typeof requireInternalSecret>[0],
+  orgId: number,
+) {
+  const r = orgChatTestLimiter.check(`test:${orgId}`)
+  if (!r.allowed) {
     setResponseHeader(event, 'retry-after', r.retryAfterSeconds)
     throw new TelegramChatRateLimitedError()
   }

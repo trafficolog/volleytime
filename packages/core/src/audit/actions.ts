@@ -68,6 +68,7 @@ export const AUDIT_ACTIONS = {
   TELEGRAM_CHAT_STATUS_CHANGED: 'telegram_chat.status_changed',
   TELEGRAM_CHAT_UNLINKED: 'telegram_chat.unlinked',
   TELEGRAM_CHAT_ANNOUNCED: 'telegram_chat.event_announced',
+  TELEGRAM_CHAT_TEST_SENT: 'telegram_chat.test_sent',
   // баланс событий (20.2.1); начисления и решения root пишет операторская команда (packages/db)
   EVENT_BALANCE_PURCHASE_REQUESTED: 'event_balance.purchase_requested',
   // сборы (21.2.4): жизненный цикл сбора и решения по взносам (платежам сбора)

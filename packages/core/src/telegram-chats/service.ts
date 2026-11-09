@@ -24,6 +24,7 @@ import { auditService } from '../audit/service'
 import { takenSeats } from '../bookings/seats'
 import { EventNotFoundError } from '../events/errors'
 import { DeliveryError, notifierService } from '../notifier'
+import { esc } from '../notifier/templates'
 import {
   actorUserId,
   getDb,
@@ -473,6 +474,37 @@ export const telegramChatService = {
       newValue: { chatLinkId: link.id },
     })
     return { announced: true }
+  },
+
+  /**
+   * Тестовое сообщение в привязанный чат своей группы (21.2.15): фиксированный текст без данных
+   * игроков и без тела запроса, адресат — только чат, привязанный к `organizationId`. Те же коды
+   * ошибок, что у анонса; недоступный чат помечается недействительным или снимается.
+   */
+  async sendTestMessage(ctx: ServiceContext, organizationId: number): Promise<{ sent: true }> {
+    const d = getDb(ctx)
+    const link = await openLink(d, organizationId)
+    if (!link) throw new TelegramChatNotLinkedError()
+    if (link.status === 'invalid')
+      throw new TelegramChatInvalidError(link.invalidReason as InvalidReason)
+    const [org] = await d
+      .select({ name: organizations.name })
+      .from(organizations)
+      .where(eq(organizations.id, organizationId))
+    try {
+      await notifierService.sendToChat(String(link.telegramChatId), {
+        text: `Тестовое сообщение Volley Time: бот подключён к группе «${esc(org?.name ?? '')}».`,
+      })
+    } catch (e) {
+      throw await this.mapDeliveryFailure(link, e)
+    }
+    await auditService.record(ctx, {
+      organizationId,
+      action: AUDIT_ACTIONS.TELEGRAM_CHAT_TEST_SENT,
+      entityType: 'telegram_chat',
+      entityId: link.id,
+    })
+    return { sent: true }
   },
 
   /** Ошибка транспорта -> доменная ошибка; недоступный чат помечается недействительным или снимается. */
