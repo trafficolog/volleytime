@@ -82,6 +82,7 @@ export function organizerMenuLinks(
   return [
     { to: `${base}/events/new`, label: 'Создать событие' },
     { to: `${base}/invite`, label: 'Пригласить' },
+    { to: `${base}/reports`, label: 'Отчёт за месяц' },
     ...(subscriptionsEnabled ? [{ to: `${base}/plans`, label: 'Планы' }] : []),
     ...(member.role === 'owner' ? [{ to: `${base}/settings`, label: 'Настройки' }] : []),
     { to: `${base}/audit`, label: 'Журнал' },
