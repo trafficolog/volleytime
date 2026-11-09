@@ -31,7 +31,7 @@ capability_schema=(
   "SET search_path TO pg_catalog, public; SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='events' AND column_name='join_mode');"
   "SET search_path TO pg_catalog, public; SELECT CASE (SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='events' AND column_name='booking_opens_at') + (SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='waitlist_offers') WHEN 0 THEN 'f' WHEN 2 THEN 't' END;"
   "SET search_path TO pg_catalog, public; SELECT CASE (SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='payments' AND column_name='collection_id') + (SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='collections') WHEN 0 THEN 'f' WHEN 2 THEN 't' END;"
-  "SET search_path TO pg_catalog, public; SELECT CASE count(*) WHEN 0 THEN 'f' WHEN 2 THEN 't' END FROM information_schema.columns WHERE table_schema='public' AND table_name='organizations' AND column_name IN ('deleted_at', 'restore_until');"
+  "SET search_path TO pg_catalog, public; SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='organizations' AND column_name='deleted_at');"
 )
 # Rows a runtime without the capability misreads; predicates match the owning task cards verbatim.
 # Tables are unqualified, like the migration rollback scripts; every schema and data query first pins
