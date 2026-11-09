@@ -492,6 +492,17 @@
       "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
     },
     {
+      "id": "cabinet-members-excluded",
+      "title": "Кабинет: игроки, вкладка «Исключённые»",
+      "viewport": "cabinet",
+      "role": "owner",
+      "org": "vt",
+      "path": "/app/orgs/{org}/members",
+      "steps": [{ "click": "button:has-text('Исключённые')" }],
+      "references": ["4-cabinet/06-screen.png"],
+      "referenceCrop": { "x": 152, "y": 90, "width": 620, "height": 365 }
+    },
+    {
       "id": "cabinet-plans",
       "title": "Кабинет: абонементы",
       "viewport": "cabinet",

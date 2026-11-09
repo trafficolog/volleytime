@@ -1,6 +1,8 @@
 import {
   and,
   asc,
+  auditLog,
+  desc,
   eq,
   inArray,
   organizationMembers,
@@ -221,9 +223,14 @@ export const memberService = {
   async transition(
     ctx: ServiceContext,
     memberId: number,
-    to: 'active' | 'rejected' | 'blocked',
+    to: 'active' | 'rejected' | 'blocked' | 'left',
     allowedFrom: OrganizationMember['status'][],
     action: (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS],
+    options: {
+      idempotent?: boolean
+      /** Целевой статус, зависящий от участника (разблокировка), считается в той же транзакции. */
+      resolveTo?: (tx: ServiceContext, m: OrganizationMember) => Promise<typeof to>
+    } = {},
   ): Promise<OrganizationMember> {
     return inTransaction(ctx, async (tx) => {
       const m = await this.getById(tx, memberId)
@@ -231,6 +238,9 @@ export const memberService = {
         throw new MemberNotFoundError(memberId)
       }
       if (m.role === 'owner') throw new CannotBlockOwnerError()
+      if (options.resolveTo && allowedFrom.includes(m.status)) to = await options.resolveTo(tx, m)
+      // повторное действие в целевом статусе: без изменений и без записи в audit
+      if (options.idempotent && m.status === to) return m
       if (!allowedFrom.includes(m.status)) throw new MemberInvalidTransitionError(m.status, to)
 
       const [updated] = await getDb(tx)
@@ -255,19 +265,48 @@ export const memberService = {
     })
   },
 
-  /** Заблокировать участника (active/pending). Owner заблокировать нельзя. */
+  /**
+   * Заблокировать участника (active/pending/guest, а также `left`: вышедший или исключённый, 21.2.24,
+   * чтобы он не вернулся по многоразовой ссылке). Owner заблокировать нельзя. Повторная блокировка
+   * идемпотентна: статус и audit не меняются.
+   */
   async block(ctx: ServiceContext, memberId: number): Promise<OrganizationMember> {
     return this.transition(
       ctx,
       memberId,
       'blocked',
-      ['active', 'pending', 'guest'],
+      ['active', 'pending', 'guest', 'left'],
       AUDIT_ACTIONS.MEMBER_BLOCKED,
+      { idempotent: true },
     )
   },
 
+  /**
+   * Разблокировать участника: возвращается статус, который был до блокировки. Если последняя
+   * запись `member.blocked` по участнику имеет oldValue.status = 'left' (вышедший или исключённый,
+   * 21.2.24), он остаётся `left` и вернуться может только по приглашению; иначе `active`.
+   */
   async unblock(ctx: ServiceContext, memberId: number): Promise<OrganizationMember> {
-    return this.transition(ctx, memberId, 'active', ['blocked'], AUDIT_ACTIONS.MEMBER_UNBLOCKED)
+    return this.transition(ctx, memberId, 'active', ['blocked'], AUDIT_ACTIONS.MEMBER_UNBLOCKED, {
+      resolveTo: async (tx, m) => {
+        const [last] = await getDb(tx)
+          .select({ oldValue: auditLog.oldValue })
+          .from(auditLog)
+          .where(
+            and(
+              eq(auditLog.organizationId, m.organizationId),
+              eq(auditLog.entityType, 'member'),
+              eq(auditLog.entityId, m.id),
+              eq(auditLog.action, AUDIT_ACTIONS.MEMBER_BLOCKED),
+            ),
+          )
+          .orderBy(desc(auditLog.id))
+          .limit(1)
+        return (last?.oldValue as { status?: unknown } | null)?.status === 'left'
+          ? 'left'
+          : 'active'
+      },
+    })
   },
 
   async approve(ctx: ServiceContext, memberId: number): Promise<OrganizationMember> {
