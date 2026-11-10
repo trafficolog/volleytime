@@ -67,4 +67,22 @@ describe('overviewPeriods', () => {
     const b = overviewPeriods(new Date('2026-11-04T12:00:00Z'), 'Europe/Minsk')
     expect(a).toEqual(b)
   })
+
+  it('gives the previous calendar month and the 7-day expiry window (21.4.4)', () => {
+    const { month, previousMonth, expiryWindow } = overviewPeriods(
+      new Date('2026-11-04T12:00:00Z'),
+      'Europe/Minsk',
+    )
+    expect(iso(previousMonth.from)).toBe('2026-09-30T21:00:00.000Z')
+    expect(iso(previousMonth.to)).toBe('2026-10-31T21:00:00.000Z')
+    expect(previousMonth.to.getTime()).toBe(month.from.getTime())
+    expect(iso(expiryWindow.from)).toBe('2026-11-04T12:00:00.000Z')
+    expect(iso(expiryWindow.to)).toBe('2026-11-11T12:00:00.000Z')
+  })
+
+  it('wraps the previous month over a year edge', () => {
+    const { previousMonth } = overviewPeriods(new Date('2027-01-10T10:00:00Z'), 'Europe/Minsk')
+    expect(iso(previousMonth.from)).toBe('2026-11-30T21:00:00.000Z')
+    expect(iso(previousMonth.to)).toBe('2026-12-31T21:00:00.000Z')
+  })
 })

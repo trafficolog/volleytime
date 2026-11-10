@@ -3,9 +3,11 @@ import {
   bookings,
   eq,
   events,
+  gt,
   gte,
   inArray,
   lt,
+  lte,
   notInArray,
   organizations,
   sql,
@@ -43,7 +45,7 @@ export const overviewService = {
     })
     const currency = org?.defaultCurrency ?? 'BYN'
     const timezone = safeTimezone(org?.defaultTimezone)
-    const { month, weeks } = overviewPeriods(now, timezone)
+    const { month, previousMonth, expiryWindow, weeks } = overviewPeriods(now, timezone)
 
     const monthEvents = and(
       eq(events.organizationId, orgId),
@@ -52,7 +54,22 @@ export const overviewService = {
       notInArray(events.status, [...EXCLUDED_EVENT_STATUSES]),
     )
 
-    const [eventRows, bookingRows, subscriptionRows, pending, weekTotals] = await Promise.all([
+    const previousMonthEvents = and(
+      eq(events.organizationId, orgId),
+      gte(events.startsAt, previousMonth.from),
+      lt(events.startsAt, previousMonth.to),
+      notInArray(events.status, [...EXCLUDED_EVENT_STATUSES]),
+    )
+
+    const [
+      eventRows,
+      bookingRows,
+      subscriptionRows,
+      pending,
+      weekTotals,
+      previousEventRows,
+      expiringRows,
+    ] = await Promise.all([
       db
         .select({
           count: sql<number>`count(*)::int`,
@@ -74,10 +91,25 @@ export const overviewService = {
         .where(usableSubscriptionWhere(orgId, now)),
       paymentService.listPending(ctx, orgId),
       Promise.all(weeks.map((w) => ledgerService.getPeriodTotals(ctx, orgId, w))),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(events)
+        .where(previousMonthEvents),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(subscriptions)
+        .where(
+          and(
+            usableSubscriptionWhere(orgId, now),
+            gt(subscriptions.expiresAt, expiryWindow.from),
+            lte(subscriptions.expiresAt, expiryWindow.to),
+          ),
+        ),
     ])
 
     const eventsCount = eventRows[0]?.count ?? 0
     const capacity = eventRows[0]?.capacity ?? 0
+    const previousEvents = previousEventRows[0]?.count ?? 0
     const seats = bookingRows[0]?.seats ?? 0
 
     const cashWeeks = weeks.map((w, i) => {
@@ -132,6 +164,15 @@ export const overviewService = {
           plan: p.plan,
           collection: p.collection,
         })),
+      },
+      deltas: {
+        previousMonth: {
+          from: previousMonth.from.toISOString(),
+          to: previousMonth.to.toISOString(),
+        },
+        eventsVsPreviousMonth: previousEvents > 0 ? eventsCount - previousEvents : null,
+        subscriptionsExpiringSoon: expiringRows[0]?.count ?? 0,
+        cashWeekNet: cashWeeks[cashWeeks.length - 1]?.net ?? 0,
       },
       cashWeekly: { currency, weeks: cashWeeks, total },
     }
