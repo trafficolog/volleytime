@@ -12,6 +12,10 @@ export const OVERVIEW_CASH_WEEKS = 4
 export interface OverviewPeriods {
   /** Календарный месяц `now` в зоне группы. */
   month: OverviewPeriod
+  /** Предыдущий календарный месяц (для дельты «к прошлому месяцу», 21.4.4). */
+  previousMonth: OverviewPeriod
+  /** Окно «истекают на неделе»: от `now` на 7 суток вперёд, `to` включительно (21.4.4). */
+  expiryWindow: OverviewPeriod
   /** Недели ряда по возрастанию, последняя — текущая (пн–вс в зоне группы). */
   weeks: OverviewPeriod[]
 }
@@ -26,6 +30,9 @@ export function safeTimezone(tz: string | null | undefined): string {
     return DEFAULT_TIMEZONE
   }
 }
+
+/** Горизонт «истекают на неделе» в сутках. */
+const EXPIRY_WINDOW_DAYS = 7
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const DAY = 86_400_000
@@ -52,6 +59,7 @@ export function overviewPeriods(now: Date, timezone: string): OverviewPeriods {
 
   const monthFrom = localMidnight(Date.UTC(year, month - 1, 1), tz)
   const monthTo = localMidnight(Date.UTC(year, month, 1), tz)
+  const previousFrom = localMidnight(Date.UTC(year, month - 2, 1), tz)
 
   const today = Date.UTC(year, month - 1, day)
   const sinceMonday = (new Date(today).getUTCDay() + 6) % 7
@@ -63,5 +71,10 @@ export function overviewPeriods(now: Date, timezone: string): OverviewPeriods {
       to: localMidnight(thisMonday - (i - 1) * 7 * DAY, tz),
     })
   }
-  return { month: { from: monthFrom, to: monthTo }, weeks }
+  return {
+    month: { from: monthFrom, to: monthTo },
+    previousMonth: { from: previousFrom, to: monthFrom },
+    expiryWindow: { from: now, to: new Date(now.getTime() + EXPIRY_WINDOW_DAYS * DAY) },
+    weeks,
+  }
 }

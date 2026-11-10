@@ -27,6 +27,21 @@ export interface OverviewCashWeek {
   net: number
 }
 
+/** Подписи-дельты обзора (W-02, 21.4.4). */
+export interface OverviewDeltas {
+  /** Предыдущий календарный месяц в зоне группы: [from, to). */
+  previousMonth: { from: string; to: string }
+  /**
+   * `events.thisMonth` минус число событий прошлого месяца (то же правило: без черновиков и
+   * отменённых). `null`, если в прошлом месяце событий не было: сравнивать не с чем.
+   */
+  eventsVsPreviousMonth: number | null
+  /** Действующие абонементы, срок которых истекает в ближайшие 7 суток (включительно). */
+  subscriptionsExpiringSoon: number
+  /** `net` текущей недели ряда кассы (`cashWeekly.weeks[3].net`), валюта группы. */
+  cashWeekNet: number
+}
+
 export interface ManagerOverview {
   timezone: string
   currency: string
@@ -59,6 +74,7 @@ export interface ManagerOverview {
     /** От старых к новым. */
     items: OverviewPendingPayment[]
   }
+  deltas: OverviewDeltas
   cashWeekly: {
     currency: string
     /** 4 недели по возрастанию, последняя — текущая. */

@@ -225,13 +225,3 @@
   --vt-ctl-chip: #2b2c33;
   --vt-ctl-track: #2b2c33;
 }
-/* Demo only (brand system "before" column): every control shares the grey surface. */
-.vt-legacy-ctl,
-.vt-legacy-ctl * {
-  --vt-ctl: var(--vt-bone) !important;
-  --vt-ctl-hover: var(--vt-bone-2) !important;
-  --vt-ctl-lift: none !important;
-  --vt-ctl-chip: var(--vt-bone-2) !important;
-  --vt-ctl-track: var(--vt-bone-2) !important;
-  --vt-ctl-ink: var(--vt-ink) !important;
-}
