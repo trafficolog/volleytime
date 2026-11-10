@@ -122,9 +122,6 @@ volley_time_platform/
 │   ├── guides/              # TAXES_BY, BEPAID, DEPLOY и т.д.
 │   └── operations/          # sessions/, iterations/, status/, templates/
 │
-├── legacy/                  # Архив предшествующих версий
-│   └── level-volley-laravel/  # Laravel-приложение (будет добавлено)
-│
 ├── apps/                    # (будет создано в Phase 3)
 │   ├── web/                 # Nuxt 4 app
 │   └── bot/                 # grammY bot
