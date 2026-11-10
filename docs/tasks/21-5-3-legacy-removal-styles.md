@@ -2,11 +2,11 @@
 id: '21.5.3'
 phase: '21'
 epic: '21.5'
-status: in_progress
+status: done
 release: 'v0.3.1'
 sync_state: synced
-last_reviewed: 2026-10-28
-status_note: 'Пакет 2 из отчёта 21.5.1: LEG-04, LEG-05 (LEG-05 условно: повторить проверку после 21.3.1).'
+last_reviewed: 2026-11-10
+status_note: 'Выполнено 2026-11-10, PR #250: удалены неиспользуемые стили LEG-04 (.vt-legacy-ctl) и LEG-05 (__controls, __stats, __person в desktop.css); неиспользование перепроверено на main 66303feb, визуальная сверка не нужна (селекторы без потребителей). Ревью Sonnet — merge.'
 ref_id: ''
 complexity: S
 impl_model: claude-haiku-5-5
