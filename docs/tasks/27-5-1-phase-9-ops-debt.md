@@ -6,7 +6,7 @@ status: todo
 release: ''
 sync_state: synced
 last_reviewed: 2026-11-10
-status_note: 'Из аудита 2026-11-10 (OPS-01). Релиз назначает владелец.'
+status_note: 'Из аудита 2026-11-10 (OPS-01). Отложена на будущий релиз решением владельца 2026-11-10: учётных записей Sentry, S3 и UptimeRobot пока нет; первым появится S3.'
 ref_id: ''
 review_ref: 'OPS-01'
 priority: P1
@@ -37,6 +37,7 @@ tags: [audit-2026-11, ops, monitoring, backup]
 - Открытые карточки: [9.6.1](9-6-1-health-sentry-web.md) (Sentry web), [9.6.2](9-6-2-sentry-bot-uptimerobot.md) (Sentry bot, UptimeRobot), [9.7.1](9-7-1-backup-s3.md) (S3), [9.7.2](9-7-2-restore-test-runbook.md) (восстановление из S3), [9.5.1](9-5-1-webhook-mode.md) (webhook: IPv4 ingress не доходит, работает polling).
 - Условие из [RELEASES](../RELEASES.md) v0.2.0 и [аудита 2026-10-12](../operations/reviews/2026-10-12-project-audit.md): закрыть до приглашения внешних организаторов.
 - Учётные данные (DSN, ключи S3, UptimeRobot) заводит владелец; агент готовит инструкции и проверки.
+- Решение владельца 2026-11-10: карточка отложена на будущий релиз — учётных записей Sentry, S3 и UptimeRobot пока нет. S3 появится первым: тогда стартует часть 9.7.1 и 9.7.2 (бэкап в S3 и восстановление), мониторинг — позже. До этого условие «закрыть до внешних организаторов» остаётся в силе.
 - Модель: реализация `claude-opus-5-5`, ревью `claude-opus-5-5` (нужны учётные данные и решения владельца); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
 
 ## Что должно быть сделано

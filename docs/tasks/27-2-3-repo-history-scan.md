@@ -3,10 +3,10 @@ id: '27.2.3'
 phase: '27'
 epic: '27.2'
 status: todo
-release: ''
+release: 'v0.3.1'
 sync_state: synced
 last_reviewed: 2026-11-10
-status_note: 'Из аудита 2026-11-10 (PD-03). Релиз назначает владелец.'
+status_note: 'Из аудита 2026-11-10 (PD-03). Релиз v0.3.1 (решение владельца 2026-11-10), параллельно с эпиками 21.4–21.5.'
 ref_id: ''
 review_ref: 'PD-03'
 priority: P1
