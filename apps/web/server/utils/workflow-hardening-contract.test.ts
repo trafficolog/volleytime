@@ -44,6 +44,7 @@ describe('workflow supply-chain pinning', () => {
       'ci.yml',
       'deploy.yml',
       'promote.yml',
+      'secret-scan.yml',
       'vps-disk-monitor.yml',
     ])
   })
