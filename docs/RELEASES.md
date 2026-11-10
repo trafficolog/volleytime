@@ -1,6 +1,6 @@
 # Релиз-план Volley Time
 
-> **v0.3.0 выложен и принят владельцем 2026-11-10:** production `5ebac048e901f146408f5eb82f1add7f50de235a` (код `8b00ad30`), тег `v0.3.0`, [Deploy 42879578391](https://github.com/trafficolog/volleytime/actions/runs/42879578391) success (миграции 0032–0039, backup до миграций, smoke-passed), [main CI 42874186322](https://github.com/trafficolog/volleytime/actions/runs/42874186322) success. Promote отказал (workflows в диапазоне, `PROMOTE_TOKEN` не задан), `prod` продвинут вручную по runbook с подтверждением владельца. `COLLECTIONS_ENABLED` выключен до отдельного подтверждения. [Evidence](operations/qa/2026-11-10-21-3-1-release-v0-3-0.md). Следующий — `v0.3.1`.
+> **v0.3.0 выложен и принят владельцем 2026-11-10:** production `5ebac048e901f146408f5eb82f1add7f50de235a` (код `8b00ad30`), тег `v0.3.0`, [Deploy 42879578391](https://github.com/trafficolog/volleytime/actions/runs/42879578391) success (миграции 0032–0039, backup до миграций, smoke-passed), [main CI 42874186322](https://github.com/trafficolog/volleytime/actions/runs/42874186322) success. Promote отказал (workflows в диапазоне, `PROMOTE_TOKEN` не задан), `prod` продвинут вручную по runbook с подтверждением владельца. `COLLECTIONS_ENABLED` выключен, включается отдельным релизным коммитом (решение владельца 2026-11-10). Приёмка владельца — в чате; отчёта о проверках на устройствах нет ([Follow-up 21.3.1](tasks/21-3-1-release-v0-3-0-qa.md#follow-up-после-выпуска)). [Evidence](operations/qa/2026-11-10-21-3-1-release-v0-3-0.md). Следующий — `v0.3.1`.
 
 > **v0.2.0 выложен 2026-10-26, тег и приёмка владельца 2026-10-27:** production `6143f4256b9da555a90249aeb7de2ccac022521e`, тег `v0.2.0`, [Deploy 40355995553](https://github.com/trafficolog/volleytime/actions/runs/40355995553) success (миграции 0021–0031, smoke-passed), [main CI 40349167990](https://github.com/trafficolog/volleytime/actions/runs/40349167990) all4 success. Новые флаги выключены и включаются по одному после выпуска. Откат приложения на `b056806` не исполнялся, отчёта о проверках на устройствах нет ([Не проверено](operations/qa/2026-10-27-v0-2-0-production-release.md#не-проверено-и-открыто)). [Evidence](operations/qa/2026-10-27-v0-2-0-production-release.md).
 
@@ -360,7 +360,7 @@ Rollback boundary: existing image/data preflight сохраняется. Пер�
 
 ### v0.3.0 — Reference MVP: организатор
 
-**Статус: выложен и принят владельцем 2026-11-10.** Production `5ebac048`, тег `v0.3.0`; [evidence](operations/qa/2026-11-10-21-3-1-release-v0-3-0.md). Сборы (`COLLECTIONS_ENABLED`) выключены и включаются отдельным релизным коммитом с подтверждением владельца.
+**Статус: выложен и принят владельцем 2026-11-10.** Production `5ebac048`, тег `v0.3.0`; [evidence](operations/qa/2026-11-10-21-3-1-release-v0-3-0.md). Сборы (`COLLECTIONS_ENABLED`) выключены и включаются отдельным релизным коммитом (решение владельца 2026-11-10). Отчёта о проверках на устройствах нет ([Follow-up](tasks/21-3-1-release-v0-3-0-qa.md#follow-up-после-выпуска)).
 
 Фаза [21](./phases/21-organizer-mvp-v3.md), 33 задачи, релизная задача [21.3.1](./tasks/21-3-1-release-v0-3-0-qa.md).
 
