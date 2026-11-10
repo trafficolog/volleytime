@@ -100,6 +100,12 @@ describe('dashboard overview aggregates (HTTP)', { timeout: 60_000 }, () => {
       user: { id: player },
     })
     expect(o.cashWeekly.weeks).toHaveLength(4)
+    expect(o.deltas).toEqual({
+      previousMonth: expect.any(Object),
+      eventsVsPreviousMonth: null,
+      subscriptionsExpiringSoon: 0,
+      cashWeekNet: o.cashWeekly.weeks[3]!.net,
+    })
     // существующие поля менеджера не изменились
     expect(body.manager).toMatchObject({ pendingCount: 1, pendingAmount: 1500 })
   })
@@ -132,6 +138,7 @@ describe('dashboard overview aggregates (HTTP)', { timeout: 60_000 }, () => {
       expense: ledger.balance.expense,
       net: ledger.balance.balance,
     })
+    expect(o.deltas.cashWeekNet).toBe(1100)
     expect(o.cashWeekly.total).toEqual({ income: 1500, expense: 400, net: 1100 })
     expect(o.cashWeekly.weeks[3]).toMatchObject({ income: 1500, expense: 400, net: 1100 })
     expect(o.pendingPayments).toMatchObject({ count: 0, amount: 0, items: [] })
@@ -156,7 +163,7 @@ describe('dashboard overview aggregates (HTTP)', { timeout: 60_000 }, () => {
         'upcoming',
       ].sort(),
     )
-    for (const marker of ['cashWeekly', 'pendingPayments', 'occupancyPercent'])
+    for (const marker of ['cashWeekly', 'pendingPayments', 'occupancyPercent', 'deltas'])
       expect(res.text).not.toContain(marker)
   })
 
@@ -164,7 +171,7 @@ describe('dashboard overview aggregates (HTTP)', { timeout: 60_000 }, () => {
     for (const user of [outsider, foreignOwner]) {
       const res = await request('GET', dashboard(), { user })
       expect([403, 404], `user ${user} → ${res.status}`).toContain(res.status)
-      for (const marker of ['cashWeekly', 'pendingPayments', 'overview'])
+      for (const marker of ['cashWeekly', 'pendingPayments', 'overview', 'deltas'])
         expect(res.text).not.toContain(marker)
     }
     const anon = await request('GET', dashboard())
