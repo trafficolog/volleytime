@@ -85,10 +85,10 @@ Check that a wrong key is refused, without touching the server state:
 
 ```bash
 ssh-keygen -q -t ed25519 -N '' -f wrong_host_key
-printf 'VPS_HOST %s
-' "$(cut -d' ' -f1,2 wrong_host_key.pub)" > wrong_known_hosts
+printf 'VPS_HOST %s\n' "$(cut -d' ' -f1,2 wrong_host_key.pub)" > wrong_known_hosts
 # expect: Host key verification failed.
-ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile=wrong_known_hosts -o GlobalKnownHostsFile=/dev/null \n  -o BatchMode=yes -i KEY deploy@VPS_HOST true
+ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile=wrong_known_hosts -o GlobalKnownHostsFile=/dev/null \
+  -o BatchMode=yes -i KEY deploy@VPS_HOST true
 ```
 
 Then confirm the real value with **Actions → VPS disk monitor → Run workflow** (read-only `df`). After a host key rotation or a VPS replacement, update `VPS_KNOWN_HOSTS` before the next Deploy; until then every VPS step fails closed.
