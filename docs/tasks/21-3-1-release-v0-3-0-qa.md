@@ -6,7 +6,7 @@ status: done
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-11-10
-status_note: 'Выпущен 2026-11-10: production 5ebac048 (код 8b00ad30), Deploy 42879578391 smoke-passed, миграции 0032–0039, backup до миграций; Promote отказал на диапазоне с workflows, prod продвинут вручную по runbook с подтверждением владельца; тег v0.3.0; приёмка владельца 2026-11-10 в чате. П. 2 и 8 (проверки на устройствах) отдельным отчётом не подтверждены, п. 7 (включение COLLECTIONS_ENABLED, решение владельца 2026-11-10) — в разделе «Follow-up (после выпуска)». Отчёт: docs/operations/qa/2026-11-10-21-3-1-release-v0-3-0.md.'
+status_note: 'Выпущен 2026-11-10: production 5ebac048 (код 8b00ad30), Deploy 42879578391 smoke-passed, миграции 0032–0039, backup до миграций; Promote отказал на диапазоне с workflows, prod продвинут вручную по runbook с подтверждением владельца; тег v0.3.0; приёмка владельца 2026-11-10 в чате. П. 2 и 8 (проверки на устройствах) отдельным отчётом не подтверждены, п. 7 (включение COLLECTIONS_ENABLED, решение владельца 2026-11-10) выполнен: Promote 42890770428 → aa8d8f9a, Deploy 42890800801 smoke-passed (Follow-up). Отчёт: docs/operations/qa/2026-11-10-21-3-1-release-v0-3-0.md.'
 ref_id: ''
 complexity: L
 impl_model: claude-opus-5-5
@@ -92,7 +92,7 @@ tags: [reference-v3]
 
 Релиз принят владельцем 2026-11-10; ниже то, что не блокирует закрытие. Evidence: [отчёт релиза](../operations/qa/2026-11-10-21-3-1-release-v0-3-0.md).
 
-- **Сборы (`COLLECTIONS_ENABLED`, п. 7):** владелец решил 2026-11-10 включить сразу после merge evidence-PR. Исполняет координатор: `gh variable set COLLECTIONS_ENABLED --body true` непосредственно перед Promote следующего релизного SHA `main`, Deploy, smoke, `capabilities.collections = true`; evidence дописывается в п. 7 отчёта релиза. После первого ожидающего взноса откат приложения на v0.2.0 отказывает, пока взносы не подтверждены или отклонены.
+- ~~**Сборы (`COLLECTIONS_ENABLED`, п. 7)**~~ — выполнено 2026-11-10: Promote 42890770428 → `aa8d8f9a`, Deploy 42890800801 smoke-passed, `COLLECTIONS_ENABLED=true` в web и bot (evidence — п. 7 отчёта). Исходно: владелец решил 2026-11-10 включить сразу после merge evidence-PR. Исполняет координатор: `gh variable set COLLECTIONS_ENABLED --body true` непосредственно перед Promote следующего релизного SHA `main`, Deploy, smoke, `capabilities.collections = true`; evidence дописывается в п. 7 отчёта релиза. После первого ожидающего взноса откат приложения на v0.2.0 отказывает, пока взносы не подтверждены или отклонены.
 - **Проверки на устройствах без отчёта владельца (п. 2, 8):** матрица из двух аккаунтов (Android и Desktop), чек-лист, сценарий 22 и живая проверка мастера группы отдельным отчётом не подтверждены. Нужные проверяются отдельно или войдут в задачи по огрехам [21.4.1](21-4-1-defects-collect.md); список замечаний владелец пришлёт отдельно.
 - **Секрет `PROMOTE_TOKEN`:** не задан; релизы с изменениями workflows идут ручным `git push origin <SHA>:prod` по runbook (решение — AQ-19, [27.2.4](27-2-4-promotion-path.md)).
 
