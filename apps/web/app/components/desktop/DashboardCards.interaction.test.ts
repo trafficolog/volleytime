@@ -43,7 +43,7 @@ describe('dashboard stat tiles (21.2.1, W-02)', () => {
     expect(wrapper.get('[aria-labelledby="desktop-subs-title"]').text()).toContain('9')
     expect(text).toContain('+3 к октябрю')
     expect(text).toContain('2 истекают на неделе')
-    expect(text).toContain('+82,50 BYN на неделе')
+    expect(text).toContain('+82,50 BYN за неделю')
   })
 
   it('omits captions that have nothing to show', () => {
@@ -65,7 +65,7 @@ describe('dashboard stat tiles (21.2.1, W-02)', () => {
     })
     const text = wrapper.text()
     expect(text).not.toMatch(/к октябрю|истека/)
-    expect(text).toContain('на неделе')
+    expect(text).toContain('за неделю')
   })
 
   it('hides the subscriptions tile when subscriptions are off or the organization is not loaded', () => {

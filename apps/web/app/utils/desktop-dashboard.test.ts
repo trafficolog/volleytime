@@ -183,7 +183,7 @@ describe('overviewDeltaLabels (21.4.4, W-02)', () => {
     expect(overviewDeltaLabels(overview)).toEqual({
       events: '+3 к октябрю',
       subscriptions: '2 истекают на неделе',
-      cash: '+82,50 BYN на неделе',
+      cash: '+82,50 BYN за неделю',
     })
   })
 
@@ -224,7 +224,7 @@ describe('overviewDeltaLabels (21.4.4, W-02)', () => {
       ...overview,
       deltas: { ...overview.deltas, cashWeekNet },
     })
-    expect(overviewDeltaLabels(d(-4000)).cash).toBe('-40,00 BYN на неделе')
-    expect(overviewDeltaLabels(d(0)).cash).toBe('0,00 BYN на неделе')
+    expect(overviewDeltaLabels(d(-4000)).cash).toBe('-40,00 BYN за неделю')
+    expect(overviewDeltaLabels(d(0)).cash).toBe('0,00 BYN за неделю')
   })
 })

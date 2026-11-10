@@ -2837,5 +2837,6 @@ ol.vt-desktop-event-detail__rows > li {
 
 .vt-desktop-dashboard__delta {
   margin: 0;
+  color: var(--vt-ink-3);
   font-size: var(--fs-sm);
 }

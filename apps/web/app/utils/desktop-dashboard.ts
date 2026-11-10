@@ -106,7 +106,7 @@ export interface OverviewDeltaLabels {
   events: string | null
   /** «2 истекают на неделе»; `null`, если истекающих нет. */
   subscriptions: string | null
-  /** «+82,50 BYN на неделе»: чистый приход текущей недели. */
+  /** «+82,50 BYN за неделю»: чистый приход текущей недели. */
   cash: string
 }
 
@@ -125,6 +125,6 @@ export function overviewDeltaLabels(overview: ManagerOverview): OverviewDeltaLab
       expiring > 0
         ? `${expiring} ${pluralRu(expiring, 'истекает', 'истекают', 'истекают')} на неделе`
         : null,
-    cash: `${signedMoney(deltas.cashWeekNet, currency)} на неделе`,
+    cash: `${signedMoney(deltas.cashWeekNet, currency)} за неделю`,
   }
 }
