@@ -2,11 +2,11 @@
 id: '27.2.3'
 phase: '27'
 epic: '27.2'
-status: todo
+status: done
 release: 'v0.3.1'
 sync_state: synced
 last_reviewed: 2026-11-10
-status_note: 'Из аудита 2026-11-10 (PD-03). Релиз v0.3.1 (решение владельца 2026-11-10), параллельно с эпиками 21.4–21.5.'
+status_note: 'Выполнено 2026-11-10, PR #247: отчёт docs/operations/reviews/2026-11-10-git-history-scan.md (действующих секретов нет, ротировать нечего), workflow secret-scan.yml (gitleaks по новым коммитам). Итог принят владельцем 2026-11-10: F-01 — историю не переписывать; F-04 — принять, впредь noreply-адрес (настройка владельца в GitHub); F-02, F-03 — допустимы; gitleaks сделать обязательной проверкой отдельным PR (скрипт защиты веток, --apply — владелец).'
 ref_id: ''
 review_ref: 'PD-03'
 priority: P1
