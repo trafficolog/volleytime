@@ -1,11 +1,11 @@
 ---
 id: '21.3'
 phase: '21'
-status: todo
+status: done
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-10-12
-status_note: ''
+status_note: 'v0.3.0 выпущен и принят владельцем 2026-11-10 (21.3.1, тег v0.3.0 на 5ebac048).'
 estimated_hours: '8-16'
 depends_on:
   [
