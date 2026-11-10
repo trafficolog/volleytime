@@ -206,7 +206,8 @@ describe('fallback deployment contract', () => {
       )
     },
   )
-  // v0.2.0 release flags (20.7.1, items 5, 6, 7, 9): same exact-`true` contract as split pricing.
+  // v0.2.0 release flags (20.7.1, items 5, 6, 7, 9) and v0.3.0 collections (21.3.1, item 4):
+  // same exact-`true` contract as split pricing.
   it.each(
     [
       'EVENT_BALANCE_ENFORCED',
@@ -214,6 +215,7 @@ describe('fallback deployment contract', () => {
       'EVENT_INVITE_MODE_ENABLED',
       'SCHEDULER_ENABLED',
       'TELEGRAM_LOGIN_WIDGET_ENABLED',
+      'COLLECTIONS_ENABLED',
     ].flatMap((key) =>
       [undefined, '', 'false', 'TRUE', 'True', ' true', 'true ', '1', 'yes', 'true'].map(
         (value) => [key, value] as const,
@@ -244,6 +246,7 @@ describe('fallback deployment contract', () => {
       'EVENT_INVITE_MODE_ENABLED',
       'SCHEDULER_ENABLED',
       'TELEGRAM_LOGIN_WIDGET_ENABLED',
+      'COLLECTIONS_ENABLED',
       'SCHEDULER_INTERVAL_MS',
     ])
       delete env[key]
@@ -257,6 +260,7 @@ describe('fallback deployment contract', () => {
       'EVENT_INVITE_MODE_ENABLED',
       'SCHEDULER_ENABLED',
       'TELEGRAM_LOGIN_WIDGET_ENABLED',
+      'COLLECTIONS_ENABLED',
     ])
       expect(rendered).toContain(`\n${key}="false"\n`)
     expect(rendered).toContain('\nSCHEDULER_INTERVAL_MS="15000"\n')
@@ -302,6 +306,7 @@ describe('fallback deployment contract', () => {
       'EVENT_INVITE_MODE_ENABLED',
       'SCHEDULER_ENABLED',
       'TELEGRAM_LOGIN_WIDGET_ENABLED',
+      'COLLECTIONS_ENABLED',
       'SCHEDULER_INTERVAL_MS',
     ]) {
       expect(workflow).toContain(`          ${key}: \${{ vars.${key} }}\n`)

@@ -36,6 +36,8 @@ const RELEASE_FLAGS = [
   'SCHEDULER_ENABLED',
   // Read by web per request (login-options), not at build time; 20.5.1, D-05.
   'TELEGRAM_LOGIN_WIDGET_ENABLED',
+  // New collections and pledges (21.2.4); read by web at runtime; wired by release task 21.3.1.
+  'COLLECTIONS_ENABLED',
 ]
 
 const DEFAULTS = {

@@ -181,13 +181,19 @@ describe('v0.2.0 capability labels and data guard (20.7.1)', { timeout: 35_000 }
     async ({ predicate }) => {
       const f = await splitRollbackFixture()
       try {
+        // The probe of this capability's own schema (21.3.1: collections and soft-deleted groups
+        // previously fell through to the scheduler probe).
+        const probe = predicate.includes('waitlist_seats')
+          ? "'waitlist_seats'"
+          : predicate.includes('join_mode')
+            ? "'join_mode'"
+            : predicate.includes('collection_id')
+              ? "column_name='collection_id'"
+              : predicate.includes('deleted_at')
+                ? "column_name='deleted_at'"
+                : "'booking_opens_at'"
         const schemaQuery = (query: string) =>
-          query.includes('information_schema') &&
-          (predicate.includes('waitlist_seats')
-            ? query.includes("'waitlist_seats'")
-            : predicate.includes('join_mode')
-              ? query.includes("'join_mode'")
-              : query.includes("'booking_opens_at'"))
+          query.includes('information_schema') && query.includes(probe)
         f.hook = async (args) => (schemaQuery(args.at(-1) ?? '') ? '' : undefined)
         const result = await f.run()
         expect(result.status).toBe(1)
