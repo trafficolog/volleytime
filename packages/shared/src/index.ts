@@ -59,7 +59,12 @@ export {
   type OverviewPeriod,
   type OverviewPeriods,
 } from './overview/periods'
-export type { ManagerOverview, OverviewCashWeek, OverviewPendingPayment } from './overview/types'
+export type {
+  ManagerOverview,
+  OverviewCashWeek,
+  OverviewDeltas,
+  OverviewPendingPayment,
+} from './overview/types'
 export {
   REPORT_MAX_DAYS,
   previousReportDates,

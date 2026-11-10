@@ -1,4 +1,8 @@
-import type { ManagerOverview, OverviewPendingPayment } from '@volley-time/shared'
+import {
+  dateToZonedInput,
+  type ManagerOverview,
+  type OverviewPendingPayment,
+} from '@volley-time/shared'
 
 import type { EventListItem } from '~/components/EventCard.vue'
 import { pluralRu } from '~/utils/desktop-players'
@@ -78,5 +82,49 @@ export function overviewCashChart(cash: ManagerOverview['cashWeekly']): CashChar
       heightPercent: maxAbs === 0 ? 0 : Math.round((Math.abs(week.net) / maxAbs) * 100),
       current: index === cash.weeks.length - 1,
     })),
+  }
+}
+
+/** Предыдущий месяц в дательном падеже для «+3 к октябрю». */
+const MONTH_DATIVE = [
+  'январю',
+  'февралю',
+  'марту',
+  'апрелю',
+  'маю',
+  'июню',
+  'июлю',
+  'августу',
+  'сентябрю',
+  'октябрю',
+  'ноябрю',
+  'декабрю',
+]
+
+export interface OverviewDeltaLabels {
+  /** «+3 к апрелю»; `null`, если в прошлом месяце не было событий. */
+  events: string | null
+  /** «2 истекают на неделе»; `null`, если истекающих нет. */
+  subscriptions: string | null
+  /** «+82,50 BYN на неделе»: чистый приход текущей недели. */
+  cash: string
+}
+
+/** Подписи-дельты обзора по данным API (21.4.4); месяц берётся в часовом поясе группы. */
+export function overviewDeltaLabels(overview: ManagerOverview): OverviewDeltaLabels {
+  const { deltas, timezone, currency } = overview
+  const monthIndex = Number(dateToZonedInput(deltas.previousMonth.from, timezone).slice(5, 7))
+  const events = deltas.eventsVsPreviousMonth
+  const expiring = deltas.subscriptionsExpiringSoon
+  return {
+    events:
+      events === null
+        ? null
+        : `${events > 0 ? '+' : ''}${events} к ${MONTH_DATIVE[monthIndex - 1]}`,
+    subscriptions:
+      expiring > 0
+        ? `${expiring} ${pluralRu(expiring, 'истекает', 'истекают', 'истекают')} на неделе`
+        : null,
+    cash: `${signedMoney(deltas.cashWeekNet, currency)} на неделе`,
   }
 }

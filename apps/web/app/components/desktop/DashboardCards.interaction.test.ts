@@ -13,6 +13,14 @@ const view = {
     events: { thisMonth: 12 },
     bookings: { count: 168, seats: 150, capacity: 180, occupancyPercent: 83 },
     subscriptions: { active: 9 },
+    timezone: 'Europe/Minsk',
+    currency: 'BYN',
+    deltas: {
+      previousMonth: { from: '2026-09-30T21:00:00.000Z', to: '2026-10-31T21:00:00.000Z' },
+      eventsVsPreviousMonth: 3,
+      subscriptionsExpiringSoon: 2,
+      cashWeekNet: 8250,
+    },
   },
 } as unknown as DesktopDashboardView
 
@@ -33,7 +41,31 @@ describe('dashboard stat tiles (21.2.1, W-02)', () => {
       'Заполненность 83%',
     )
     expect(wrapper.get('[aria-labelledby="desktop-subs-title"]').text()).toContain('9')
-    expect(text).not.toMatch(/к апрелю|истекают|на неделе/)
+    expect(text).toContain('+3 к октябрю')
+    expect(text).toContain('2 истекают на неделе')
+    expect(text).toContain('+82,50 BYN на неделе')
+  })
+
+  it('omits captions that have nothing to show', () => {
+    const wrapper = mount(DashboardCards, {
+      props: {
+        view: {
+          ...view,
+          overview: {
+            ...view.overview,
+            deltas: {
+              ...view.overview.deltas,
+              eventsVsPreviousMonth: null,
+              subscriptionsExpiringSoon: 0,
+            },
+          },
+        } as unknown as DesktopDashboardView,
+        showSubscriptions: true,
+      },
+    })
+    const text = wrapper.text()
+    expect(text).not.toMatch(/к октябрю|истека/)
+    expect(text).toContain('на неделе')
   })
 
   it('hides the subscriptions tile when subscriptions are off or the organization is not loaded', () => {
