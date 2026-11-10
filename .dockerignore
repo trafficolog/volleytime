@@ -9,7 +9,6 @@
 **/.env.*
 !**/.env.example
 **/*.log
-legacy
 docs
 pgdata
 packages/db/src/seed-demo*
