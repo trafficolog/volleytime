@@ -37,7 +37,7 @@ tags: [audit-2026-11, security, bot, health]
 - **Как есть:** `apps/bot/src/internal-server.ts` читает тело без ограничения; `healthz` бота и `/api/health` отдают SHA релиза; `/api/health` делает три запроса к БД и не ограничен лимитером.
 - SHA в health использует deploy и smoke для сверки релиза — его нельзя просто убрать.
 - Лимитер — из [27.4.1](27-4-1-rate-limits.md).
-- Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` (безопасность или доступ); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
+- Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` (по правилам ORCHESTRATION для этой области); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
 
 ## Что должно быть сделано
 

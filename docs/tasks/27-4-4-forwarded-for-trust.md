@@ -35,7 +35,7 @@ tags: [audit-2026-11, security, infra, rate-limit]
 
 - Замечание `API-04` [аудита 2026-11-10](../operations/reviews/2026-11-10-project-audit.md); фаза [27](../phases/27-audit-hardening.md).
 - **Как есть:** при `TRUSTED_PROXY=1` ключ — последний элемент `X-Forwarded-For`; порт web наружу не опубликован (проверить compose).
-- Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` (безопасность или доступ); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
+- Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` (по правилам ORCHESTRATION для этой области); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
 
 ## Что должно быть сделано
 

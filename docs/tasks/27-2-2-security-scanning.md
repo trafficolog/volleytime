@@ -37,7 +37,7 @@ tags: [audit-2026-11, security, ci, supply-chain]
 - **Как есть:** в `.github/` только workflows; нет dependabot/renovate, `pnpm audit`, CodeQL; репозиторий публичный.
 - Secret scanning и push protection включает владелец в настройках репозитория.
 - Правило проекта: lockfile не коммитится в задачах без явной причины — обновления зависимостей идут отдельными PR dependabot.
-- Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` (безопасность или доступ); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
+- Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` (по правилам ORCHESTRATION для этой области); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
 
 ## Что должно быть сделано
 

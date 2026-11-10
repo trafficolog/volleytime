@@ -5,7 +5,7 @@ status: todo
 release: ''
 sync_state: synced
 last_reviewed: 2026-11-10
-status_note: 'Из аудита 2026-11-10. Релиз назначает владелец.'
+status_note: 'Из аудита 2026-11-10. 27.2.1–27.2.3 в v0.3.1 (решение владельца 2026-11-10); 27.2.4, 27.2.5 — релиз назначает владелец.'
 estimated_hours: '12-26'
 depends_on: []
 ---

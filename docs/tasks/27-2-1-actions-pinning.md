@@ -37,7 +37,7 @@ Workflows не зависят от изменяемых тегов сторон�
 - **Как есть:** `.github/workflows/*.yml` закрепляют actions тегом, включая `appleboy/ssh-action@v1` и `appleboy/scp-action@v1`, которым передаётся `VPS_SSH_KEY`; отпечаток хоста не задан; у большинства job нет `permissions`.
 - Promote и deploy — [9.8.17](9-8-17-gated-prod-promotion.md); правки workflows в диапазоне ломают Promote без `PROMOTE_TOKEN` (см. [27.2.4](27-2-4-promotion-path.md)).
 - Новый секрет с отпечатком хоста добавляет владелец.
-- Модель: реализация `claude-opus-5-5`, ревью `claude-opus-5-5` (безопасность или доступ); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
+- Модель: реализация `claude-opus-5-5`, ревью `claude-opus-5-5` (по правилам ORCHESTRATION для этой области); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
 
 ## Что должно быть сделано
 

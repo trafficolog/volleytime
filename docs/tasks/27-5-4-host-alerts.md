@@ -36,7 +36,7 @@ tags: [audit-2026-11, ops, monitoring]
 - Замечание `OPS-03` [аудита 2026-11-10](../operations/reviews/2026-11-10-project-audit.md); фаза [27](../phases/27-audit-hardening.md).
 - Один VPS, диск 28 ГБ; оповещение по диску уже есть (`.github/workflows/vps-disk-monitor.yml`).
 - Канал оповещения — тот же, что у disk-monitor или UptimeRobot из 27.5.1.
-- Модель: реализация `claude-opus-5-5`, ревью `claude-opus-5-5` (безопасность или доступ); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
+- Модель: реализация `claude-opus-5-5`, ревью `claude-opus-5-5` (по правилам ORCHESTRATION для этой области); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
 
 ## Что должно быть сделано
 

@@ -36,7 +36,7 @@ Smoke после выкладки не раскрывает токен бота 
 - Замечание `CI-04` [аудита 2026-11-10](../operations/reviews/2026-11-10-project-audit.md); фаза [27](../phases/27-audit-hardening.md).
 - **Как есть:** smoke использует настоящий токен бота на GitHub runner (подпись synthetic initData).
 - Токен бота даёт полный контроль над ботом; GitHub маскирует секреты в логах, но не в артефактах и производных значениях.
-- Модель: реализация `claude-opus-5-5`, ревью `claude-opus-5-5` (безопасность или доступ); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
+- Модель: реализация `claude-opus-5-5`, ревью `claude-opus-5-5` (по правилам ORCHESTRATION для этой области); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
 
 ## Что должно быть сделано
 

@@ -49,7 +49,7 @@
 Действие: закрепить digest, обновлять ботом зависимостей; убрать dev-зависимости из образа бота.
 
 **INF-05 (P2). Заголовки безопасности.**
-Доказательство: `Caddyfile` — HSTS без `includeSubDomains`; CSP с `script-src 'unsafe-inline'` и `style-src 'unsafe-inline'`; нет `Permissions-Policy`, явных `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`.
+Доказательство: `Caddyfile` — HSTS без `includeSubDomains`; CSP с `script-src 'unsafe-inline'` и `style-src 'unsafe-inline'`; нет `Permissions-Policy` и явного `object-src 'none'` (`base-uri 'self'` и `form-action 'self'` уже заданы).
 Действие: добавить недостающие директивы сразу; для `unsafe-inline` — отдельная задача на nonce/hash (проверить, что Nuxt SPA это допускает).
 
 **INF-06 (P2). Резервные копии.**

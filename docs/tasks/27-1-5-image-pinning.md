@@ -37,7 +37,7 @@ tags: [audit-2026-11, security, docker, supply-chain]
 - **Как есть:** `node:22-alpine`, `caddy:2-alpine`, `postgres:16-alpine` без digest; runtime бота копирует полный `node_modules`.
 - Автообновление digest — через dependabot из [27.2.2](27-2-2-security-scanning.md).
 - Изменение выкладки проверяется по [deploy runbook](../operations/runbooks/deploy.md); в production попадает только через релизную задачу и Promote с подтверждением владельца.
-- Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` (безопасность или доступ); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
+- Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` (по правилам ORCHESTRATION для этой области); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
 
 ## Что должно быть сделано
 

@@ -18,7 +18,7 @@ depends_on: ['27.3.5']
 
 Фаза [27](../phases/27-audit-hardening.md). Источник — [аудит 2026-11-10](../operations/reviews/2026-11-10-project-audit.md), раздел 6.2 (PROD).
 
-Пересечения с бэклогом фазы 10: [10.2.1](../tasks/10-2-1-feedback-endpoint.md), [10.2.2](../tasks/10-2-2-feedback-ui.md) (обратная связь), [10.5.1](../tasks/10-5-1-onboarding-checklist.md) (онбординг) — карточки эпика поглощают их по решению AQ-16.
+Пересечения с бэклогом фазы 10: [10.2.1](../tasks/10-2-1-feedback-endpoint.md), [10.2.2](../tasks/10-2-2-feedback-ui.md) (обратная связь), [10.5.1](../tasks/10-5-1-onboarding-checklist.md) (онбординг) — карточки эпика предлагают поглотить их (AQ-16).
 
 ## Definition of Done
 

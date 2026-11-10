@@ -36,7 +36,7 @@ tags: [audit-2026-11, docs]
 - Замечание `PROD-07` [аудита 2026-11-10](../operations/reviews/2026-11-10-project-audit.md); фаза [27](../phases/27-audit-hardening.md).
 - Перенос исторических баннеров делает [21.5.5](21-5-5-legacy-history-condense.md); эта карточка задаёт форму и правило после неё.
 - Сводка `current-state.md` «Last generated» — 2026-09-21; 468 карточек задач.
-- Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` (безопасность или доступ); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
+- Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` (документы статуса и процесса); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
 
 ## Что должно быть сделано
 

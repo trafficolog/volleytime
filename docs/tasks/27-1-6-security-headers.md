@@ -34,14 +34,14 @@ tags: [audit-2026-11, security, infra, csp]
 ## Контекст
 
 - Замечание `INF-05` [аудита 2026-11-10](../operations/reviews/2026-11-10-project-audit.md); фаза [27](../phases/27-audit-hardening.md).
-- **Как есть:** `Caddyfile` — HSTS `max-age=31536000` без `includeSubDomains`; CSP с `script-src 'self' 'unsafe-inline' https://telegram.org` и `style-src 'unsafe-inline'`; нет `Permissions-Policy`, `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`.
+- **Как есть:** `Caddyfile` — HSTS `max-age=31536000` без `includeSubDomains`; CSP с `script-src 'self' 'unsafe-inline' https://telegram.org` и `style-src 'unsafe-inline'`; нет `Permissions-Policy` и явного `object-src 'none'`; `base-uri 'self'` и `form-action 'self'` уже заданы.
 - После [27.4.8](27-4-8-telegram-script-scope.md) скрипт Telegram нужен только на `/m/**`: CSP можно разделить по путям.
 - Mini App открывается во фрейме Telegram: `frame-ancestors` не сужать без проверки в Telegram Web.
-- Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` (безопасность или доступ); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
+- Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` (по правилам ORCHESTRATION для этой области); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
 
 ## Что должно быть сделано
 
-1. Добавить `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `Permissions-Policy` (камера, микрофон, геолокация и т. п. выключены).
+1. Добавить `object-src 'none'` и `Permissions-Policy` (камера, микрофон, геолокация и т. п. выключены).
 2. HSTS `includeSubDomains` — только если все поддомены на HTTPS (проверить DNS); иначе записать причину.
 3. Отдельная CSP для `/m/**` (с telegram.org) и для остального сайта (без него).
 4. Оценить переход на nonce/hash для скриптов Nuxt: что ломается, объём работ; результат — отдельной карточкой или записью «не делаем» с причиной.

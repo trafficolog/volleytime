@@ -36,7 +36,7 @@ tags: [audit-2026-11, security, frontend, access]
 - Замечание `UI-SEC-02` [аудита 2026-11-10](../operations/reviews/2026-11-10-project-audit.md); фаза [27](../phases/27-audit-hardening.md).
 - Права решает сервер; клиент кэширует данные группы и выбранную роль (`current_org_id`, `vt.lastOrgId`).
 - Единственный route-middleware `apps/web/app/middleware/auth.ts` проверяет только сессию.
-- Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` (безопасность или доступ); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
+- Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` (по правилам ORCHESTRATION для этой области); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
 
 ## Что должно быть сделано
 

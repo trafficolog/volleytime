@@ -37,7 +37,7 @@ tags: [audit-2026-11, security, frontend, telegram]
 - **Как есть:** `apps/web/nuxt.config.ts` подключает `telegram-web-app.js` на всех страницах.
 - Кабинет показывает финансы и списки участников: сторонний скрипт там не нужен.
 - Вход в Mini App определяется по наличию `window.Telegram.WebApp` — проверить все места, где это используется вне `/m/**`.
-- Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` (безопасность или доступ); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
+- Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` (по правилам ORCHESTRATION для этой области); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
 
 ## Что должно быть сделано
 

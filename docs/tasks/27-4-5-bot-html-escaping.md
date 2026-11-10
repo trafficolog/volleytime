@@ -36,7 +36,7 @@ tags: [audit-2026-11, security, bot]
 - Замечание `BOT-01` [аудита 2026-11-10](../operations/reviews/2026-11-10-project-audit.md); фаза [27](../phases/27-audit-hardening.md).
 - **Как есть:** `esc` в `packages/core/src/notifier/templates.ts` и копия в `apps/bot/src/handlers/format.ts`; `/internal/notify` отправляет с `parse_mode: HTML`.
 - Пользовательские данные: имена, названия групп и событий, места, комментарии.
-- Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` (безопасность или доступ); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
+- Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` (по правилам ORCHESTRATION для этой области); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
 
 ## Что должно быть сделано
 

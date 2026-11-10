@@ -37,7 +37,7 @@ tags: [audit-2026-11, security, infra, deploy]
 - **Как есть:** `.github/workflows/deploy.yml` копирует `.env.production` в `/opt/volleytime/.deploy/incoming/<sha>/` на каждый релиз.
 - Ретенция релизов — [9.8.18](9-8-18-vps-release-retention.md); проверить, чистит ли она эти копии.
 - Чтение состояния VPS — только read-only командами с разрешения владельца.
-- Модель: реализация `claude-opus-5-5`, ревью `claude-opus-5-5` (безопасность или доступ); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
+- Модель: реализация `claude-opus-5-5`, ревью `claude-opus-5-5` (по правилам ORCHESTRATION для этой области); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
 
 ## Что должно быть сделано
 
