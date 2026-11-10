@@ -1,10 +1,14 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
 import type { DesktopDashboardView } from '~/utils/desktop-dashboard'
-import { formatOccupancy } from '~/utils/desktop-dashboard'
+import { formatOccupancy, overviewDeltaLabels } from '~/utils/desktop-dashboard'
 import { formatMoneyRu } from '~/utils/labels'
 
 /** `showSubscriptions` — настройка группы «абонементы включены» из макета layout; без неё плитка скрыта. */
-defineProps<{ view: DesktopDashboardView; showSubscriptions: boolean }>()
+const props = defineProps<{ view: DesktopDashboardView; showSubscriptions: boolean }>()
+
+const deltas = computed(() => overviewDeltaLabels(props.view.overview))
 </script>
 
 <template>
@@ -15,6 +19,7 @@ defineProps<{ view: DesktopDashboardView; showSubscriptions: boolean }>()
         {{ formatMoneyRu(view.balance.balance, view.balance.currency) }}
       </p>
       <p>Текущий баланс по подтверждённым операциям</p>
+      <p class="vt-desktop-dashboard__delta" data-delta="cash">{{ deltas.cash }}</p>
     </section>
 
     <div class="vt-desktop-dashboard__tiles">
@@ -22,6 +27,9 @@ defineProps<{ view: DesktopDashboardView; showSubscriptions: boolean }>()
         <h2 id="desktop-events-title" class="vt-cap">События за месяц</h2>
         <p class="vt-desktop-dashboard__tile-value vt-mono">
           {{ view.overview.events.thisMonth }}
+        </p>
+        <p v-if="deltas.events" class="vt-desktop-dashboard__delta" data-delta="events">
+          {{ deltas.events }}
         </p>
       </section>
 
@@ -42,6 +50,13 @@ defineProps<{ view: DesktopDashboardView; showSubscriptions: boolean }>()
         <h2 id="desktop-subs-title" class="vt-cap">Активные абонементы</h2>
         <p class="vt-desktop-dashboard__tile-value vt-mono">
           {{ view.overview.subscriptions.active }}
+        </p>
+        <p
+          v-if="deltas.subscriptions"
+          class="vt-desktop-dashboard__delta"
+          data-delta="subscriptions"
+        >
+          {{ deltas.subscriptions }}
         </p>
       </section>
     </div>

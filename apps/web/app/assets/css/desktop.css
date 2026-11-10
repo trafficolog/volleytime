@@ -2834,3 +2834,9 @@ ol.vt-desktop-event-detail__rows > li {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.vt-desktop-dashboard__delta {
+  margin: 0;
+  color: var(--vt-ink-3);
+  font-size: var(--fs-sm);
+}
