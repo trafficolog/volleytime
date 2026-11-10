@@ -1,0 +1,55 @@
+---
+id: '27.6.3'
+phase: '27'
+epic: '27.6'
+status: todo
+release: ''
+sync_state: synced
+last_reviewed: 2026-11-10
+status_note: 'Из аудита 2026-11-10 (PD-02). Релиз назначает владелец; не стартует до решения AQ-4.'
+ref_id: ''
+review_ref: 'PD-02'
+priority: P2
+complexity: L
+impl_model: claude-sonnet-5-5
+review_model: claude-opus-5-5
+review_gate: opus+tests
+roles: [BACK, FE]
+depends_on: []
+supersedes: []
+decisions: ['AQ-4']
+estimated_hours: '3-6'
+reference:
+  spec: ''
+  screens: []
+tags: [audit-2026-11, privacy, public-page]
+---
+
+# Task 27.6.3: Публичная страница события: скрытие состава организатором и игроком
+
+## Цель
+
+Организатор решает, показывать ли состав на публичной странице, а игрок может не показываться там.
+
+## Контекст
+
+- Замечание `PD-02` [аудита 2026-11-10](../operations/reviews/2026-11-10-project-audit.md); фаза [27](../phases/27-audit-hardening.md).
+- **Как есть:** `apps/web/server/api/public/events/[slug].get.ts` отдаёт инициалы участников; slug 12 hex, noindex.
+- Значение по умолчанию — AQ-4.
+- Открытые решения владельца: AQ-4 ([фаза 27, «Открытые вопросы»](../phases/27-audit-hardening.md#открытые-вопросы-владельца)). Карточка с открытым решением не стартует.
+- Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` (безопасность, доступ или деньги; обязательны тесты граничных случаев); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
+
+## Что должно быть сделано
+
+1. Настройка события или группы «показывать состав на публичной странице» (по AQ-4), настройка игрока «не показывать меня».
+2. Публичный ответ учитывает обе настройки; число мест показывается всегда.
+3. Тесты: обе настройки, по умолчанию, IDOR на изменение чужой настройки.
+
+## Критерии приёмки
+
+- ✅ Публичный ответ соблюдает настройки (тесты)
+- ✅ Пять gates CODING_STANDARDS на tested revision; ревью `claude-opus-5-5` без Critical/Important
+
+## Не делать
+
+- ❌ Не менять формат slug
