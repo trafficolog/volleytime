@@ -26,7 +26,7 @@ depends_on: []
 ## Definition of Done
 
 1. Все задачи P1 `done` или явно отложены решением владельца.
-2. Решения AQ-2…AQ-11, AQ-14…AQ-20 записаны в [журнал решений](../operations/decisions/2026-10-12-reference-v3-decisions.md).
+2. Решения AQ-2…AQ-20 записаны в [журнал решений](../operations/decisions/2026-10-12-reference-v3-decisions.md).
 3. Повторный аудит безопасности (P1 эпиков 27.1–27.4, 27.7) без открытых замечаний.
 
 ## Эпики
