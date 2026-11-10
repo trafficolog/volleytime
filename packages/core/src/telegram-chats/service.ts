@@ -34,6 +34,7 @@ import {
 } from '../shared/context'
 
 import { buildEventAnnouncement } from './announcement'
+import { loadBotChatInfo, type BotChatInfo } from './bot-info'
 import {
   formatLinkCode,
   generateLinkCode,
@@ -71,6 +72,11 @@ export interface ChatLinkStatusView {
     linkedAt: Date
     permissionsCheckedAt: Date
   } | null
+  /**
+   * Число участников чата и состояние webhook по данным бота (21.4.6); `null` без привязки. Сбой бота —
+   * `unavailable`/`null` в полях, а не ошибка ответа.
+   */
+  bot: BotChatInfo | null
   /** Выданный и ещё не использованный код: сам код после выдачи не показывается. */
   pendingCode: { expiresAt: Date } | null
   /** Последняя снятая привязка, если действующей нет: организатор видит, почему чат отвязан. */
@@ -193,7 +199,9 @@ export const telegramChatService = {
       if (last?.unlinkedAt)
         released = { reason: last.unlinkReason as 'organizer' | 'bot_removed', at: last.unlinkedAt }
     }
-    return { link: row ? view(row) : null, pendingCode: code ?? null, released }
+    // только чат этой группы (из базы по organizationId): адрес чата из запроса не берётся
+    const bot = row ? await loadBotChatInfo(String(row.telegramChatId)) : null
+    return { link: row ? view(row) : null, bot, pendingCode: code ?? null, released }
   },
 
   /**

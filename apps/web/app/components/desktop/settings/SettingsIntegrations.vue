@@ -6,10 +6,18 @@ import { apiErrorMessage } from '~/utils/api-error'
 /**
  * Telegram-бот группы (W-11, 21.2.15): состояние привязки чата, invite-ссылка с копированием,
  * тест-сообщение и переподключение. Всё берётся из API кабинета (`telegram-chat`, `invites`); токена
- * бота и Telegram id чата на клиенте нет. Число участников чата не показывается: у бота нет
- * контракта для него (см. карточку 21.2.15).
+ * бота и Telegram id чата на клиенте нет. Число участников и состояние webhook (21.4.6) приходят в
+ * поле `bot` ответа по данным бота; сбой бота — «Нет данных», остальной блок не страдает.
  */
+interface BotInfo {
+  memberCount: number | null
+  webhook: {
+    state: 'not_used' | 'ok' | 'error' | 'unavailable'
+    pendingUpdateCount: number | null
+  }
+}
 interface ChatStatus {
+  bot?: BotInfo | null
   link: {
     status: 'active' | 'invalid'
     title: string
@@ -68,6 +76,32 @@ const indicator = computed<{ tone: 'ok' | 'danger' | 'idle'; label: string; deta
     return { tone: 'idle', label: 'Не подключён', detail: 'Чат группы ещё не привязан.' }
   },
 )
+
+const members = computed(() => {
+  const n = status.value?.bot?.memberCount
+  if (n === null || n === undefined) return 'Нет данных: бот не ответил'
+  return String(n)
+})
+
+/** Webhook: polling — штатный режим production, а не сбой; ошибкой считается только сбой webhook. */
+const webhook = computed<{ tone: 'ok' | 'danger' | 'idle'; label: string; detail: string }>(() => {
+  const w = status.value?.bot?.webhook
+  const queue = w?.pendingUpdateCount ? ` В очереди обновлений: ${w.pendingUpdateCount}.` : ''
+  if (w?.state === 'ok') return { tone: 'ok', label: 'Работает', detail: queue.trim() }
+  if (w?.state === 'error')
+    return {
+      tone: 'danger',
+      label: 'Ошибка доставки',
+      detail: `Telegram не доставляет обновления боту.${queue}`,
+    }
+  if (w?.state === 'not_used')
+    return {
+      tone: 'idle',
+      label: 'Не используется',
+      detail: 'Бот получает обновления через polling.',
+    }
+  return { tone: 'idle', label: 'Нет данных', detail: 'Бот не ответил.' }
+})
 
 async function loadInvite() {
   try {
@@ -210,6 +244,17 @@ async function refresh() {
           }}</strong>
           {{ indicator.detail }}
         </dd>
+        <template v-if="status?.link">
+          <dt>Участники</dt>
+          <dd data-testid="bot-members">{{ members }}</dd>
+          <dt>Webhook</dt>
+          <dd data-testid="bot-webhook" :data-tone="webhook.tone">
+            <strong class="vt-settings-status" :class="`vt-settings-status--${webhook.tone}`">{{
+              webhook.label
+            }}</strong>
+            {{ webhook.detail }}
+          </dd>
+        </template>
         <dt v-if="botLink">Mini App</dt>
         <dd v-if="botLink">
           <a :href="botLink" class="vt-settings-link" target="_blank" rel="noopener noreferrer">{{

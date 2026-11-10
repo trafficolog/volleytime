@@ -7,10 +7,14 @@ defineRouteMeta({
     description:
       'Состояние привязки группового чата (20.3.4): статус `active`/`invalid`, причина недействительности, ' +
       'право бота писать, срок выданного кода. Без Telegram id чата и администратора, без кода. ' +
-      'Владелец и организатор.',
+      'Поле `bot` (21.4.6) — число участников чата и состояние webhook по данным бота ' +
+      '(`memberCount`, `webhook.state`: not_used|ok|error|unavailable); `null` без привязки, при ' +
+      'сбое бота поля «недоступно», а не ошибка ответа. Владелец и организатор.',
     parameters: [{ in: 'path', name: 'orgId', required: true, schema: { type: 'integer' } }],
     responses: {
-      200: { description: '{ link: {...} | null, pendingCode: { expiresAt } | null }' },
+      200: {
+        description: '{ link: {...} | null, bot: {...} | null, pendingCode: { expiresAt } | null }',
+      },
       401: { description: 'Нет сессии' },
       403: { description: 'Роль ниже организатора (forbidden.manage_content)' },
     },

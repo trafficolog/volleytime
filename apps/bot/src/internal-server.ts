@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type Server } from 'node:http'
 
 import { GrammyError, type Bot } from 'grammy'
 
+import { collectChatInfo, isChatInfoRequest } from './chat-info'
 import type { BotContext } from './context'
 import { env, secretsMatch } from './env'
 import { captureError } from './sentry'
@@ -161,7 +162,8 @@ export function startInternalServer(bot: Bot<BotContext>, port = 3001): Server {
       )
       return
     }
-    if (req.method !== 'POST' || req.url !== '/internal/notify') {
+    const isChatInfo = req.method === 'POST' && req.url === '/internal/chat-info'
+    if (req.method !== 'POST' || (req.url !== '/internal/notify' && !isChatInfo)) {
       res.statusCode = 404
       res.end()
       return
@@ -169,6 +171,26 @@ export function startInternalServer(bot: Bot<BotContext>, port = 3001): Server {
     if (!secretsMatch(env.INTERNAL_SECRET, req.headers['x-internal-secret'])) {
       res.statusCode = 403
       res.end('Forbidden')
+      return
+    }
+    if (isChatInfo) {
+      // число участников и webhook привязанного чата (21.4.6); web передаёт чат группы из своей базы
+      try {
+        const body = await readJsonBody(req)
+        if (!isChatInfoRequest(body)) {
+          res.statusCode = 422
+          res.end('Invalid payload')
+          return
+        }
+        const info = await collectChatInfo(bot.api, body.chatId, env.BOT_MODE)
+        res.statusCode = 200
+        res.setHeader('content-type', 'application/json')
+        res.end(JSON.stringify(info))
+      } catch {
+        // тело не JSON: чужой формат, Telegram не опрашивался
+        res.statusCode = 422
+        res.end('Invalid payload')
+      }
       return
     }
     try {
