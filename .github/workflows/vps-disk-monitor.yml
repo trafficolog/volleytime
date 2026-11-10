@@ -22,19 +22,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Configure SSH to VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: bash scripts/configure-vps-ssh.sh
 
       - name: Read VPS disk usage
         id: vps_disk
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: deploy
-          key: ${{ secrets.VPS_SSH_KEY }}
-          timeout: 2m
-          command_timeout: 1m
-          capture_stdout: true
-          script: |
+        run: |
+          set -euo pipefail
+          df_output="$(timeout 1m ssh -n vps "$REMOTE_SCRIPT")"
+          printf '%s\n' "$df_output"
+          { echo 'stdout<<VPS_DF_EOF'; printf '%s\n' "$df_output"; echo 'VPS_DF_EOF'; } >> "$GITHUB_OUTPUT"
+        env:
+          REMOTE_SCRIPT: |
             df -Pk /opt/volleytime
             df -Pk "$(docker info --format '{{.DockerRootDir}}')" || true
 

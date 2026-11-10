@@ -378,7 +378,7 @@ describe('fallback deployment contract', () => {
       'Rollback image bundle after controlled smoke failure',
     ]) {
       const step = workflow.match(new RegExp(`- name: ${name}[\\s\\S]*?(?=\\n {6}- name:|$)`))?.[0]
-      expect(step, name).toMatch(/timeout:|command_timeout:/)
+      expect(step, name).toMatch(/^ {8}timeout-minutes: \d+$|\btimeout \d+m (ssh|scp) /m)
     }
   })
 
@@ -525,7 +525,7 @@ describe('production env deployment contract', () => {
       'utf8',
     )
     const prepare = workflow.indexOf('Prepare production env')
-    const upload = workflow.indexOf('appleboy/scp-action@v1')
+    const upload = workflow.indexOf('timeout 10m scp -O -r "ghcr-${{ github.sha }}"')
     const ghcr = readFileSync(
       new URL('../../../../scripts/deploy-ghcr-manual.sh', import.meta.url),
       'utf8',
@@ -638,7 +638,7 @@ describe('image bundle workflow contract', () => {
     expect(step).toBeDefined()
     const sha = 'a'.repeat(40)
     const script = step
-      ?.split('script: |\n')[1]
+      ?.split('REMOTE_SCRIPT: |\n')[1]
       .split('\n')
       .map((line) => line.replace(/^ {12}/, ''))
       .join('\n')
@@ -722,7 +722,7 @@ describe('image bundle workflow contract', () => {
       /- name: Prepare remote secret staging[\s\S]*?(?=\n {6}- name:)/,
     )?.[0]
     const script = step
-      ?.split('script: |\n')[1]
+      ?.split('REMOTE_SCRIPT: |\n')[1]
       .split('\n')
       .map((line) => line.replace(/^ {12}/, ''))
       .join('\n')
