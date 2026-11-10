@@ -111,11 +111,12 @@ gh issue create --title "[3.1.1] pnpm workspaces init" \
 
 ## 8. CI/CD и защита веток
 
-| Workflow      | Триггер                                   | Что делает                                                                                     |
-| ------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `ci.yml`      | PR в `main`, push в `main`                | lint/format/typecheck, unit+integration на PostgreSQL, build, сборка/экспорт/импорт образов    |
-| `promote.yml` | вручную (Actions → Promote to production) | проверяет SHA в `main` и зелёный main CI, fast-forward `prod`, запускает Deploy на `prod`      |
-| `deploy.yml`  | push в `prod`, `workflow_dispatch`        | тесты, image-bundle по SSH, backup → migrate → up → smoke → rollback; environment `production` |
+| Workflow          | Триггер                                   | Что делает                                                                                     |
+| ----------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `ci.yml`          | PR в `main`, push в `main`                | lint/format/typecheck, unit+integration на PostgreSQL, build, сборка/экспорт/импорт образов    |
+| `promote.yml`     | вручную (Actions → Promote to production) | проверяет SHA в `main` и зелёный main CI, fast-forward `prod`, запускает Deploy на `prod`      |
+| `deploy.yml`      | push в `prod`, `workflow_dispatch`        | тесты, image-bundle по SSH, backup → migrate → up → smoke → rollback; environment `production` |
+| `secret-scan.yml` | PR в `main`, push в `main`                | gitleaks по новым коммитам (27.2.3); не входит в required checks                               |
 
 Защита веток (Task 9.8.17) — скрипт печатает план, `--apply` применяет:
 
