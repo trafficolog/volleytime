@@ -2,11 +2,11 @@
 id: '21.3.1'
 phase: '21'
 epic: '21.3'
-status: todo
+status: in_progress
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-10-12
-status_note: ''
+status_note: 'Подготовка релиза в PR (ветка trafficolog/feat/21.3.1-release-v0.3.0-prep): п. 4 — COLLECTIONS_ENABLED проведён в render-production-env.mjs (только точное true) и deploy.yml (одна строка vars.*, diff смотрит владелец до merge), контрактные тесты, runbook; п. 6 — метки образов и guard сверены, evidence CI fake-shell и real-PostgreSQL; п. 1 — пять gates и сводная сверка 19.0.2. Отчёт: docs/operations/qa/2026-11-10-21-3-1-release-v0-3-0.md. Открыто (координатор и владелец): preflight 0032 на production, Telegram QA на двух аккаунтах, живая проверка мастера владельцем, Promote, backup, smoke, тег v0.3.0, затем включение COLLECTIONS_ENABLED после приёмки.'
 ref_id: ''
 complexity: L
 impl_model: claude-opus-5-5
