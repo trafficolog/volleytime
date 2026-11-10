@@ -2,11 +2,11 @@
 id: '27.8.7'
 phase: '27'
 epic: '27.8'
-status: todo
+status: done
 release: ''
 sync_state: synced
 last_reviewed: 2026-11-10
-status_note: 'Из аудита 2026-11-10 (UI-07). Релиз назначает владелец; не стартует до решения AQ-13.'
+status_note: 'Из аудита 2026-11-10 (UI-07). Закрыта 2026-11-10: решение AQ-13 — без кнопки «Сборы», внесено в 21.4.9.'
 ref_id: ''
 review_ref: 'UI-07'
 priority: P3
@@ -17,7 +17,7 @@ review_gate: owner
 roles: [PRODUCT]
 depends_on: []
 supersedes: []
-decisions: ['AQ-13']
+decisions: []
 estimated_hours: '1-2'
 reference:
   spec: ''
@@ -37,7 +37,6 @@ tags: [audit-2026-11, product, bot]
 - [21.4.9](21-4-9-bot-reference-buttons.md): «Буду», «Пропущу», «Мой абонемент», «Сборы», «Кто уже играет».
 - Каждая кнопка — второй путь к тем же правилам и вдвое больше проверок.
 - 21.4.9 входит в `v0.3.1` и получает `AQ-13` в `decisions`: решение нужно до её старта.
-- Открытые решения владельца: AQ-13 ([фаза 27, «Открытые вопросы»](../phases/27-audit-hardening.md#открытые-вопросы-владельца)). Карточка с открытым решением не стартует.
 - Модель: реализация `claude-sonnet-5-5`, ревью `claude-opus-5-5` (итог принимает владелец); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
 
 ## Что должно быть сделано
