@@ -21,9 +21,19 @@ interface NotifyPayload {
   keyboard?: KeyboardButton[][]
 }
 
+/** Предел тела внутреннего запроса: уведомление и chat-info — единицы килобайт. */
+export const MAX_BODY_BYTES = 64 * 1024
+
+class BodyTooLargeError extends Error {}
+
 async function readJsonBody(req: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = []
-  for await (const chunk of req) chunks.push(chunk as Buffer)
+  let size = 0
+  for await (const chunk of req) {
+    size += (chunk as Buffer).length
+    if (size > MAX_BODY_BYTES) throw new BodyTooLargeError()
+    chunks.push(chunk as Buffer)
+  }
   return JSON.parse(Buffer.concat(chunks).toString('utf8'))
 }
 
@@ -182,14 +192,14 @@ export function startInternalServer(bot: Bot<BotContext>, port = 3001): Server {
           res.end('Invalid payload')
           return
         }
-        const info = await collectChatInfo(bot.api, body.chatId, env.BOT_MODE)
+        const info = await collectChatInfo(bot.api, body.chatId, env.BOT_MODE, env.WEBHOOK_URL)
         res.statusCode = 200
         res.setHeader('content-type', 'application/json')
         res.end(JSON.stringify(info))
-      } catch {
-        // тело не JSON: чужой формат, Telegram не опрашивался
-        res.statusCode = 422
-        res.end('Invalid payload')
+      } catch (e) {
+        // слишком большое тело или не JSON: Telegram не опрашивался
+        res.statusCode = e instanceof BodyTooLargeError ? 413 : 422
+        res.end(e instanceof BodyTooLargeError ? 'Payload Too Large' : 'Invalid payload')
       }
       return
     }
@@ -207,6 +217,11 @@ export function startInternalServer(bot: Bot<BotContext>, port = 3001): Server {
       res.statusCode = 200
       res.end('OK')
     } catch (e) {
+      if (e instanceof BodyTooLargeError) {
+        res.statusCode = 413
+        res.end('Payload Too Large')
+        return
+      }
       const failure = classifySendError(e)
       if (failure.kind === 'blocked') {
         // получатель недоступен (бот заблокирован, чат не найден): повтор бессмыслен, не ошибка бота

@@ -121,7 +121,7 @@ async function loadInvite() {
 }
 
 async function loadStatus() {
-  status.value = await $fetch<ChatStatus>(`${api}/telegram-chat`)
+  status.value = await $fetch<ChatStatus>(`${api}/telegram-chat`, { query: { bot: 1 } })
 }
 
 async function load() {

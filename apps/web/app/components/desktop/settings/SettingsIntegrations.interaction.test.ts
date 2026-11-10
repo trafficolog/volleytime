@@ -158,6 +158,13 @@ describe('SettingsIntegrations (21.2.15)', () => {
     expect(button(wrapper, 'Тест-сообщение')).toBeDefined()
   })
 
+  it('asks for the bot fields explicitly when reading the status', async () => {
+    route(ACTIVE)
+    await mountBlock()
+    const read = fetchMock.mock.calls.find(([u]) => String(u).endsWith('/telegram-chat'))!
+    expect(read[1]).toMatchObject({ query: { bot: 1 } })
+  })
+
   it('hides both fields for an unlinked group', async () => {
     route({ ...NONE, bot: null })
     const wrapper = await mountBlock()

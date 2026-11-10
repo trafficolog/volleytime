@@ -422,9 +422,36 @@ describe('telegram chat link API (20.3.4)', () => {
     expect(sent).toHaveLength(1)
   })
 
+  it('bot info is opt-in: a plain status read (events list) never calls the bot', async () => {
+    const { code } = (await issue()).body as { code: string }
+    await claim(code)
+    const plain = await request('GET', `/api/organizations/${orgId}/telegram-chat`, {
+      user: organizerId,
+    })
+    expect(plain.status).toBe(200)
+    expect(plain.body).toMatchObject({ link: { status: 'active' }, bot: null })
+    expect(infoCalls).toEqual([])
+    await request('GET', `/api/organizations/${orgId}/telegram-chat?bot=0`, { user: organizerId })
+    expect(infoCalls).toEqual([])
+  })
+
+  it('bot info: the owner gets it too', async () => {
+    const { code } = (await issue()).body as { code: string }
+    await claim(code)
+    const res = await request('GET', `/api/organizations/${orgId}/telegram-chat?bot=1`, {
+      user: ownerId,
+    })
+    expect(res.status).toBe(200)
+    expect((res.body as { bot: unknown }).bot).toEqual({
+      memberCount: 7,
+      webhook: { state: 'not_used', pendingUpdateCount: null },
+    })
+    expect(infoCalls).toEqual([chatId])
+  })
+
   it('bot info (21.4.6): member count and webhook state of the own linked chat only', async () => {
     const status = (user = organizerId, org = orgId) =>
-      request('GET', `/api/organizations/${org}/telegram-chat`, { user })
+      request('GET', `/api/organizations/${org}/telegram-chat?bot=1`, { user })
     // не привязан: бот не опрашивается, поля нет
     const none = await status()
     expect(none.status).toBe(200)
@@ -462,7 +489,7 @@ describe('telegram chat link API (20.3.4)', () => {
     infoAnswer = () => {
       throw new Error('connect ECONNREFUSED bot:3001 123456:SECRET-BOT-TOKEN')
     }
-    const res = await request('GET', `/api/organizations/${orgId}/telegram-chat`, {
+    const res = await request('GET', `/api/organizations/${orgId}/telegram-chat?bot=1`, {
       user: organizerId,
     })
     expect(res.status).toBe(200)
@@ -473,7 +500,7 @@ describe('telegram chat link API (20.3.4)', () => {
     expect(res.text).not.toContain('SECRET-BOT-TOKEN')
     expect(res.text).not.toContain('bot:3001')
     infoAnswer = () => ({ memberCount: 'many' })
-    const garbage = await request('GET', `/api/organizations/${orgId}/telegram-chat`, {
+    const garbage = await request('GET', `/api/organizations/${orgId}/telegram-chat?bot=1`, {
       user: organizerId,
     })
     expect((garbage.body as { bot: { memberCount: unknown } }).bot.memberCount).toBeNull()
@@ -484,7 +511,7 @@ describe('telegram chat link API (20.3.4)', () => {
     await claim(code)
     infoCalls.length = 0
     const get = (user: number, org: number) =>
-      request('GET', `/api/organizations/${org}/telegram-chat`, { user })
+      request('GET', `/api/organizations/${org}/telegram-chat?bot=1`, { user })
     const player = await get(playerId, orgId)
     expect(player.status).toBe(403)
     expect(player.text).not.toContain('memberCount')

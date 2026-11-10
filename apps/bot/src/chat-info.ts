@@ -29,6 +29,7 @@ export async function collectChatInfo(
   api: Pick<Api, 'getChatMemberCount' | 'getWebhookInfo'>,
   chatId: string,
   mode: string,
+  expectedWebhookUrl: string,
   now: number = Date.now(),
 ): Promise<ChatInfo> {
   const memberCount = await api.getChatMemberCount(chatId).catch(() => null)
@@ -42,7 +43,8 @@ export async function collectChatInfo(
     return {
       memberCount,
       webhook: {
-        state: !hook.url || freshError ? 'error' : 'ok',
+        // здоров только webhook, зарегистрированный на ожидаемый адрес из env бота; сам адрес наружу не уходит
+        state: !hook.url || hook.url !== expectedWebhookUrl || freshError ? 'error' : 'ok',
         pendingUpdateCount: hook.pending_update_count,
       },
     }

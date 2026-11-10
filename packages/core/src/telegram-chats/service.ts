@@ -73,7 +73,8 @@ export interface ChatLinkStatusView {
     permissionsCheckedAt: Date
   } | null
   /**
-   * Число участников чата и состояние webhook по данным бота (21.4.6); `null` без привязки. Сбой бота —
+   * Число участников чата и состояние webhook по данным бота (21.4.6); `null` без привязки или без
+   * запроса (`withBot`). Сбой бота —
    * `unavailable`/`null` в полях, а не ошибка ответа.
    */
   bot: BotChatInfo | null
@@ -170,7 +171,11 @@ async function releaseLink(
 
 export const telegramChatService = {
   /** Привязка группы и выданный код (для кабинета). */
-  async status(ctx: ServiceContext, organizationId: number): Promise<ChatLinkStatusView> {
+  async status(
+    ctx: ServiceContext,
+    organizationId: number,
+    opts: { withBot?: boolean } = {},
+  ): Promise<ChatLinkStatusView> {
     const d = getDb(ctx)
     const row = await openLink(d, organizationId)
     const [code] = await d
@@ -200,7 +205,8 @@ export const telegramChatService = {
         released = { reason: last.unlinkReason as 'organizer' | 'bot_removed', at: last.unlinkedAt }
     }
     // только чат этой группы (из базы по organizationId): адрес чата из запроса не берётся
-    const bot = row ? await loadBotChatInfo(String(row.telegramChatId)) : null
+    // бот опрашивается только по явному запросу кабинета (блок «Telegram-бот»); список событий и прочие читатели статуса его не нагружают
+    const bot = row && opts.withBot ? await loadBotChatInfo(String(row.telegramChatId)) : null
     return { link: row ? view(row) : null, bot, pendingCode: code ?? null, released }
   },
 
