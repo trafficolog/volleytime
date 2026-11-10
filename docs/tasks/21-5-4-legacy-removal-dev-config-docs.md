@@ -2,11 +2,11 @@
 id: '21.5.4'
 phase: '21'
 epic: '21.5'
-status: in_progress
+status: done
 release: 'v0.3.1'
 sync_state: synced
-last_reviewed: 2026-10-28
-status_note: 'Пакет 3 из отчёта 21.5.1: LEG-06…LEG-12 (dev-конфигурация и устаревшие гайды).'
+last_reviewed: 2026-11-11
+status_note: 'Выполнено 2026-11-11, PR #253: LEG-06…LEG-12 (REDIS_URL из .env.example и turbo.json, строка Unisender, комментарий compose, DEPLOY.md, ARCHITECTURE и STACK_DECISIONS без Redis, индекс scripts/README и runbooks/README, баннер mvp-qa-checklist). Ревью Opus — merge.'
 ref_id: ''
 complexity: M
 impl_model: claude-sonnet-5-5

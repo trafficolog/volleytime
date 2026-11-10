@@ -176,7 +176,7 @@ Drizzle ORM с PostgreSQL driver (postgres-js).
 
 ### Решение
 
-Фоновые задачи выполняет собственный планировщик `packages/core/src/scheduler` с журналом `scheduled_jobs` в PostgreSQL (решение координатора 2026-10-16, [ADR v3](ADR-v3-domain.md)). Redis, BullMQ и pg-boss в стеке не используются.
+Фоновые задачи выполняет собственный планировщик `packages/core/src/scheduler` с журналом `scheduled_jobs` в PostgreSQL (решение владельца 2026-10-16, D-03 в [журнале решений](../operations/decisions/2026-10-12-reference-v3-decisions.md); [ADR v3](ADR-v3-domain.md)). Redis, BullMQ и pg-boss в стеке не используются. Исходно (2026-05) выбор откладывался до Phase 15: BullMQ при наличии Redis, иначе pg-boss.
 
 ### Рассмотренные кандидаты (не выбраны)
 
