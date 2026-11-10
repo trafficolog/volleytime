@@ -28,7 +28,7 @@ pnpm test
 pnpm build
 ```
 
-These are required gates, not a cached description of scripts. Read `package.json`, test configuration and workflow files for their current execution details. Integration tests require PostgreSQL; skipped integration coverage is not a passing integration gate. Record failures, warnings and coverage limitations alongside results.
+These are required gates, not a cached description of scripts. Read `package.json`, test configuration and workflow files for their current execution details. Integration tests require PostgreSQL; skipped integration coverage is not a passing integration gate. Tests must not depend on the wall-clock date or the runner's time zone: do not derive calendar days from UTC `toISOString()` and do not use "the next N days of the month" when the code under test filters by the group's time zone; build dates in that time zone or from a fixed clock (hotfixes #233 and #240). Record failures, warnings and coverage limitations alongside results.
 
 For documentation-only changes, verify changed-document formatting, local links and consistency of the affected rules; applicable CI still applies. This does not relax code or production gates.
 
