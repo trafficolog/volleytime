@@ -63,7 +63,7 @@ pnpm db:seed:demo         # демо-группы макетов v3 (идемп�
 
 Эта итерация проекта — **новый старт**. Существуют два предшественника, которые используются как референсы и domain knowledge:
 
-### Legacy 1: Python-прототип (`legacy/python-prototype/`)
+### Legacy 1: Python-прототип (удалён в 21.5.6, смотри Git: `74ee34a67cb2d4a81f7f4194c1ba04182b678ac0`)
 
 Telegram-бот на Python/aiogram/SQLAlchemy с реализованными:
 
@@ -123,7 +123,6 @@ volley_time_platform/
 │   └── operations/          # sessions/, iterations/, status/, templates/
 │
 ├── legacy/                  # Архив предшествующих версий
-│   ├── python-prototype/    # Telegram-бот на Python (Phase 1+2)
 │   └── level-volley-laravel/  # Laravel-приложение (будет добавлено)
 │
 ├── apps/                    # (будет создано в Phase 3)

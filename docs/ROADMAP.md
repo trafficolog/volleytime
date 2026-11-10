@@ -106,7 +106,7 @@ graph LR
 ## Общий обзор
 
 ```
-Phase 1-2 ✅ — Python-прототип (legacy, для domain knowledge)
+Phase 1-2 ✅ — Python-прототип (удалён в 21.5.6, история в Git, SHA `74ee34a6`)
 
 ═══ NEW STACK: Nuxt 4 + Drizzle + PostgreSQL + better-auth + grammY ═══
 

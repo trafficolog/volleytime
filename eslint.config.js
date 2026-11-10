@@ -13,7 +13,6 @@ export default tseslint.config(
       '**/.output/**',
       '**/.turbo/**',
       '**/coverage/**',
-      'legacy/**',
       // Claude Design export (Task 19.0.1): UI reference, not project code
       'docs/design/reference-v3/**',
     ],
