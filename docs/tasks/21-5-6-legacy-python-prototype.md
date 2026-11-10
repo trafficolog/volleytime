@@ -2,11 +2,11 @@
 id: '21.5.6'
 phase: '21'
 epic: '21.5'
-status: todo
+status: done
 release: 'v0.3.1'
 sync_state: synced
-last_reviewed: 2026-10-28
-status_note: 'Решение владельца OQ-3 (2026-10-28): удалить legacy/python-prototype и документы фаз 1–2, история остаётся в Git. Пакет из отчёта 21.5.1: LEG-21.'
+last_reviewed: 2026-11-10
+status_note: 'Выполнено 2026-11-10, PR #246: удалены legacy/python-prototype (215 файлов) и документы фаз 1–2, мёртвые записи legacy в конфигурации; история — main 74ee34a6. Ревью Opus — merge. Решение владельца OQ-3 (2026-10-28). Упоминания вне перечня критерия 2 допустимы: пометки «удалён» в MIGRATION_STRATEGY (п. 4), ссылка на эту карточку в 27.9.6, датированный аудит 2026-11-10.'
 ref_id: ''
 complexity: M
 impl_model: claude-sonnet-5-5
