@@ -6,7 +6,7 @@ status: done
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-11-10
-status_note: 'Выпущен 2026-11-10: production 5ebac048 (код 8b00ad30), Deploy 42879578391 smoke-passed, миграции 0032–0039, backup до миграций; Promote отказал на диапазоне с workflows, prod продвинут вручную по runbook с подтверждением владельца; тег v0.3.0; приёмка владельца 2026-11-10 в чате. П. 2 и 8 (проверки на устройствах) отдельным отчётом не подтверждены, п. 7 (включение COLLECTIONS_ENABLED, решение владельца 2026-11-10) — в разделе «Follow-up (после выпуска)». Отчёт: docs/operations/qa/2026-11-10-21-3-1-release-v0-3-0.md.'
+status_note: 'Выпущен 2026-11-10: production 5ebac048 (код 8b00ad30), Deploy 42879578391 smoke-passed, миграции 0032–0039, backup до миграций; Promote отказал на диапазоне с workflows, prod продвинут вручную по runbook с подтверждением владельца; тег v0.3.0; приёмка владельца 2026-11-10 в чате. П. 2 и 8 (проверки на устройствах) отдельным отчётом не подтверждены, п. 7 (включение COLLECTIONS_ENABLED, решение владельца 2026-11-10) выполнен: Promote 42890770428 → aa8d8f9a, Deploy 42890800801 smoke-passed (Follow-up). Отчёт: docs/operations/qa/2026-11-10-21-3-1-release-v0-3-0.md.'
 ref_id: ''
 complexity: L
 impl_model: claude-opus-5-5
