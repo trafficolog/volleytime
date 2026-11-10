@@ -12,7 +12,7 @@ const shared = {
   globals: true,
   environment: 'node' as const,
   setupFiles: ['./vitest.setup.ts'],
-  exclude: ['**/node_modules/**', '**/dist/**', '**/.nuxt/**', 'legacy/**'],
+  exclude: ['**/node_modules/**', '**/dist/**', '**/.nuxt/**'],
 }
 
 export default defineConfig({
