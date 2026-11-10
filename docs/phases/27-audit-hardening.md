@@ -46,7 +46,7 @@ depends_on: []
 
 **Итого:** 10 эпиков, 60 задач, 219.5-446 ч. Реализация: `claude-opus-5-5` — 27, `claude-sonnet-5-5` — 31, `claude-haiku-5-5` — 2. Ревью: `claude-opus-5-5` — 56 (из них 25 с обязательными тестами граничных случаев), `claude-sonnet-5-5` — 4; `review_gate: owner` — 14.
 
-Модели выбраны по [ORCHESTRATION](../ORCHESTRATION.md#маршрутизация-моделей): доступ, вход, секреты и деньги — ревью Opus; выкладка, VPS и схема — реализация Opus (как у 9.8.17, 9.8.18; правило 4 ORCHESTRATION); новые CI-проверки, Dockerfile и Caddyfile — Sonnet при ревью Opus; документы без логики — Haiku.
+Модели выбраны по [ORCHESTRATION](../ORCHESTRATION.md#маршрутизация-моделей): доступ, вход, секреты и деньги — ревью Opus; выкладка, VPS и схема — реализация Opus (как у 9.8.17, 9.8.18; правило 4 ORCHESTRATION); новые проверки безопасности в CI, Dockerfile и Caddyfile — Sonnet при ревью Opus; документы без логики — Haiku.
 
 ## Приоритеты
 
