@@ -2,11 +2,11 @@
 id: '21.5.7'
 phase: '21'
 epic: '21.5'
-status: in_progress
+status: done
 release: 'v0.3.1'
 sync_state: synced
-last_reviewed: 2026-10-28
-status_note: 'Решение владельца OQ-4 (2026-10-28): удалить scripts/qa/*.pwcode, принимая потерю воспроизводимости старых датированных отчётов QA. Пакет из отчёта 21.5.1: LEG-22.'
+last_reviewed: 2026-11-10
+status_note: 'Выполнено 2026-11-10, PR #252: удалены 10 сценариев scripts/qa/*.pwcode (LEG-22), потребителей вне docs нет (перепроверено на main 66303feb). Ревью Sonnet — merge.'
 ref_id: ''
 complexity: S
 impl_model: claude-haiku-5-5
