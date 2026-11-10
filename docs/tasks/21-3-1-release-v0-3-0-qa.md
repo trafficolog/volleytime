@@ -2,11 +2,11 @@
 id: '21.3.1'
 phase: '21'
 epic: '21.3'
-status: in_progress
+status: done
 release: 'v0.3.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: 'Подготовка релиза в PR (ветка trafficolog/feat/21.3.1-release-v0.3.0-prep): п. 4 — COLLECTIONS_ENABLED проведён в render-production-env.mjs (только точное true) и deploy.yml (одна строка vars.*, diff смотрит владелец до merge), контрактные тесты, runbook; п. 6 — метки образов и guard сверены, evidence CI fake-shell и real-PostgreSQL; п. 1 — пять gates и сводная сверка 19.0.2. Отчёт: docs/operations/qa/2026-11-10-21-3-1-release-v0-3-0.md. Открыто (координатор и владелец): preflight 0032 на production, Telegram QA на двух аккаунтах, живая проверка мастера владельцем, Promote, backup, smoke, тег v0.3.0, затем включение COLLECTIONS_ENABLED после приёмки.'
+last_reviewed: 2026-11-10
+status_note: 'Выпущен 2026-11-10: production 5ebac048 (код 8b00ad30), Deploy 42879578391 smoke-passed, миграции 0032–0039, backup до миграций; Promote отказал на диапазоне с workflows, prod продвинут вручную по runbook с подтверждением владельца; тег v0.3.0; приёмка владельца 2026-11-10 в чате. П. 2 и 8 (проверки на устройствах) отдельным отчётом не подтверждены, п. 7 (включение COLLECTIONS_ENABLED, решение владельца 2026-11-10) — в разделе «Follow-up (после выпуска)». Отчёт: docs/operations/qa/2026-11-10-21-3-1-release-v0-3-0.md.'
 ref_id: ''
 complexity: L
 impl_model: claude-opus-5-5
@@ -73,13 +73,13 @@ tags: [reference-v3]
 ## Что должно быть сделано
 
 1. Пять gates, отчёт 19.0.2 по всем экранам Mini App и кабинета
-2. Telegram QA на двух аккаунтах
+2. ~~Telegram QA на двух аккаунтах~~ — отдельным отчётом не подтверждено (приёмка владельца в чате без деталей), перенесено в «Follow-up (после выпуска)»
 3. Promote, backup, smoke, тег v0.3.0
 4. Сборы (21.2.4, ADR v3 правило совместимости 4, по образцу 20.7.1 п. 6–7): провести `COLLECTIONS_ENABLED` в `scripts/render-production-env.mjs` (список `RELEASE_FLAGS`; только точное `true`, иначе `false`, контрактный тест как у `EVENT_MULTI_SEAT_ENABLED`) и в `deploy.yml` («Prepare production env», repository variable); diff workflow смотрит владелец до merge; выкладка со выключенными сборами.
 5. Сборы, до Promote: preflight миграции `0032_collections` — `SELECT count(*) FROM payments WHERE booking_id IS NOT NULL AND subscription_id IS NOT NULL` = 0 (иначе новый `CHECK payments_single_target` уронит миграцию; координатор выполнил запрос read-only на production 2026-10-28 — 0, повторить перед Promote и записать в evidence).
 6. Сборы, на кандидате: оба образа (web, bot) несут `org.volleytime.collections="1"`; guard отката приложения (`scripts/verify-split-rollback.sh`) отказывает образу без метки, пока есть ожидающие взносы (`SELECT EXISTS (SELECT 1 FROM payments WHERE collection_id IS NOT NULL AND status = 'pending')`), и пропускает при подтверждённых/отклонённых/возвращённых — evidence CI fake-shell и real-PostgreSQL guard, метки образов в evidence выкладки.
-7. Сборы: включить `COLLECTIONS_ENABLED=true` только после приёмки релиза владельцем, отдельным релизным коммитом с подтверждением владельца (как флаги v0.2.0).
-8. Мастер создания группы ([21.1.7](21-1-7-group-creation-wizard.md), решение владельца 2026-11-05): живая проверка владельцем в Telegram — шаги 2–3 по макету, MainButton и BackButton Telegram, «Назад» сохраняет группу; замечания записываются в бэклог [21.4.1](21-4-1-defects-collect.md). Дубль пустой группы при потерянном ответе или повторном входе — принятый остаток.
+7. ~~Сборы: включить `COLLECTIONS_ENABLED=true` только после приёмки релиза владельцем, отдельным релизным коммитом с подтверждением владельца (как флаги v0.2.0).~~ — после выпуска, перенесено в «Follow-up (после выпуска)»; решение владельца включить — 2026-11-10.
+8. ~~Мастер создания группы~~ — отдельным отчётом не подтверждено, перенесено в «Follow-up (после выпуска)». Исходный пункт: мастер создания группы ([21.1.7](21-1-7-group-creation-wizard.md), решение владельца 2026-11-05): живая проверка владельцем в Telegram — шаги 2–3 по макету, MainButton и BackButton Telegram, «Назад» сохраняет группу; замечания записываются в бэклог [21.4.1](21-4-1-defects-collect.md). Дубль пустой группы при потерянном ответе или повторном входе — принятый остаток.
 
 ## Критерии приёмки
 
@@ -87,6 +87,14 @@ tags: [reference-v3]
 - ✅ Production health = release SHA
 - ✅ Пять gates CODING_STANDARDS на tested revision; ревью `claude-opus-5-5` без Critical/Important
 - ✅ RED→GREEN тесты на граничные случаи, деньги/доступ и конкурентность приложены к PR
+
+## Follow-up (после выпуска)
+
+Релиз принят владельцем 2026-11-10; ниже то, что не блокирует закрытие. Evidence: [отчёт релиза](../operations/qa/2026-11-10-21-3-1-release-v0-3-0.md).
+
+- **Сборы (`COLLECTIONS_ENABLED`, п. 7):** владелец решил 2026-11-10 включить сразу после merge evidence-PR. Исполняет координатор: `gh variable set COLLECTIONS_ENABLED --body true` непосредственно перед Promote следующего релизного SHA `main`, Deploy, smoke, `capabilities.collections = true`; evidence дописывается в п. 7 отчёта релиза. После первого ожидающего взноса откат приложения на v0.2.0 отказывает, пока взносы не подтверждены или отклонены.
+- **Проверки на устройствах без отчёта владельца (п. 2, 8):** матрица из двух аккаунтов (Android и Desktop), чек-лист, сценарий 22 и живая проверка мастера группы отдельным отчётом не подтверждены. Нужные проверяются отдельно или войдут в задачи по огрехам [21.4.1](21-4-1-defects-collect.md); список замечаний владелец пришлёт отдельно.
+- **Секрет `PROMOTE_TOKEN`:** не задан; релизы с изменениями workflows идут ручным `git push origin <SHA>:prod` по runbook (решение — AQ-19, [27.2.4](27-2-4-promotion-path.md)).
 
 ## Подсказки
 

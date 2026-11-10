@@ -1,11 +1,11 @@
 ---
 id: '21.2'
 phase: '21'
-status: todo
+status: done
 release: 'v0.3.0'
 sync_state: synced
 last_reviewed: 2026-10-12
-status_note: ''
+status_note: 'Все задачи done; выпущено в v0.3.0 (2026-11-10).'
 estimated_hours: '128-256'
 depends_on:
   [
