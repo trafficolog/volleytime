@@ -17,13 +17,20 @@ const INVITE = {
   deeplinkUrl: 'https://t.me/volleytime_bot?startapp=invite_abc',
 }
 
+type Bot = {
+  memberCount: number | null
+  webhook: { state: 'not_used' | 'ok' | 'error' | 'unavailable'; pendingUpdateCount: number | null }
+}
 type Status = {
+  bot?: Bot | null
   link: { status: 'active' | 'invalid'; title: string; invalidReason: string | null } | null
   pendingCode: null
   released: { reason: string } | null
 }
+const POLLING: Bot = { memberCount: 14, webhook: { state: 'not_used', pendingUpdateCount: null } }
 const ACTIVE: Status = {
   link: { status: 'active', title: 'Чат Основа', invalidReason: null },
+  bot: POLLING,
   pendingCode: null,
   released: null,
 }
@@ -109,6 +116,60 @@ describe('SettingsIntegrations (21.2.15)', () => {
     expect(fresh.text()).toContain('Не подключён')
     expect(button(fresh, 'Тест-сообщение')).toBeUndefined()
     expect(button(fresh, 'Подключить чат')).toBeDefined()
+  })
+
+  it('shows the member count and says honestly that polling means no webhook (21.4.6)', async () => {
+    route(ACTIVE)
+    const wrapper = await mountBlock()
+    expect(wrapper.get('[data-testid="bot-members"]').text()).toContain('14')
+    const hook = wrapper.get('[data-testid="bot-webhook"]')
+    expect(hook.attributes('data-tone')).toBe('idle')
+    expect(hook.text()).toContain('Не используется')
+    expect(hook.text()).toContain('polling')
+    expect(hook.text()).not.toMatch(/ошибк/i)
+  })
+
+  it('shows a healthy and a failing webhook', async () => {
+    route({ ...ACTIVE, bot: { memberCount: 3, webhook: { state: 'ok', pendingUpdateCount: 0 } } })
+    const ok = await mountBlock()
+    expect(ok.get('[data-testid="bot-webhook"]').attributes('data-tone')).toBe('ok')
+    expect(ok.get('[data-testid="bot-webhook"]').text()).toContain('Работает')
+    route({
+      ...ACTIVE,
+      bot: { memberCount: 3, webhook: { state: 'error', pendingUpdateCount: 4 } },
+    })
+    const bad = await mountBlock()
+    const hook = bad.get('[data-testid="bot-webhook"]')
+    expect(hook.attributes('data-tone')).toBe('danger')
+    expect(hook.text()).toContain('Ошибка доставки')
+    expect(hook.text()).toContain('4')
+  })
+
+  it('an unreachable bot leaves both fields as "no data" and the rest of the block intact', async () => {
+    route({
+      ...ACTIVE,
+      bot: { memberCount: null, webhook: { state: 'unavailable', pendingUpdateCount: null } },
+    })
+    const wrapper = await mountBlock()
+    expect(wrapper.get('[data-testid="bot-members"]').text()).toContain('Нет данных')
+    expect(wrapper.get('[data-testid="bot-webhook"]').text()).toContain('Нет данных')
+    expect(wrapper.get('[data-testid="bot-status"]').text()).toContain('Подключён')
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    expect(button(wrapper, 'Тест-сообщение')).toBeDefined()
+  })
+
+  it('asks for the bot fields explicitly when reading the status', async () => {
+    route(ACTIVE)
+    await mountBlock()
+    const read = fetchMock.mock.calls.find(([u]) => String(u).endsWith('/telegram-chat'))!
+    expect(read[1]).toMatchObject({ query: { bot: 1 } })
+  })
+
+  it('hides both fields for an unlinked group', async () => {
+    route({ ...NONE, bot: null })
+    const wrapper = await mountBlock()
+    expect(wrapper.find('[data-testid="bot-members"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="bot-webhook"]').exists()).toBe(false)
   })
 
   it('copies the invite link', async () => {

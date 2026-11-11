@@ -1,5 +1,7 @@
 # 🚢 Deploy Guide
 
+> **Устарело: черновик стратегии 2026-05-25.** Действующая процедура выкладки, отката и восстановления — [deploy runbook](../operations/runbooks/deploy.md) (image-bundle, workflow Promote to production). Redis в проекте не используется; провайдер, схема compose и бэкапы ниже — историческое описание, не инструкция.
+
 > **Last updated:** 2026-05-25
 > Руководство по развёртыванию Volley Time на production. Финализируется в Phase 9, здесь — стратегические решения.
 
@@ -72,7 +74,6 @@
                                            │
                                   ┌────────▼─────────┐
                                   │ PostgreSQL :5432 │
-                                  │ Redis :6379      │
                                   └──────────────────┘
                                            │
                                            ▼
@@ -175,14 +176,12 @@ services:
     restart: always
     environment:
       DATABASE_URL: postgresql://volleytime:${POSTGRES_PASSWORD}@db:5432/volleytime
-      REDIS_URL: redis://redis:6379
       NODE_ENV: production
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       EMAIL_API_KEY: ${EMAIL_API_KEY}
       SENTRY_DSN: ${SENTRY_DSN}
     depends_on:
       - db
-      - redis
     ports:
       - '3000:3000'
 
@@ -208,14 +207,6 @@ services:
     ports:
       - '127.0.0.1:5432:5432' # только localhost
 
-  redis:
-    image: redis:7-alpine
-    restart: always
-    ports:
-      - '127.0.0.1:6379:6379'
-    volumes:
-      - redis_data:/data
-
   caddy:
     image: caddy:2-alpine
     restart: always
@@ -229,7 +220,6 @@ services:
 
 volumes:
   postgres_data:
-  redis_data:
   caddy_data:
   caddy_config:
 ```
@@ -266,7 +256,6 @@ Cron:
 ### Что должно быть в бэкапе
 
 - PostgreSQL dump (структура + данные)
-- Не нужно: Redis (cache, восстанавливается)
 - Не нужно: код (в git)
 - Опционально: Object Storage evidence (зависит от объёма)
 

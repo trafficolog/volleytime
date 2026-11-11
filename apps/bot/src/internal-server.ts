@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type Server } from 'node:http'
 
 import { GrammyError, type Bot } from 'grammy'
 
+import { collectChatInfo, isChatInfoRequest } from './chat-info'
 import type { BotContext } from './context'
 import { env, secretsMatch } from './env'
 import { captureError } from './sentry'
@@ -20,9 +21,19 @@ interface NotifyPayload {
   keyboard?: KeyboardButton[][]
 }
 
+/** Предел тела внутреннего запроса: уведомление и chat-info — единицы килобайт. */
+export const MAX_BODY_BYTES = 64 * 1024
+
+class BodyTooLargeError extends Error {}
+
 async function readJsonBody(req: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = []
-  for await (const chunk of req) chunks.push(chunk as Buffer)
+  let size = 0
+  for await (const chunk of req) {
+    size += (chunk as Buffer).length
+    if (size > MAX_BODY_BYTES) throw new BodyTooLargeError()
+    chunks.push(chunk as Buffer)
+  }
   return JSON.parse(Buffer.concat(chunks).toString('utf8'))
 }
 
@@ -161,7 +172,8 @@ export function startInternalServer(bot: Bot<BotContext>, port = 3001): Server {
       )
       return
     }
-    if (req.method !== 'POST' || req.url !== '/internal/notify') {
+    const isChatInfo = req.method === 'POST' && req.url === '/internal/chat-info'
+    if (req.method !== 'POST' || (req.url !== '/internal/notify' && !isChatInfo)) {
       res.statusCode = 404
       res.end()
       return
@@ -169,6 +181,26 @@ export function startInternalServer(bot: Bot<BotContext>, port = 3001): Server {
     if (!secretsMatch(env.INTERNAL_SECRET, req.headers['x-internal-secret'])) {
       res.statusCode = 403
       res.end('Forbidden')
+      return
+    }
+    if (isChatInfo) {
+      // число участников и webhook привязанного чата (21.4.6); web передаёт чат группы из своей базы
+      try {
+        const body = await readJsonBody(req)
+        if (!isChatInfoRequest(body)) {
+          res.statusCode = 422
+          res.end('Invalid payload')
+          return
+        }
+        const info = await collectChatInfo(bot.api, body.chatId, env.BOT_MODE, env.WEBHOOK_URL)
+        res.statusCode = 200
+        res.setHeader('content-type', 'application/json')
+        res.end(JSON.stringify(info))
+      } catch (e) {
+        // слишком большое тело или не JSON: Telegram не опрашивался
+        res.statusCode = e instanceof BodyTooLargeError ? 413 : 422
+        res.end(e instanceof BodyTooLargeError ? 'Payload Too Large' : 'Invalid payload')
+      }
       return
     }
     try {
@@ -185,6 +217,11 @@ export function startInternalServer(bot: Bot<BotContext>, port = 3001): Server {
       res.statusCode = 200
       res.end('OK')
     } catch (e) {
+      if (e instanceof BodyTooLargeError) {
+        res.statusCode = 413
+        res.end('Payload Too Large')
+        return
+      }
       const failure = classifySendError(e)
       if (failure.kind === 'blocked') {
         // получатель недоступен (бот заблокирован, чат не найден): повтор бессмыслен, не ошибка бота
