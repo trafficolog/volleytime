@@ -27,7 +27,7 @@ const booking = (id: number, over: Record<string, unknown> = {}) => ({
   status: 'pending_payment',
   method: 'transfer',
   seats: 2,
-  pricing: { mode: 'fixed', myAllocatedAmount: null },
+  pricing: { mode: 'fixed', minAmount: 1500, maxAmount: 1500, myAllocatedAmount: null },
   seatPayments: { paidSeats: 0, pendingSeats: 2, releasedPaidSeats: 0 },
   event: {
     id: 3,
@@ -86,7 +86,7 @@ describe('payment screen of a booking (21.4.8, M-13)', () => {
     const wrapper = await render([booking(7), booking(8)])
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/organizations/30/bookings/my',
-      expect.objectContaining({ query: expect.objectContaining({ filter: 'upcoming' }) }),
+      expect.objectContaining({ query: expect.objectContaining({ filter: 'all' }) }),
     )
     expect(wrapper.text()).toContain('Воскресная игра')
     expect(wrapper.text()).toContain('Ждёт оплаты')
@@ -96,6 +96,22 @@ describe('payment screen of a booking (21.4.8, M-13)', () => {
     expect(wrapper.find('[data-method="transfer"]').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('Belarusbank')
     expect(wrapper.find('a[href="/m/orgs/30/bookings"]').exists()).toBe(true)
+  })
+
+  it('shows the amount to pay like the bookings row', async () => {
+    stubPage('7')
+    const wrapper = await render([booking(7)])
+    expect(wrapper.get('[data-testid="pay-amount"]').text()).toContain('15,00')
+  })
+
+  it('still opens for a past booking that is waiting for payment (past tab)', async () => {
+    stubPage('7')
+    const wrapper = await render([
+      booking(7, { event: { ...booking(7).event, startsAt: '2020-10-04T16:00:00.000Z' } }),
+    ])
+    expect(wrapper.find('[data-empty]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Воскресная игра')
+    expect(wrapper.find('[data-method="cash"]').exists()).toBe(true)
   })
 
   it('does not know a booking that is not in the own list (foreign or unknown id)', async () => {

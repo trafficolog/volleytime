@@ -32,6 +32,8 @@ describe('own player stats (HTTP)', { timeout: 60_000 }, () => {
   let rival: number
   let outsider: number
   let applicant: number
+  let left: number
+  let blocked: number
   let orgId: number
   let otherOrgId: number
   const path = (org = orgId) => `/api/organizations/${org}/members/me/stats`
@@ -48,6 +50,8 @@ describe('own player stats (HTTP)', { timeout: 60_000 }, () => {
         { name: 'Rival' },
         { name: 'Outsider' },
         { name: 'Applicant' },
+        { name: 'Left' },
+        { name: 'Blocked' },
       ])
       .returning()
     owner = people[0]!.id
@@ -55,9 +59,11 @@ describe('own player stats (HTTP)', { timeout: 60_000 }, () => {
     rival = people[2]!.id
     outsider = people[3]!.id
     applicant = people[4]!.id
+    left = people[5]!.id
+    blocked = people[6]!.id
     orgId = (await organizationService.create({ userId: owner }, { name: 'Own stats' })).id
     otherOrgId = (await organizationService.create({ userId: owner }, { name: 'Own stats 2' })).id
-    for (const id of [player, rival, applicant]) {
+    for (const id of [player, rival, applicant, left, blocked]) {
       await memberService.add({ userId: owner }, { organizationId: orgId, userId: id })
     }
     await memberService.add({ userId: owner }, { organizationId: otherOrgId, userId: player })
@@ -65,6 +71,14 @@ describe('own player stats (HTTP)', { timeout: 60_000 }, () => {
       .update(organizationMembers)
       .set({ status: 'pending' })
       .where(eq(organizationMembers.userId, applicant))
+    await db
+      .update(organizationMembers)
+      .set({ status: 'left' })
+      .where(eq(organizationMembers.userId, left))
+    await db
+      .update(organizationMembers)
+      .set({ status: 'blocked' })
+      .where(eq(organizationMembers.userId, blocked))
 
     const mk = async (org: number, title: string, daysAgo: number) => {
       const created = await eventService.create({ userId: owner }, org, {
@@ -140,6 +154,17 @@ describe('own player stats (HTTP)', { timeout: 60_000 }, () => {
     const text = JSON.stringify(res.body)
     for (const leak of ['debt', 'subscription', 'cancellations', 'lastVisitAt', 'name'])
       expect(text).not.toContain(leak)
+  })
+
+  it('refuses a member who left and a blocked member (left, blocked)', async () => {
+    for (const [user, code] of [
+      [left, 'permission.no_longer_member'],
+      [blocked, 'permission.blocked'],
+    ] as const) {
+      const res = await request('GET', path(), { user })
+      expect(res.status).toBe(403)
+      expect(JSON.stringify(res.body)).toContain(code)
+    }
   })
 
   it('refuses an outsider, an applicant, another group and an anonymous caller', async () => {

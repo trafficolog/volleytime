@@ -4,7 +4,9 @@ import { formatDay, formatTime } from '@volley-time/shared'
 import type { MyBooking } from '~/components/PlayerBookingRow.vue'
 import PlayerPaymentInstructions from '~/components/PlayerPaymentInstructions.vue'
 import { seatsLabel } from '~/utils/booking-seats'
+import { eventPricingLabel } from '~/utils/event-pricing-label'
 import { canPayBooking } from '~/utils/player-booking-payment'
+import { quotePriceLabel } from '~/utils/player-price-view'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
 /**
@@ -31,7 +33,7 @@ async function load() {
   try {
     const { bookings } = await $fetch<{ bookings: MyBooking[] }>(
       `/api/organizations/${requestedOrgId}/bookings/my`,
-      { query: { filter: 'upcoming', limit: 100 } },
+      { query: { filter: 'all', limit: 100 } },
     )
     if (mine !== loadSeq) return
     booking.value =
@@ -50,6 +52,18 @@ async function load() {
 }
 await load()
 
+/** Сумма к оплате — как в строке «Моих записей»: split из расчёта цены, иначе проекция цены события. */
+const amount = computed(() => {
+  const b = booking.value
+  if (!b) return ''
+  if (b.pricing.mode === 'split' && b.priceQuote !== undefined) {
+    return (
+      quotePriceLabel(b.priceQuote, b.event.currency, { hasBooking: true, waitlisted: false })
+        ?.text ?? ''
+    )
+  }
+  return eventPricingLabel(b.pricing, b.event.currency).text
+})
 const payable = computed(() => !!booking.value && canPayBooking(booking.value))
 const seats = computed(() => booking.value?.seats ?? 1)
 </script>
@@ -78,6 +92,7 @@ const seats = computed(() => booking.value?.seats ?? 1)
             {{ formatTime(booking.event.startsAt, tz)
             }}<template v-if="booking.event.venue"> · {{ booking.event.venue.name }}</template>
           </p>
+          <p v-if="amount" class="vt-mono mt-1.5 text-xs" data-testid="pay-amount">{{ amount }}</p>
           <div class="mt-2 flex flex-wrap gap-1.5">
             <VtChip tone="amber">Ждёт оплаты</VtChip>
             <VtChip v-if="seats > 1">{{ seatsLabel(seats) }}</VtChip>
