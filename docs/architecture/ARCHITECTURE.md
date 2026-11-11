@@ -58,10 +58,10 @@
 ┌─────────────────────────────────────────────────────────────────────┐
 │                          Data Layer                                 │
 │  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐   │
-│  │ PostgreSQL       │  │ Redis            │  │ Object Storage   │   │
-│  │ (main DB)        │  │ (sessions,       │  │ (S3-compatible,  │   │
-│  │                  │  │  job queue)      │  │  для evidence,   │   │
-│  │                  │  │                  │  │  Phase 9+)       │   │
+│  │ PostgreSQL       │  │ Планировщик      │  │ Object Storage   │   │
+│  │ (main DB,        │  │ (packages/core/  │  │ (S3-compatible,  │   │
+│  │  сессии,         │  │  scheduler,      │  │  для evidence,   │   │
+│  │  журнал задач)   │  │  журнал в БД)    │  │  Phase 9+)       │   │
 │  └──────────────────┘  └──────────────────┘  └──────────────────┘   │
 └─────────────────────────────────────────────────────────────────────┘
                                │
@@ -154,7 +154,7 @@ volley_time_platform/
 │       │   └── slot-distribution.ts
 │       └── package.json
 │
-├── docker-compose.yml             # dev: postgres + redis
+├── docker-compose.yml             # dev: postgres
 ├── docker-compose.prod.yml        # prod: + caddy, app, bot
 ├── Caddyfile                      # HTTPS reverse proxy
 ├── pnpm-workspace.yaml
@@ -242,7 +242,7 @@ volley_time_platform/
 
 - **PostgreSQL** — основная БД. В dev — через Docker, в prod — managed (Hetzner / Railway) или Docker.
 - **Drizzle ORM** — type-safe queries, schema-first. Все типы генерируются автоматически.
-- **Redis** — сессии better-auth (опционально), job queue (BullMQ в Phase 15).
+- **Фоновые задачи** — собственный планировщик (`packages/core/src/scheduler`) с журналом `scheduled_jobs` в PostgreSQL; Redis, BullMQ и pg-boss не используются (решение 2026-10-16, [ADR v3](ADR-v3-domain.md)).
 - **Object Storage (S3-compatible)** — для evidence-фото расходов, аватаров. Подключается в Phase 9+.
 
 ---
@@ -456,7 +456,7 @@ await requireEventStaff(user, event, ['judge', 'event_admin'])
 │                                    ▼                      │
 │                           ┌──────────────────┐            │
 │                           │ PostgreSQL       │            │
-│                           │ + Redis          │            │
+│                           │                  │            │
 │                           └──────────────────┘            │
 └───────────────────────────────────────────────────────────┘
                                     │

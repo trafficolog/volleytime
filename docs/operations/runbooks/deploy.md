@@ -4,7 +4,7 @@ Current v0.3.0 acceptance, 2026-11-10: production `5ebac048e901f146408f5eb82f1ad
 
 Previous v0.2.0 acceptance, 2026-10-27: production `6143f4256b9da555a90249aeb7de2ccac022521e` (tag `v0.2.0`), [Deploy 40355995553](https://github.com/trafficolog/volleytime/actions/runs/40355995553) succeeded (verified → loaded → backed-up → migrated → activated → smoke-passed; migrations 0021–0031) after [main CI 40349167990](https://github.com/trafficolog/volleytime/actions/runs/40349167990). Promote 40355567669 refused before any push (range changes `.github/workflows`, `PROMOTE_TOKEN` not set), so `prod` was advanced by the manual `git push origin 6143f42:prod` after an ancestry check, confirmed by the owner. Health `release=6143f42`; all new flags except `EVENT_SPLIT_PRICING_ENABLED` are off, the rollback guard rows are all `f` (application rollback to `b056806` allowed). Owner accepted the release; [evidence](../qa/2026-10-27-v0-2-0-production-release.md). Flags are enabled one at a time afterwards; enabling `EVENT_BALANCE_ENFORCED` needs an active root admin first. Earlier acceptances below are history.
 
-History of earlier acceptances (R0.7 2026-10-06 / 2026-10-11 and 2026-09-30) is in the [archive](archive/2026-09-10-deploy-acceptance-history.md).
+History of earlier acceptances (R0.7 2026-10-06 / 2026-10-11 and 2026-09-30) is in the [archive](archive/2026-10-deploy-acceptance-history.md).
 
 ## Historical first-rollout checkpoint
 

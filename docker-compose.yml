@@ -19,7 +19,8 @@ services:
       timeout: 5s
       retries: 10
 
-  # Redis НЕ используется: очередь задач на pg-boss (Postgres), см. Phase 15.
+  # Redis НЕ используется: фоновые задачи выполняет собственный планировщик
+  # (packages/core/src/scheduler) с журналом в Postgres.
   # Оставлен закомментированным на случай смены решения по job runner.
   # redis:
   #   image: redis:7-alpine
