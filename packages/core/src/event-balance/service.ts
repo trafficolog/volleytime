@@ -24,6 +24,7 @@ import {
 
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
+import { writeOrganizerFeed } from '../notifier/organizer-feed'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
 
 import {
@@ -242,13 +243,33 @@ export const eventBalanceService = {
     // предусловия — под блокировкой строки проекции (ADR, шаг 3)
     await lockEventBalance(db, event.organizationId)
     if (await hasEventBalanceEntryForEvent(db, event.id, 'spend')) return null
-    return append(ctx, {
+    const entry = await append(ctx, {
       organizationId: event.organizationId,
       delta: -1,
       reason: 'spend',
       eventId: event.id,
       actor: { kind: 'user', userId: ctx.userId },
     })
+    // «Мало событий на балансе» (21.4.5): один раз при пересечении порога вниз; ключ — запись журнала,
+    // поэтому пересчёт и повторные списания ниже порога не повторяют уведомление. Пополнить может
+    // только владелец (заявка на пакет — requireOrgOwner), ему и пишем.
+    if (
+      entry.balanceAfter <= EVENT_BALANCE_LOW_THRESHOLD &&
+      entry.balanceAfter - entry.delta > EVENT_BALANCE_LOW_THRESHOLD
+    ) {
+      await writeOrganizerFeed(db, {
+        organizationId: event.organizationId,
+        kind: 'event_balance_low',
+        entity: `entry:${entry.id}`,
+        roles: ['owner'],
+        params: {
+          balance: entry.balanceAfter,
+          threshold: EVENT_BALANCE_LOW_THRESHOLD,
+          target: 'balance',
+        },
+      })
+    }
+    return entry
   },
 
   /**

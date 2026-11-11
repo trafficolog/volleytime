@@ -24,6 +24,7 @@ import { auditService } from '../audit/service'
 
 import { ledgerService } from '../ledger/service'
 import { collectNotification } from '../notifier/collect'
+import { syncPendingPaymentsFeed } from '../notifier/organizer-feed'
 import { getDb, type ServiceContext } from '../shared/context'
 
 import { PaymentNotFoundError, PaymentNotPendingError, PaymentNotSucceededError } from './errors'
@@ -158,7 +159,8 @@ async function notifyOrganizersAboutPending(
     eventId?: number
     planName?: string
     collectionTitle?: string
-    target?: 'org'
+    collectionId?: number
+    target?: 'org' | 'collection'
   } = {},
   total: { amount: number; seats: number } = { amount: payment.amount, seats: 1 },
 ): Promise<void> {
@@ -199,6 +201,8 @@ async function notifyOrganizersAboutPending(
       },
     })
   }
+  // агрегат «N платежей ждут подтверждения» ленты организатора (21.4.5)
+  await syncPendingPaymentsFeed(db, payment.organizationId)
 }
 
 const sum = (rows: Payment[]) => rows.reduce((a, p) => a + p.amount, 0)
@@ -439,7 +443,12 @@ export const paymentService = {
       .insert(payments)
       .values({ ...params, bookingId: null, subscriptionId: null, status: 'pending' })
       .returning()
-    await notifyOrganizersAboutPending(ctx, p!, { collectionTitle, target: 'org' })
+    await notifyOrganizersAboutPending(ctx, p!, {
+      collectionTitle,
+      // обещание ведёт на конкретный сбор: Mini App и кнопка бота (21.4.5)
+      collectionId: params.collectionId,
+      target: 'collection',
+    })
     return p!
   },
 
@@ -648,6 +657,7 @@ export const paymentService = {
         },
       })
 
+      await syncPendingPaymentsFeed(tx, payment.organizationId)
       return succeeded!
     })
   },
@@ -792,6 +802,7 @@ export const paymentService = {
           ...(await paymentContext(tx, payment)),
         },
       })
+      await syncPendingPaymentsFeed(tx, payment.organizationId)
       return cancelled!
     })
   },

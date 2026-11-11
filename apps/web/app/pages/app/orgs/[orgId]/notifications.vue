@@ -153,7 +153,12 @@ const groups = computed(() => groupNotificationsByDay(items.value, tz.value))
         <ul class="flex flex-col gap-2">
           <li v-for="n in g.items" :key="n.id">
             <NotificationFeedItem
-              :view="notificationView(n, base, `${base}/plans`)"
+              :view="
+                notificationView(n, base, `${base}/plans`, {
+                  balanceTo: `${base}/billing`,
+                  collectionDetail: false,
+                })
+              "
               :time="notificationTime(n.createdAt, g.day, tz)"
               :read="n.readAt !== null"
               @open="open(n)"
