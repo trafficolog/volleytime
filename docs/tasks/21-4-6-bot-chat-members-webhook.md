@@ -2,11 +2,11 @@
 id: '21.4.6'
 phase: '21'
 epic: '21.4'
-status: todo
+status: in_progress
 release: 'v0.3.1'
 sync_state: synced
 last_reviewed: 2026-11-09
-status_note: 'Выделена из 21.2.15 решением владельца 2026-11-09: число участников чата и статус webhook требуют нового контракта web↔bot.'
+status_note: 'В работе: ветка trafficolog/feat/21.4.6-bot-chat-members-webhook. Контракт web↔bot: POST bot:/internal/chat-info {chatId} -> {memberCount, webhook:{state,pendingUpdateCount}}; production в polling показывает «webhook не используется».'
 ref_id: 'W-11'
 complexity: S
 impl_model: claude-sonnet-5-5
