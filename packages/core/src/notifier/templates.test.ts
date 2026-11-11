@@ -248,3 +248,41 @@ describe('исключение из группы (21.2.21)', () => {
     )
   })
 })
+
+describe('ownership transfer templates (21.4.7)', () => {
+  it('the recipient gets the group, who hands it over, the expiry and the personal link', () => {
+    const url = 'https://t.me/vt_bot?startapp=transfer_AAA&x=<b>'
+    const m = renderMessage('ownership_transfer_link', {
+      organizationName: 'Волейбол <Минск>',
+      fromName: 'Иван',
+      eventDate: '14 ноября, 18:00',
+      transferUrl: url,
+    })
+    expect(m.text).toContain('Волейбол &lt;Минск&gt;')
+    expect(m.text).toContain('Иван')
+    expect(m.text).toContain('14 ноября, 18:00')
+    expect(m.text).toContain('href="https://t.me/vt_bot?startapp=transfer_AAA&amp;x=&lt;b&gt;"')
+    expect(m.keyboard?.[0]?.[0]).toEqual({ text: 'Принять передачу', url })
+  })
+
+  it('without a link there is no button', () => {
+    expect(renderMessage('ownership_transfer_link', {}).keyboard).toBeUndefined()
+  })
+
+  it('the previous owner learns the outcome without any link', () => {
+    for (const type of [
+      'ownership_transfer_accepted',
+      'ownership_transfer_cancelled',
+      'ownership_transfer_expired',
+    ] as const) {
+      const m = renderMessage(type, {
+        organizationName: 'Группа',
+        toName: 'Анна',
+        transferUrl: 'https://secret.example/token',
+      })
+      expect(m.text).toContain('Группа')
+      expect(m.text).not.toContain('secret.example')
+    }
+    expect(renderMessage('ownership_transfer_accepted', { toName: 'Анна' }).text).toContain('Анна')
+  })
+})

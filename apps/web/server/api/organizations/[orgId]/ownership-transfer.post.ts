@@ -9,7 +9,11 @@ defineRouteMeta({
       'участника из списка игроков). Создаётся ожидающая передача и личная ссылка: одноразовая, ' +
       'привязанная к получателю, со сроком 72 часа. Ссылка возвращается только в этом ответе ' +
       '(links.telegram — Mini App, links.web — браузер; токен во фрагменте адреса не уходит на ' +
-      'сервер); владелец передаёт её получателю сам. До принятия владелец не меняется. Не больше ' +
+      'сервер). Та же ссылка уходит получателю в личный чат ботом (21.4.7, решение владельца ' +
+      '2026-11-11; прямая отправка из этого запроса, в ленту, очередь и логи не пишется): ' +
+      'botDelivery — { status: delivered } или { status: not_delivered, reason: no_telegram | ' +
+      'blocked | failed }; при недоставке передача всё равно создана, владелец передаёт ссылку сам. ' +
+      'До принятия владелец не меняется. Не больше ' +
       'одной ожидающей передачи (409 ownership_transfer.pending_exists); себе, не участнику и не ' +
       'действующему участнику — 422 ownership_transfer.recipient_invalid. Только владелец.',
     parameters: [{ in: 'path', name: 'orgId', required: true, schema: { type: 'integer' } }],
@@ -26,7 +30,7 @@ defineRouteMeta({
       },
     },
     responses: {
-      200: { description: '{ transfer, links: { telegram, web } }' },
+      200: { description: '{ transfer, links: { telegram, web }, botDelivery }' },
       401: { description: 'Нет сессии' },
       403: { description: 'Не владелец группы (forbidden.owner_only)' },
       409: { description: 'Уже есть ожидающая передача (ownership_transfer.pending_exists)' },
@@ -39,10 +43,17 @@ defineRouteMeta({
 export default defineApiHandler(async (event) => {
   requireOrgOwner(event.context.member ?? null)
   const body = await readBody(event)
-  const { transfer, token } = await ownershipTransferService.start(
-    createServiceContextFromEvent(event),
-    event.context.organization!.id,
-    body ?? {},
+  const ctx = createServiceContextFromEvent(event)
+  const orgId = event.context.organization!.id
+  const { transfer, token } = await ownershipTransferService.start(ctx, orgId, body ?? {})
+  const links = transferLinks(token)
+  // 21.4.7 (решение владельца 2026-11-11): та же ссылка уходит получателю прямой отправкой ботом;
+  // токен остаётся только в памяти этого запроса. Сбой бота передачу не ломает.
+  const botDelivery = await ownershipTransferService.deliverLink(
+    ctx,
+    orgId,
+    transfer.id,
+    links.telegram ?? links.web,
   )
-  return { transfer, links: transferLinks(token) }
+  return { transfer: { ...transfer, botDelivery }, links, botDelivery }
 })
