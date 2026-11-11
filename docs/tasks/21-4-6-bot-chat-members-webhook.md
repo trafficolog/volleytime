@@ -2,11 +2,11 @@
 id: '21.4.6'
 phase: '21'
 epic: '21.4'
-status: in_progress
+status: done
 release: 'v0.3.1'
 sync_state: synced
-last_reviewed: 2026-11-09
-status_note: 'В работе: ветка trafficolog/feat/21.4.6-bot-chat-members-webhook. Контракт web↔bot: POST bot:/internal/chat-info {chatId} -> {memberCount, webhook:{state,pendingUpdateCount}}; production в polling показывает «webhook не используется».'
+last_reviewed: 2026-11-11
+status_note: 'Выполнено 2026-11-11, PR #254: число участников чата и статус webhook в блоке «Telegram-бот» по запросу `?bot=1` (только SettingsIntegrations), контракт web↔bot `POST /internal/chat-info`, polling показывается как «не используется», лимит тела 64 КБ у внутреннего сервера бота. Ревью Opus — merge. Принятый риск: общий секрет web↔bot до 27.1.1/27.4.6.'
 ref_id: 'W-11'
 complexity: S
 impl_model: claude-sonnet-5-5
