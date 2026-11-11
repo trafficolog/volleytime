@@ -20,6 +20,8 @@ export const AUDIT_ACTIONS = {
   OWNERSHIP_TRANSFER_CANCELLED: 'ownership_transfer.cancelled',
   OWNERSHIP_TRANSFER_ACCEPTED: 'ownership_transfer.accepted',
   OWNERSHIP_TRANSFER_EXPIRED: 'ownership_transfer.expired',
+  // итог отправки ссылки получателю ботом (21.4.7): только статус и причина, ссылки и токена нет
+  OWNERSHIP_TRANSFER_BOT_DELIVERY: 'ownership_transfer.bot_delivery',
   MEMBER_ADDED: 'member.added',
   MEMBER_ROLE_CHANGED: 'member.role_changed',
   MEMBER_BLOCKED: 'member.blocked',

@@ -22,6 +22,11 @@ export type NotificationType =
   // исключение из группы (21.2.21): игроку — об исключении, управляющим — о последствиях для записей
   | 'member_excluded'
   | 'member_excluded_organizer'
+  // передача владения группой (21.4.7): получателю — личная ссылка, прежнему owner — исход
+  | 'ownership_transfer_link'
+  | 'ownership_transfer_accepted'
+  | 'ownership_transfer_cancelled'
+  | 'ownership_transfer_expired'
 
 export interface KeyboardButton {
   text: string
@@ -88,6 +93,11 @@ export interface TemplateParams {
   paidSeats?: number
   /** Запрос приглашения организатору: в ленте показывается не как заявка на оплату (20.4.7). */
   inviteRequest?: boolean
+  /** Личная ссылка передачи владения (21.4.7): только в сообщении получателю, не хранится. */
+  transferUrl?: string
+  /** Имя прежнего owner (кто передаёт) и получателя (21.4.7). */
+  fromName?: string
+  toName?: string
 }
 
 /** « · мест: N» для операций над несколькими местами; одно место — текст R0.7 без изменений. */
@@ -277,6 +287,51 @@ export function renderMessage(type: NotificationType, p: TemplateParams): Render
 💸 Оплаченных мест: ${p.paidSeats} — возврат автоматически не делается, ` +
               `верните деньги вручную.`
             : ''),
+        keyboard: openBtn(),
+      }
+    // передача владения (21.4.7): `eventDate` здесь — срок ссылки в часовом поясе группы
+    case 'ownership_transfer_link':
+      return {
+        text:
+          `🔑 ${esc(p.fromName ?? 'Владелец')} передаёт вам группу ` +
+          `<b>${p.organizationName ? esc(p.organizationName) : 'группа'}</b>.` +
+          (p.eventDate
+            ? `
+⏳ Ссылка действует до ${esc(p.eventDate)}.`
+            : '') +
+          `
+
+Принять может только вы, под своей учётной записью. После принятия владельцем ` +
+          `станете вы, прежний владелец — организатором. Не пересылайте ссылку.` +
+          (p.transferUrl
+            ? `
+
+<a href="${esc(p.transferUrl).replace(/"/g, '&quot;')}">Принять передачу</a>`
+            : ''),
+        keyboard: p.transferUrl ? [[{ text: 'Принять передачу', url: p.transferUrl }]] : undefined,
+      }
+    case 'ownership_transfer_accepted':
+      return {
+        text:
+          `✅ ${esc(p.toName ?? 'Участник')} принял передачу группы ` +
+          `<b>${p.organizationName ? esc(p.organizationName) : 'группа'}</b>.
+
+` +
+          `Теперь он владелец, вы — организатор.`,
+        keyboard: openBtn(),
+      }
+    case 'ownership_transfer_cancelled':
+      return {
+        text:
+          `Передача группы <b>${p.organizationName ? esc(p.organizationName) : 'группа'}</b> ` +
+          `отменена, ссылка больше не работает. Владелец — вы.`,
+        keyboard: openBtn(),
+      }
+    case 'ownership_transfer_expired':
+      return {
+        text:
+          `⌛ Срок ссылки передачи группы <b>${p.organizationName ? esc(p.organizationName) : 'группа'}</b> ` +
+          `истёк, передача не состоялась. Владелец — вы; чтобы передать группу, начните заново.`,
         keyboard: openBtn(),
       }
     case 'waitlist_offer_expired':

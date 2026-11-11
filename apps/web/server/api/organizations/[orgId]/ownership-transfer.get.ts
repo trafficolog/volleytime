@@ -12,7 +12,7 @@ defineRouteMeta({
     responses: {
       200: {
         description:
-          '{ transfer: { id, toUserId, toMemberId, toName, expiresAt } | null, restoreWindowDays }',
+          '{ transfer: { id, toUserId, toMemberId, toName, expiresAt, botDelivery } | null, restoreWindowDays }',
       },
       401: { description: 'Нет сессии' },
       403: { description: 'Не владелец группы (forbidden.owner_only)' },
