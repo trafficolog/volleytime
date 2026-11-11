@@ -15,6 +15,7 @@ import {
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
 import { collectNotification } from '../notifier/collect'
+import { syncPendingPaymentsFeed } from '../notifier/organizer-feed'
 import { PaymentNotFoundError } from '../payments/errors'
 import { paymentService } from '../payments/service'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
@@ -427,6 +428,7 @@ export const collectionService = {
         oldValue: { status: before.status },
         newValue: { status: 'cancelled', rejectedPaymentIds: rejected.map((p) => p.id) },
       })
+      await syncPendingPaymentsFeed(db, orgId)
       return row!
     })
   },

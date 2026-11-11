@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import type { NotificationTone, NotificationView } from '~/utils/notification-feed'
 
-/** Карточка уведомления ленты игрока (20.4.9, M-13): иконка по типу, заголовок, время, текст. */
+/**
+ * Карточка уведомления ленты (20.4.9, M-13; организатор — 21.4.5): иконка по типу, заголовок, время,
+ * текст и необязательная кнопка действия.
+ */
 const props = defineProps<{
   view: NotificationView
   time: string
@@ -51,6 +54,15 @@ const tone = computed(() => TONES[props.view.tone])
       <span class="mt-1 block break-words text-sm leading-snug text-vt-mute-2">{{
         view.body
       }}</span>
+      <!-- кнопка действия (экран 09): визуально кнопка, переход — у всей карточки (ссылка не вкладывается) -->
+      <span
+        v-if="view.action"
+        data-notification-action
+        class="vt-btn vt-btn--sm mt-2.5"
+        :class="view.actionPrimary ? 'vt-btn--primary' : 'vt-btn--ghost'"
+        aria-hidden="true"
+        >{{ view.action }}</span
+      >
     </span>
   </NuxtLink>
 </template>

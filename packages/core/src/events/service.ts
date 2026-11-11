@@ -30,6 +30,7 @@ import { queuePositionsOf } from '../bookings/queue-position'
 import { queuedBookingsSql, queuedSeatsSql, takenSeatsSql } from '../bookings/seats'
 import { eventBalanceService } from '../event-balance/service'
 import { collectNotification } from '../notifier/collect'
+import { syncPendingPaymentsFeed } from '../notifier/organizer-feed'
 import { OrganizationNotFoundError } from '../organizations/errors'
 import { paymentService } from '../payments/service'
 import { requireCanManageContent } from '../permissions/policies'
@@ -792,6 +793,7 @@ export const eventService = {
           },
         },
       )
+      await syncPendingPaymentsFeed(tx, existing.organizationId)
       return cancelled!
     })
   },

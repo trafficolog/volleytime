@@ -89,6 +89,142 @@ describe('notificationView', () => {
     expect(v.to).toBe('/m/orgs/7/collections')
   })
 
+  describe('виды ленты организатора (21.4.5)', () => {
+    const now = new Date('2026-10-19T18:00:00Z')
+
+    it('агрегат платежей: счётчик, события, возраст и кнопка «Проверить»', () => {
+      const v = notificationView(
+        item(
+          { type: 'organizer_action_required', eventId: null },
+          {
+            kind: 'payments_pending',
+            count: 4,
+            eventTitles: ['Основа', 'Микст'],
+            moreEvents: 0,
+            oldestAt: '2026-10-19T12:00:00Z',
+            target: 'payments',
+          },
+        ),
+        '/m/orgs/7',
+        undefined,
+        { now },
+      )
+      expect(v.title).toBe('4 платежа ждут подтверждения')
+      expect(v.body).toBe('По событиям «Основа» и «Микст». Самому старому 6 ч.')
+      expect(v.action).toBe('Проверить')
+      expect(v.actionPrimary).toBe(true)
+      expect(v.to).toBe('/m/orgs/7/payments')
+      expect(v.tone).toBe('amber')
+    })
+
+    it('агрегат: склонение и закрытая серия без кнопки', () => {
+      const mk = (count: number) =>
+        notificationView(
+          item(
+            { type: 'organizer_action_required', eventId: null },
+            { kind: 'payments_pending', count, eventTitles: [], oldestAt: '2026-10-19T17:30:00Z' },
+          ),
+          '/m/orgs/7',
+          undefined,
+          { now },
+        )
+      expect(mk(1).title).toBe('1 платёж ждёт подтверждения')
+      expect(mk(5).title).toBe('5 платежей ждут подтверждения')
+      expect(mk(21).title).toBe('21 платёж ждёт подтверждения')
+      expect(mk(1).body).toBe('Самому старому меньше часа.')
+      const closed = mk(0)
+      expect(closed.title).toBe('Платежи обработаны')
+      expect(closed.action).toBeUndefined()
+      expect(closed.tone).toBe('ink')
+    })
+
+    it('«Новая запись» — обычное уведомление без кнопки, ведёт на событие', () => {
+      const v = notificationView(
+        item(
+          { type: 'organizer_action_required', eventId: 5 },
+          { kind: 'booking_created', playerName: 'Денис', eventTitle: 'Открытая игра', seats: 2 },
+        ),
+        '/m/orgs/7',
+      )
+      expect(v.title).toBe('Новая запись')
+      expect(v.body).toBe('Денис записан(а) на «Открытая игра» · мест: 2')
+      expect(v.action).toBeUndefined()
+      expect(v.tone).toBe('ink')
+      expect(v.to).toBe('/m/orgs/7/events/5')
+    })
+
+    it('«Отмена записи»: места, деньги по D-14 и уход места из очереди', () => {
+      const v = notificationView(
+        item(
+          { type: 'organizer_action_required', eventId: 5 },
+          {
+            kind: 'booking_cancelled',
+            playerName: 'Катя',
+            eventTitle: 'Основа',
+            seats: 1,
+            paidSeats: 1,
+            paidAmount: 1500,
+            currency: 'BYN',
+            promotedFromWaitlist: true,
+          },
+        ),
+        '/m/orgs/7',
+      )
+      expect(v.title).toBe('Отмена записи')
+      expect(v.body).toContain('Катя отменил(а) запись на «Основа»')
+      expect(v.body).toContain('Оплачено: 15,00 BYN — деньги не возвращены автоматически.')
+      expect(v.body).toContain('Место ушло первому из листа ожидания.')
+      expect(v.action).toBeUndefined()
+      expect(v.to).toBe('/m/orgs/7/events/5')
+    })
+
+    it('«Отмена записи» организатором не приписывается игроку', () => {
+      const v = notificationView(
+        item(
+          { type: 'organizer_action_required', eventId: 5 },
+          { kind: 'booking_cancelled', playerName: 'Катя', eventTitle: 'Основа', byManager: true },
+        ),
+        '/m/orgs/7',
+      )
+      expect(v.body).toContain('Запись Катя на «Основа» отменена организатором.')
+      expect(v.body).not.toContain('отменил(а)')
+    })
+
+    it('«Мало событий на балансе» ведёт к пополнению и не говорит «credits»', () => {
+      const n = item(
+        { type: 'organizer_action_required', eventId: null },
+        { kind: 'event_balance_low', balance: 8, threshold: 10 },
+      )
+      const mini = notificationView(n, '/m/orgs/7')
+      expect(mini.title).toBe('Мало событий на балансе')
+      expect(mini.body).toBe('Осталось 8 событий. Пополните баланс.')
+      expect(mini.action).toBe('Пополнить')
+      expect(mini.actionPrimary).toBeFalsy()
+      expect(mini.to).toBe('/m/orgs/7')
+      expect(
+        notificationView(n, '/app/orgs/7', undefined, { balanceTo: '/app/orgs/7/billing' }).to,
+      ).toBe('/app/orgs/7/billing')
+    })
+
+    it('обещание взноса с collectionId ведёт на этот сбор, в кабинете — к списку', () => {
+      const n = item(
+        { type: 'organizer_action_required', eventId: null },
+        {
+          playerName: 'Соня',
+          collectionTitle: 'Новый комплект мячей',
+          collectionId: 12,
+          target: 'collection',
+        },
+      )
+      const mini = notificationView(n, '/m/orgs/7')
+      expect(mini.to).toBe('/m/orgs/7/collections/12')
+      expect(mini.action).toBe('Подтвердить')
+      expect(notificationView(n, '/app/orgs/7', undefined, { collectionDetail: false }).to).toBe(
+        '/app/orgs/7/collections',
+      )
+    })
+  })
+
   it('запрос приглашения организатору (20.4.7) — не «заявка на оплату», ведёт на событие', () => {
     const v = notificationView(
       item(
