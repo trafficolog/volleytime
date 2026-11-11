@@ -987,7 +987,7 @@ export const bookingService = {
           tx,
           booking,
           event,
-          { ...paid, promotedFromWaitlist: promoted !== null },
+          { ...paid, promotedFromWaitlist: promoted !== null, byManager: !!opts.byAdmin },
           ctx.userId,
         )
       }

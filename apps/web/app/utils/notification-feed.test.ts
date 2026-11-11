@@ -178,6 +178,18 @@ describe('notificationView', () => {
       expect(v.to).toBe('/m/orgs/7/events/5')
     })
 
+    it('«Отмена записи» организатором не приписывается игроку', () => {
+      const v = notificationView(
+        item(
+          { type: 'organizer_action_required', eventId: 5 },
+          { kind: 'booking_cancelled', playerName: 'Катя', eventTitle: 'Основа', byManager: true },
+        ),
+        '/m/orgs/7',
+      )
+      expect(v.body).toContain('Запись Катя на «Основа» отменена организатором.')
+      expect(v.body).not.toContain('отменил(а)')
+    })
+
     it('«Мало событий на балансе» ведёт к пополнению и не говорит «credits»', () => {
       const n = item(
         { type: 'organizer_action_required', eventId: null },

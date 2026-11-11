@@ -8,6 +8,7 @@ import {
   organizations,
   payments,
   and,
+  sql,
   users,
 } from '@volley-time/db'
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -392,6 +393,101 @@ describe('organizer feed kinds (21.4.5)', { timeout: 60_000 }, () => {
         webAppUrl: `https://app.example/m/orgs/${orgId}/collections/${c.id}`,
       })
     })
+  })
+
+  describe('concurrent recount of the pending aggregate (review I1/I2)', () => {
+    const rounds = 5
+
+    it('parallel confirmations in different events leave the exact count and close at 0', async () => {
+      const third = await newUser('Third')
+      await addMember(third, 'organizer')
+      for (let r = 0; r < rounds; r++) {
+        const evA = await paidEvent(`A${r}`)
+        const evB = await paidEvent(`B${r}`)
+        const players = [await newUser('p'), await newUser('q'), await newUser('s')]
+        for (const p of players) await addMember(p)
+        await bookingService.book({ userId: players[0]! }, orgId, evA.id, { method: 'cash' })
+        await bookingService.book({ userId: players[1]! }, orgId, evB.id, { method: 'cash' })
+        await bookingService.book({ userId: players[2]! }, orgId, evB.id, { method: 'cash' })
+        const pending = await pendingPaymentIds()
+        expect(pending).toHaveLength(3)
+        // два подтверждения параллельно: остаётся один ожидающий платёж
+        await Promise.all([
+          paymentService.confirm({ userId: ownerId }, pending[0]!, { orgId }),
+          paymentService.confirm({ userId: organizerId }, pending[1]!, { orgId }),
+        ])
+        for (const m of [ownerId, organizerId, third]) {
+          const open = (await feedOf(m, 'payments_pending')).filter((x) => x.params.count !== 0)
+          expect(open).toHaveLength(1)
+          expect(open[0]!.params.count).toBe(1)
+        }
+        await paymentService.confirm({ userId: ownerId }, pending[2]!, { orgId })
+        for (const m of [ownerId, organizerId, third]) {
+          const rows = await feedOf(m, 'payments_pending')
+          expect(rows.every((x) => x.params.count === 0 && x.readAt !== null)).toBe(true)
+        }
+      }
+    })
+
+    it('parallel pending payments in different events open exactly one row per manager', async () => {
+      const third = await newUser('Third')
+      await addMember(third, 'organizer')
+      for (let r = 0; r < rounds; r++) {
+        await db.delete(notifications).where(eq(notifications.organizationId, orgId))
+        await db.delete(payments).where(eq(payments.organizationId, orgId))
+        const evs = [
+          await paidEvent(`E1-${r}`),
+          await paidEvent(`E2-${r}`),
+          await paidEvent(`E3-${r}`),
+        ]
+        const players = [await newUser('p'), await newUser('q'), await newUser('s')]
+        for (const p of players) await addMember(p)
+        await Promise.all(
+          players.map((p, i) =>
+            bookingService.book({ userId: p }, orgId, evs[i]!.id, { method: 'cash' }),
+          ),
+        )
+        for (const m of [ownerId, organizerId, third]) {
+          const rows = await feedOf(m, 'payments_pending')
+          expect(rows).toHaveLength(1)
+          expect(rows[0]!.params.count).toBe(3)
+        }
+      }
+    })
+  })
+
+  it('cancellation by a manager is marked byManager', async () => {
+    const ev = await paidEvent('Игра', { price: 0 })
+    const player = await newUser('Катя')
+    await addMember(player)
+    const b = await bookingService.book({ userId: player }, orgId, ev.id, { method: 'free' })
+    await bookingService.cancel({ userId: organizerId }, b.id, { byAdmin: true })
+    const rows = await feedOf(ownerId, 'booking_cancelled')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.params.byManager).toBe(true)
+    // автор действия не получает уведомление о собственной отмене
+    expect(await feedOf(organizerId, 'booking_cancelled')).toHaveLength(0)
+  })
+
+  it('a feed write failure does not roll back the money operation', async () => {
+    const ev = await paidEvent('Игра')
+    const player = await newUser('Катя')
+    await addMember(player)
+    await bookingService.book({ userId: player }, orgId, ev.id, { method: 'cash' })
+    const [pid] = await pendingPaymentIds()
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    // сломанный тип ломает вставку ленты внутри savepoint
+    await db.execute(
+      sql`ALTER TABLE notifications ADD CONSTRAINT feed_break CHECK (type <> 'organizer_action_required') NOT VALID`,
+    )
+    try {
+      await paymentService.confirm({ userId: ownerId }, pid!, { orgId })
+    } finally {
+      await db.execute(sql`ALTER TABLE notifications DROP CONSTRAINT feed_break`)
+      spy.mockRestore()
+    }
+    const [p] = await db.select().from(payments).where(eq(payments.id, pid!))
+    expect(p!.status).toBe('succeeded')
   })
 
   it('nothing is written for another group', async () => {

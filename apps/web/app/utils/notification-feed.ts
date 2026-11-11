@@ -69,6 +69,7 @@ interface Params {
   paidSeats?: number
   paidAmount?: number
   promotedFromWaitlist?: boolean
+  byManager?: boolean
   balance?: number
 }
 
@@ -273,7 +274,9 @@ export function notificationView(
           return {
             title: 'Отмена записи',
             body: joinText(
-              `${p.playerName ?? 'Игрок'} отменил(а) запись на ${quoted}.`,
+              p.byManager
+                ? `Запись ${p.playerName ?? 'игрока'} на ${quoted} отменена организатором.`
+                : `${p.playerName ?? 'Игрок'} отменил(а) запись на ${quoted}.`,
               p.seats && p.seats > 1 ? `Мест: ${p.seats}.` : '',
               p.paidSeats && p.paidAmount !== undefined
                 ? `Оплачено: ${formatPrice(p.paidAmount, p.currency)} — деньги не возвращены автоматически.`

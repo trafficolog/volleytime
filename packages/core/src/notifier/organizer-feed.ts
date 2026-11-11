@@ -51,6 +51,8 @@ async function recipientsOf(
         inArray(organizationMembers.role, roles),
       ),
     )
+    // стабильный порядок вставки строк ленты: параллельные транзакции берут блокировки в одном порядке
+    .orderBy(asc(organizationMembers.userId))
   return rows.map((r) => r.userId).filter((id) => id !== excludeUserId)
 }
 
@@ -72,6 +74,10 @@ export interface OrganizerFeedEntry {
  * не добавляет. Вызывать в транзакции действия: запись появляется только вместе с ним.
  */
 export async function writeOrganizerFeed(db: DbOrTx, e: OrganizerFeedEntry): Promise<void> {
+  await feedOnly(db, 'write', (tx) => writeOrganizerFeedRows(tx, e))
+}
+
+async function writeOrganizerFeedRows(db: DbOrTx, e: OrganizerFeedEntry): Promise<void> {
   const recipients = await recipientsOf(
     db,
     e.organizationId,
@@ -100,6 +106,22 @@ export async function writeOrganizerFeed(db: DbOrTx, e: OrganizerFeedEntry): Pro
     .onConflictDoNothing({ target: [notifications.recipientUserId, notifications.dedupKey] })
 }
 
+/**
+ * Лента — побочный эффект: сбой записи в неё не откатывает денежную операцию. Запись идёт в
+ * savepoint; при ошибке откатывается только она, ошибка логируется.
+ */
+async function feedOnly(
+  db: DbOrTx,
+  what: string,
+  fn: (tx: DbOrTx) => Promise<void>,
+): Promise<void> {
+  try {
+    await db.transaction(async (tx) => fn(tx))
+  } catch (e) {
+    console.error(`[organizer-feed] ${what} failed`, e)
+  }
+}
+
 const COUNT_OF = sql`(payload #>> '{params,count}')::int`
 
 /**
@@ -111,6 +133,17 @@ const COUNT_OF = sql`(payload #>> '{params,count}')::int`
  * Пересчёт идемпотентен и самовосстанавливается: любое следующее событие платежей даёт верное число.
  */
 export async function syncPendingPaymentsFeed(db: DbOrTx, organizationId: number): Promise<void> {
+  await feedOnly(db, 'sync', (tx) => syncPendingPaymentsRows(tx, organizationId))
+}
+
+/** Пространство двухключевых advisory-lock пересчёта агрегата (одноключевые — события, сборы; 2112 — слоты). */
+const FEED_LOCK_NS = 2145
+
+async function syncPendingPaymentsRows(db: DbOrTx, organizationId: number): Promise<void> {
+  // пересчёт групп сериализован: параллельные подтверждения и новые платежи в разных событиях одной
+  // группы не оставляют устаревший счётчик и не открывают вторую строку агрегата. Берётся последним,
+  // после блокировок события и сбора, поэтому порядок блокировок сохраняется.
+  await db.execute(sql`SELECT pg_advisory_xact_lock(${FEED_LOCK_NS}, ${organizationId})`)
   const pending = await db
     .select({ id: payments.id, createdAt: payments.createdAt, eventTitle: events.title })
     .from(payments)
@@ -236,7 +269,14 @@ export async function writeBookingCancelledFeed(
   db: DbOrTx,
   booking: BookingFeedRef,
   event: EventFeedRef,
-  extra: { paidSeats: number; paidAmount: number; currency: string; promotedFromWaitlist: boolean },
+  extra: {
+    paidSeats: number
+    paidAmount: number
+    currency: string
+    promotedFromWaitlist: boolean
+    /** Отменил управляющий (отказ в оплате, исключение, отмена организатором), а не сам игрок. */
+    byManager: boolean
+  },
   actorUserId: number,
 ): Promise<void> {
   await writeOrganizerFeed(db, {
