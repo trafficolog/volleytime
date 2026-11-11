@@ -5,6 +5,7 @@ import {
   desktopDashboardView,
   formatOccupancy,
   overviewCashChart,
+  overviewDeltaLabels,
   pendingPaymentMeta,
   pendingPaymentTitle,
 } from './desktop-dashboard'
@@ -49,6 +50,12 @@ const overview: ManagerOverview = {
         collection: null,
       },
     ],
+  },
+  deltas: {
+    previousMonth: { from: '2026-09-30T21:00:00.000Z', to: '2026-10-31T21:00:00.000Z' },
+    eventsVsPreviousMonth: 3,
+    subscriptionsExpiringSoon: 2,
+    cashWeekNet: 8250,
   },
   cashWeekly: {
     currency: 'BYN',
@@ -168,5 +175,56 @@ describe('overview formatting', () => {
       total: { income: 0, expense: 0, net: 0 },
     })
     expect(chart.bars.every((bar) => bar.heightPercent === 0)).toBe(true)
+  })
+})
+
+describe('overviewDeltaLabels (21.4.4, W-02)', () => {
+  it('builds the three captions of the mockup', () => {
+    expect(overviewDeltaLabels(overview)).toEqual({
+      events: '+3 к октябрю',
+      subscriptions: '2 истекают на неделе',
+      cash: '+82,50 BYN за неделю',
+    })
+  })
+
+  it('names the previous month in the group zone, not in UTC', () => {
+    const jan = {
+      ...overview,
+      deltas: {
+        ...overview.deltas,
+        previousMonth: { from: '2026-12-31T21:00:00.000Z', to: '2027-01-31T21:00:00.000Z' },
+      },
+    }
+    expect(overviewDeltaLabels(jan).events).toBe('+3 к январю')
+  })
+
+  it('shows negative and zero event deltas, hides it without a previous month', () => {
+    const d = (eventsVsPreviousMonth: number | null) => ({
+      ...overview,
+      deltas: { ...overview.deltas, eventsVsPreviousMonth },
+    })
+    expect(overviewDeltaLabels(d(-2)).events).toBe('-2 к октябрю')
+    expect(overviewDeltaLabels(d(0)).events).toBe('0 к октябрю')
+    expect(overviewDeltaLabels(d(null)).events).toBeNull()
+  })
+
+  it('agrees the expiring caption in number and hides it at zero', () => {
+    const d = (subscriptionsExpiringSoon: number) => ({
+      ...overview,
+      deltas: { ...overview.deltas, subscriptionsExpiringSoon },
+    })
+    expect(overviewDeltaLabels(d(1)).subscriptions).toBe('1 истекает на неделе')
+    expect(overviewDeltaLabels(d(5)).subscriptions).toBe('5 истекают на неделе')
+    expect(overviewDeltaLabels(d(21)).subscriptions).toBe('21 истекает на неделе')
+    expect(overviewDeltaLabels(d(0)).subscriptions).toBeNull()
+  })
+
+  it('signs the cash delta: refunds can make the week negative, zero has no sign', () => {
+    const d = (cashWeekNet: number) => ({
+      ...overview,
+      deltas: { ...overview.deltas, cashWeekNet },
+    })
+    expect(overviewDeltaLabels(d(-4000)).cash).toBe('-40,00 BYN за неделю')
+    expect(overviewDeltaLabels(d(0)).cash).toBe('0,00 BYN за неделю')
   })
 })

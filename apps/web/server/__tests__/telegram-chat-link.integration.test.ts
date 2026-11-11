@@ -2,6 +2,7 @@ import {
   eventService,
   memberService,
   organizationService,
+  setBotChatInfoTransport,
   setNotifierTransport,
   DeliveryError,
   type NotifyPayload,
@@ -31,6 +32,11 @@ describe('telegram chat link API (20.3.4)', () => {
   let orgId: number, otherOrgId: number
   const sent: NotifyPayload[] = []
   let failNext: Error | null = null
+  const infoCalls: string[] = []
+  let infoAnswer: () => unknown = () => ({
+    memberCount: 7,
+    webhook: { state: 'not_used', pendingUpdateCount: null },
+  })
   // свой чат на тест: лимит попыток привязки считается по чату
   let chatId = ''
   let adminTg = ''
@@ -79,6 +85,12 @@ describe('telegram chat link API (20.3.4)', () => {
         sent.push(p)
       },
     })
+    setBotChatInfoTransport({
+      async chatInfo(id) {
+        infoCalls.push(id)
+        return infoAnswer()
+      },
+    })
   })
   afterAll(async () => {
     await db.delete(organizations)
@@ -88,6 +100,11 @@ describe('telegram chat link API (20.3.4)', () => {
   beforeEach(async () => {
     sent.length = 0
     failNext = null
+    infoCalls.length = 0
+    infoAnswer = () => ({
+      memberCount: 7,
+      webhook: { state: 'not_used', pendingUpdateCount: null },
+    })
     chatId = `-100${5_000_000_000 + ++chatSeq}`
     adminTg = `${6_000_000 + chatSeq}`
     await db.delete(organizations)
@@ -403,6 +420,110 @@ describe('telegram chat link API (20.3.4)', () => {
       'telegram_chat.rate_limited',
     )
     expect(sent).toHaveLength(1)
+  })
+
+  it('bot info is opt-in: a plain status read (events list) never calls the bot', async () => {
+    const { code } = (await issue()).body as { code: string }
+    await claim(code)
+    const plain = await request('GET', `/api/organizations/${orgId}/telegram-chat`, {
+      user: organizerId,
+    })
+    expect(plain.status).toBe(200)
+    expect(plain.body).toMatchObject({ link: { status: 'active' }, bot: null })
+    expect(infoCalls).toEqual([])
+    await request('GET', `/api/organizations/${orgId}/telegram-chat?bot=0`, { user: organizerId })
+    expect(infoCalls).toEqual([])
+  })
+
+  it('bot info: the owner gets it too', async () => {
+    const { code } = (await issue()).body as { code: string }
+    await claim(code)
+    const res = await request('GET', `/api/organizations/${orgId}/telegram-chat?bot=1`, {
+      user: ownerId,
+    })
+    expect(res.status).toBe(200)
+    expect((res.body as { bot: unknown }).bot).toEqual({
+      memberCount: 7,
+      webhook: { state: 'not_used', pendingUpdateCount: null },
+    })
+    expect(infoCalls).toEqual([chatId])
+  })
+
+  it('bot info (21.4.6): member count and webhook state of the own linked chat only', async () => {
+    const status = (user = organizerId, org = orgId) =>
+      request('GET', `/api/organizations/${org}/telegram-chat?bot=1`, { user })
+    // не привязан: бот не опрашивается, поля нет
+    const none = await status()
+    expect(none.status).toBe(200)
+    expect((none.body as { bot: unknown }).bot).toBeNull()
+    expect(infoCalls).toEqual([])
+
+    const { code } = (await issue()).body as { code: string }
+    await claim(code)
+    const linked = await status()
+    expect(linked.status).toBe(200)
+    // production в polling: webhook не используется — это штатное состояние, а не ошибка
+    expect((linked.body as { bot: unknown }).bot).toEqual({
+      memberCount: 7,
+      webhook: { state: 'not_used', pendingUpdateCount: null },
+    })
+    expect(infoCalls).toEqual([chatId])
+    expect(linked.text).not.toContain(chatId.slice(1))
+
+    // webhook включён, но бот видит ошибку доставки
+    infoAnswer = () => ({
+      memberCount: 8,
+      webhook: { state: 'error', pendingUpdateCount: 3, url: 'https://x/tg/webhook/SECRET' },
+    })
+    const broken = await status()
+    expect((broken.body as { bot: { webhook: unknown } }).bot.webhook).toEqual({
+      state: 'error',
+      pendingUpdateCount: 3,
+    })
+    expect(broken.text).not.toContain('SECRET')
+  })
+
+  it('bot info: a bot outage degrades the two fields, the rest of the block stays', async () => {
+    const { code } = (await issue()).body as { code: string }
+    await claim(code)
+    infoAnswer = () => {
+      throw new Error('connect ECONNREFUSED bot:3001 123456:SECRET-BOT-TOKEN')
+    }
+    const res = await request('GET', `/api/organizations/${orgId}/telegram-chat?bot=1`, {
+      user: organizerId,
+    })
+    expect(res.status).toBe(200)
+    expect(res.body).toMatchObject({
+      link: { status: 'active', title: 'Чат' },
+      bot: { memberCount: null, webhook: { state: 'unavailable' } },
+    })
+    expect(res.text).not.toContain('SECRET-BOT-TOKEN')
+    expect(res.text).not.toContain('bot:3001')
+    infoAnswer = () => ({ memberCount: 'many' })
+    const garbage = await request('GET', `/api/organizations/${orgId}/telegram-chat?bot=1`, {
+      user: organizerId,
+    })
+    expect((garbage.body as { bot: { memberCount: unknown } }).bot.memberCount).toBeNull()
+  })
+
+  it('bot info IDOR: a player and a stranger get nothing, another group never reads this chat', async () => {
+    const { code } = (await issue()).body as { code: string }
+    await claim(code)
+    infoCalls.length = 0
+    const get = (user: number, org: number) =>
+      request('GET', `/api/organizations/${org}/telegram-chat?bot=1`, { user })
+    const player = await get(playerId, orgId)
+    expect(player.status).toBe(403)
+    expect(player.text).not.toContain('memberCount')
+    const outsider = await get(outsiderId, orgId)
+    expect(outsider.status).toBe(403)
+    expect(outsider.text).not.toContain('memberCount')
+    expect(infoCalls).toEqual([])
+    // организатор чужой группы видит только свою: чата нет — бот не опрашивается
+    const other = await get(outsiderId, otherOrgId)
+    expect(other.status).toBe(200)
+    expect((other.body as { bot: unknown }).bot).toBeNull()
+    expect(infoCalls).toEqual([])
   })
 
   it('Bot API failures reach the organizer as clear codes without tokens or internals', async () => {

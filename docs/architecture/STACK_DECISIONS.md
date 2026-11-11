@@ -97,7 +97,7 @@ Drizzle ORM с PostgreSQL driver (postgres-js).
 
 - **Email-code provider** из коробки (наш основной flow).
 - **Custom providers** легко добавлять (для Telegram identity).
-- **Sessions через Redis или БД** — выбор по нагрузке.
+- **Sessions в БД** (PostgreSQL) — Redis в стеке не используется.
 - **TypeScript-first** — типы из коробки.
 - **Active maintenance** на момент 2026-05.
 
@@ -172,17 +172,17 @@ Drizzle ORM с PostgreSQL driver (postgres-js).
 
 ---
 
-## Job Queue: TBD (Phase 15)
-
-### Кандидаты
-
-1. **BullMQ** — Redis-based, mature, хорошие типы.
-2. **pg-boss** — PostgreSQL-based, без Redis.
-3. **Trigger.dev** — managed service, но платный.
+## Job Queue: собственный планировщик (Phase 15 / 20.3.1)
 
 ### Решение
 
-Откладывается до Phase 15. Если Redis уже есть для сессий better-auth → BullMQ. Если нет → pg-boss.
+Фоновые задачи выполняет собственный планировщик `packages/core/src/scheduler` с журналом `scheduled_jobs` в PostgreSQL (решение владельца 2026-10-16, D-03 в [журнале решений](../operations/decisions/2026-10-12-reference-v3-decisions.md); [ADR v3](ADR-v3-domain.md)). Redis, BullMQ и pg-boss в стеке не используются. Исходно (2026-05) выбор откладывался до Phase 15: BullMQ при наличии Redis, иначе pg-boss.
+
+### Рассмотренные кандидаты (не выбраны)
+
+1. **BullMQ** — Redis-based; потребовал бы отдельный Redis.
+2. **pg-boss** — PostgreSQL-based; заменён собственным кодом.
+3. **Trigger.dev** — managed service, но платный.
 
 ---
 
@@ -435,7 +435,7 @@ Telegram API (api.telegram.org) доступен из российских да�
 
 1. **better-auth vs Lucia** — окончательно решаем в Phase 3 при первой реализации.
 2. **Resend vs SES** — Phase 3.
-3. **BullMQ vs pg-boss** — Phase 15.
+3. **BullMQ vs pg-boss** — закрыто: собственный планировщик (20.3.1).
 4. **R2 vs Hetzner Object Storage** — Phase 9.
 5. **Hosting provider** — Phase 9 (но сильный фаворит — Hetzner).
 

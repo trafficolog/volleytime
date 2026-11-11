@@ -456,6 +456,146 @@ describe('overviewService (integration)', { timeout: 60_000 }, () => {
     })
   })
 
+  describe('deltas (21.4.4)', () => {
+    const now = at('2026-11-04T12:00:00Z') // среда; прошлый месяц по Минску: [2026-09-30T21:00Z, 2026-10-31T21:00Z)
+
+    it('is null for a month-over-month delta when the previous month has no events', async () => {
+      await insertEvent('2026-11-10T10:00:00Z')
+      const o = await overview(now)
+      expect(o.deltas.eventsVsPreviousMonth).toBeNull()
+      expect(o.deltas.previousMonth).toEqual({
+        from: '2026-09-30T21:00:00.000Z',
+        to: '2026-10-31T21:00:00.000Z',
+      })
+    })
+
+    it('counts the event delta against the previous month by group-zone edges, excluding drafts and cancelled', async () => {
+      await insertEvent('2026-09-30T20:59:59Z') // сентябрь — не прошлый месяц
+      await insertEvent('2026-09-30T21:00:00Z') // 1 октября 00:00 — прошлый месяц
+      await insertEvent('2026-10-15T10:00:00Z')
+      await insertEvent('2026-10-31T20:59:59Z') // 31 октября 23:59:59 — прошлый месяц
+      await insertEvent('2026-10-20T10:00:00Z', { status: 'draft' })
+      await insertEvent('2026-10-21T10:00:00Z', { status: 'cancelled' })
+      await insertEvent('2026-10-22T10:00:00Z', {}, otherOrg)
+      for (const d of ['10', '11', '12', '13', '14']) await insertEvent(`2026-11-${d}T10:00:00Z`)
+      const o = await overview(now)
+      expect(o.events.thisMonth).toBe(5)
+      expect(o.deltas.eventsVsPreviousMonth).toBe(2) // 5 - 3
+    })
+
+    it('can be negative and zero', async () => {
+      await insertEvent('2026-10-10T10:00:00Z')
+      await insertEvent('2026-10-11T10:00:00Z')
+      await insertEvent('2026-11-10T10:00:00Z')
+      expect((await overview(now)).deltas.eventsVsPreviousMonth).toBe(-1)
+      await insertEvent('2026-11-11T10:00:00Z')
+      expect((await overview(now)).deltas.eventsVsPreviousMonth).toBe(0)
+    })
+
+    it('uses the group timezone for the previous month edge', async () => {
+      await db
+        .update(organizations)
+        .set({ defaultTimezone: 'America/New_York' })
+        .where(eq(organizations.id, orgId))
+      // Нью-Йорк: октябрь = [2026-10-01T04:00Z, 2026-11-01T04:00Z)
+      await insertEvent('2026-10-01T03:59:59Z') // сентябрь
+      await insertEvent('2026-10-01T04:00:00Z') // октябрь
+      await insertEvent('2026-11-01T03:59:59Z') // октябрь
+      await insertEvent('2026-11-01T04:00:00Z') // ноябрь
+      const o = await overview(now)
+      expect(o.events.thisMonth).toBe(1)
+      expect(o.deltas.eventsVsPreviousMonth).toBe(-1)
+    })
+
+    it('counts usable subscriptions expiring within the next 7 days', async () => {
+      const [plan] = await db
+        .insert(subscriptionPlans)
+        .values({ organizationId: orgId, name: 'Plan', totalSessions: 4, price: 0 })
+        .returning()
+      const [otherPlan] = await db
+        .insert(subscriptionPlans)
+        .values({ organizationId: otherOrg, name: 'Plan B', totalSessions: 4, price: 0 })
+        .returning()
+      const sub = async (
+        extra: Partial<typeof subscriptions.$inferInsert>,
+        org = orgId,
+        planId = plan!.id,
+      ) =>
+        db.insert(subscriptions).values({
+          organizationId: org,
+          userId: await newUser('s'),
+          planId,
+          totalSessions: 4,
+          status: 'active',
+          ...extra,
+        })
+      await sub({ expiresAt: at('2026-11-04T12:00:01Z') }) // через секунду — в окне
+      await sub({ expiresAt: at('2026-11-11T12:00:00Z') }) // ровно через 7 дней — в окне
+      await sub({ expiresAt: at('2026-11-11T12:00:01Z') }) // позже окна
+      await sub({ expiresAt: at('2026-11-04T12:00:00Z') }) // уже истёк
+      await sub({}) // бессрочный
+      await sub({ expiresAt: at('2026-11-06T10:00:00Z'), usedSessions: 4 }) // занятия кончились
+      await sub({ expiresAt: at('2026-11-06T10:00:00Z'), status: 'cancelled' })
+      await sub({ expiresAt: at('2026-11-06T10:00:00Z') }, otherOrg, otherPlan!.id)
+      const o = await overview(now)
+      expect(o.deltas.subscriptionsExpiringSoon).toBe(2)
+      expect(o.subscriptions.active).toBe(4) // три с будущим сроком и один бессрочный
+    })
+
+    it('equals the net of the current week in the cash series, with refunds and cancelled bookings', async () => {
+      const p1 = await addPlayer()
+      const p2 = await addPlayer()
+      const p3 = await addPlayer()
+      const event = await eventService.create(ctx(owner), orgId, {
+        title: 'Основа',
+        startsAt: new Date(Date.now() + 86_400_000),
+        endsAt: new Date(Date.now() + 93_600_000),
+        capacity: 6,
+        price: 1500,
+      })
+      const pay = async (user: number) => {
+        await bookingService.book(ctx(user), orgId, event.id, { method: 'cash' })
+        const row = (await paymentService.listPending(ctx(owner), orgId)).find(
+          (p) => p.user.id === user,
+        )!
+        await paymentService.confirm(ctx(owner), row.id, { orgId })
+        return row.id
+      }
+      await pay(p1)
+      await paymentService.refund(ctx(owner), await pay(p2), 'Возврат')
+      const cancelled = await bookingService.book(ctx(p3), orgId, event.id, { method: 'cash' })
+      await bookingService.cancel(ctx(owner), cancelled.id, { byAdmin: true })
+      await ledgerService.addExpense(ctx(owner), orgId, {
+        category: 'rent',
+        amount: 800,
+        description: 'Аренда',
+      })
+      const o = await overview()
+      // 1500 + 1500 - 1500 (возврат) - 800
+      expect(o.deltas.cashWeekNet).toBe(700)
+      expect(o.deltas.cashWeekNet).toBe(o.cashWeekly.weeks[3]!.net)
+      expect(o.deltas.cashWeekNet).toBe(o.cashWeekly.total.net) // всё на текущей неделе
+    })
+
+    it('does not mix earlier weeks into the week delta', async () => {
+      await income(1000, '2026-10-20T10:00:00Z') // неделя 2
+      await income(300, '2026-11-03T10:00:00Z') // текущая
+      await expense(50, '2026-11-02T10:00:00Z') // текущая
+      const o = await overview(now)
+      expect(o.deltas.cashWeekNet).toBe(250)
+      expect(o.cashWeekly.total.net).toBe(1250)
+    })
+
+    it('is zero for an empty group', async () => {
+      const o = await overview(now)
+      expect(o.deltas).toMatchObject({
+        eventsVsPreviousMonth: null,
+        subscriptionsExpiringSoon: 0,
+        cashWeekNet: 0,
+      })
+    })
+  })
+
   async function ownerOf(org: number) {
     const row = await db.query.organizationMembers.findFirst({
       where: (m, { and, eq: e }) => and(e(m.organizationId, org), e(m.role, 'owner')),
