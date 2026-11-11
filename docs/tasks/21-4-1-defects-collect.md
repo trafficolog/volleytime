@@ -2,11 +2,11 @@
 id: '21.4.1'
 phase: '21'
 epic: '21.4'
-status: todo
+status: in_progress
 release: 'v0.3.1'
 sync_state: synced
-last_reviewed: 2026-10-27
-status_note: ''
+last_reviewed: 2026-11-11
+status_note: 'Бэклог составлен 2026-11-11 по трём источникам, кроме списка владельца: docs/operations/reviews/2026-11-11-defects-v0-2-v0-3.md (73 пункта: Critical 0, Important 6, Minor 67; предложены карточки 21.4.10–21.4.17, не созданы). Ждёт: список замечаний владельца (раздел 2 отчёта), ответы на открытые вопросы (раздел 8), ревью Opus и создание карточек.'
 ref_id: ''
 complexity: M
 impl_model: claude-sonnet-5-5
