@@ -272,6 +272,17 @@
       "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
     },
     {
+      "id": "player-profile-settings",
+      "title": "Игрок: профиль (настройки: язык, выйти)",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "path": "/m/orgs/{org}/profile",
+      "references": ["3-miniapp-player/06-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 },
+      "steps": [{ "scroll": "bottom" }]
+    },
+    {
       "id": "organizer-members",
       "title": "Организатор: игроки (уровни и фильтр)",
       "viewport": "miniapp",
