@@ -44,7 +44,7 @@ restrict ssh-ed25519 PUBLIC_KEY github-actions@volleytime
 
 Keep the `.ssh` directory mode `0700` and `authorized_keys` mode `0600`. Verify all three credentials independently with `BatchMode=yes`: `volleytime-github-actions`, `volleytime`, and `volleytime-recovery`. A failure of either human-controlled key blocks rollout.
 
-Set repository Secrets without echoing their values. The workflow requires `VPS_HOST`, `VPS_SSH_KEY`, `DOMAIN`, `DB_PASSWORD`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `WEBHOOK_SECRET_PATH`, `WEBHOOK_SECRET_TOKEN`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `BOT_INTERNAL_SECRET`, and `WEB_URL`; image-bundle also requires `SMOKE_TG_ID` for the technical synthetic account and cleanup. `VPS_SSH_KEY` contains only the dedicated CI private key. Leave absent optional Sentry, S3 and external-healthcheck values unset.
+Set repository Secrets without echoing their values. The workflow requires `VPS_HOST`, `VPS_SSH_KEY`, `VPS_KNOWN_HOSTS` (pinned host key, [below](#pinned-vps-host-key-task-2721)), `DOMAIN`, `DB_PASSWORD`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `WEBHOOK_SECRET_PATH`, `WEBHOOK_SECRET_TOKEN`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `BOT_INTERNAL_SECRET`, and `WEB_URL`; image-bundle also requires `SMOKE_TG_ID` for the technical synthetic account and cleanup. `VPS_SSH_KEY` contains only the dedicated CI private key. Leave absent optional Sentry, S3 and external-healthcheck values unset.
 
 Before rendering or uploading the production env, the workflow calls Telegram `getMe` and verifies that the normalized `TELEGRAM_BOT_USERNAME` belongs to `TELEGRAM_BOT_TOKEN`. A mismatch, network failure or malformed response stops the deployment without printing the token or tokenized Bot API URL. When rotating the bot token or username, update both secrets as one identity and let this guard pass before any VPS mutation.
 
@@ -55,6 +55,39 @@ gh secret list --repo trafficolog/volleytime --json name,updatedAt
 ```
 
 To rotate the CI credential, create a new dedicated key, add and test its restricted public-key line, replace only `VPS_SSH_KEY`, run a source-gated deployment, and then remove the old CI line. To revoke automation immediately, remove only the authorized-key line ending in `github-actions@volleytime` and delete the GitHub Secret `VPS_SSH_KEY`. Do not modify the `volleytime` or `volleytime-recovery` lines.
+
+### Pinned VPS host key (Task 27.2.1)
+
+Workflows connect to the VPS with the runner's OpenSSH client, not a third-party action. `scripts/configure-vps-ssh.sh` writes the CI key, a `vps` host alias for user `deploy`, and the repository secret `VPS_KNOWN_HOSTS` as the only known-hosts file, with `StrictHostKeyChecking yes`, `BatchMode yes` and no global known hosts. There is no trust on first use: a missing secret, a secret without an entry for `VPS_HOST`, or a different server key stops the run before any remote command (`Host key verification failed.`). Uploads use `scp -O` (the classic SCP protocol, as the former action used).
+
+`VPS_KNOWN_HOSTS` holds one or more lines in OpenSSH `known_hosts` format, `HOST KEYTYPE BASE64`, where `HOST` is exactly the value of `VPS_HOST` (name or IP address; port 22). Hashed (`|1|…`) lines are accepted. Add every host key type the server offers, or at least the one the client negotiates (Ed25519 first). It is public data, but keep it as a secret so it cannot be changed without repository admin rights.
+
+To obtain it, do not trust a network scan alone. Read the fingerprints on the VPS itself (provider console or an existing trusted SSH session):
+
+```bash
+for key in /etc/ssh/ssh_host_*_key.pub; do ssh-keygen -l -f "$key"; done
+```
+
+Then build the value from your workstation and compare the fingerprints with the ones printed on the VPS before using it:
+
+```bash
+ssh-keyscan -t ed25519,ecdsa,rsa VPS_HOST > vps_known_hosts
+ssh-keygen -l -f vps_known_hosts
+```
+
+Alternatively take the server's line from your own `~/.ssh/known_hosts` if you have already verified it (`ssh-keygen -F VPS_HOST`). Store it as a repository secret (not an environment secret: the disk monitor runs outside `production`) without echoing it: `gh secret set VPS_KNOWN_HOSTS --repo trafficolog/volleytime < vps_known_hosts`.
+
+Check that a wrong key is refused, without touching the server state:
+
+```bash
+ssh-keygen -q -t ed25519 -N '' -f wrong_host_key
+printf 'VPS_HOST %s\n' "$(cut -d' ' -f1,2 wrong_host_key.pub)" > wrong_known_hosts
+# expect: Host key verification failed.
+ssh -o StrictHostKeyChecking=yes -o UserKnownHostsFile=wrong_known_hosts -o GlobalKnownHostsFile=/dev/null \
+  -o BatchMode=yes -i KEY deploy@VPS_HOST true
+```
+
+Then confirm the real value with **Actions → VPS disk monitor → Run workflow** (read-only `df`). After a host key rotation or a VPS replacement, update `VPS_KNOWN_HOSTS` before the next Deploy; until then every VPS step fails closed.
 
 ## Branch promotion contract
 
@@ -151,7 +184,7 @@ bash ".deploy/incoming/$current/scripts/deploy-image-bundle.sh" prune-retained "
 
 The VPS does not build in the image-bundle path, so build cache appears only after a manual build; clean it then with `docker builder prune` after the dry-run review. Anything outside the policy (old GHCR or `:latest` images, `ghcr-*` staging) is removed only by a reviewed manual decision with the owner's approval.
 
-**Monitoring.** Deploy reads `df -Pk` on the VPS at the end of every run (**Read VPS disk usage**, read-only) and writes a table to the job summary (**Report VPS disk in job summary**, `scripts/disk-status.sh`); below 25% or 5 GiB free it adds a `::warning::` annotation. The scheduled workflow `vps-disk-monitor.yml` runs the same read-only check every 6 hours (and on `workflow_dispatch`) with the existing `VPS_HOST`/`VPS_SSH_KEY`, outside the `production` environment. Low space or an unreachable VPS fails the run, and GitHub notifies about the failed scheduled workflow. If the repository variable `OPS_ALERT_TELEGRAM_CHAT_ID` holds the owner's Telegram chat id, the run also sends an alert through the existing bot (`TELEGRAM_BOT_TOKEN`); the owner must have started the bot. On a warning: read the prune step log, check the keep set, then run the manual dry run above.
+**Monitoring.** Deploy reads `df -Pk` on the VPS at the end of every run (**Read VPS disk usage**, read-only) and writes a table to the job summary (**Report VPS disk in job summary**, `scripts/disk-status.sh`); below 25% or 5 GiB free it adds a `::warning::` annotation. The scheduled workflow `vps-disk-monitor.yml` runs the same read-only check every 6 hours (and on `workflow_dispatch`) with the existing `VPS_HOST`/`VPS_SSH_KEY`/`VPS_KNOWN_HOSTS`, outside the `production` environment. Low space or an unreachable VPS fails the run, and GitHub notifies about the failed scheduled workflow. If the repository variable `OPS_ALERT_TELEGRAM_CHAT_ID` holds the owner's Telegram chat id, the run also sends an alert through the existing bot (`TELEGRAM_BOT_TOKEN`); the owner must have started the bot. On a warning: read the prune step log, check the keep set, then run the manual dry run above.
 
 ## Partial state and manual recovery checkpoint
 
