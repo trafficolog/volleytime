@@ -5,7 +5,7 @@ status: todo
 release: ''
 sync_state: synced
 last_reviewed: 2026-11-10
-status_note: 'Из аудита 2026-11-10. 27.2.1–27.2.3 в v0.3.1 (решение владельца 2026-11-10); 27.2.4, 27.2.5 — релиз назначает владелец.'
+status_note: 'Из аудита 2026-11-10. 27.2.1–27.2.3 в v0.3.1 (решение владельца 2026-11-10); 27.2.4, 27.2.5 — релиз назначает владелец; 27.2.6–27.2.8 (находки аудита зависимостей) — тоже.'
 estimated_hours: '12-26'
 depends_on: []
 ---
@@ -26,13 +26,16 @@ depends_on: []
 
 ## Задачи
 
-| ID                                             | Задача                                                                           | Замечание | Приор. | Сложн. | Реализация          | Ревью             |
-| ---------------------------------------------- | -------------------------------------------------------------------------------- | --------- | ------ | ------ | ------------------- | ----------------- |
-| [27.2.1](../tasks/27-2-1-actions-pinning.md)   | Actions по SHA, отпечаток хоста VPS и минимальные права токена                   | CI-01     | P1     | M      | `claude-opus-5-5`   | `claude-opus-5-5` |
-| [27.2.2](../tasks/27-2-2-security-scanning.md) | Автоматические проверки: dependabot, аудит зависимостей, CodeQL, secret scanning | CI-02     | P1     | M      | `claude-sonnet-5-5` | `claude-opus-5-5` |
-| [27.2.3](../tasks/27-2-3-repo-history-scan.md) | Проверка истории Git публичного репозитория на секреты и личные данные           | PD-03     | P1     | M      | `claude-sonnet-5-5` | `claude-opus-5-5` |
-| [27.2.4](../tasks/27-2-4-promotion-path.md)    | Продвижение в production без ручных обходов                                      | CI-03     | P2     | M      | `claude-opus-5-5`   | `claude-opus-5-5` |
-| [27.2.5](../tasks/27-2-5-smoke-bot-token.md)   | Токен бота в smoke на runner: исключить утечку                                   | CI-04     | P2     | M      | `claude-opus-5-5`   | `claude-opus-5-5` |
+| ID                                                     | Задача                                                                           | Замечание | Приор. | Сложн. | Реализация          | Ревью             |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------- | --------- | ------ | ------ | ------------------- | ----------------- |
+| [27.2.1](../tasks/27-2-1-actions-pinning.md)           | Actions по SHA, отпечаток хоста VPS и минимальные права токена                   | CI-01     | P1     | M      | `claude-opus-5-5`   | `claude-opus-5-5` |
+| [27.2.2](../tasks/27-2-2-security-scanning.md)         | Автоматические проверки: dependabot, аудит зависимостей, CodeQL, secret scanning | CI-02     | P1     | M      | `claude-sonnet-5-5` | `claude-opus-5-5` |
+| [27.2.3](../tasks/27-2-3-repo-history-scan.md)         | Проверка истории Git публичного репозитория на секреты и личные данные           | PD-03     | P1     | M      | `claude-sonnet-5-5` | `claude-opus-5-5` |
+| [27.2.4](../tasks/27-2-4-promotion-path.md)            | Продвижение в production без ручных обходов                                      | CI-03     | P2     | M      | `claude-opus-5-5`   | `claude-opus-5-5` |
+| [27.2.5](../tasks/27-2-5-smoke-bot-token.md)           | Токен бота в smoke на runner: исключить утечку                                   | CI-04     | P2     | M      | `claude-opus-5-5`   | `claude-opus-5-5` |
+| [27.2.6](../tasks/27-2-6-better-auth-bump.md)          | Обновить better-auth до 1.7.7 или новее (critical из аудита зависимостей)        | CI-02     | P1     | M      | `claude-opus-5-5`   | `claude-opus-5-5` |
+| [27.2.7](../tasks/27-2-7-nuxt-devtools-criticals.md)   | Убрать critical simple-git, argv-parser и shell-quote (Nuxt devtools)            | CI-02     | P1     | S      | `claude-sonnet-5-5` | `claude-opus-5-5` |
+| [27.2.8](../tasks/27-2-8-remaining-high-advisories.md) | Закрыть оставшиеся high из аудита зависимостей                                   | CI-02     | P2     | M      | `claude-sonnet-5-5` | `claude-opus-5-5` |
 
 ## Не делать
 

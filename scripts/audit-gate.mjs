@@ -1,6 +1,7 @@
 // Task 27.2.2: gate for `pnpm audit --prod --audit-level=high`.
 // Fails on any high/critical advisory that has no valid entry in
 // .github/audit-exceptions.json (ghsa, package, reason, expires). Expired entries fail too.
+// Fails closed: exit 1 = findings, exit 2 = the audit could not be evaluated.
 // Usage: node scripts/audit-gate.mjs [--input audit.json] [--exceptions file] [--today YYYY-MM-DD]
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
@@ -15,6 +16,14 @@ const root = fileURLToPath(new URL('..', import.meta.url))
 const exceptionsPath = opt('--exceptions') ?? `${root}.github/audit-exceptions.json`
 const today = opt('--today') ?? new Date().toISOString().slice(0, 10)
 
+const fail = (message) => {
+  console.error(`audit-gate: ${message}`)
+  process.exit(2)
+}
+const isDate = (value) =>
+  typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value))
+if (!isDate(today)) fail(`invalid --today: ${today}`)
+
 let raw = opt('--input') ? readFileSync(opt('--input'), 'utf8') : undefined
 if (raw === undefined) {
   // Exit code 1 only means "vulnerabilities found"; the JSON is still on stdout.
@@ -23,30 +32,51 @@ if (raw === undefined) {
     shell: process.platform === 'win32',
     maxBuffer: 64 * 1024 * 1024,
   })
+  if (run.error) fail(`could not run pnpm audit: ${run.error.message}`)
+  if (run.status !== 0 && run.status !== 1) fail(`pnpm audit exited with status ${run.status}`)
   raw = run.stdout
 }
 let report
 try {
   report = JSON.parse(raw)
 } catch {
-  console.error('audit-gate: pnpm audit did not return JSON (registry unreachable?)')
-  process.exit(2)
+  fail('pnpm audit did not return JSON (registry unreachable?)')
+}
+// Fail closed: only a complete audit report may produce a pass.
+if (report === null || typeof report !== 'object' || report.error) {
+  fail(`pnpm audit reported an error: ${JSON.stringify(report?.error ?? report).slice(0, 300)}`)
+}
+if (
+  report.advisories === null ||
+  typeof report.advisories !== 'object' ||
+  Array.isArray(report.advisories)
+) {
+  fail('audit report has no advisories object')
+}
+if (report.metadata === null || typeof report.metadata !== 'object') {
+  fail('audit report has no metadata')
 }
 
-const exceptions = JSON.parse(readFileSync(exceptionsPath, 'utf8')).exceptions ?? []
+let exceptions
+try {
+  exceptions = JSON.parse(readFileSync(exceptionsPath, 'utf8')).exceptions
+  if (!Array.isArray(exceptions)) throw new Error('"exceptions" must be an array')
+} catch (error) {
+  fail(`cannot read exceptions file ${exceptionsPath}: ${error.message}`)
+}
 const problems = []
 for (const e of exceptions) {
-  if (!e.ghsa || !e.package || !e.reason || !/^\d{4}-\d{2}-\d{2}$/.test(e.expires ?? '')) {
+  if (!e || !e.ghsa || !e.package || !e.reason || !isDate(e.expires)) {
     problems.push(
-      `invalid exception entry (ghsa, package, reason, expires required): ${JSON.stringify(e)}`,
+      `invalid exception entry (ghsa, package, reason, expires YYYY-MM-DD required): ${JSON.stringify(e)}`,
     )
-  } else if (e.expires < today) {
+  } else if (Date.parse(e.expires) < Date.parse(today)) {
     problems.push(`exception expired ${e.expires}: ${e.ghsa} (${e.package})`)
   }
 }
-const allowed = new Set(exceptions.map((e) => `${e.ghsa}|${e.package}`))
+const allowed = new Set(exceptions.map((e) => `${e?.ghsa}|${e?.package}`))
 const found = new Set()
-for (const adv of Object.values(report.advisories ?? {})) {
+for (const adv of Object.values(report.advisories)) {
   if (adv.severity !== 'high' && adv.severity !== 'critical') continue
   const key = `${adv.github_advisory_id}|${adv.module_name}`
   found.add(key)

@@ -24,11 +24,15 @@ const advisory = (id: string, pkg: string, severity = 'high') => ({
   title: `${pkg} issue`,
 })
 
-const run = (advisories: unknown[], exceptions: Record<string, string>[], today = '2026-11-15') => {
+const runRaw = (
+  raw: string,
+  exceptionsText = JSON.stringify({ exceptions: [] }),
+  today = '2026-11-15',
+) => {
   const dir = mkdtempSync(join(tmpdir(), 'volleytime-audit-'))
   dirs.push(dir)
-  writeFileSync(join(dir, 'audit.json'), JSON.stringify({ advisories: { ...advisories } }))
-  writeFileSync(join(dir, 'exceptions.json'), JSON.stringify({ exceptions }))
+  writeFileSync(join(dir, 'audit.json'), raw)
+  writeFileSync(join(dir, 'exceptions.json'), exceptionsText)
   return spawnSync(
     process.execPath,
     [
@@ -43,6 +47,13 @@ const run = (advisories: unknown[], exceptions: Record<string, string>[], today 
     { encoding: 'utf8' },
   )
 }
+
+const run = (advisories: unknown[], exceptions: Record<string, string>[], today = '2026-11-15') =>
+  runRaw(
+    JSON.stringify({ advisories: { ...advisories }, metadata: { vulnerabilities: {} } }),
+    JSON.stringify({ exceptions }),
+    today,
+  )
 
 const entry = { ghsa: 'GHSA-aaaa', package: 'foo', reason: 'why', expires: '2026-12-01' }
 
@@ -69,6 +80,36 @@ describe('audit gate', () => {
 
   it('fails when an exception has no reason', () => {
     expect(run([advisory('GHSA-aaaa', 'foo')], [{ ...entry, reason: '' }]).status).toBe(1)
+  })
+})
+
+describe('audit gate fails closed', () => {
+  it.each([
+    ['error JSON', JSON.stringify({ error: { code: 'ENOTFOUND', message: 'offline' } })],
+    ['empty object', '{}'],
+    ['empty stdout', ''],
+    ['not JSON', 'npm ERR! network'],
+    ['advisories without metadata', JSON.stringify({ advisories: {} })],
+    ['metadata without advisories', JSON.stringify({ metadata: {} })],
+    ['advisories as array', JSON.stringify({ advisories: [], metadata: {} })],
+  ])('exits 2 on %s', (_name, raw) => {
+    expect(runRaw(raw).status).toBe(2)
+  })
+
+  it('passes a complete report with no findings', () => {
+    expect(runRaw(JSON.stringify({ advisories: {}, metadata: {} })).status).toBe(0)
+  })
+
+  it('exits 2 on an unreadable exceptions file', () => {
+    const raw = JSON.stringify({ advisories: {}, metadata: {} })
+    const result = runRaw(raw, '{ not json')
+    expect(result.status).toBe(2)
+    expect(result.stderr).toContain('exceptions file')
+  })
+
+  it('rejects an impossible expiry date', () => {
+    const result = run([advisory('GHSA-aaaa', 'foo')], [{ ...entry, expires: '2026-13-45' }])
+    expect(result.status).toBe(1)
   })
 })
 
