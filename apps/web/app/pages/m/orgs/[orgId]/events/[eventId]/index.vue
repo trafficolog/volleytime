@@ -42,6 +42,7 @@ import {
   runPlayerEventAction,
   shouldRefreshPlayerEventAfterRejection,
 } from '~/utils/player-event-action'
+import { canPayBooking } from '~/utils/player-booking-payment'
 import { playerHomeAccess } from '~/utils/player-home'
 import {
   clearStashedInviteToken,
@@ -173,9 +174,13 @@ const paymentLabel = computed(() =>
 const showPayInstructions = computed(
   () =>
     !!my.value &&
-    my.value.status === 'pending_payment' &&
-    (my.value.method === 'cash' || my.value.method === 'transfer') &&
-    !(ev.value?.pricing.mode === 'split' && ev.value.pricing.myAllocatedAmount === null),
+    !!ev.value &&
+    canPayBooking({
+      status: my.value.status,
+      method: my.value.method,
+      event: { status: ev.value.status },
+      pricing: ev.value.pricing,
+    }),
 )
 const paymentChip = computed(() =>
   my.value ? bookingPaymentChip(my.value.status, ev.value?.pricing) : null,

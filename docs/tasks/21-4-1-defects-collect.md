@@ -2,11 +2,11 @@
 id: '21.4.1'
 phase: '21'
 epic: '21.4'
-status: todo
+status: in_progress
 release: 'v0.3.1'
 sync_state: synced
-last_reviewed: 2026-10-27
-status_note: ''
+last_reviewed: 2026-11-11
+status_note: 'Бэклог составлен 2026-11-11: docs/operations/reviews/2026-11-11-defects-v0-2-v0-3.md (73 пункта: Critical 0, Important 2 (DEF-23, DEF-33), Minor 69, не дефект 2; предложены карточки 21.4.10–21.4.17). Не выполнено: (1) нет замечаний владельца (раздел 2 пуст); (2) харнесс заново не запускался, экран 3-miniapp-player/07 не сверялся; (3) карточки 21.4.10+ не созданы; (4) ревью Opus не проведено.'
 ref_id: ''
 complexity: M
 impl_model: claude-sonnet-5-5

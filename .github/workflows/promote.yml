@@ -25,16 +25,19 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
-  actions: write
+  contents: read
 
 jobs:
   promote:
     name: Verify and fast-forward prod
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # contents: push to prod; actions: read CI runs and dispatch Deploy.
+    permissions:
+      contents: write
+      actions: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: main
           fetch-depth: 0

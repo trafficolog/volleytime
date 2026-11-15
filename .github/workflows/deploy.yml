@@ -18,6 +18,9 @@ concurrency:
   group: deploy-production
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 env:
   NODE_VERSION: '22'
   REGISTRY: ghcr.io
@@ -27,7 +30,7 @@ jobs:
     name: Verify production source
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.sha }}
       - name: Require prod branch
@@ -59,11 +62,11 @@ jobs:
       BETTER_AUTH_URL: http://localhost:3000
       NODE_ENV: test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.sha }}
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: '22', cache: 'pnpm' }
       - run: pnpm install --frozen-lockfile
       - run: pnpm -F @volley-time/db db:migrate
@@ -82,17 +85,17 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.sha }}
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build & push web
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           file: apps/web/Dockerfile
@@ -103,7 +106,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Build & push migrator
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           file: docker/migrator.Dockerfile
@@ -114,7 +117,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Build & push bot
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           file: apps/bot/Dockerfile
@@ -133,12 +136,20 @@ jobs:
     environment: production
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with: { node-version: '22' }
+      # Task 27.2.1: OpenSSH client with the VPS host key pinned from
+      # VPS_KNOWN_HOSTS; every VPS step below connects through the `vps` alias.
+      - name: Configure SSH to VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: bash scripts/configure-vps-ssh.sh
       - name: Package exact-SHA image bundle
         if: ${{ github.event_name == 'push' || inputs.deployment_mode == 'image-bundle' }}
         run: |
@@ -226,12 +237,9 @@ jobs:
           echo "unpacked_bytes=$unpacked_bytes" >> "$GITHUB_OUTPUT"
       - name: Prepare remote secret staging
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'ghcr' }}
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: deploy
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
+        run: timeout 10m ssh -n vps "$REMOTE_SCRIPT"
+        env:
+          REMOTE_SCRIPT: |
             set -euo pipefail
             umask 077
             install -d -m 700 /opt/volleytime/.deploy/incoming
@@ -243,24 +251,13 @@ jobs:
             }
       - name: Upload production env
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'ghcr' }}
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: deploy
-          key: ${{ secrets.VPS_SSH_KEY }}
-          source: 'ghcr-${{ github.sha }}'
-          target: '/opt/volleytime/.deploy/incoming'
+        run: timeout 10m scp -O -r "ghcr-${{ github.sha }}" vps:/opt/volleytime/.deploy/incoming
       - name: Deploy GHCR images over SSH
         id: ghcr_activate
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'ghcr' }}
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: deploy
-          key: ${{ secrets.VPS_SSH_KEY }}
-          timeout: 2m
-          command_timeout: 30m
-          script: |
+        run: timeout 30m ssh -n vps "$REMOTE_SCRIPT"
+        env:
+          REMOTE_SCRIPT: |
             set -euo pipefail
             cd /opt/volleytime
             chmod 700 .deploy/incoming/ghcr-${{ github.sha }} .deploy/incoming/ghcr-${{ github.sha }}/scripts
@@ -269,14 +266,9 @@ jobs:
 
       - name: Check remote transfer capacity
         if: ${{ github.event_name == 'push' || inputs.deployment_mode == 'image-bundle' }}
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: deploy
-          key: ${{ secrets.VPS_SSH_KEY }}
-          timeout: 2m
-          command_timeout: 2m
-          script: |
+        run: timeout 2m ssh -n vps "$REMOTE_SCRIPT"
+        env:
+          REMOTE_SCRIPT: |
             set -euo pipefail
             [[ '${{ github.sha }}' =~ ^[0-9a-f]{40}$ ]]
             payload_bytes='${{ steps.transfer_size.outputs.payload_bytes }}'
@@ -324,28 +316,15 @@ jobs:
       - name: Upload image bundle
         if: ${{ github.event_name == 'push' || inputs.deployment_mode == 'image-bundle' }}
         timeout-minutes: 35
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: deploy
-          key: ${{ secrets.VPS_SSH_KEY }}
-          timeout: 2m
-          command_timeout: 30m
-          source: '${{ github.sha }}'
-          target: '/opt/volleytime/.deploy/incoming'
+        run: timeout 30m scp -O -r "${{ github.sha }}" vps:/opt/volleytime/.deploy/incoming
 
       - name: Activate image bundle over SSH
         id: activate
         if: ${{ github.event_name == 'push' || inputs.deployment_mode == 'image-bundle' }}
         timeout-minutes: 35
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: deploy
-          key: ${{ secrets.VPS_SSH_KEY }}
-          timeout: 2m
-          command_timeout: 30m
-          script: |
+        run: timeout 30m ssh -n vps "$REMOTE_SCRIPT"
+        env:
+          REMOTE_SCRIPT: |
             set -euo pipefail
             cd /opt/volleytime
             test -f .deploy/incoming/${{ github.sha }}/release.bundle
@@ -383,14 +362,9 @@ jobs:
       - name: Confirm synthetic smoke over SSH
         id: confirm
         if: ${{ steps.activate.outcome == 'success' && steps.smoke.outcome == 'success' }}
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: deploy
-          key: ${{ secrets.VPS_SSH_KEY }}
-          timeout: 2m
-          command_timeout: 2m
-          script: |
+        run: timeout 2m ssh -n vps "$REMOTE_SCRIPT"
+        env:
+          REMOTE_SCRIPT: |
             set -euo pipefail
             cd /opt/volleytime
             bash .deploy/incoming/${{ github.sha }}/scripts/deploy-image-bundle.sh confirm-smoke ${{ github.sha }}
@@ -402,14 +376,9 @@ jobs:
         id: prune
         if: ${{ steps.confirm.outcome == 'success' }}
         continue-on-error: true
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: deploy
-          key: ${{ secrets.VPS_SSH_KEY }}
-          timeout: 2m
-          command_timeout: 10m
-          script: |
+        run: timeout 10m ssh -n vps "$REMOTE_SCRIPT"
+        env:
+          REMOTE_SCRIPT: |
             set -euo pipefail
             cd /opt/volleytime
             bash .deploy/incoming/${{ github.sha }}/scripts/deploy-image-bundle.sh prune-retained ${{ github.sha }}
@@ -417,14 +386,9 @@ jobs:
       - name: Rollback GHCR images on failed smoke
         id: ghcr_rollback
         if: ${{ failure() && steps.ghcr_activate.outcome == 'success' && steps.smoke.outputs.controlled_failure == 'true' }}
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: deploy
-          key: ${{ secrets.VPS_SSH_KEY }}
-          timeout: 2m
-          command_timeout: 10m
-          script: |
+        run: timeout 10m ssh -n vps "$REMOTE_SCRIPT"
+        env:
+          REMOTE_SCRIPT: |
             set -euo pipefail
             cd /opt/volleytime
             bash .deploy/incoming/ghcr-${{ github.sha }}/scripts/deploy-ghcr-manual.sh rollback ${{ github.sha }}
@@ -437,14 +401,9 @@ jobs:
       - name: Rollback image bundle after controlled smoke failure
         id: rollback
         if: ${{ failure() && steps.activate.outcome == 'success' && steps.smoke.outputs.controlled_failure == 'true' }}
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: deploy
-          key: ${{ secrets.VPS_SSH_KEY }}
-          timeout: 2m
-          command_timeout: 10m
-          script: |
+        run: timeout 10m ssh -n vps "$REMOTE_SCRIPT"
+        env:
+          REMOTE_SCRIPT: |
             set -euo pipefail
             cd /opt/volleytime
             bash .deploy/incoming/${{ github.sha }}/scripts/deploy-image-bundle.sh rollback ${{ github.sha }}
@@ -458,15 +417,13 @@ jobs:
         id: vps_disk
         if: ${{ always() }}
         continue-on-error: true
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: deploy
-          key: ${{ secrets.VPS_SSH_KEY }}
-          timeout: 2m
-          command_timeout: 1m
-          capture_stdout: true
-          script: |
+        run: |
+          set -euo pipefail
+          df_output="$(timeout 1m ssh -n vps "$REMOTE_SCRIPT")"
+          printf '%s\n' "$df_output"
+          { echo 'stdout<<VPS_DF_EOF'; printf '%s\n' "$df_output"; echo 'VPS_DF_EOF'; } >> "$GITHUB_OUTPUT"
+        env:
+          REMOTE_SCRIPT: |
             df -Pk /opt/volleytime
             df -Pk "$(docker info --format '{{.DockerRootDir}}')" || true
 

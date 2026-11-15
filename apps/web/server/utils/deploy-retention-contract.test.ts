@@ -553,7 +553,7 @@ describe('retention and disk monitoring workflow wiring', () => {
     const prune = step(workflow, 'Prune retained releases over SSH')
     expect(prune).toContain("if: ${{ steps.confirm.outcome == 'success' }}")
     expect(prune).toContain('continue-on-error: true')
-    expect(prune).toContain('command_timeout:')
+    expect(prune).toContain('run: timeout 10m ssh -n vps "$REMOTE_SCRIPT"')
     expect(prune).toContain(
       'bash .deploy/incoming/${{ github.sha }}/scripts/deploy-image-bundle.sh prune-retained ${{ github.sha }}',
     )
@@ -568,7 +568,8 @@ describe('retention and disk monitoring workflow wiring', () => {
     const read = step(workflow, 'Read VPS disk usage')
     expect(read).toContain('if: ${{ always() }}')
     expect(read).toContain('continue-on-error: true')
-    expect(read).toContain('capture_stdout: true')
+    expect(read).toContain('df_output="$(timeout 1m ssh -n vps "$REMOTE_SCRIPT")"')
+    expect(read).toContain("echo 'stdout<<VPS_DF_EOF'")
     expect(read).toContain('df -Pk /opt/volleytime')
     expect(read).not.toMatch(/\brm\b|prune|image rm/)
     const report = step(workflow, 'Report VPS disk in job summary')
@@ -587,14 +588,17 @@ describe('retention and disk monitoring workflow wiring', () => {
     expect(monitor).toContain('workflow_dispatch:')
     expect(monitor).toMatch(/permissions:\n\s+contents: read/)
     expect(monitor).not.toContain('environment:')
-    expect(monitor).toContain('capture_stdout: true')
+    expect(monitor).toContain('df_output="$(timeout 1m ssh -n vps "$REMOTE_SCRIPT")"')
+    expect(monitor).toContain("echo 'stdout<<VPS_DF_EOF'")
     expect(monitor).toContain(
       String.raw`run: printf '%s\n' "$DF_OUTPUT" | bash scripts/disk-status.sh --fail-on-low` +
         '\n',
     )
     expect(monitor).not.toMatch(/\brm\b|prune|image rm|compose/)
     const secrets = [...monitor.matchAll(/secrets\.([A-Z_]+)/g)].map((m) => m[1])
-    expect(new Set(secrets)).toEqual(new Set(['VPS_HOST', 'VPS_SSH_KEY', 'TELEGRAM_BOT_TOKEN']))
+    expect(new Set(secrets)).toEqual(
+      new Set(['VPS_HOST', 'VPS_SSH_KEY', 'VPS_KNOWN_HOSTS', 'TELEGRAM_BOT_TOKEN']),
+    )
     const alert = step(monitor, 'Alert owner in Telegram')
     expect(alert).toContain("vars.OPS_ALERT_TELEGRAM_CHAT_ID != ''")
     expect(alert).toContain('failure()')

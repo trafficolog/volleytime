@@ -35,6 +35,10 @@ export interface NotificationView {
   tone: NotificationTone
   /** Куда ведёт карточка; без события и цели — на главную группы. */
   to: string
+  /** Кнопка действия по макету (экран 09): ведёт туда же, куда и карточка. */
+  action?: string
+  /** Главная кнопка: в макете акцентом выделено только подтверждение платежей. */
+  actionPrimary?: boolean
 }
 
 interface Params {
@@ -53,6 +57,47 @@ interface Params {
   inviteRequest?: boolean
   /** Игрок отозвал запрос: запись ленты уже не требует действия (20.4.7). */
   inviteRequestWithdrawn?: boolean
+  /** Вид записи ленты организатора (21.4.5): тип в БД один, вид — здесь. */
+  kind?: 'payments_pending' | 'booking_created' | 'booking_cancelled' | 'event_balance_low'
+  /** Сбор обещания взноса: диплинк на конкретный сбор (21.4.5). */
+  collectionId?: number
+  count?: number
+  eventTitles?: string[]
+  moreEvents?: number
+  oldestAt?: string
+  seats?: number
+  paidSeats?: number
+  paidAmount?: number
+  promotedFromWaitlist?: boolean
+  byManager?: boolean
+  balance?: number
+}
+
+/** Опции вида: куда ведут пополнение и сбор, часы для возраста платежа (тесты). */
+export interface NotificationViewOptions {
+  /** Страница пополнения баланса; в Mini App пополнение — плитка на главной группы. */
+  balanceTo?: string
+  /** Есть ли страница сбора: в Mini App да, в кабинете только список сборов. */
+  collectionDetail?: boolean
+  now?: Date
+}
+
+/** Склонение числительного: 1 платёж, 2 платежа, 5 платежей. */
+function plural(n: number, one: string, few: string, many: string): string {
+  const m10 = n % 10
+  const m100 = n % 100
+  if (m10 === 1 && m100 !== 11) return one
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few
+  return many
+}
+
+function ageText(oldestAt: string | undefined, now: Date): string | undefined {
+  const t = oldestAt ? Date.parse(oldestAt) : NaN
+  if (Number.isNaN(t)) return undefined
+  const hours = Math.floor((now.getTime() - t) / 3_600_000)
+  if (hours < 1) return 'Самому старому меньше часа.'
+  if (hours < 48) return `Самому старому ${hours} ч.`
+  return `Самому старому ${Math.floor(hours / 24)} дн.`
 }
 
 function paramsOf(payload: unknown): Params {
@@ -73,6 +118,7 @@ export function notificationView(
   n: FeedNotification,
   base: string,
   subscriptionsTo = `${base}/subscriptions`,
+  opts: NotificationViewOptions = {},
 ): NotificationView {
   const p = paramsOf(n.payload)
   const event = p.eventTitle?.trim() || 'событие'
@@ -183,6 +229,77 @@ export function notificationView(
         to,
       }
     case 'organizer_action_required':
+      // виды 21.4.5: информационные (запись, отмена) показываются как обычные уведомления,
+      // а не как «требуется действие»; кнопка — только у тех, где есть действие
+      switch (p.kind) {
+        case 'payments_pending': {
+          const count = p.count ?? 0
+          if (count <= 0) {
+            return {
+              title: 'Платежи обработаны',
+              body: 'Ожидающих подтверждения нет.',
+              icon: 'check',
+              tone: 'ink',
+              to: `${base}/payments`,
+            }
+          }
+          const titles = (p.eventTitles ?? []).map((t) => `«${t}»`)
+          const more = p.moreEvents ?? 0
+          const events =
+            titles.length === 0
+              ? undefined
+              : `По событиям ${titles.join(' и ')}${more > 0 ? ` и ещё ${more}` : ''}.`
+          return {
+            title: `${count} ${plural(count, 'платёж ждёт', 'платежа ждут', 'платежей ждут')} подтверждения`,
+            body: joinText(events, ageText(p.oldestAt, opts.now ?? new Date())),
+            icon: 'wallet',
+            tone: 'amber',
+            to: `${base}/payments`,
+            action: 'Проверить',
+            actionPrimary: true,
+          }
+        }
+        case 'booking_created':
+          return {
+            title: 'Новая запись',
+            body: joinText(
+              `${p.playerName ?? 'Игрок'} записан(а) на ${quoted}`,
+              p.seats && p.seats > 1 ? `· мест: ${p.seats}` : '',
+            ),
+            icon: 'user',
+            tone: 'ink',
+            to,
+          }
+        case 'booking_cancelled':
+          return {
+            title: 'Отмена записи',
+            body: joinText(
+              p.byManager
+                ? `Запись ${p.playerName ?? 'игрока'} на ${quoted} отменена организатором.`
+                : `${p.playerName ?? 'Игрок'} отменил(а) запись на ${quoted}.`,
+              p.seats && p.seats > 1 ? `Мест: ${p.seats}.` : '',
+              p.paidSeats && p.paidAmount !== undefined
+                ? `Оплачено: ${formatPrice(p.paidAmount, p.currency)} — деньги не возвращены автоматически.`
+                : '',
+              p.promotedFromWaitlist ? 'Место ушло первому из листа ожидания.' : '',
+            ),
+            icon: 'alert',
+            tone: 'ink',
+            to,
+          }
+        case 'event_balance_low':
+          return {
+            title: 'Мало событий на балансе',
+            body:
+              p.balance !== undefined
+                ? `Осталось ${p.balance} ${plural(p.balance, 'событие', 'события', 'событий')}. Пополните баланс.`
+                : 'Пополните баланс событий.',
+            icon: 'card',
+            tone: 'amber',
+            to: opts.balanceTo ?? base,
+            action: 'Пополнить',
+          }
+      }
       if (p.inviteRequest) {
         return {
           title: p.inviteRequestWithdrawn ? 'Запрос отозван' : 'Запрос приглашения',
@@ -205,7 +322,13 @@ export function notificationView(
         icon: p.collectionTitle ? 'gift' : 'wallet',
         tone: 'amber',
         // обещание взноса организатор разбирает на экране сборов (21.1.5), а не в «Оплатах»
-        to: p.collectionTitle && !p.planName ? `${base}/collections` : to,
+        to:
+          p.collectionTitle && !p.planName
+            ? p.collectionId && opts.collectionDetail !== false
+              ? `${base}/collections/${p.collectionId}`
+              : `${base}/collections`
+            : to,
+        action: p.collectionTitle && !p.planName ? 'Подтвердить' : undefined,
       }
     case 'lineup_ready':
       return { title: 'Составы готовы', body: quoted, icon: 'users', tone: 'flame', to }

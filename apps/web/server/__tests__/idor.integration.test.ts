@@ -205,6 +205,7 @@ const ROUTES: OrgRouteTable = {
   },
   // `?stats=1` (21.2.20) — только manager: players-stats.integration.test.ts
   'GET /api/organizations/:orgId/members': { access: 'member' },
+  'GET /api/organizations/:orgId/members/me/stats': { access: 'member' },
   'POST /api/organizations/:orgId/members/leave': { access: 'tenant', body: () => ({}) },
   'POST /api/organizations/:orgId/payments/:paymentId/confirm': {
     access: 'manager',

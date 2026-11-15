@@ -2,11 +2,11 @@
 id: '27.2.1'
 phase: '27'
 epic: '27.2'
-status: todo
+status: in_progress
 release: 'v0.3.1'
 sync_state: synced
 last_reviewed: 2026-11-10
-status_note: 'Из аудита 2026-11-10 (CI-01). Релиз v0.3.1 (решение владельца 2026-11-10), параллельно с эпиками 21.4–21.5.'
+status_note: 'Из аудита 2026-11-10 (CI-01). Релиз v0.3.1 (решение владельца 2026-11-10), параллельно с эпиками 21.4–21.5. Реализация в PR, ждёт ревью и секрета VPS_KNOWN_HOSTS от владельца.'
 ref_id: ''
 review_ref: 'CI-01'
 priority: P1
