@@ -74,6 +74,65 @@ afterEach(() => {
   fetchApi.mockReset()
 })
 
+describe('organizer notifications feed (21.4.5, экран 09)', () => {
+  const orgNote = (
+    id: number,
+    params: Record<string, unknown>,
+    over: Record<string, unknown> = {},
+  ) =>
+    note(id, {
+      type: 'organizer_action_required',
+      eventId: null,
+      payload: { template: 'organizer_action_required', params },
+      ...over,
+    })
+
+  it('показывает четыре вида с кнопками по макету и диплинком на сбор', async () => {
+    fetchApi.mockResolvedValue({
+      items: [
+        orgNote(5, {
+          kind: 'payments_pending',
+          count: 4,
+          eventTitles: ['Основа', 'Микст'],
+          oldestAt: '2026-10-19T06:00:00Z',
+        }),
+        orgNote(
+          4,
+          { kind: 'booking_created', playerName: 'Денис', eventTitle: 'Открытая игра' },
+          { eventId: 9 },
+        ),
+        orgNote(
+          3,
+          { kind: 'booking_cancelled', playerName: 'Катя', eventTitle: 'Основа', paidSeats: 0 },
+          { eventId: 8 },
+        ),
+        orgNote(2, {
+          playerName: 'Соня',
+          collectionTitle: 'Мячи',
+          collectionId: 12,
+          target: 'collection',
+        }),
+        orgNote(1, { kind: 'event_balance_low', balance: 8 }),
+      ],
+      nextCursor: null,
+      unreadCount: 5,
+    })
+    const page = await mountPage()
+    const cards = page.findAll('[data-notification]')
+    expect(cards).toHaveLength(5)
+    expect(cards[0]!.text()).toContain('4 платежа ждут подтверждения')
+    expect(cards[0]!.get('[data-notification-action]').text()).toBe('Проверить')
+    expect(cards[0]!.attributes('href')).toBe('/m/orgs/30/payments')
+    // информационные виды — без кнопки
+    expect(cards[1]!.find('[data-notification-action]').exists()).toBe(false)
+    expect(cards[2]!.find('[data-notification-action]').exists()).toBe(false)
+    expect(cards[3]!.attributes('href')).toBe('/m/orgs/30/collections/12')
+    expect(cards[3]!.get('[data-notification-action]').text()).toBe('Подтвердить')
+    expect(cards[4]!.text()).toContain('Мало событий на балансе')
+    expect(cards[4]!.get('[data-notification-action]').text()).toBe('Пополнить')
+  })
+})
+
 describe('player notifications feed (20.4.9, M-13)', () => {
   it('запрашивает ленту своей группы и группирует по дням', async () => {
     fetchApi.mockResolvedValue({

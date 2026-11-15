@@ -27,6 +27,12 @@ import { isBookingClosedBySchedule } from '../events/booking-close'
 import { EventNotFoundError } from '../events/errors'
 import { consumeEventInvite } from '../invites/event-invites'
 import { collectNotification } from '../notifier/collect'
+import {
+  paidSeatsOf,
+  syncPendingPaymentsFeed,
+  writeBookingCancelledFeed,
+  writeBookingCreatedFeed,
+} from '../notifier/organizer-feed'
 import { organizationService } from '../organizations/service'
 import { paymentService } from '../payments/service'
 import { canManageContent } from '../permissions/policies'
@@ -396,6 +402,8 @@ export const bookingService = {
           waitlistSeats: result.waitlistSeats,
         },
       })
+      // лента организатора: «Новая запись» (21.4.5), только запись в ленту — в Telegram не уходит
+      await writeBookingCreatedFeed(tx, result, event, result.status)
       // собрать уведомление (отправится после коммита)
       collectNotification(ctx, {
         userId: ctx.userId,
@@ -515,6 +523,7 @@ export const bookingService = {
           .where(eq(bookings.id, booking.id))
           .returning()
         updated = (await paymentService.syncBookingPayments(txCtx, booking.id)) ?? changed!
+        await syncPendingPaymentsFeed(tx, booking.organizationId)
         if ((fromMain > 0 || revoked > 0) && event.status === 'published')
           promoted = await this.promoteFromWaitlist(txCtx, event.id)
       }
@@ -935,6 +944,7 @@ export const bookingService = {
 
       // неоплаченные места отменяются (6.8.6); оплаченные не возвращаются автоматически, а
       // освобождаются (D-14) — возврат при отмене игроком — решение организатора
+      const paid = freedSlot ? await paidSeatsOf(tx, booking) : null
       await paymentService.releaseAll({ ...ctx, db: tx }, booking)
       // активное предложение места отменённой записи снимается, его места уходят дальше (20.3.1)
       const revoked = await revokeBookingOffers(tx, booking.id)
@@ -971,6 +981,17 @@ export const bookingService = {
       if ((freedSlot || revoked > 0) && event.status === 'published') {
         promoted = await this.promoteFromWaitlist({ ...ctx, db: tx }, event.id)
       }
+      // лента организатора: «Отмена записи» с местами и деньгами (D-14) и пересчёт ожидающих оплат (21.4.5)
+      if (paid) {
+        await writeBookingCancelledFeed(
+          tx,
+          booking,
+          event,
+          { ...paid, promotedFromWaitlist: promoted !== null, byManager: !!opts.byAdmin },
+          ctx.userId,
+        )
+      }
+      await syncPendingPaymentsFeed(tx, booking.organizationId)
       return { booking: cancelled!, promoted }
     })
   },

@@ -61,8 +61,10 @@ export interface TemplateParams {
   planName?: string
   /** Сбор, в который внесён взнос (21.2.4). */
   collectionTitle?: string
-  /** Куда ведёт кнопка: экран события, платежей организатора, абонементов. */
-  target?: 'event' | 'payments' | 'subscriptions' | 'org'
+  /** Конкретный сбор: диплинк уведомления об обещании взноса (21.4.5). */
+  collectionId?: number
+  /** Куда ведёт кнопка: экран события, платежей организатора, абонементов, сбора. */
+  target?: 'event' | 'payments' | 'subscriptions' | 'org' | 'collection'
   amount?: number
   targetAmount?: number
   participantCount?: number
