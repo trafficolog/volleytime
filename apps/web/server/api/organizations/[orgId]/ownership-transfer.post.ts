@@ -49,11 +49,23 @@ export default defineApiHandler(async (event) => {
   const links = transferLinks(token)
   // 21.4.7 (решение владельца 2026-11-11): та же ссылка уходит получателю прямой отправкой ботом;
   // токен остаётся только в памяти этого запроса. Сбой бота передачу не ломает.
-  const botDelivery = await ownershipTransferService.deliverLink(
-    ctx,
-    orgId,
-    transfer.id,
-    links.telegram ?? links.web,
-  )
+  // передача уже создана: сбой отправки (даже неожиданный) не должен давать 500 и терять ссылку;
+  // ошибка не логируется целиком, чтобы в лог не попали ссылка и токен
+  let botDelivery: { status: 'delivered' } | { status: 'not_delivered'; reason: string }
+  try {
+    botDelivery = await ownershipTransferService.deliverLink(
+      ctx,
+      orgId,
+      transfer.id,
+      links.telegram ?? links.web,
+    )
+  } catch {
+    botDelivery = { status: 'not_delivered', reason: 'failed' }
+    console.warn('[ownership-transfer] bot delivery', {
+      transferId: transfer.id,
+      status: botDelivery.status,
+      reason: 'failed',
+    })
+  }
   return { transfer: { ...transfer, botDelivery }, links, botDelivery }
 })

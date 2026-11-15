@@ -182,6 +182,20 @@ describe('ownership transfer bot link (HTTP integration)', { timeout: 60_000 }, 
     expect(acc.status, acc.text).toBe(200)
   })
 
+  it('an unexpected delivery failure after start does not give 500: transfer exists, state is "not delivered", nothing is logged', async () => {
+    const { ownershipTransferService } = await import('@volley-time/core')
+    const boom = new Error('boom https://t.me/vt_bot?startapp=transfer_SECRET')
+    vi.spyOn(ownershipTransferService, 'deliverLink').mockRejectedValueOnce(boom)
+    const res = await start(ownerId)
+    expect(res.status, res.text).toBe(200)
+    const body = res.body as { links: { web: string }; botDelivery: unknown }
+    expect(body.botDelivery).toEqual({ status: 'not_delivered', reason: 'failed' })
+    const token = body.links.web.split('#')[1]!
+    expect(logs.join(' ')).not.toContain('SECRET')
+    expect(logs.join(' ')).not.toContain(token)
+    expect(await db.select().from(organizationOwnershipTransfers)).toHaveLength(1)
+  })
+
   it('a recipient without a bot chat does not break the transfer either', async () => {
     await db.update(users).set({ telegramUserId: null }).where(eq(users.id, recipientId))
     const res = await start(ownerId)
