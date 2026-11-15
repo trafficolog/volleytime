@@ -10,6 +10,7 @@ import {
 import { offerDeadlineLabel } from '~/utils/booking-seats'
 import { eventPricingLabel, splitBookingPaymentLabel } from '~/utils/event-pricing-label'
 import { releasedPaidSeatsLabel } from '~/utils/player-booking-cancel'
+import { canPayBooking, payBookingPath } from '~/utils/player-booking-payment'
 import { bookingPaymentChip } from '~/utils/player-event'
 import { quotePriceLabel } from '~/utils/player-price-view'
 import { participationOf } from '~/utils/status-model'
@@ -72,6 +73,8 @@ const price = computed(() => {
   const label = eventPricingLabel(x.pricing, x.event.currency)
   return { ...label, forecast: x.pricing.mode === 'split' && x.pricing.basis !== 'settled' }
 })
+/** «Оплатить» (21.4.8): только запись, ждущая оплаты; ведёт на экран с реквизитами организатора. */
+const payable = computed(() => canPayBooking(b.value))
 const paymentChip = computed(() => bookingPaymentChip(b.value.status, b.value.pricing))
 const releasedLabel = computed(() =>
   releasedPaidSeatsLabel(b.value.seatPayments?.releasedPaidSeats ?? 0),
@@ -119,14 +122,23 @@ const releasedLabel = computed(() =>
         </span>
       </span>
     </NuxtLink>
-    <button
-      v-if="cancellable"
-      type="button"
-      class="vt-btn vt-btn--ghost vt-btn--sm vt-btn--full mt-3"
-      :disabled="cancelling"
-      @click="emit('cancel')"
-    >
-      {{ waitlisted ? 'Выйти из листа ожидания' : 'Отменить запись' }}
-    </button>
+    <div v-if="payable || cancellable" class="mt-3 flex gap-2">
+      <NuxtLink
+        v-if="payable"
+        :to="payBookingPath(orgId, b.id)"
+        class="vt-btn vt-btn--primary vt-btn--sm flex-1"
+        data-pay-booking
+        >Оплатить</NuxtLink
+      >
+      <button
+        v-if="cancellable"
+        type="button"
+        class="vt-btn vt-btn--ghost vt-btn--sm flex-1"
+        :disabled="cancelling"
+        @click="emit('cancel')"
+      >
+        {{ waitlisted ? 'Выйти из листа ожидания' : 'Отменить запись' }}
+      </button>
+    </div>
   </div>
 </template>

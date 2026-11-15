@@ -6,13 +6,70 @@ import { playerHomeAccess } from '~/utils/player-home'
 import { levelTitle, type PlayerLevelView } from '~/utils/player-level'
 import { playerGroupOptions, playerProfileFields } from '~/utils/player-navigation'
 import { positionTitle } from '~/utils/player-position'
+import {
+  profileStatTiles,
+  STATS_WINDOW_NOTE,
+  type OwnAttendance,
+} from '~/utils/player-profile-stats'
 
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
 const route = useRoute()
 const orgId = computed(() => Number(route.params.orgId))
 const base = computed(() => `/m/orgs/${orgId.value}`)
-const { user } = useAuth()
+const { user, logout } = useAuth()
+const { confirm, haptic } = useTelegram()
+
+// Профиль (21.4.8, M-13): имя меняется через сессию better-auth, «Выйти» закрывает сессию,
+// «Язык» — только показ (решение AQ-12, 2026-11-10): без перехода и без выбора.
+const editingName = ref(false)
+const nameDraft = ref('')
+const nameSaving = ref(false)
+const nameError = ref('')
+const signingOut = ref(false)
+const signOutError = ref('')
+
+function startNameEdit() {
+  nameDraft.value = user.value?.name?.trim() ?? ''
+  nameError.value = ''
+  editingName.value = true
+}
+async function saveName() {
+  if (nameSaving.value) return
+  const name = nameDraft.value.trim()
+  if (!name) {
+    nameError.value = 'Введите имя'
+    return
+  }
+  nameSaving.value = true
+  nameError.value = ''
+  try {
+    await $fetch('/api/auth/update-user', { method: 'POST', body: { name } })
+    if (user.value) user.value = { ...user.value, name }
+    editingName.value = false
+    haptic('success')
+  } catch (cause) {
+    nameError.value = apiErrorMessage(cause, 'Не удалось сохранить имя')
+    haptic('error')
+  } finally {
+    nameSaving.value = false
+  }
+}
+async function signOut() {
+  if (signingOut.value) return
+  signOutError.value = ''
+  if (!(await confirm('Выйти из аккаунта? Можно войти заново через тот же Telegram-аккаунт.')))
+    return
+  signingOut.value = true
+  try {
+    await logout()
+  } catch {
+    signOutError.value = 'Не удалось выйти. Попробуйте ещё раз.'
+    haptic('error')
+  } finally {
+    signingOut.value = false
+  }
+}
 const fields = computed(() => playerProfileFields(user.value))
 const { orgs, loading: groupsLoading, fetchAll, selectOrg } = useOrganizations()
 const groupsError = ref('')
@@ -42,6 +99,14 @@ const organization = computed(() =>
 const { data: levelsData } = await useFetch<{ levels: PlayerLevelView[] }>('/api/levels', {
   key: 'player-levels',
 })
+// статистика посещений — только свои данные текущей группы (21.4.8); при ошибке карточка скрыта
+const { data: statsData } = await useFetch<{ attendance: OwnAttendance }>(
+  () => `/api/organizations/${orgId.value}/members/me/stats`,
+  { key: () => `org-profile-stats-${orgId.value}` },
+)
+const statTiles = computed(() =>
+  statsData.value?.attendance ? profileStatTiles(statsData.value.attendance) : [],
+)
 const activityRows = computed(() => [
   {
     to: `${base.value}/bookings`,
@@ -120,7 +185,45 @@ const access = computed(() =>
           <span v-else class="vt-avi vt-avi--lg" aria-hidden="true"
             ><VtIcon name="users" :size="22"
           /></span>
-          <div class="min-w-0 flex-1">
+          <form
+            v-if="editingName"
+            class="min-w-0 flex-1"
+            data-testid="profile-name-form"
+            @submit.prevent="saveName"
+          >
+            <label class="vt-label" for="profile-name">Имя</label>
+            <input
+              id="profile-name"
+              v-model="nameDraft"
+              data-testid="profile-name-input"
+              class="vt-field"
+              maxlength="100"
+              autocomplete="name"
+              :disabled="nameSaving"
+            />
+            <p v-if="nameError" class="mt-1 text-sm text-vt-rose-ink" role="alert">
+              {{ nameError }}
+            </p>
+            <div class="mt-2 flex gap-2">
+              <button
+                type="submit"
+                class="vt-btn vt-btn--primary vt-btn--sm flex-1"
+                :disabled="nameSaving"
+              >
+                Сохранить
+              </button>
+              <button
+                type="button"
+                class="vt-btn vt-btn--ghost vt-btn--sm flex-1"
+                data-testid="profile-name-cancel"
+                :disabled="nameSaving"
+                @click="editingName = false"
+              >
+                Отмена
+              </button>
+            </div>
+          </form>
+          <div v-else class="min-w-0 flex-1">
             <h2 class="font-display !normal-case text-lg font-bold leading-[1.1] break-words">
               {{ user?.name?.trim() || 'Профиль' }}
             </h2>
@@ -139,6 +242,33 @@ const access = computed(() =>
               {{ organization.name }}
             </p>
           </div>
+          <button
+            v-if="!editingName"
+            type="button"
+            class="vt-btn vt-btn--ghost vt-btn--sm vt-hit-44 shrink-0"
+            data-testid="profile-name-edit"
+            aria-label="Изменить имя"
+            @click="startNameEdit"
+          >
+            <VtIcon name="edit" :size="14" aria-hidden="true" />
+          </button>
+        </section>
+
+        <section v-if="statTiles.length" aria-label="Статистика посещений">
+          <ul class="vt-card grid grid-cols-3 overflow-hidden">
+            <li
+              v-for="tile in statTiles"
+              :key="tile.label"
+              data-testid="profile-stat"
+              class="border-r border-vt-stroke px-3 py-3.5 text-center last:border-r-0"
+            >
+              <span class="vt-mono block text-xl font-bold leading-none">{{ tile.value }}</span>
+              <span class="vt-cap mt-1.5 block text-vt-mute-2">{{ tile.label }}</span>
+            </li>
+          </ul>
+          <p class="mt-1.5 px-1 text-xs text-vt-mute-2" data-testid="profile-stats-note">
+            {{ STATS_WINDOW_NOTE }}
+          </p>
         </section>
 
         <section aria-labelledby="profile-data-title">
@@ -222,7 +352,7 @@ const access = computed(() =>
         </section>
 
         <section aria-labelledby="profile-settings-title">
-          <h2 id="profile-settings-title" class="vt-cap mb-2 px-1 text-vt-mute-2">Активность</h2>
+          <h2 id="profile-settings-title" class="vt-cap mb-2 px-1 text-vt-mute-2">Настройки</h2>
           <ul class="vt-card divide-y divide-vt-stroke overflow-hidden">
             <li v-for="row in activityRows" :key="row.to">
               <NuxtLink :to="row.to" class="flex min-h-11 items-center gap-3 px-3.5 py-3">
@@ -234,7 +364,30 @@ const access = computed(() =>
                 <VtIcon name="chevron-r" :size="14" class="text-vt-mute-2" aria-hidden="true" />
               </NuxtLink>
             </li>
+            <li data-testid="profile-language" class="flex min-h-11 items-center gap-3 px-3.5 py-3">
+              <VtIcon name="globe" :size="16" class="text-vt-mute-2" aria-hidden="true" />
+              <span class="min-w-0 flex-1">
+                <span class="block text-[15px] font-medium">Язык</span>
+                <span class="mt-0.5 block text-xs text-vt-mute-2">Русский</span>
+              </span>
+            </li>
+            <li>
+              <button
+                type="button"
+                class="flex min-h-11 w-full items-center gap-3 px-3.5 py-3 text-left"
+                data-testid="profile-logout"
+                :disabled="signingOut"
+                @click="signOut"
+              >
+                <VtIcon name="logout" :size="16" class="text-vt-mute-2" aria-hidden="true" />
+                <span class="min-w-0 flex-1 text-[15px] font-medium">Выйти из аккаунта</span>
+                <VtIcon name="chevron-r" :size="14" class="text-vt-mute-2" aria-hidden="true" />
+              </button>
+            </li>
           </ul>
+          <p v-if="signOutError" class="mt-2 px-1 text-sm text-vt-rose-ink" role="alert">
+            {{ signOutError }}
+          </p>
         </section>
       </template>
     </main>

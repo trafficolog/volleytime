@@ -37,6 +37,8 @@ const PATHS: Record<string, string> = {
   'arrow-d': '<path d="M12 5v14M6 13l6 6 6-6"/>',
   'arrow-u': '<path d="M12 19V5M6 11l6-6 6 6"/>',
   menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+  globe:
+    '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
   logout: '<path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4"/><path d="M10 8l-4 4 4 4M6 12h10"/>',
   chart: '<path d="M4 19V5M4 19h16"/><path d="M8 16v-5M12 16V8M16 16v-3"/>',
   mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
