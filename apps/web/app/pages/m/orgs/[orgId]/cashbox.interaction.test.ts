@@ -226,6 +226,13 @@ describe('append-only cashbox', () => {
     const expense = wrapper.findAll('button').find((button) => button.text().includes('Расход'))
     await expense!.trigger('click')
     await flushPromises()
+    // DEF-11: «Зарплата» не предлагается в новой записи; оплата тренера идёт под «Тренер».
+    const options = wrapper
+      .find('#lg-cat')
+      .findAll('option')
+      .map((o) => o.text())
+    expect(options).toContain('Тренер')
+    expect(options).not.toContain('Зарплата')
     await wrapper.find('form').trigger('submit')
     expect(wrapper.text()).toContain('Введите сумму больше нуля')
     expect(apiFetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(0)

@@ -78,9 +78,10 @@ describe('desktop cashbox', () => {
       'balls',
       'referee',
       'coach',
-      'salary',
       'other',
     ])
+    // DEF-11: прежнее значение `salary` остаётся допустимым для истории, но не предлагается в форме.
+    expect(DESKTOP_EXPENSE_CATEGORIES).not.toContain('salary')
     expect(DESKTOP_LEDGER_METHODS).toEqual(['cash', 'transfer'])
   })
   it('blocks stale route, organization and duplicate submits', () => {

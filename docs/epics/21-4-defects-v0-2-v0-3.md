@@ -53,6 +53,7 @@ depends_on:
 | [21.4.7](../tasks/21-4-7-ownership-transfer-bot-notification.md) | Уведомление бота получателю о передаче владения группой                                | W-11     | M      | `claude-sonnet-5-5` | `claude-opus-5-5` |
 | [21.4.8](../tasks/21-4-8-player-screens-tails.md)                | Хвосты экранов игрока: статистика профиля и «Оплатить» в «Моих записях»                | M-13     | M      | `claude-sonnet-5-5` | `claude-opus-5-5` |
 | [21.4.9](../tasks/21-4-9-bot-reference-buttons.md)               | Кнопки бота: «Буду», «Пропущу», «Мой абонемент», «Кто уже играет»                      | P-16     | L      | `claude-sonnet-5-5` | `claude-opus-5-5` |
+| [21.4.13](../tasks/21-4-13-venue-hourly-price.md)                | Цена за час в залах (DEF-23, миграция)                                                 | —        | XL     | `claude-opus-5-5`   | `claude-opus-5-5` |
 
 ## Не делать
 
