@@ -228,9 +228,6 @@ importers:
       '@sentry/node':
         specifier: ^10.75.0
         version: 10.75.0(@opentelemetry/core@2.11.0(@opentelemetry/api@1.9.1))(supports-color@7.2.0)
-      '@volley-time/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       grammy:
         specifier: ^1.40.1
         version: 1.46.0(supports-color@7.2.0)
