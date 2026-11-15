@@ -42,6 +42,8 @@ describe('workflow supply-chain pinning', () => {
   it('finds every workflow', () => {
     expect(workflows.map((w) => w.name).sort()).toEqual([
       'ci.yml',
+      'codeql.yml',
+      'dependency-audit.yml',
       'deploy.yml',
       'promote.yml',
       'secret-scan.yml',
@@ -90,6 +92,7 @@ describe('workflow token permissions', () => {
       ),
     )
     expect(writes.sort()).toEqual([
+      'codeql.yml:security-events: write',
       'deploy.yml:packages: write',
       'promote.yml:actions: write',
       'promote.yml:contents: write',

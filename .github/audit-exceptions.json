@@ -1,0 +1,243 @@
+{
+  "_comment": "Known high/critical findings of the first audit on main (2026-11-15). Each entry needs ghsa, package, reason and expires (YYYY-MM-DD); scripts/audit-gate.mjs fails on missing or expired entries. Remove an entry once the dependency is fixed.",
+  "exceptions": [
+    {
+      "ghsa": "GHSA-qhr7-859c-m2p7",
+      "package": "brace-expansion",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=1.1.20. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-6j4f-fj2g-mc7p",
+      "package": "brace-expansion",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=1.1.19. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-j22f-vq7h-c4qm",
+      "package": "devalue",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=5.9.3. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-mcm9-63f2-9j32",
+      "package": "devalue",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=5.9.3. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-x5rw-q4pp-hg5g",
+      "package": "devalue",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=5.9.3. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-86w9-cpqp-85rv",
+      "package": "node-forge",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=1.4.1. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-v5rq-49vh-5v5c",
+      "package": "@simple-git/argv-parser",
+      "severity": "critical",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=2.0.1. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-x6jw-m9v5-85vh",
+      "package": "simple-git",
+      "severity": "critical",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=4.0.1. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-g4wm-2vf7-vfgr",
+      "package": "simple-git",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=4.0.0. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-68fv-2mgg-jv7q",
+      "package": "source-map-js",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=1.2.2. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-pqg4-j6r4-53mv",
+      "package": "shell-quote",
+      "severity": "critical",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=1.11.0. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-r9w8-h9r3-54w4",
+      "package": "devalue",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=5.9.3. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-587h-7wmj-h5pm",
+      "package": "vite",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=8.3.3. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-587h-7wmj-h5pm",
+      "package": "launch-editor",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=2.14.2. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-mrhx-c7xc-m3w5",
+      "package": "zod",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=4.6.6. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-834v-8h66-3h79",
+      "package": "happy-dom",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=21.0.4. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-xjj6-f33q-929c",
+      "package": "undici",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=8.12.2. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-r4xp-prcw-77qf",
+      "package": "better-auth",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=1.7.7. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-965c-763c-88jm",
+      "package": "better-auth",
+      "severity": "critical",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=1.7.7. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-4w7w-5xrc-9h26",
+      "package": "undici",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=8.12.2. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-2m5v-pch6-74hx",
+      "package": "undici",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=8.12.2. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-qrxm-fqhp-jwvm",
+      "package": "undici",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=8.12.2. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-97r2-qh9m-474h",
+      "package": "seroval",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=1.6.8. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-wp97-x4hv-qvhp",
+      "package": "seroval",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=1.6.8. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-7rv5-mrxv-xcr9",
+      "package": "seroval",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=1.6.8. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-c8p4-j97h-3vg8",
+      "package": "happy-dom",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=21.0.0. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-7wch-p9px-956x",
+      "package": "node-forge",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=1.4.1. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-jc66-7q78-782g",
+      "package": "node-forge",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=1.4.1. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-8hrf-8g6f-7xwp",
+      "package": "node-forge",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=1.4.1. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-hqq3-7jhf-c5jx",
+      "package": "node-forge",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=1.4.1. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-5x38-2vff-x55p",
+      "package": "node-forge",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=1.4.1. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-858h-whjf-mvg5",
+      "package": "simple-git",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=4.0.0. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-rhr8-3pm8-cq29",
+      "package": "node-forge",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=1.4.1. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    },
+    {
+      "ghsa": "GHSA-6qrw-m8cv-hcxf",
+      "package": "node-forge",
+      "severity": "high",
+      "reason": "Fix requires a dependency bump, out of scope for 27.2.2 (no dependency updates in this card). Patched in >=1.4.1. Handled by a Dependabot PR or a follow-up card; reachability not yet assessed.",
+      "expires": "2026-12-15"
+    }
+  ]
+}
