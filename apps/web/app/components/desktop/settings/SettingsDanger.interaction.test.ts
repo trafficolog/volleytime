@@ -108,7 +108,12 @@ describe('SettingsDanger: ownership transfer', () => {
       'POST /api/organizations/7/ownership-transfer': (body: unknown) => {
         expect(body).toEqual({ recipientMemberId: 2 })
         return {
-          transfer: { id: 5, toName: 'Анна', expiresAt: '2026-11-12T15:00:00.000Z' },
+          transfer: {
+            id: 5,
+            toName: 'Анна',
+            expiresAt: '2026-11-12T15:00:00.000Z',
+            botDelivery: { status: 'delivered' },
+          },
           links: {
             telegram: `https://t.me/bot?startapp=transfer_${TOKEN}`,
             web: `https://app.test/app/transfer#${TOKEN}`,
@@ -141,6 +146,8 @@ describe('SettingsDanger: ownership transfer', () => {
     expect(wrapper.find('[data-transfer-pending]').text()).toContain('Анна')
     const links = wrapper.find('[data-transfer-links]')
     expect(links.text()).toContain('показывается один раз')
+    expect(wrapper.find('[data-transfer-bot="delivered"]').text()).toContain('Бот отправил ссылку')
+    expect(wrapper.find('[data-transfer-bot="not-delivered"]').exists()).toBe(false)
     const values = links.findAll('input').map((i) => (i.element as HTMLInputElement).value)
     expect(values).toEqual([
       `https://t.me/bot?startapp=transfer_${TOKEN}`,
@@ -149,9 +156,66 @@ describe('SettingsDanger: ownership transfer', () => {
     // пока передача ожидает, удалить группу нельзя
     expect(wrapper.find('[data-danger="delete"]').attributes('disabled')).toBeDefined()
     expect(wrapper.emitted('toast')![0]).toEqual([
-      'Передача начата: отправьте ссылку получателю',
+      'Передача начата: бот отправил ссылку получателю',
       'ok',
     ])
+  })
+
+  it('21.4.7: bot did not deliver — transfer is created, owner sees the state and the manual links', async () => {
+    route({
+      'POST /api/organizations/7/ownership-transfer': {
+        transfer: {
+          id: 5,
+          toName: 'Анна',
+          expiresAt: '2026-11-12T15:00:00.000Z',
+          botDelivery: { status: 'not_delivered', reason: 'no_telegram' },
+        },
+        links: {
+          telegram: `https://t.me/bot?startapp=transfer_${TOKEN}`,
+          web: `https://app.test/app/transfer#${TOKEN}`,
+        },
+      },
+    })
+    const wrapper = mountDanger()
+    await flushPromises()
+    await wrapper.find('[data-danger="transfer"]').trigger('click')
+    await flushPromises()
+    ;(dialog()!.querySelector('.vt-select__button') as HTMLButtonElement).click()
+    await flushPromises()
+    ;[...dialog()!.querySelectorAll<HTMLElement>('[role="option"]')]
+      .find((o) => o.textContent?.includes('Анна'))!
+      .click()
+    await flushPromises()
+    confirmButton().click()
+    await flushPromises()
+    const state = wrapper.find('[data-transfer-bot="not-delivered"]')
+    expect(state.text()).toContain('Бот не доставил ссылку')
+    expect(state.text()).toContain('не подключил бота')
+    expect(state.text()).toContain('Отправьте ссылку ниже')
+    expect(wrapper.find('[data-transfer-links]').text()).toContain(
+      'Отправьте ссылку получателю сами',
+    )
+    expect(wrapper.emitted('toast')![0]![0]).toContain('бот не доставил')
+  })
+
+  it('21.4.7: after a reload the not-delivered state stays and says the link cannot be shown again', async () => {
+    route({
+      'GET /api/organizations/7/ownership-transfer': {
+        transfer: {
+          id: 5,
+          toName: 'Анна',
+          expiresAt: '2026-11-12T15:00:00.000Z',
+          botDelivery: { status: 'not_delivered', reason: 'blocked' },
+        },
+        restoreWindowDays: 30,
+      },
+    })
+    const wrapper = mountDanger()
+    await flushPromises()
+    const state = wrapper.find('[data-transfer-bot="not-delivered"]')
+    expect(state.text()).toContain('заблокировал бота')
+    expect(state.text()).toContain('отмените передачу и начните заново')
+    expect(wrapper.find('[data-transfer-links]').exists()).toBe(false)
   })
 
   it('shows a pending transfer without the link and cancels it after confirmation', async () => {

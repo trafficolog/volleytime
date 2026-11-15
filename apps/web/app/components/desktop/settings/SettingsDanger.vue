@@ -38,6 +38,11 @@ interface PendingTransfer {
   id: number
   toName: string | null
   expiresAt: string
+  /** Итог отправки ссылки ботом (21.4.7): `null` — попытки не было. */
+  botDelivery?: {
+    status: 'delivered' | 'not_delivered'
+    reason?: 'no_telegram' | 'blocked' | 'failed'
+  } | null
 }
 
 const uid = useId()
@@ -54,6 +59,13 @@ const candidates = ref<TransferCandidate[]>([])
 const recipient = ref('')
 const transferBusy = ref(false)
 const transferError = ref('')
+const botNotDelivered = computed(() => pending.value?.botDelivery?.status === 'not_delivered')
+const botReason = computed(() => {
+  const reason = pending.value?.botDelivery?.reason
+  if (reason === 'no_telegram') return 'Получатель не подключил бота.'
+  if (reason === 'blocked') return 'Получатель заблокировал бота.'
+  return 'Бот сейчас недоступен.'
+})
 const options = computed(() => transferOptions(candidates.value, props.ownerUserId))
 
 async function loadTransfer() {
@@ -97,7 +109,10 @@ async function startTransfer() {
     })
     pending.value = data.transfer
     links.value = data.links
-    emit('toast', 'Передача начата: отправьте ссылку получателю', 'ok')
+    if (data.transfer.botDelivery?.status === 'delivered')
+      emit('toast', 'Передача начата: бот отправил ссылку получателю', 'ok')
+    else
+      emit('toast', 'Передача начата: бот не доставил ссылку, отправьте её получателю сами', 'ok')
   } catch (cause) {
     transferError.value = dangerErrorMessage(cause, 'Не удалось начать передачу')
     await loadTransfer()
@@ -194,6 +209,26 @@ async function confirmDelete() {
           Ожидает принятия: {{ pending.toName ?? 'участник группы' }}. Ссылка действует до
           {{ formatDangerDate(pending.expiresAt, timeZone) }}. До принятия владелец — вы.
         </div>
+        <div
+          v-if="pending && pending.botDelivery?.status === 'delivered'"
+          class="vt-settings-hint"
+          data-transfer-bot="delivered"
+        >
+          Бот отправил ссылку получателю в личные сообщения.
+        </div>
+        <div
+          v-else-if="pending && botNotDelivered"
+          class="vt-settings-error"
+          role="status"
+          data-transfer-bot="not-delivered"
+        >
+          Бот не доставил ссылку. {{ botReason }}
+          {{
+            links
+              ? 'Отправьте ссылку ниже получателю сами.'
+              : 'Ссылку повторно получить нельзя: отмените передачу и начните заново.'
+          }}
+        </div>
         <div v-else class="vt-settings-hint">
           Назначить нового владельца. Он примет передачу по личной ссылке, вы станете организатором.
         </div>
@@ -221,8 +256,13 @@ async function confirmDelete() {
     </div>
     <div v-if="links && pending" class="vt-settings-transfer-links" data-transfer-links>
       <p class="vt-settings-hint">
-        Отправьте ссылку получателю сами — она показывается один раз и работает только для него.
-        Потеряли ссылку — отмените передачу и начните заново.
+        {{
+          botNotDelivered
+            ? 'Отправьте ссылку получателю сами'
+            : 'Копия ссылки на случай, если сообщение бота не дошло'
+        }}
+        — она показывается один раз и работает только для него. Потеряли ссылку — отмените передачу
+        и начните заново.
       </p>
       <div v-if="links.telegram" class="vt-settings-field">
         <label class="vt-label" :for="`${uid}-tg`">Ссылка для Telegram</label>

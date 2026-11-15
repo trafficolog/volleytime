@@ -43,6 +43,12 @@ import {
   OwnershipTransferUsedError,
   RestoreWindowClosedError,
 } from './errors'
+import {
+  notifyTransferOutcome,
+  parseBotDelivery,
+  sendTransferLink,
+  type BotDelivery,
+} from './notify'
 
 export const StartOwnershipTransferInput = z.object({
   recipientMemberId: z.number().int().positive(),
@@ -62,6 +68,8 @@ export interface PendingTransferView {
   toName: string | null
   expiresAt: Date
   createdAt: Date
+  /** Итог отправки ссылки ботом получателю (21.4.7); `null` — попытки ещё не было. */
+  botDelivery: BotDelivery | null
 }
 
 export type TransferPreviewStatus = 'pending' | 'accepted' | 'cancelled' | 'expired' | 'invalid'
@@ -86,6 +94,12 @@ const isUniqueViolation = (e: unknown, constraint: string) =>
   typeof e === 'object' &&
   (e as { code?: string }).code === '23505' &&
   JSON.stringify(e).includes(constraint)
+
+/** Ссылка несёт именно токен этой передачи (проверка по хешу): отправляется только настоящая ссылка. */
+const linkCarriesToken = (url: string, tokenHash: string): boolean => {
+  const token = url.match(/(?:transfer_|#)([A-Za-z0-9_-]{43})(?![A-Za-z0-9_-])/)?.[1]
+  return !!token && hashTransferToken(token) === tokenHash
+}
 
 const displayName = (u: { name: string | null; telegramUsername: string | null } | undefined) =>
   u?.name ?? (u?.telegramUsername ? `@${u.telegramUsername}` : null)
@@ -119,7 +133,11 @@ async function lockOwnedOrg(tx: DbOrTx, userId: number, orgId: number): Promise<
 }
 
 /** Закрыть истёкшие ожидающие передачи группы (`expired` + запись в журнал от системы). */
-async function expireDue(tx: DbOrTx, orgId: number | null, now: Date): Promise<number> {
+async function expireDue(
+  tx: DbOrTx,
+  orgId: number | null,
+  now: Date,
+): Promise<OrganizationOwnershipTransfer[]> {
   const expired = await tx
     .update(organizationOwnershipTransfers)
     .set({ status: 'expired', resolvedAt: now })
@@ -141,7 +159,12 @@ async function expireDue(tx: DbOrTx, orgId: number | null, now: Date): Promise<n
       newValue: { status: 'expired', fromUserId: t.fromUserId, toUserId: t.toUserId },
     })
   }
-  return expired.length
+  return expired
+}
+
+/** После коммита: прежнему owner — об истёкших ссылках (по одному разу на переход в `expired`). */
+async function notifyExpired(rows: OrganizationOwnershipTransfer[]): Promise<void> {
+  for (const t of rows) await notifyTransferOutcome('expired', t)
 }
 
 async function pendingOf(tx: DbOrTx, orgId: number, now: Date) {
@@ -175,6 +198,7 @@ function view(
   t: OrganizationOwnershipTransfer,
   toName: string | null,
   toMemberId: number | null,
+  botDelivery: BotDelivery | null = null,
 ): PendingTransferView {
   return {
     id: t.id,
@@ -183,6 +207,7 @@ function view(
     toName,
     expiresAt: t.expiresAt,
     createdAt: t.createdAt,
+    botDelivery,
   }
 }
 
@@ -199,11 +224,75 @@ export const ownershipTransferService = {
   async current(ctx: ServiceContext, orgId: number): Promise<PendingTransferView | null> {
     const row = await pendingOf(getDb(ctx), orgId, new Date())
     if (!row) return null
+    const delivery = await auditService.latest(
+      ctx,
+      'ownership_transfer',
+      row.transfer.id,
+      AUDIT_ACTIONS.OWNERSHIP_TRANSFER_BOT_DELIVERY,
+    )
     return view(
       row.transfer,
       displayName({ name: row.toName, telegramUsername: row.toUsername }),
       row.toMemberId,
+      parseBotDelivery(delivery?.newValue),
     )
+  },
+
+  /**
+   * Отправить личную ссылку получателю ботом (21.4.7, решение владельца 2026-11-11). Вызывается
+   * из того же запроса, что начал передачу: открытый токен есть только в памяти (`url`), в базе —
+   * хеш. Канал — прямая отправка в личный чат получателя; в ленту, очередь и журнал ссылка не
+   * попадает, в журнал пишется только итог (доставлено или нет и почему). Сбой бота передачу не
+   * ломает: владелец видит «бот не доставил» и отправляет ссылку сам. Только владелец группы,
+   * начавший эту ожидающую передачу; иначе ничего не отправляется.
+   */
+  async deliverLink(
+    ctx: ServiceContext,
+    orgId: number,
+    transferId: number,
+    url: string,
+  ): Promise<BotDelivery> {
+    const db = getDb(ctx)
+    const [row] = await db
+      .select({
+        transfer: organizationOwnershipTransfers,
+        orgName: organizations.name,
+        orgOwnerUserId: organizations.ownerUserId,
+        fromName: users.name,
+        fromUsername: users.telegramUsername,
+      })
+      .from(organizationOwnershipTransfers)
+      .innerJoin(organizations, eq(organizations.id, organizationOwnershipTransfers.organizationId))
+      .innerJoin(users, eq(users.id, organizationOwnershipTransfers.fromUserId))
+      .where(
+        and(
+          eq(organizationOwnershipTransfers.id, transferId),
+          eq(organizationOwnershipTransfers.organizationId, orgId),
+          eq(organizationOwnershipTransfers.status, 'pending'),
+          gt(organizationOwnershipTransfers.expiresAt, new Date()),
+        ),
+      )
+    if (
+      !row ||
+      row.transfer.fromUserId !== ctx.userId ||
+      row.orgOwnerUserId !== ctx.userId ||
+      !linkCarriesToken(url, row.transfer.tokenHash)
+    )
+      throw new ForbiddenError('forbidden.owner_only', 'Действие доступно только владельцу')
+    const delivery = await sendTransferLink(
+      row.transfer,
+      displayName({ name: row.fromName, telegramUsername: row.fromUsername }),
+      row.orgName,
+      url,
+    )
+    await auditService.record(ctx, {
+      organizationId: orgId,
+      action: AUDIT_ACTIONS.OWNERSHIP_TRANSFER_BOT_DELIVERY,
+      entityType: 'ownership_transfer',
+      entityId: transferId,
+      newValue: delivery,
+    })
+    return delivery
   },
 
   /** Начать передачу. Токен возвращается один раз — показать owner, чтобы он отправил ссылку. */
@@ -214,12 +303,13 @@ export const ownershipTransferService = {
   ): Promise<{ transfer: PendingTransferView; token: string }> {
     const data = StartOwnershipTransferInput.parse(input)
     const now = new Date()
+    let expiredNow: OrganizationOwnershipTransfer[] = []
     try {
-      return await getDb(ctx).transaction(async (tx) => {
+      const started = await getDb(ctx).transaction(async (tx) => {
         const org = await lockOwnedOrg(tx, ctx.userId, orgId)
         if (org.deletedAt) throw new OrgDeletedError()
         if (org.status === 'archived') throw new OrganizationArchivedError()
-        await expireDue(tx, orgId, now)
+        expiredNow = await expireDue(tx, orgId, now)
         if (await pendingOf(tx, orgId, now)) throw new OwnershipTransferPendingError()
 
         const [recipient] = await tx
@@ -271,6 +361,8 @@ export const ownershipTransferService = {
           token,
         }
       })
+      await notifyExpired(expiredNow)
+      return started
     } catch (e) {
       // параллельный старт той же группы: второй упирается в частичный уникальный индекс
       if (isUniqueViolation(e, 'org_ownership_transfers_pending_uniq'))
@@ -285,9 +377,11 @@ export const ownershipTransferService = {
    */
   async cancel(ctx: ServiceContext, orgId: number): Promise<{ cancelled: boolean }> {
     const now = new Date()
-    return getDb(ctx).transaction(async (tx) => {
+    let expiredNow: OrganizationOwnershipTransfer[] = []
+    let closed: OrganizationOwnershipTransfer | undefined
+    const result = await getDb(ctx).transaction(async (tx) => {
       await lockOwnedOrg(tx, ctx.userId, orgId)
-      await expireDue(tx, orgId, now)
+      expiredNow = await expireDue(tx, orgId, now)
       const [cancelled] = await tx
         .update(organizationOwnershipTransfers)
         .set({ status: 'cancelled', resolvedAt: now })
@@ -299,6 +393,7 @@ export const ownershipTransferService = {
         )
         .returning()
       if (!cancelled) return { cancelled: false }
+      closed = cancelled
       await auditService.record(
         { ...ctx, db: tx },
         {
@@ -312,6 +407,9 @@ export const ownershipTransferService = {
       )
       return { cancelled: true }
     })
+    await notifyExpired(expiredNow)
+    if (closed) await notifyTransferOutcome('cancelled', closed)
+    return result
   },
 
   /**
@@ -374,6 +472,8 @@ export const ownershipTransferService = {
     if (!found || found.toUserId !== ctx.userId) throw new OwnershipTransferInvalidError()
 
     const now = new Date()
+    let expiredNow: OrganizationOwnershipTransfer[] = []
+    let acceptedTransfer: OrganizationOwnershipTransfer | undefined
     const outcome = await db.transaction(async (tx) => {
       // порядок блокировок как у старта, отмены и удаления: группа, затем передача
       const [org] = await tx
@@ -391,7 +491,7 @@ export const ownershipTransferService = {
       if (t.status === 'cancelled') return new OwnershipTransferCancelledError()
       if (t.status === 'expired') return new OwnershipTransferExpiredError()
       if (t.expiresAt <= now) {
-        await expireDue(tx, org.id, now)
+        expiredNow = await expireDue(tx, org.id, now)
         return new OwnershipTransferExpiredError()
       }
       // удалённая группа не принимает передач (удаление невозможно при ожидающей передаче)
@@ -467,8 +567,11 @@ export const ownershipTransferService = {
         oldValue: { role: recipient.member.role },
         newValue: { role: 'owner' },
       })
+      acceptedTransfer = t
       return { organizationId: org.id }
     })
+    await notifyExpired(expiredNow)
+    if (acceptedTransfer) await notifyTransferOutcome('accepted', acceptedTransfer)
     if (outcome instanceof OrganizationLifecycleError) throw outcome
     return outcome
   },
@@ -491,7 +594,7 @@ export const ownershipTransferService = {
     let total = 0
     // по группе, под её блокировкой — тот же порядок «группа → передача», что у принятия и отмены
     for (const { organizationId } of due) {
-      total += await db.transaction(async (tx) => {
+      const closed = await db.transaction(async (tx) => {
         await tx
           .select({ id: organizations.id })
           .from(organizations)
@@ -499,6 +602,8 @@ export const ownershipTransferService = {
           .for('no key update')
         return expireDue(tx, organizationId, now)
       })
+      total += closed.length
+      await notifyExpired(closed)
     }
     return total
   },

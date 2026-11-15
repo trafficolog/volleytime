@@ -5,6 +5,7 @@ export {
   isTransferTokenShape,
   restoreWindowDays,
 } from './config'
+export type { BotDelivery, BotDeliveryReason } from './notify'
 export { isOrgDeletedLocked, orgNotDeletedSql } from './live'
 export {
   DeleteOrganizationInput,
