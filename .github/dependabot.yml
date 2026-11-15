@@ -1,0 +1,40 @@
+# Task 27.2.2: weekly update PRs for every ecosystem. Dependency updates arrive only
+# through these PRs; the lockfile is not touched by other tasks.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-patch:
+        update-types: [minor, patch]
+    labels: [dependencies]
+    commit-message:
+      prefix: 'chore(deps)'
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions-minor-patch:
+        update-types: [minor, patch]
+    labels: [dependencies, ci]
+    commit-message:
+      prefix: 'chore(ci)'
+
+  - package-ecosystem: docker
+    directories:
+      - /apps/web
+      - /apps/bot
+      - /docker
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies, docker]
+    commit-message:
+      prefix: 'chore(docker)'

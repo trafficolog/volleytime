@@ -111,12 +111,14 @@ gh issue create --title "[3.1.1] pnpm workspaces init" \
 
 ## 8. CI/CD и защита веток
 
-| Workflow          | Триггер                                   | Что делает                                                                                     |
-| ----------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `ci.yml`          | PR в `main`, push в `main`                | lint/format/typecheck, unit+integration на PostgreSQL, build, сборка/экспорт/импорт образов    |
-| `promote.yml`     | вручную (Actions → Promote to production) | проверяет SHA в `main` и зелёный main CI, fast-forward `prod`, запускает Deploy на `prod`      |
-| `deploy.yml`      | push в `prod`, `workflow_dispatch`        | тесты, image-bundle по SSH, backup → migrate → up → smoke → rollback; environment `production` |
-| `secret-scan.yml` | PR в `main`, push в `main`                | gitleaks по новым коммитам (27.2.3); не входит в required checks                               |
+| Workflow               | Триггер                                   | Что делает                                                                                                      |
+| ---------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `ci.yml`               | PR в `main`, push в `main`                | lint/format/typecheck, unit+integration на PostgreSQL, build, сборка/экспорт/импорт образов                     |
+| `promote.yml`          | вручную (Actions → Promote to production) | проверяет SHA в `main` и зелёный main CI, fast-forward `prod`, запускает Deploy на `prod`                       |
+| `deploy.yml`           | push в `prod`, `workflow_dispatch`        | тесты, image-bundle по SSH, backup → migrate → up → smoke → rollback; environment `production`                  |
+| `secret-scan.yml`      | PR в `main`, push в `main`                | gitleaks по новым коммитам (27.2.3); не входит в required checks                                                |
+| `codeql.yml`           | PR в `main`, push в `main`, раз в неделю  | CodeQL для JavaScript/TypeScript (27.2.2); результаты в Security → Code scanning                                |
+| `dependency-audit.yml` | PR в `main`, push в `main`, раз в неделю  | `scripts/audit-gate.mjs`: `pnpm audit --prod --audit-level=high` минус `.github/audit-exceptions.json` (27.2.2) |
 
 Защита веток (Task 9.8.17) — скрипт печатает план, `--apply` применяет:
 
@@ -130,6 +132,21 @@ bash scripts/github/apply-branch-protection.sh
 - Environment `production`: при необходимости владелец включает Required reviewers в Settings → Environments; Deploy будет ждать подтверждения.
 
 Подробности выкладки и отката — в [deploy runbook](./operations/runbooks/deploy.md).
+
+## 9. Автоматические проверки безопасности (27.2.2)
+
+Настройки репозитория включает владелец (Settings → Advanced Security / Code security):
+
+1. **Dependabot alerts** и **Dependabot security updates**: Enable.
+2. **Secret scanning** и **Push protection**: Enable (репозиторий публичный, бесплатно).
+3. **Code scanning**: workflow `codeql.yml` загружает результаты сам; в Settings ничего менять не нужно, при первом запуске проверьте вкладку Security → Code scanning.
+4. Required checks `main` (по желанию, через `scripts/github/apply-branch-protection.sh`): добавить `pnpm audit (prod, high+)` и `Analyze (javascript-typescript)` после первого зелёного прогона на `main`.
+
+Первая волна находок:
+
+- `.github/dependabot.yml` открывает PR раз в неделю по понедельникам: npm (minor/patch одной группой), github-actions, docker (`/apps/web`, `/apps/bot`, `/docker`). Мержить по обычному процессу ревью + CI.
+- Известные high/critical из первого `pnpm audit` перечислены в `.github/audit-exceptions.json` с причиной и сроком (`expires`). По истечении срока job падает: либо обновить зависимость (PR Dependabot или карточка), либо продлить срок с новой причиной. Исправленные находки из файла удалять; скрипт предупреждает о записях без находки.
+- Находки CodeQL разбирать в Security → Code scanning: ложные закрывать с причиной, реальные заводить карточкой.
 
 ## Связанные документы
 
