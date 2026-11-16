@@ -2,11 +2,11 @@
 id: '21.4.3'
 phase: '21'
 epic: '21.4'
-status: in_progress
+status: done
 release: 'v0.3.1'
 sync_state: synced
 last_reviewed: 2026-11-16
-status_note: 'Подготовка 2026-11-16: docs/operations/qa/2026-11-16-21-4-3-release-v0-3-1.md (диапазон aa8d8f9a..13c6eb12, миграций нет, ручной push из-за workflows, чеклисты до и после Promote, откат). Ждёт: ревью 27.2.1, решение по 21.4.1, подтверждение владельца, Telegram QA.'
+status_note: 'Закрыта 2026-11-16: v0.3.1 выложен на 98b60193 (ручной fast-forward prod с подтверждением владельца, Deploy 43864927844 success, smoke-passed, health release=98b60193, миграций нет), принят владельцем 2026-11-16 в чате («принимаю»), аннотированный тег v0.3.1 на 98b60193a16e26cf8d1943ecc387c1587bca2665. Проверки на устройствах (смоук-тест входа 27.2.6, Telegram QA) подтверждены приёмкой, отдельным отчётом не подтверждены. Отчёт: docs/operations/qa/2026-11-16-21-4-3-release-v0-3-1.md.'
 ref_id: ''
 complexity: L
 impl_model: claude-opus-5-5
