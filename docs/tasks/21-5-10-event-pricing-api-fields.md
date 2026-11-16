@@ -55,7 +55,7 @@ tags: [reference-v3, api, money]
 
 Новые поля добавляются рядом с `pricing` (аддитивно); `pricing` и `readEventPricing` не удаляются (это 21.5.9).
 
-1. Статус оплаты игрока, включая `cancelled` и `refunded`, в списке событий и в dashboard (`myBookings`, hero, upcoming); источник — `seatPayments`/логика 21.1.8, без нового расчёта статусов.
+1. Статус оплаты игрока в списке событий и в dashboard (`myBookings`, hero, upcoming) — замена с той же семантикой, что `pricing.myPaymentStatus`: `pending`/`succeeded`/`null`, без нового расчёта статусов (решение владельца 2026-11-16). Показ `cancelled`/`refunded` отдельными статусами — карточка [21.5.11](21-5-11-player-payment-cancelled-refunded-status.md).
 2. Выделенная доля игрока для неактивных записей (отменённая, `no_show` и т. п.) и вне котировки игрока (`priceQuote`), в тех же ответах.
 3. Для панели split организатора: `participantCount`, диапазон прогноза min/max и разница между базисом «текущий состав» и «ёмкость» (сейчас менеджеры получают `priceQuote: null`).
 4. Диапазон прогноза split для менеджеров и для событий с фиксированной ценой.
@@ -65,6 +65,7 @@ tags: [reference-v3, api, money]
 ## Критерии приёмки
 
 - ✅ Для каждой строки таблицы инвентаризации есть замена в v3 API или решение «замена не нужна» с обоснованием
+- ✅ Статус оплаты игрока в новом поле совпадает с `pricing.myPaymentStatus` (`pending`/`succeeded`/`null`), в том числе при платежах только `cancelled`/`refunded` (`null`)
 - ✅ Новые поля совпадают с `pricing` по цифрам во всех сценариях паритета; экраны не изменены
 - ✅ Решение по расхождению прогноза (п. 5) задокументировано
 - ✅ `pricing` в ответах и `readEventPricing` не тронуты (удаляет 21.5.9)
@@ -88,7 +89,7 @@ tags: [reference-v3, api, money]
 
 Временная цена (принято ревью PR #293): до 21.5.9 списки (`events`, `bookings/my`) и `dashboard` выполняют около 3 лишних запросов на событие (`readEventPriceForecast` и `readMyEventShare` рядом с `readEventPricing`). 21.5.9 удаляет `readEventPricing` и переводит потребителей на новые поля, а не оставляет третью копию расчёта.
 
-Замечание к п. 1: `pricing.myPaymentStatus` фактически принимает только `pending`, `succeeded` или `null` (тип шире); при платежах только `cancelled`/`refunded` значение `null`. `myShare.paymentStatus` повторяет это без нового расчёта статусов; «оплачено, место освобождено» уже отдаёт `seatPayments.releasedPaidSeats` (21.1.8). Новый показ `cancelled`/`refunded` изменил бы экран и вне scope.
+Статус оплаты (п. 1): `myShare.paymentStatus` повторяет `pricing.myPaymentStatus` — `pending`/`succeeded`/`null` (решение владельца 2026-11-16); показ `cancelled`/`refunded` вынесен в [21.5.11](21-5-11-player-payment-cancelled-refunded-status.md).
 
 | field               | replacement (21.5.10)                                                 |
 | ------------------- | --------------------------------------------------------------------- |

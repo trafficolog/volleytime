@@ -30,18 +30,19 @@ depends_on: ['21.3.1']
 
 ## Задачи
 
-| ID                                                           | Задача                                                                      | Референс | Сложн. | Реализация          | Ревью               |
-| ------------------------------------------------------------ | --------------------------------------------------------------------------- | -------- | ------ | ------------------- | ------------------- |
-| [21.5.1](../tasks/21-5-1-legacy-audit.md)                    | Аудит наследия до-v3 (read-only): инвентарь и план пакетов                  | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
-| [21.5.2](../tasks/21-5-2-legacy-removal-batches.md)          | Пакет 1: мёртвый код клиента и общих пакетов (LEG-01…03)                    | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
-| [21.5.3](../tasks/21-5-3-legacy-removal-styles.md)           | Пакет 2: стили без потребителей (LEG-04, 05)                                | —        | S      | `claude-haiku-5-5`  | `claude-sonnet-5-5` |
-| [21.5.4](../tasks/21-5-4-legacy-removal-dev-config-docs.md)  | Пакет 3: dev-конфигурация и устаревшие гайды (LEG-06…12)                    | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
-| [21.5.5](../tasks/21-5-5-legacy-history-condense.md)         | Пакет 4: история в status-документах (LEG-13)                               | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
-| [21.5.6](../tasks/21-5-6-legacy-python-prototype.md)         | Пакет 5: Python-прототип и документы фаз 1–2 (LEG-21)                       | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
-| [21.5.7](../tasks/21-5-7-legacy-qa-pwcode.md)                | Пакет 6: сценарии `scripts/qa/*.pwcode` (LEG-22)                            | —        | S      | `claude-haiku-5-5`  | `claude-sonnet-5-5` |
-| [21.5.8](../tasks/21-5-8-legacy-bot-shared-dependency.md)    | Пакет 7: зависимость бота `@volley-time/shared` (LEG-24)                    | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
-| [21.5.10](../tasks/21-5-10-event-pricing-api-fields.md)      | Предусловие 21.5.9 (v0.3.2): недостающие поля v3 API для удаления `pricing` | —        | L      | `claude-opus-5-5`   | `claude-opus-5-5`   |
-| [21.5.9](../tasks/21-5-9-legacy-event-pricing-projection.md) | Пакет 8 (v0.3.2): `readEventPricing` и проекция `pricing` (LEG-17)          | —        | L      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
+| ID                                                                      | Задача                                                                      | Референс | Сложн. | Реализация          | Ревью               |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------------- | -------- | ------ | ------------------- | ------------------- |
+| [21.5.1](../tasks/21-5-1-legacy-audit.md)                               | Аудит наследия до-v3 (read-only): инвентарь и план пакетов                  | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
+| [21.5.2](../tasks/21-5-2-legacy-removal-batches.md)                     | Пакет 1: мёртвый код клиента и общих пакетов (LEG-01…03)                    | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
+| [21.5.3](../tasks/21-5-3-legacy-removal-styles.md)                      | Пакет 2: стили без потребителей (LEG-04, 05)                                | —        | S      | `claude-haiku-5-5`  | `claude-sonnet-5-5` |
+| [21.5.4](../tasks/21-5-4-legacy-removal-dev-config-docs.md)             | Пакет 3: dev-конфигурация и устаревшие гайды (LEG-06…12)                    | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
+| [21.5.5](../tasks/21-5-5-legacy-history-condense.md)                    | Пакет 4: история в status-документах (LEG-13)                               | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
+| [21.5.6](../tasks/21-5-6-legacy-python-prototype.md)                    | Пакет 5: Python-прототип и документы фаз 1–2 (LEG-21)                       | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
+| [21.5.7](../tasks/21-5-7-legacy-qa-pwcode.md)                           | Пакет 6: сценарии `scripts/qa/*.pwcode` (LEG-22)                            | —        | S      | `claude-haiku-5-5`  | `claude-sonnet-5-5` |
+| [21.5.8](../tasks/21-5-8-legacy-bot-shared-dependency.md)               | Пакет 7: зависимость бота `@volley-time/shared` (LEG-24)                    | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
+| [21.5.10](../tasks/21-5-10-event-pricing-api-fields.md)                 | Предусловие 21.5.9 (v0.3.2): недостающие поля v3 API для удаления `pricing` | —        | L      | `claude-opus-5-5`   | `claude-opus-5-5`   |
+| [21.5.9](../tasks/21-5-9-legacy-event-pricing-projection.md)            | Пакет 8 (v0.3.2): `readEventPricing` и проекция `pricing` (LEG-17)          | —        | L      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
+| [21.5.11](../tasks/21-5-11-player-payment-cancelled-refunded-status.md) | Бэклог: статусы оплаты игрока «отменён»/«возвращён» на экранах              | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
 
 ## Не делать
 
