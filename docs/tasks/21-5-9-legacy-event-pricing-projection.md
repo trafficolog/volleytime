@@ -2,11 +2,11 @@
 id: '21.5.9'
 phase: '21'
 epic: '21.5'
-status: in_progress
+status: done
 release: 'v0.3.2'
 sync_state: synced
-last_reviewed: 2026-11-16
-status_note: 'В работе 2026-11-16 (PR после #293): `readEventPricing`, тип `EventPricingView` и проекция `pricing` удалены из ответов events, events/{id}, bookings/my, dashboard; потребители Mini App и кабинета читают `priceMode`/`targetAmount`/`pricingSettledAt` строки события, `priceForecast` и `myShare` (21.5.10). Бот `pricing` не использует. Ждёт ревью Opus и merge. Решение OQ-8 (2026-10-28) в силе.'
+last_reviewed: 2026-11-17
+status_note: 'Закрыта 2026-11-17: PR #294 смёржен 2026-11-16 (head 462742b9, merge e42f2c21), все проверки PR зелёные; выкладка — в составе v0.3.2 (21.4.21). `readEventPricing`, тип `EventPricingView` и проекция `pricing` удалены из ответов events, events/{id}, bookings/my, dashboard; потребители Mini App и кабинета читают `priceMode`/`targetAmount`/`pricingSettledAt` строки события, `priceForecast` и `myShare` (21.5.10). Бот `pricing` не использует. Решение OQ-8 (2026-10-28) в силе.'
 ref_id: ''
 complexity: L
 impl_model: claude-sonnet-5-5
