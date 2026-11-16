@@ -23,6 +23,12 @@ export {
   type SeatPaymentsView,
 } from './payments/seat-payments'
 export { formatMoney, toMajor, toMinor } from './money/money'
+export {
+  formatHourlyPrice,
+  parseHourlyPriceInput,
+  VENUE_HOURLY_PRICE_MAX,
+  type HourlyPriceInput,
+} from './money/hourly-price'
 export { slugify, uniqueSlug } from './slug/slug'
 export {
   buildBotDeeplink,

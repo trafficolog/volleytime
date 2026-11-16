@@ -3,11 +3,24 @@ import postgres from 'postgres'
 import { rollbackLastMigration } from './rollback'
 
 /**
+ * Откат 0040 (21.4.13) отказывает, пока у залов указана цена за час; тесты старых миграций
+ * работают на базах без цены. Помощник откатывает 0040 и возвращает тег; следующая миграция
+ * добавляет свой шаг сюда.
+ */
+export async function rollbackVenueHourlyPrice(url: string): Promise<string> {
+  const tag = await rollbackLastMigration(url)
+  if (tag !== '0040_venue_hourly_price')
+    throw new Error(`expected 0040 to roll back first, got ${tag}`)
+  return tag
+}
+
+/**
  * Откат 0039 (21.2.17) отказывает, пока есть удалённые группы или ожидающие передачи владения;
  * тесты старых миграций работают на базах без них. Помощник откатывает 0039 и возвращает тег;
  * следующая миграция добавляет свой шаг сюда.
  */
 export async function rollbackGroupOwnership(url: string): Promise<string> {
+  await rollbackVenueHourlyPrice(url) // 21.4.13: новая миграция откатывается первой
   const tag = await rollbackLastMigration(url)
   if (tag !== '0039_group_ownership_soft_delete')
     throw new Error(`expected 0039 to roll back first, got ${tag}`)

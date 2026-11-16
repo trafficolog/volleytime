@@ -281,6 +281,13 @@
       "when": 1794235813455,
       "tag": "0039_group_ownership_soft_delete",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1794833868337,
+      "tag": "0040_venue_hourly_price",
+      "breakpoints": true
     }
   ]
 }

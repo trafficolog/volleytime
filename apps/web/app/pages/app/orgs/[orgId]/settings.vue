@@ -246,6 +246,7 @@ async function archive() {
           v-else-if="section === 'venues'"
           :org-id="orgId"
           :can-manage="true"
+          :currency="data?.organization.defaultCurrency ?? 'BYN'"
           @toast="toast.show"
         />
         <SettingsPaymentMethods
