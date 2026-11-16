@@ -625,12 +625,13 @@ export const organizationDeletionService = {
   ): Promise<{ deletedAt: Date; restoreUntil: Date }> {
     const data = DeleteOrganizationInput.parse(input)
     const now = new Date()
-    return getDb(ctx).transaction(async (tx) => {
+    let expiredNow: OrganizationOwnershipTransfer[] = []
+    const deleted = await getDb(ctx).transaction(async (tx) => {
       const org = await lockOwnedOrg(tx, ctx.userId, orgId)
       if (org.deletedAt) throw new OrgDeletedError()
       if (org.status === 'archived') throw new OrganizationArchivedError()
       if (data.confirmName.trim() !== org.name.trim()) throw new DeleteConfirmationMismatchError()
-      await expireDue(tx, orgId, now)
+      expiredNow = await expireDue(tx, orgId, now)
       if (await pendingOf(tx, orgId, now)) throw new DeleteBlockedByTransferError()
       const restoreUntil = new Date(now.getTime() + restoreWindowDays() * 86_400_000)
       await tx
@@ -650,6 +651,9 @@ export const organizationDeletionService = {
       )
       return { deletedAt: now, restoreUntil }
     })
+    // истёкшие при удалении передачи закрыты этим коммитом: исход — после него (21.4.20)
+    await notifyExpired(expiredNow)
+    return deleted
   },
 
   async restore(ctx: ServiceContext, orgId: number): Promise<{ restoredAt: Date }> {

@@ -2,11 +2,11 @@
 id: '21.4.20'
 phase: '21'
 epic: '21.4'
-status: todo
+status: in_progress
 release: 'v0.3.2'
 sync_state: synced
 last_reviewed: 2026-11-16
-status_note: 'Создана 2026-11-16 по решению владельца (журнал решений, «Хвосты 21.4.7»). Входит в `v0.3.2` третьей задачей (решение владельца 2026-11-16, журнал решений). Не начинать до 21.4.3 (v0.3.1). Если запись статуса доставки потребует схемы (enum или колонка) — сначала ADR и одна миграция по правилу 3 ORCHESTRATION.'
+status_note: 'В работе 2026-11-16, ветка trafficolog/feat/21.4.20-transfer-cancel-expiry-notify: получателю — сообщения об отмене и истечении без ссылки и токена; итог каждой доставки по передаче пишется в audit_log как { status, reason } отдельным действием на адресата и исход (ownership_transfer.bot_delivery.*), адресат — fromUserId или toUserId передачи. Схема и миграции не менялись: audit_log.action — text. Ожидает ревью claude-opus-5-5.'
 ref_id: 'W-11'
 complexity: M
 impl_model: claude-opus-5-5

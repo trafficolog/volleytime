@@ -1,13 +1,17 @@
 import { db, eq, organizations, users, type OrganizationOwnershipTransfer } from '@volley-time/db'
 
+import { AUDIT_ACTIONS, type AuditAction } from '../audit/actions'
+import { auditService } from '../audit/service'
 import { DeliveryError } from '../notifier/delivery-error'
 import { notifierService } from '../notifier/service'
+import type { NotificationType, TemplateParams } from '../notifier/templates'
+import { systemContext } from '../shared/context'
 
 /**
- * Итог отправки личной ссылки передачи получателю ботом (21.4.7, решение владельца 2026-11-11).
- * `no_telegram` — у получателя нет чата с ботом; `blocked` — бот заблокирован или чат недоступен;
- * `failed` — прочий сбой (лимит, таймаут, 5xx). Владелец видит «бот не доставил» и отправляет
- * ссылку сам, как до 21.4.7.
+ * Итог отправки сообщения бота по передаче (21.4.7, 21.4.20; решение владельца 2026-11-11).
+ * `no_telegram` — у адресата нет чата с ботом; `blocked` — бот заблокирован или чат недоступен;
+ * `failed` — прочий сбой (лимит, таймаут, 5xx). Для ссылки получателю владелец видит «бот не
+ * доставил» и отправляет ссылку сам, как до 21.4.7.
  */
 export type BotDeliveryReason = 'no_telegram' | 'blocked' | 'failed'
 export type BotDelivery =
@@ -28,6 +32,32 @@ export function parseBotDelivery(value: unknown): BotDelivery | null {
   return null
 }
 
+/** Прямая отправка в личный чат с разбором исхода; ошибка доставки не пробрасывается. */
+async function deliverDirect(
+  userId: number,
+  type: NotificationType,
+  params: TemplateParams,
+): Promise<BotDelivery> {
+  try {
+    const ok = await notifierService.deliver(userId, type, params)
+    return ok ? { status: 'delivered' } : { status: 'not_delivered', reason: 'no_telegram' }
+  } catch (e) {
+    return {
+      status: 'not_delivered',
+      reason: e instanceof DeliveryError && e.kind === 'blocked' ? 'blocked' : 'failed',
+    }
+  }
+}
+
+/** Только факт и статус доставки: без ссылки, токена и текста сообщения. */
+function logDelivery(fields: Record<string, unknown>, result: BotDelivery): void {
+  console.info('[ownership-transfer] bot delivery', {
+    ...fields,
+    status: result.status,
+    reason: result.status === 'not_delivered' ? result.reason : undefined,
+  })
+}
+
 /**
  * Прямая отправка ссылки в личный чат получателя. Токен живёт только в памяти этого запроса и в
  * самом сообщении: ни ленты уведомлений, ни очереди, ни журнала, ни логов. Лог — только факт и
@@ -39,43 +69,76 @@ export async function sendTransferLink(
   organizationName: string,
   url: string,
 ): Promise<BotDelivery> {
-  let result: BotDelivery
-  try {
-    const ok = await notifierService.deliver(transfer.toUserId, 'ownership_transfer_link', {
-      organizationId: transfer.organizationId,
-      organizationName,
-      fromName: fromName ?? undefined,
-      // срок ссылки форматируется в часовом поясе группы (enrichParams)
-      eventDate: transfer.expiresAt.toISOString(),
-      transferUrl: url,
-    })
-    result = ok ? { status: 'delivered' } : { status: 'not_delivered', reason: 'no_telegram' }
-  } catch (e) {
-    result = {
-      status: 'not_delivered',
-      reason: e instanceof DeliveryError && e.kind === 'blocked' ? 'blocked' : 'failed',
-    }
-  }
-  // без ссылки, токена и текста сообщения
-  console.info('[ownership-transfer] bot delivery', {
-    transferId: transfer.id,
-    status: result.status,
-    reason: result.status === 'not_delivered' ? result.reason : undefined,
+  const result = await deliverDirect(transfer.toUserId, 'ownership_transfer_link', {
+    organizationId: transfer.organizationId,
+    organizationName,
+    fromName: fromName ?? undefined,
+    // срок ссылки форматируется в часовом поясе группы (enrichParams)
+    eventDate: transfer.expiresAt.toISOString(),
+    transferUrl: url,
   })
+  logDelivery({ transferId: transfer.id }, result)
   return result
 }
 
 export type TransferOutcome = 'accepted' | 'cancelled' | 'expired'
-
-const OUTCOME_TYPE = {
-  accepted: 'ownership_transfer_accepted',
-  cancelled: 'ownership_transfer_cancelled',
-  expired: 'ownership_transfer_expired',
-} as const
+type Addressee = 'owner' | 'recipient'
 
 /**
- * Уведомить прежнего owner об исходе передачи. Вызывать только после коммита; получатель — только
- * `fromUserId` самой передачи. Токена здесь нет и быть не может. Сбой бота не пробрасывается.
+ * Кому и что уходит при исходе (21.4.7, 21.4.20): прежнему owner — всегда; получателю — при отмене
+ * и истечении (о принятии он знает сам). Действие журнала однозначно задаёт адресата.
+ */
+const OUTCOME_MESSAGES: Record<
+  TransferOutcome,
+  { to: Addressee; type: NotificationType; action: AuditAction }[]
+> = {
+  accepted: [
+    {
+      to: 'owner',
+      type: 'ownership_transfer_accepted',
+      action: AUDIT_ACTIONS.OWNERSHIP_TRANSFER_BOT_DELIVERY_ACCEPTED_OWNER,
+    },
+  ],
+  cancelled: [
+    {
+      to: 'owner',
+      type: 'ownership_transfer_cancelled',
+      action: AUDIT_ACTIONS.OWNERSHIP_TRANSFER_BOT_DELIVERY_CANCELLED_OWNER,
+    },
+    {
+      to: 'recipient',
+      type: 'ownership_transfer_cancelled_recipient',
+      action: AUDIT_ACTIONS.OWNERSHIP_TRANSFER_BOT_DELIVERY_CANCELLED_RECIPIENT,
+    },
+  ],
+  expired: [
+    {
+      to: 'owner',
+      type: 'ownership_transfer_expired',
+      action: AUDIT_ACTIONS.OWNERSHIP_TRANSFER_BOT_DELIVERY_EXPIRED_OWNER,
+    },
+    {
+      to: 'recipient',
+      type: 'ownership_transfer_expired_recipient',
+      action: AUDIT_ACTIONS.OWNERSHIP_TRANSFER_BOT_DELIVERY_EXPIRED_RECIPIENT,
+    },
+  ],
+}
+
+async function nameOf(userId: number): Promise<string | undefined> {
+  const [u] = await db
+    .select({ name: users.name, username: users.telegramUsername })
+    .from(users)
+    .where(eq(users.id, userId))
+  return u?.name ?? (u?.username ? `@${u.username}` : undefined)
+}
+
+/**
+ * Уведомить участников передачи об исходе. Вызывать только после коммита перехода (переход из
+ * `pending` случается один раз, поэтому и сообщение одно). Адресаты — только `fromUserId` и
+ * `toUserId` самой передачи. Токена здесь нет и быть не может. Итог доставки каждого сообщения
+ * пишется в `audit_log` как `{ status, reason }`; уже записанный итог не отправляется повторно.
+ * Сбой бота и журнала не пробрасывается.
  */
 export async function notifyTransferOutcome(
   outcome: TransferOutcome,
@@ -86,15 +149,26 @@ export async function notifyTransferOutcome(
       .select({ orgName: organizations.name })
       .from(organizations)
       .where(eq(organizations.id, t.organizationId))
-    const [to] = await db
-      .select({ name: users.name, username: users.telegramUsername })
-      .from(users)
-      .where(eq(users.id, t.toUserId))
-    await notifierService.send(t.fromUserId, OUTCOME_TYPE[outcome], {
+    const params: TemplateParams = {
       organizationId: t.organizationId,
       organizationName: row?.orgName,
-      toName: to?.name ?? (to?.username ? `@${to.username}` : undefined),
-    })
+      toName: await nameOf(t.toUserId),
+      fromName: await nameOf(t.fromUserId),
+    }
+    const ctx = systemContext()
+    for (const m of OUTCOME_MESSAGES[outcome]) {
+      if (await auditService.latest(ctx, 'ownership_transfer', t.id, m.action)) continue
+      const userId = m.to === 'owner' ? t.fromUserId : t.toUserId
+      const result = await deliverDirect(userId, m.type, params)
+      logDelivery({ transferId: t.id, outcome, to: m.to }, result)
+      await auditService.log(ctx, {
+        organizationId: t.organizationId,
+        action: m.action,
+        entityType: 'ownership_transfer',
+        entityId: t.id,
+        newValue: result,
+      })
+    }
   } catch (e) {
     console.error('[ownership-transfer] outcome notification failed', {
       outcome,
