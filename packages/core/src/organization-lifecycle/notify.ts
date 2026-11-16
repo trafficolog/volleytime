@@ -157,6 +157,8 @@ export async function notifyTransferOutcome(
     }
     const ctx = systemContext()
     for (const m of OUTCOME_MESSAGES[outcome]) {
+      // Однократность гарантирует переход pending → итог под блокировкой строки (UPDATE … WHERE
+      // status = 'pending' в транзакции вызывающего); проверка журнала — вторичная защита от повтора.
       if (await auditService.latest(ctx, 'ownership_transfer', t.id, m.action)) continue
       const userId = m.to === 'owner' ? t.fromUserId : t.toUserId
       const result = await deliverDirect(userId, m.type, params)

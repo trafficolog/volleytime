@@ -19,7 +19,7 @@ import { setNotifierTransport } from '../notifier/service'
 import type { NotifyPayload } from '../notifier/types'
 import { organizationService } from '../organizations/service'
 
-import { ownershipTransferService } from './service'
+import { organizationDeletionService, ownershipTransferService } from './service'
 
 /**
  * Task 21.4.7 (решение владельца 2026-11-11): бот присылает получателю личную ссылку передачи
@@ -511,6 +511,29 @@ describe('ownership transfer bot notifications (PostgreSQL)', { timeout: 30_000 
       expect(await deliveries(transfer.id)).toHaveLength(2)
     })
 
+    it('expiry found on group deletion: owner and recipient told once, {status} only, no token', async () => {
+      const a = await start()
+      await ownershipTransferService.deliverLink({ userId: owner }, orgId, a.transfer.id, a.url)
+      await expire(a.transfer.id)
+      sent.length = 0
+      await organizationDeletionService.delete({ userId: owner }, orgId, {
+        confirmName: 'Волейбол Минск',
+      })
+      expect(to(TG.owner)).toHaveLength(1)
+      expect(to(TG.recipient)).toHaveLength(1)
+      expect(to(TG.other)).toHaveLength(0)
+      expect(JSON.stringify(sent)).not.toContain(a.token)
+      const rows = await deliveries(a.transfer.id)
+      expect(rows).toHaveLength(2)
+      expect(rows.map((r) => r.action).sort()).toEqual([
+        'ownership_transfer.bot_delivery.expired_owner',
+        'ownership_transfer.bot_delivery.expired_recipient',
+      ])
+      for (const r of rows) expect(r.newValue).toEqual({ status: 'delivered' })
+      const text = await persistedText()
+      expect(text).not.toContain(a.token)
+      expect(text).not.toContain('startapp')
+    })
     it('IDOR: another group, its owner and an outsider get no message and no record', async () => {
       const foreignOwner = await newUser('foreign3', 7097n)
       const outsider = await newUser('outsider', 7096n)
