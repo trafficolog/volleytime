@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { DB } from './client'
 import { runMigrations } from './migrate'
+import { rollbackVenueHourlyPrice } from './migration-test-helpers'
 import { rollbackLastMigration } from './rollback'
 import * as schema from './schema'
 import { seedDemo } from './seed-demo'
@@ -84,6 +85,7 @@ describe(
       try {
         await runMigrations(url)
         expect(await objects(sql)).toBe(4)
+        await rollbackVenueHourlyPrice(url) // 21.4.13: новая миграция откатывается первой
         expect(await rollbackLastMigration(url)).toBe(TAG)
         expect(await objects(sql)).toBe(0)
         await runMigrations(url)
@@ -213,6 +215,7 @@ describe(
         const o = await org(sql, 'own-guard')
         await sql`UPDATE organizations SET deleted_at = now(), restore_until = now() + interval '30 days'
         WHERE id = ${o.id}`
+        await rollbackVenueHourlyPrice(url) // 21.4.13: новая миграция откатывается первой
         await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0039 refused/)
         expect(await objects(sql)).toBe(4)
         await sql`UPDATE organizations SET deleted_at = NULL, restore_until = NULL`
@@ -246,6 +249,7 @@ describe(
         const multi = await sql`SELECT organization_id FROM organization_members
         WHERE role = 'owner' GROUP BY organization_id HAVING count(*) > 1`
         expect(multi).toHaveLength(0)
+        await rollbackVenueHourlyPrice(url) // 21.4.13: новая миграция откатывается первой
         expect(await rollbackLastMigration(url)).toBe(TAG)
         expect(await sql`SELECT 1 FROM organizations`).toHaveLength(orgs!.n)
         await runMigrations(url)
