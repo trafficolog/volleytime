@@ -15,9 +15,9 @@
     "grammy": "^1.40.1"
   },
   "devDependencies": {
-    "@types/node": "^26.5.1",
+    "@types/node": "^26.6.6",
     "tsup": "^8.5.1",
-    "tsx": "^4.20.6",
+    "tsx": "^4.23.15",
     "vitest": "^4.0.0"
   }
 }
