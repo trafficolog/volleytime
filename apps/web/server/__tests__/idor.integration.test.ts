@@ -301,7 +301,11 @@ const ROUTES: OrgRouteTable = {
     access: 'manager',
     body: () => ({}),
   },
-  'POST /api/organizations/:orgId/venues': { access: 'manager', body: () => ({ name: 'Зал 2' }) },
+  // 21.4.13: тело с ценой за час — отказ по роли и чужой группе не меняет цену (снимок venues)
+  'POST /api/organizations/:orgId/venues': {
+    access: 'manager',
+    body: () => ({ name: 'Зал 2', hourlyPrice: 1550 }),
+  },
   // 21.2.11: способы оплаты — читают участники (игрок видит только включённые), правит manager
   'GET /api/organizations/:orgId/payment-methods': { access: 'member' },
   'PATCH /api/organizations/:orgId/payment-methods/:method': {
@@ -324,7 +328,7 @@ const ROUTES: OrgRouteTable = {
   // 21.2.13: правка и удаление/архив зала — manager, зал чужой группы недоступен
   'PATCH /api/organizations/:orgId/venues/:venueId': {
     access: 'manager',
-    body: () => ({ name: 'Зал переименован' }),
+    body: () => ({ name: 'Зал переименован', hourlyPrice: 2000 }),
   },
   'DELETE /api/organizations/:orgId/venues/:venueId': { access: 'manager' },
   // 21.2.12: слоты расписания — только manager, слот чужой группы недоступен
@@ -813,6 +817,47 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
       expect(await snapshot(B.ids.orgId)).toBe(beforeB)
     },
   )
+
+  // 21.4.13: цена за час — чужой зал через свою группу не меняется, игрок не правит, неверная
+  // цена — 422 без записи; владелец своей группы сохраняет и сбрасывает цену
+  it('venue hourly price: foreign venue, player and invalid values change nothing', async () => {
+    const foreignPath = `/api/organizations/${A.ids.orgId}/venues/${B.ids.venueId}`
+    const ownPath = `/api/organizations/${A.ids.orgId}/venues/${A.ids.venueId}`
+    const priceOf = async (id: number) =>
+      (await db.select().from(venues).where(eq(venues.id, id)))[0]!.hourlyPrice
+    const beforeB = await priceOf(B.ids.venueId)
+
+    const foreign = await request('PATCH', foreignPath, {
+      user: A.owner,
+      body: { hourlyPrice: 1 },
+    })
+    expect(foreign.status).toBe(404)
+    expect(await priceOf(B.ids.venueId)).toBe(beforeB)
+
+    const asPlayer = await request('PATCH', ownPath, { user: A.player, body: { hourlyPrice: 1 } })
+    expect(asPlayer.status).toBe(403)
+    expect(await priceOf(A.ids.venueId)).toBeNull()
+
+    for (const hourlyPrice of [-1, 15.5, 10_000_001, '1500']) {
+      const bad = await request('PATCH', ownPath, { user: A.owner, body: { hourlyPrice } })
+      expect(bad.status, String(hourlyPrice)).toBe(422)
+    }
+    expect(await priceOf(A.ids.venueId)).toBeNull()
+
+    const ok = await request('PATCH', ownPath, { user: A.owner, body: { hourlyPrice: 1550 } })
+    expect(ok.status).toBe(200)
+    expect((ok.body as { venue: { hourlyPrice: number } }).venue.hourlyPrice).toBe(1550)
+    const list = await request('GET', `/api/organizations/${A.ids.orgId}/venues`, {
+      user: A.player,
+    })
+    expect(
+      (list.body as { venues: { id: number; hourlyPrice: number | null }[] }).venues.find(
+        (v) => v.id === A.ids.venueId,
+      )?.hourlyPrice,
+    ).toBe(1550)
+    const cleared = await request('PATCH', ownPath, { user: A.owner, body: { hourlyPrice: null } })
+    expect((cleared.body as { venue: { hourlyPrice: null } }).venue.hourlyPrice).toBeNull()
+  })
 
   // Положительный контроль: минимальная роль из матрицы с тем же телом проходит проверку
   // доступа. Иначе отказы выше могли бы быть ложными (сломанный путь или тело тоже дают 403/404).

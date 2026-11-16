@@ -27,6 +27,9 @@ export type NotificationType =
   | 'ownership_transfer_accepted'
   | 'ownership_transfer_cancelled'
   | 'ownership_transfer_expired'
+  // получателю — что ожидающая передача отменена или истекла (21.4.20); без ссылки и токена
+  | 'ownership_transfer_cancelled_recipient'
+  | 'ownership_transfer_expired_recipient'
 
 export interface KeyboardButton {
   text: string
@@ -335,6 +338,20 @@ export function renderMessage(type: NotificationType, p: TemplateParams): Render
           `⌛ Срок ссылки передачи группы <b>${p.organizationName ? esc(p.organizationName) : 'группа'}</b> ` +
           `истёк, передача не состоялась. Владелец — вы; чтобы передать группу, начните заново.`,
         keyboard: openBtn(),
+      }
+    case 'ownership_transfer_cancelled_recipient':
+      return {
+        text:
+          `${esc(p.fromName ?? 'Владелец')} отменил передачу вам группы ` +
+          `<b>${p.organizationName ? esc(p.organizationName) : 'группа'}</b>. ` +
+          `Ссылка из прежнего сообщения больше не работает.`,
+      }
+    case 'ownership_transfer_expired_recipient':
+      return {
+        text:
+          `⌛ Срок ссылки на передачу вам группы ` +
+          `<b>${p.organizationName ? esc(p.organizationName) : 'группа'}</b> истёк, ` +
+          `передача не состоялась. Ссылка из прежнего сообщения больше не работает.`,
       }
     case 'waitlist_offer_expired':
       return {

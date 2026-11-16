@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatHourlyPrice, parseHourlyPriceInput, toMajor } from '@volley-time/shared'
 import { computed, onMounted, ref } from 'vue'
 
 import SettingsField from './SettingsField.vue'
@@ -11,16 +12,21 @@ import { apiErrorMessage } from '~/utils/api-error'
 /**
  * Залы группы (W-11, 21.2.13): список, добавление, правка, «На карте», удаление. Зал с событиями
  * при «Удалить» уходит в архив (прошлые события сохраняют зал), без событий удаляется.
- * Доступно владельцу и организатору.
+ * Доступно владельцу и организатору. Цена за час (21.4.13, DEF-23) — в минимальных единицах валюты
+ * группы, справочная: в цену события не входит; пустое поле — цена не указана.
  */
 interface VenueRow {
   id: number
   name: string
   address: string | null
+  hourlyPrice?: number | null
   status?: 'active' | 'archived'
 }
 
-const props = defineProps<{ orgId: number; canManage: boolean }>()
+const props = withDefaults(
+  defineProps<{ orgId: number; canManage: boolean; currency?: string }>(),
+  { currency: 'BYN' },
+)
 const emit = defineEmits<{ toast: [message: string, tone: 'ok' | 'danger'] }>()
 
 const venues = ref<VenueRow[]>([])
@@ -30,7 +36,9 @@ const loadError = ref('')
 const formFor = ref<'new' | number | null>(null)
 const name = ref('')
 const address = ref('')
+const price = ref('')
 const nameError = ref('')
+const priceError = ref('')
 const formError = ref('')
 const saving = ref(false)
 const menuOpenId = ref<number | null>(null)
@@ -59,7 +67,9 @@ function closeForm() {
   formFor.value = null
   name.value = ''
   address.value = ''
+  price.value = ''
   nameError.value = ''
+  priceError.value = ''
   formError.value = ''
 }
 
@@ -68,26 +78,40 @@ function startEdit(venue: VenueRow) {
   formFor.value = venue.id
   name.value = venue.name
   address.value = venue.address ?? ''
+  price.value =
+    venue.hourlyPrice === null || venue.hourlyPrice === undefined
+      ? ''
+      : String(toMajor(venue.hourlyPrice)).replace('.', ',')
+}
+
+function priceLabel(venue: VenueRow): string | null {
+  return formatHourlyPrice(venue.hourlyPrice, props.currency)
 }
 
 async function submit() {
   if (saving.value || formFor.value === null) return
   nameError.value = name.value.trim() ? '' : 'Укажите название зала'
+  const parsedPrice = parseHourlyPriceInput(price.value)
+  priceError.value = parsedPrice.ok ? '' : 'Цена — число до 100 000 с точностью до копеек'
   formError.value = ''
-  if (nameError.value) return
+  if (nameError.value || !parsedPrice.ok) return
+  const hourlyPrice = parsedPrice.value
   saving.value = true
   const editingId = formFor.value === 'new' ? null : formFor.value
   try {
     if (editingId === null) {
-      const body: { name: string; address?: string } = { name: name.value.trim() }
+      const body: { name: string; address?: string; hourlyPrice?: number } = {
+        name: name.value.trim(),
+      }
       if (address.value.trim()) body.address = address.value.trim()
+      if (hourlyPrice !== null) body.hourlyPrice = hourlyPrice
       const data = await $fetch<{ venue: VenueRow }>(base.value, { method: 'POST', body })
       venues.value = [...venues.value, data.venue]
       emit('toast', 'Зал добавлен', 'ok')
     } else {
       const data = await $fetch<{ venue: VenueRow }>(`${base.value}/${editingId}`, {
         method: 'PATCH',
-        body: { name: name.value.trim(), address: address.value.trim() || null },
+        body: { name: name.value.trim(), address: address.value.trim() || null, hourlyPrice },
       })
       venues.value = venues.value.map((v) => (v.id === editingId ? data.venue : v))
       emit('toast', 'Зал сохранён', 'ok')
@@ -213,6 +237,24 @@ async function confirmDelete() {
           :disabled="saving"
         />
       </SettingsField>
+      <SettingsField
+        v-slot="{ id, describedby, invalid }"
+        :label="`Цена за час, ${currency}`"
+        hint="Необязательно. Справочно для организатора, на цену события не влияет."
+        :error="priceError"
+      >
+        <input
+          :id="id"
+          v-model="price"
+          class="vt-field"
+          inputmode="decimal"
+          maxlength="12"
+          placeholder="15"
+          :aria-describedby="describedby"
+          :aria-invalid="invalid"
+          :disabled="saving"
+        />
+      </SettingsField>
       <p v-if="formError" class="vt-settings-error vt-settings-error--form" role="alert">
         {{ formError }}
       </p>
@@ -258,6 +300,7 @@ async function confirmDelete() {
             <span v-if="venue.status === 'archived'" class="vt-chip vt-chip--amber">В архиве</span>
           </span>
           <span v-if="venue.address" class="vt-settings-hint">{{ venue.address }}</span>
+          <span v-if="priceLabel(venue)" class="vt-settings-hint">{{ priceLabel(venue) }}</span>
         </span>
         <VtPopover
           v-if="canManage"

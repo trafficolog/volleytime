@@ -22,6 +22,16 @@ export const AUDIT_ACTIONS = {
   OWNERSHIP_TRANSFER_EXPIRED: 'ownership_transfer.expired',
   // итог отправки ссылки получателю ботом (21.4.7): только статус и причина, ссылки и токена нет
   OWNERSHIP_TRANSFER_BOT_DELIVERY: 'ownership_transfer.bot_delivery',
+  // итог доставки ботом сообщений об исходе (21.4.20): адресат задан действием (owner — `fromUserId`,
+  // получатель — `toUserId` передачи), в записи только `{ status, reason }`
+  OWNERSHIP_TRANSFER_BOT_DELIVERY_ACCEPTED_OWNER: 'ownership_transfer.bot_delivery.accepted_owner',
+  OWNERSHIP_TRANSFER_BOT_DELIVERY_CANCELLED_OWNER:
+    'ownership_transfer.bot_delivery.cancelled_owner',
+  OWNERSHIP_TRANSFER_BOT_DELIVERY_CANCELLED_RECIPIENT:
+    'ownership_transfer.bot_delivery.cancelled_recipient',
+  OWNERSHIP_TRANSFER_BOT_DELIVERY_EXPIRED_OWNER: 'ownership_transfer.bot_delivery.expired_owner',
+  OWNERSHIP_TRANSFER_BOT_DELIVERY_EXPIRED_RECIPIENT:
+    'ownership_transfer.bot_delivery.expired_recipient',
   MEMBER_ADDED: 'member.added',
   MEMBER_ROLE_CHANGED: 'member.role_changed',
   MEMBER_BLOCKED: 'member.blocked',

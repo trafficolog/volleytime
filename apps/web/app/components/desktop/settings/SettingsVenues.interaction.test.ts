@@ -148,13 +148,113 @@ describe('SettingsVenues', () => {
     await flushPromises()
     expect(fetchMock).toHaveBeenLastCalledWith('/api/organizations/7/venues/1', {
       method: 'PATCH',
-      body: { name: 'Школа 24', address: null },
+      body: { name: 'Школа 24', address: null, hourlyPrice: null },
     })
     expect(wrapper.find('form').exists()).toBe(false)
     expect(wrapper.findAll('li.vt-settings-venue')).toHaveLength(3)
     expect(wrapper.text()).toContain('Школа 24')
     expect(wrapper.text()).not.toContain('ул. Мира 1')
     expect(wrapper.emitted('toast')?.[0]).toEqual(['Зал сохранён', 'ok'])
+  })
+
+  // 21.4.13 (DEF-23): цена за час
+  it('shows the hourly price in the group currency, nothing when it is not set', async () => {
+    fetchMock.mockResolvedValueOnce({
+      venues: [
+        { id: 1, name: 'Школа', address: null, hourlyPrice: 1500 },
+        { id: 2, name: 'Свой зал', address: null, hourlyPrice: 0 },
+        { id: 3, name: 'Арена', address: null, hourlyPrice: 1550 },
+        { id: 4, name: 'Без цены', address: null, hourlyPrice: null },
+      ],
+    })
+    const wrapper = mount(SettingsVenues, {
+      props: { orgId: 7, canManage: true, currency: 'USD' },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    const rows = wrapper.findAll('li.vt-settings-venue')
+    expect(rows[0]!.text()).toContain('15 USD/ч')
+    expect(rows[1]!.text()).toContain('0 USD/ч')
+    expect(rows[2]!.text()).toContain('15,50 USD/ч')
+    expect(rows[3]!.text()).not.toContain('/ч')
+  })
+
+  it('adds a venue with a fractional price in kopecks and omits an empty price', async () => {
+    fetchMock
+      .mockResolvedValueOnce({ venues: [] })
+      .mockResolvedValueOnce({ venue: { id: 9, name: 'Зал', address: null, hourlyPrice: 1550 } })
+      .mockResolvedValueOnce({ venue: { id: 10, name: 'Зал 2', address: null, hourlyPrice: null } })
+    const wrapper = await mountVenues()
+    await wrapper.find('.vt-settings-card__head button').trigger('click')
+    let inputs = wrapper.findAll('form input')
+    await inputs[0]!.setValue('Зал')
+    await inputs[2]!.setValue('15,5')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/organizations/7/venues', {
+      method: 'POST',
+      body: { name: 'Зал', hourlyPrice: 1550 },
+    })
+    expect(wrapper.text()).toContain('15,50 BYN/ч')
+
+    await wrapper.find('.vt-settings-card__head button').trigger('click')
+    inputs = wrapper.findAll('form input')
+    await inputs[0]!.setValue('Зал 2')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/organizations/7/venues', {
+      method: 'POST',
+      body: { name: 'Зал 2' },
+    })
+  })
+
+  it('rejects an invalid price without calling the server', async () => {
+    fetchMock.mockResolvedValueOnce({ venues: [] })
+    const wrapper = await mountVenues()
+    await wrapper.find('.vt-settings-card__head button').trigger('click')
+    const inputs = wrapper.findAll('form input')
+    await inputs[0]!.setValue('Зал')
+    for (const bad of ['1.005', '-1', '100000.01', 'abc']) {
+      await inputs[2]!.setValue(bad)
+      await wrapper.find('form').trigger('submit')
+      expect(wrapper.text(), bad).toContain('Цена — число до 100 000 с точностью до копеек')
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('prefills the price on edit, patches a new one and clears it with an empty field', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        venues: [{ id: 1, name: 'Школа', address: null, hourlyPrice: 1550 }],
+      })
+      .mockResolvedValueOnce({ venue: { id: 1, name: 'Школа', address: null, hourlyPrice: 0 } })
+      .mockResolvedValueOnce({ venue: { id: 1, name: 'Школа', address: null, hourlyPrice: null } })
+    const wrapper = await mountVenues()
+    await openMenu(wrapper, 0)
+    await menuItem(wrapper, 'Редактировать')!.trigger('click')
+    let inputs = wrapper.findAll('form input')
+    expect((inputs[2]!.element as HTMLInputElement).value).toBe('15,5')
+    await inputs[2]!.setValue('0')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/organizations/7/venues/1', {
+      method: 'PATCH',
+      body: { name: 'Школа', address: null, hourlyPrice: 0 },
+    })
+    expect(wrapper.text()).toContain('0 BYN/ч')
+
+    await openMenu(wrapper, 0)
+    await menuItem(wrapper, 'Редактировать')!.trigger('click')
+    inputs = wrapper.findAll('form input')
+    expect((inputs[2]!.element as HTMLInputElement).value).toBe('0')
+    await inputs[2]!.setValue('')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/organizations/7/venues/1', {
+      method: 'PATCH',
+      body: { name: 'Школа', address: null, hourlyPrice: null },
+    })
+    expect(wrapper.text()).not.toContain('/ч')
   })
 
   it('keeps the edit form and shows the error when the save fails', async () => {

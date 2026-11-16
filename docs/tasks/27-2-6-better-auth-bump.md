@@ -6,7 +6,7 @@ status: done
 release: 'v0.3.1'
 sync_state: synced
 last_reviewed: 2026-11-16
-status_note: 'Закрыта 2026-11-16 решением владельца: better-auth 1.7.4 → 1.7.25 смёржено, PR #280 (merge 67858f9f): lockfile только семейство better-auth, better-call, @better-fetch/fetch; исключения аудита better-auth удалены; `allowedAttempts: 3` задан явно с тестами. Смоук-тест входа в Mini App и в кабинете отслеживается только в 21.4.3 (release QA). Релиз v0.3.1.'
+status_note: 'Закрыта 2026-11-16 решением владельца: better-auth 1.7.4 → 1.7.25 смёржено, PR #280 (merge 67858f9f): lockfile только семейство better-auth, better-call, @better-fetch/fetch; исключения аудита better-auth удалены; `allowedAttempts: 3` задан явно с тестами. Смоук-тест входа в Mini App и в кабинете покрыт приёмкой владельца v0.3.1 2026-11-16 (21.4.3, тег v0.3.1 на 98b60193; отдельным отчётом не подтверждён). Релиз v0.3.1.'
 ref_id: ''
 review_ref: 'CI-02'
 priority: P1
@@ -49,7 +49,7 @@ tags: [audit-2026-11, security, dependencies, auth]
 - ✅ Вход через Telegram и email-OTP работает (интеграционные тесты зелёные)
 - ✅ Пять gates CODING_STANDARDS на tested revision; ревью `claude-opus-5-5` без Critical/Important
 - ✅ emailOTP `allowedAttempts: 3` задан явно; тест: после трёх неверных кодов (в том числе конкурентных) верный код отклоняется
-- ⚠️ Set-cookie сессии в 1.7.4 и 1.7.25 для нашей конфигурации одинаков (`HttpOnly; SameSite=Lax; Path=/`, на https `__Secure-` и `Secure`). Release QA в [21.4.3](./21-4-3-defects-recheck-release.md) всё равно должна включать smoke-тест входа в Mini App и в кабинете.
+- ✅ Set-cookie сессии в 1.7.4 и 1.7.25 для нашей конфигурации одинаков (`HttpOnly; SameSite=Lax; Path=/`, на https `__Secure-` и `Secure`). Smoke-тест входа в Mini App и в кабинете из release QA [21.4.3](./21-4-3-defects-recheck-release.md) покрыт приёмкой владельца 2026-11-16 (отдельным отчётом не подтверждён).
 
 ## Не делать
 
