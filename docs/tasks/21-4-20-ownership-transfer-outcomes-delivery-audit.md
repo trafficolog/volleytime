@@ -2,11 +2,11 @@
 id: '21.4.20'
 phase: '21'
 epic: '21.4'
-status: in_progress
+status: done
 release: 'v0.3.2'
 sync_state: synced
 last_reviewed: 2026-11-16
-status_note: 'В работе 2026-11-16, ветка trafficolog/feat/21.4.20-transfer-cancel-expiry-notify: получателю — сообщения об отмене и истечении без ссылки и токена; итог каждой доставки по передаче пишется в audit_log как { status, reason } отдельным действием на адресата и исход (ownership_transfer.bot_delivery.*), адресат — fromUserId или toUserId передачи. Схема и миграции не менялись: audit_log.action — text. Ожидает ревью claude-opus-5-5.'
+status_note: 'Закрыта 2026-11-16: PR #291 смёржен (merge fc14ee84). Получателю — сообщения об отмене и истечении без ссылки и токена; итог каждой доставки пишется в audit_log. Решение владельца 2026-11-16 (чат): адресат кодируется ролью в имени действия (`ownership_transfer.bot_delivery.{cancelled,expired}_{owner,recipient}`), id пользователя выводится из неизменяемых fromUserId/toUserId передачи через entity_id; newValue остаётся только `{status, reason}`. Это удовлетворяет требованию карточки об адресате (п. 2). Схема и миграции не менялись: audit_log.action — text.'
 ref_id: 'W-11'
 complexity: M
 impl_model: claude-opus-5-5
