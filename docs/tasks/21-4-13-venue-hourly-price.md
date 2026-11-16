@@ -46,6 +46,7 @@ tags: [reference-v3, defects, migration]
 - ✅ Цена за час сохраняется и отображается; пустая допустима
 - ✅ Миграция forward-compatible, применима к данным production
 - ✅ Тесты доступа на каждый затронутый эндпоинт; пять gates CODING_STANDARDS
+- ✅ В [deploy runbook](../operations/runbooks/deploy.md) есть раздел `0040_venue_hourly_price`: аддитивность без preflight, совместимость с `98b60193`/`aa8d8f9a`, условие отказа отката и порядок очистки цен (решение владельца, `pg_dump -t venues`, затем `pnpm db:rollback`)
 
 ## Не делать
 
