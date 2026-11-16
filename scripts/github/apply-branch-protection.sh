@@ -10,6 +10,9 @@ apply=false
 # Job names from .github/workflows/ci.yml. Admins are included: merges by the owner token
 # also need a PR and green checks. strict=false: main push CI re-checks every merged SHA
 # and Promote only accepts a SHA whose main CI succeeded.
+# "gitleaks (new commits)" is the job of .github/workflows/secret-scan.yml (owner decision, 27.2.3).
+# Candidates to add after a green run on main: "pnpm audit (prod, high+)" (dependency-audit.yml)
+# and "Analyze (javascript-typescript)" (codeql.yml); see docs/GITHUB_SETUP.md section 9.
 main_payload='{
   "required_status_checks": {
     "strict": false,
@@ -17,7 +20,8 @@ main_payload='{
       "Lint · Format · Typecheck",
       "Test (unit + integration)",
       "Build",
-      "Runner image build-export-import"
+      "Runner image build-export-import",
+      "gitleaks (new commits)"
     ]
   },
   "enforce_admins": true,
