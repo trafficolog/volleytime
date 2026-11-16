@@ -103,6 +103,15 @@ describe('player event view state', () => {
     for (const status of ['confirmed', 'attended', 'waitlisted', 'cancelled', null])
       expect(bookingPaymentChip(status)).toBeNull()
   })
+  it('marks a held booking with an unpaid seat as waiting for payment (21.4.19)', () => {
+    for (const status of ['attended', 'no_show'])
+      expect(bookingPaymentChip(status, undefined, 1)).toEqual({
+        tone: 'amber',
+        text: 'Ждёт оплаты',
+      })
+    for (const status of ['confirmed', 'cancelled', 'waitlisted'])
+      expect(bookingPaymentChip(status, undefined, 1)).toBeNull()
+  })
   it('blocks actions while current sources refresh or fail, despite retained matching data', () => {
     const current = {
       eventMatches: true,

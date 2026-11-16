@@ -5,7 +5,7 @@ import type { MyBooking } from '~/components/PlayerBookingRow.vue'
 import PlayerPaymentInstructions from '~/components/PlayerPaymentInstructions.vue'
 import { seatsLabel } from '~/utils/booking-seats'
 import { eventPricingLabel } from '~/utils/event-pricing-label'
-import { canPayBooking } from '~/utils/player-booking-payment'
+import { canPayBooking, heldDebtLabel } from '~/utils/player-booking-payment'
 import { quotePriceLabel } from '~/utils/player-price-view'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
@@ -56,6 +56,9 @@ await load()
 const amount = computed(() => {
   const b = booking.value
   if (!b) return ''
+  // проведённая запись (21.4.19): долг — неоплаченные места, а не вся цена записи
+  const held = heldDebtLabel(b, b.event.currency)
+  if (held) return held.text
   if (b.pricing.mode === 'split' && b.priceQuote !== undefined) {
     return (
       quotePriceLabel(b.priceQuote, b.event.currency, { hasBooking: true, waitlisted: false })
