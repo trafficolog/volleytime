@@ -1,7 +1,9 @@
 import {
   bookingService,
   canManageContent,
+  readEventPriceForecast,
   readEventPricing,
+  readMyEventShare,
   readMySeatPayments,
   readPlayerPriceQuote,
   requireOrgMember,
@@ -38,6 +40,9 @@ export default defineApiHandler(async (event) => {
           ...booking,
           seatPayments: seatPayments.get(booking.id),
           pricing,
+          // замена проекции pricing (21.5.10): прогноз события и доля/статус своей записи
+          priceForecast: await readEventPriceForecast(ctx, booking.eventId),
+          myShare: await readMyEventShare(ctx, event.context.organization!.id, booking.eventId),
           // цена split — единый расчёт GET …/price (20.4.6)
           priceQuote: await readPlayerPriceQuote(ctx, {
             organizationId: event.context.organization!.id,

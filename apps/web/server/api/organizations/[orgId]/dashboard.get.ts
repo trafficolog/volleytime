@@ -5,7 +5,9 @@ import {
   ledgerService,
   overviewService,
   paymentService,
+  readEventPriceForecast,
   readEventPricing,
+  readMyEventShare,
   readPlayerPriceQuote,
   requireOrgMember,
   subscriptionService,
@@ -83,6 +85,9 @@ export default defineApiHandler(async (event) => {
         id: b.id,
         status: b.status,
         pricing: await readEventPricing(ctx, b.eventId),
+        // замена проекции pricing (21.5.10): прогноз события и доля/статус своей записи
+        priceForecast: await readEventPriceForecast(ctx, b.eventId),
+        myShare: await readMyEventShare(ctx, orgId, b.eventId),
         event: {
           id: b.event.id,
           title: b.event.title,
@@ -100,6 +105,8 @@ export default defineApiHandler(async (event) => {
             // stats переопределяет связь `venue` (name + address) — как в `upcoming`
             ...stats.get(goingBooking.eventId)!,
             pricing,
+            priceForecast: await readEventPriceForecast(ctx, goingBooking.eventId),
+            myShare: await readMyEventShare(ctx, orgId, goingBooking.eventId),
             priceQuote: await quoteFor(goingBooking.eventId, pricing.mode),
           }
         })()
@@ -119,6 +126,8 @@ export default defineApiHandler(async (event) => {
           ...e,
           ...stats.get(e.id)!,
           pricing,
+          priceForecast: await readEventPriceForecast(ctx, e.id),
+          myShare: await readMyEventShare(ctx, orgId, e.id),
           priceQuote: await quoteFor(e.id, pricing.mode),
         }
       }),
