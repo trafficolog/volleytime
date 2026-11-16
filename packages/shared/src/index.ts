@@ -1,4 +1,3 @@
-export const APP_NAME = 'Volley Time'
 export { allocateSplitAmount, previewSplitAmount } from './events/pricing'
 export {
   quoteEventPrice,

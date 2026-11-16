@@ -1,26 +1,9 @@
-export const BOOKING_STATUS_LABELS: Record<string, string> = {
-  pending_payment: 'Ждёт оплаты',
-  confirmed: 'Записан',
-  waitlisted: 'В листе ожидания',
-  attended: 'Был',
-  no_show: 'Не пришёл',
-  cancelled: 'Отменена',
-}
-
 export const EVENT_STATUS_LABELS: Record<string, string> = {
   draft: 'Черновик',
   published: 'Открыто',
   closed: 'Запись закрыта',
   finished: 'Завершено',
   cancelled: 'Отменено',
-}
-
-export const SUBSCRIPTION_STATUS_LABELS: Record<string, string> = {
-  pending: 'Ожидает активации',
-  active: 'Активен',
-  exhausted: 'Занятия закончились',
-  expired: 'Истёк',
-  cancelled: 'Отменён',
 }
 
 export const BOOKING_METHOD_LABELS: Record<string, string> = {
