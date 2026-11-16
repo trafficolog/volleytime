@@ -50,6 +50,8 @@ export const auth = betterAuth({
       otpLength: 6,
       storeOTP: 'hashed',
       expiresIn: 5 * 60,
+      // Явно: 3 попытки на код (27.2.6); с 1.7.16 соблюдается и при конкурентных запросах.
+      allowedAttempts: 3,
     }),
   ],
 })

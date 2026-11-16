@@ -69,6 +69,50 @@ describe('email-OTP sign-in (integration)', () => {
     expect(signIn.status).not.toBe(200)
   })
 
+  async function sendAndGetOtp(email: string) {
+    const send = await call('/email-otp/send-verification-otp', { email, type: 'sign-in' })
+    expect(send.status).toBe(200)
+    const otp = sentEmails.find((m) => m.to === email)?.text.match(/(\d{6})/)?.[1]
+    expect(otp).toBeDefined()
+    return otp!
+  }
+  const wrongOf = (otp: string) => (otp === '000000' ? '111111' : '000000')
+
+  it('allowedAttempts 3: after 3 wrong codes the 4th attempt is rejected even with the right code', async () => {
+    const email = `otp-limit-${Date.now()}@test.by`
+    const otp = await sendAndGetOtp(email)
+    for (let i = 0; i < 3; i++) {
+      const res = await call('/sign-in/email-otp', { email, otp: wrongOf(otp) })
+      expect(res.status).not.toBe(200)
+    }
+    const fourth = await call('/sign-in/email-otp', { email, otp })
+    expect(fourth.status).not.toBe(200)
+    expect(fourth.headers.getSetCookie().join(';')).not.toContain('session_token')
+  })
+
+  it('allowedAttempts 3: concurrent wrong codes do not grant extra guesses', async () => {
+    const email = `otp-race-${Date.now()}@test.by`
+    const otp = await sendAndGetOtp(email)
+    const results = await Promise.all(
+      Array.from({ length: 6 }, () => call('/sign-in/email-otp', { email, otp: wrongOf(otp) })),
+    )
+    for (const res of results) expect(res.status).not.toBe(200)
+    const after = await call('/sign-in/email-otp', { email, otp })
+    expect(after.status).not.toBe(200)
+  })
+
+  it('session cookie attributes (27.2.6 cookie check)', async () => {
+    const email = `otp-cookie-${Date.now()}@test.by`
+    const otp = await sendAndGetOtp(email)
+    const res = await call('/sign-in/email-otp', { email, otp })
+    expect(res.status).toBe(200)
+    const token = res.headers.getSetCookie().find((c) => c.includes('session_token='))
+    expect(token).toBeDefined()
+    expect(token).toMatch(/HttpOnly/i)
+    expect(token).toMatch(/SameSite=Lax/i)
+    expect(token).not.toMatch(/Partitioned/i)
+  })
+
   afterAll(async () => {
     await db.delete(users)
     await closeDb()
