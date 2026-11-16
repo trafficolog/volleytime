@@ -10,6 +10,7 @@ import { registerMenuHandler } from './menu'
 import { registerMyChatMemberHandler } from './my-chat-member'
 import { registerMyHandler } from './my'
 import { registerStartHandler } from './start'
+import { registerSubscriptionHandler } from './subscription'
 
 vi.mock('../web-client', () => ({
   callWeb: vi.fn(),
@@ -25,6 +26,7 @@ function setup() {
   registerHelpHandler(t.bot)
   registerGamesHandler(t.bot)
   registerMyHandler(t.bot)
+  registerSubscriptionHandler(t.bot)
   registerMenuHandler(t.bot)
   registerMyChatMemberHandler(t.bot)
   registerGroupHintHandler(t.bot)
@@ -108,7 +110,12 @@ describe('/games, /my, menu (20.3.3)', () => {
     const { bot, calls } = setup()
     await bot.handleUpdate(messageUpdate('/menu'))
     const kb = sent(calls)[0]!.reply_markup as { keyboard: { text: string }[][] }
-    expect(kb.keyboard.flat().map((b) => b.text)).toEqual(['Расписание', 'Мои записи', 'Помощь'])
+    expect(kb.keyboard.flat().map((b) => b.text)).toEqual([
+      'Расписание',
+      'Мои записи',
+      'Мой абонемент',
+      'Помощь',
+    ])
   })
 
   it('/start clears the unreachable mark and sends the menu', async () => {
@@ -180,7 +187,7 @@ describe('private-only commands in group chats (20.3.4)', () => {
 
   it('the reply-menu texts typed in a group do nothing', async () => {
     const { bot, calls } = setup()
-    for (const text of ['Расписание', 'Мои записи', 'Помощь'])
+    for (const text of ['Расписание', 'Мои записи', 'Мой абонемент', 'Помощь'])
       await bot.handleUpdate(
         messageUpdate(text, { chatId: -1001234567890, chatType: 'supergroup' }),
       )
