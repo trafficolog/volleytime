@@ -44,39 +44,11 @@
       "expires": "2026-12-15"
     },
     {
-      "ghsa": "GHSA-v5rq-49vh-5v5c",
-      "package": "@simple-git/argv-parser",
-      "severity": "critical",
-      "reason": "Usage: dev-only (nuxt > @nuxt/devtools > simple-git). Fix needs a dependency bump (patched in >=2.0.1), out of scope for 27.2.2; tracked by task 27.2.7.",
-      "expires": "2026-11-29"
-    },
-    {
-      "ghsa": "GHSA-x6jw-m9v5-85vh",
-      "package": "simple-git",
-      "severity": "critical",
-      "reason": "Usage: dev-only (nuxt > @nuxt/devtools). Fix needs a dependency bump (patched in >=4.0.1), out of scope for 27.2.2; tracked by task 27.2.7.",
-      "expires": "2026-11-29"
-    },
-    {
-      "ghsa": "GHSA-g4wm-2vf7-vfgr",
-      "package": "simple-git",
-      "severity": "high",
-      "reason": "Usage: dev-only (nuxt > @nuxt/devtools). Fix needs a dependency bump (patched in >=4.0.0), out of scope for 27.2.2; tracked by task 27.2.7.",
-      "expires": "2026-12-15"
-    },
-    {
       "ghsa": "GHSA-68fv-2mgg-jv7q",
       "package": "source-map-js",
       "severity": "high",
       "reason": "Usage: build-time (vue compiler). Fix needs a dependency bump (patched in >=1.2.2), out of scope for 27.2.2; tracked by task 27.2.8.",
       "expires": "2026-12-15"
-    },
-    {
-      "ghsa": "GHSA-pqg4-j6r4-53mv",
-      "package": "shell-quote",
-      "severity": "critical",
-      "reason": "Usage: dev-only (nuxt > @nuxt/devtools > launch-editor). Fix needs a dependency bump (patched in >=1.11.0), out of scope for 27.2.2; tracked by task 27.2.7.",
-      "expires": "2026-11-29"
     },
     {
       "ghsa": "GHSA-r9w8-h9r3-54w4",
@@ -90,13 +62,6 @@
       "package": "vite",
       "severity": "high",
       "reason": "Usage: dev/build-time (nuxt unplugin). Fix needs a dependency bump (patched in >=8.3.3), out of scope for 27.2.2; tracked by task 27.2.8.",
-      "expires": "2026-12-15"
-    },
-    {
-      "ghsa": "GHSA-587h-7wmj-h5pm",
-      "package": "launch-editor",
-      "severity": "high",
-      "reason": "Usage: dev-only (nuxt > @nuxt/devtools). Fix needs a dependency bump (patched in >=2.14.2), out of scope for 27.2.2; tracked by task 27.2.7.",
       "expires": "2026-12-15"
     },
     {
@@ -216,13 +181,6 @@
       "package": "node-forge",
       "severity": "high",
       "reason": "Usage: dev-only (nuxt cli listhen / nitropack dev server). Fix needs a dependency bump (patched in >=1.4.1), out of scope for 27.2.2; tracked by task 27.2.8.",
-      "expires": "2026-12-15"
-    },
-    {
-      "ghsa": "GHSA-858h-whjf-mvg5",
-      "package": "simple-git",
-      "severity": "high",
-      "reason": "Usage: dev-only (nuxt > @nuxt/devtools). Fix needs a dependency bump (patched in >=4.0.0), out of scope for 27.2.2; tracked by task 27.2.7.",
       "expires": "2026-12-15"
     },
     {
