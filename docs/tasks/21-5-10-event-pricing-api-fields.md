@@ -2,11 +2,11 @@
 id: '21.5.10'
 phase: '21'
 epic: '21.5'
-status: in_progress
+status: done
 release: 'v0.3.2'
 sync_state: synced
-last_reviewed: 2026-11-16
-status_note: 'В работе 2026-11-16 (PR #293): аддитивные поля `priceForecast` и `myShare` во всех ответах с `pricing` (events, events/{id}, bookings/my, dashboard myBookings/hero/upcoming); паритет и IDOR — `apps/web/server/__tests__/pricing-api-fields.integration.test.ts`. Временно около 3 лишних запросов на событие в списках и dashboard до 21.5.9 (принято). Ждёт ревью Opus и merge.'
+last_reviewed: 2026-11-17
+status_note: 'Закрыта 2026-11-17: PR #293 смёржен 2026-11-16 (head bac664e4, merge 2e3dfe23), все проверки PR зелёные; выкладка — в составе v0.3.2 (21.4.21). Аддитивные поля `priceForecast` и `myShare` во всех ответах с `pricing` (events, events/{id}, bookings/my, dashboard myBookings/hero/upcoming); паритет и IDOR — `apps/web/server/__tests__/pricing-api-fields.integration.test.ts`. Временно около 3 лишних запросов на событие в списках и dashboard до 21.5.9 (принято).'
 ref_id: ''
 complexity: L
 impl_model: claude-opus-5-5
