@@ -2,11 +2,11 @@
 id: '21.4.3'
 phase: '21'
 epic: '21.4'
-status: todo
+status: in_progress
 release: 'v0.3.1'
 sync_state: synced
-last_reviewed: 2026-10-28
-status_note: ''
+last_reviewed: 2026-11-16
+status_note: 'Подготовка 2026-11-16: docs/operations/qa/2026-11-16-21-4-3-release-v0-3-1.md (диапазон aa8d8f9a..13c6eb12, миграций нет, ручной push из-за workflows, чеклисты до и после Promote, откат). Ждёт: ревью 27.2.1, решение по 21.4.1, подтверждение владельца, Telegram QA.'
 ref_id: ''
 complexity: L
 impl_model: claude-opus-5-5

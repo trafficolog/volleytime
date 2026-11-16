@@ -5,8 +5,8 @@ epic: '27.2'
 status: in_progress
 release: 'v0.3.1'
 sync_state: synced
-last_reviewed: 2026-11-10
-status_note: 'Из аудита 2026-11-10 (CI-01). Релиз v0.3.1 (решение владельца 2026-11-10), параллельно с эпиками 21.4–21.5. Реализация в PR, ждёт ревью и секрета VPS_KNOWN_HOSTS от владельца.'
+last_reviewed: 2026-11-16
+status_note: 'Из аудита 2026-11-10 (CI-01). Смёржено PR #248 (merge 0f10d83c), CI exact head 42977300372 success. Проверено 2026-11-16 на main 13c6eb12: все uses: по SHA, appleboy нет, permissions во всех 7 workflows; VPS_KNOWN_HOSTS задан 2026-11-11, VPS disk monitor 14/14 success. Не закрыта: нет evidence ревью claude-opus-5-5 (у PR 0 review). Deploy через новый SSH-путь ещё не запускался (первый — выкладка v0.3.1).'
 ref_id: ''
 review_ref: 'CI-01'
 priority: P1
