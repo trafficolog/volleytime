@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildMiniAppUrl, buildStartMessage } from './start'
+import { buildMiniAppUrl, buildStartKeyboard, buildStartMessage } from './start'
 
 describe('buildStartMessage', () => {
   it('default greeting without deeplink', () => {
@@ -69,5 +69,23 @@ describe('event invite deeplink (20.1.3)', () => {
   })
   it('greets as an event invitation', () => {
     expect(buildStartMessage('Иван', `event_42_${token}`)).toContain('событие')
+  })
+})
+
+describe('buildStartKeyboard (21.4.9)', () => {
+  const rows = (p: string | undefined) => buildStartKeyboard(p).inline_keyboard
+
+  it('adds «Кто уже играет» only for event deeplinks, with the event id in callback_data', () => {
+    for (const p of ['event_5', 'event_5_abcdefghijklmnop']) {
+      const kb = rows(p)
+      expect(kb).toHaveLength(2)
+      expect(kb[0]![0]).toMatchObject({ web_app: { url: expect.stringContaining('event_5') } })
+      expect(kb[1]![0]).toMatchObject({ callback_data: 'rs:5' })
+    }
+  })
+
+  it('has no roster button for plain /start and group invites', () => {
+    for (const p of [undefined, 'org_abc', 'garbage'])
+      expect(JSON.stringify(rows(p))).not.toContain('callback_data')
   })
 })

@@ -4,11 +4,19 @@ import type { BotContext } from '../context'
 
 export const MENU_GAMES = 'Расписание'
 export const MENU_MY = 'Мои записи'
+export const MENU_SUBS = 'Мой абонемент'
 export const MENU_HELP = 'Помощь'
 
 /** Reply-клавиатура под полем ввода (макет «BotMenu»): тексты кнопок приходят как обычные сообщения. */
 export function menuKeyboard(): Keyboard {
-  return new Keyboard().text(MENU_GAMES).text(MENU_MY).row().text(MENU_HELP).resized().persistent()
+  return new Keyboard()
+    .text(MENU_GAMES)
+    .text(MENU_MY)
+    .row()
+    .text(MENU_SUBS)
+    .text(MENU_HELP)
+    .resized()
+    .persistent()
 }
 
 export const MENU_TEXT = 'Меню закреплено под полем ввода.\nЗаписи и оплаты — в приложении.'
