@@ -5,7 +5,7 @@ status: todo
 release: ''
 sync_state: synced
 last_reviewed: 2026-11-10
-status_note: 'Из аудита 2026-11-10. 27.2.1–27.2.3 в v0.3.1 (решение владельца 2026-11-10); 27.2.4, 27.2.5 — релиз назначает владелец; 27.2.6–27.2.8 (находки аудита зависимостей) — тоже.'
+status_note: 'Из аудита 2026-11-10. 27.2.1–27.2.3 в v0.3.1 (решение владельца 2026-11-10); 27.2.4, 27.2.5 — релиз назначает владелец; 27.2.6–27.2.8 (находки аудита зависимостей) — тоже; 27.2.6 закрыта 2026-11-16 (v0.3.1); 27.2.9 (пересмотр Dependabot PR, бэклог) добавлена 2026-11-16.'
 estimated_hours: '12-26'
 depends_on: []
 ---
@@ -36,6 +36,7 @@ depends_on: []
 | [27.2.6](../tasks/27-2-6-better-auth-bump.md)          | Обновить better-auth до 1.7.7 или новее (critical из аудита зависимостей)        | CI-02     | P1     | M      | `claude-opus-5-5`   | `claude-opus-5-5` |
 | [27.2.7](../tasks/27-2-7-nuxt-devtools-criticals.md)   | Убрать critical simple-git, argv-parser и shell-quote (Nuxt devtools)            | CI-02     | P1     | S      | `claude-sonnet-5-5` | `claude-opus-5-5` |
 | [27.2.8](../tasks/27-2-8-remaining-high-advisories.md) | Закрыть оставшиеся high из аудита зависимостей                                   | CI-02     | P2     | M      | `claude-sonnet-5-5` | `claude-opus-5-5` |
+| [27.2.9](../tasks/27-2-9-dependabot-major-review.md)   | Пересмотр Dependabot PR #262–#274 группами после v0.3.1 (`backlog`)              | CI-02     | P2     | L      | `claude-sonnet-5-5` | `claude-opus-5-5` |
 
 ## Не делать
 

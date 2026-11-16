@@ -70,7 +70,7 @@ tags: [reference-v3, defects, release]
 
 - ✅ Все задачи эпиков 21.4 и 21.5 (включая `21.4.6`–`21.4.9`, `21.4.10+`, `21.5.3+`) `done`
 - ✅ Отчёт сверки без открытых расхождений Critical/Important
-- ✅ Смоук-тест входа после обновления better-auth до 1.7.25 ([27.2.6](27-2-6-better-auth-bump.md)): вход в Telegram Mini App (webview, cookie сессии `SameSite=Lax`) и вход в кабинете (email-OTP); сессия сохраняется после перезапуска Mini App и обновления страницы кабинета; результат в отчёте QA релиза, после него закрывается 27.2.6
+- ✅ Смоук-тест входа после обновления better-auth до 1.7.25 ([27.2.6](27-2-6-better-auth-bump.md)): вход в Telegram Mini App (webview, cookie сессии `SameSite=Lax`) и вход в кабинете (email-OTP); сессия сохраняется после перезапуска Mini App и обновления страницы кабинета; результат в отчёте QA релиза; 27.2.6 закрыта 2026-11-16 (PR #280), этот смоук-тест отслеживается только здесь
 - ✅ Production health = release SHA
 - ✅ Пять gates на tested revision; ревью `claude-opus-5-5` без Critical/Important
 - ✅ RED→GREEN тесты на граничные случаи, деньги/доступ и конкурентность приложены к PR
