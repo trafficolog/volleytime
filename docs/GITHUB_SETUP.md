@@ -116,7 +116,7 @@ gh issue create --title "[3.1.1] pnpm workspaces init" \
 | `ci.yml`               | PR в `main`, push в `main`                | lint/format/typecheck, unit+integration на PostgreSQL, build, сборка/экспорт/импорт образов                     |
 | `promote.yml`          | вручную (Actions → Promote to production) | проверяет SHA в `main` и зелёный main CI, fast-forward `prod`, запускает Deploy на `prod`                       |
 | `deploy.yml`           | push в `prod`, `workflow_dispatch`        | тесты, image-bundle по SSH, backup → migrate → up → smoke → rollback; environment `production`                  |
-| `secret-scan.yml`      | PR в `main`, push в `main`                | gitleaks по новым коммитам (27.2.3); не входит в required checks                                                |
+| `secret-scan.yml`      | PR в `main`, push в `main`                | gitleaks по новым коммитам (27.2.3); required check `main` (`gitleaks (new commits)`)                           |
 | `codeql.yml`           | PR в `main`, push в `main`, раз в неделю  | CodeQL для JavaScript/TypeScript (27.2.2); результаты в Security → Code scanning                                |
 | `dependency-audit.yml` | PR в `main`, push в `main`, раз в неделю  | `scripts/audit-gate.mjs`: `pnpm audit --prod --audit-level=high` минус `.github/audit-exceptions.json` (27.2.2) |
 
@@ -126,7 +126,7 @@ gh issue create --title "[3.1.1] pnpm workspaces init" \
 bash scripts/github/apply-branch-protection.sh
 ```
 
-- `main`: PR обязателен, обязательные проверки CI (в том числе для администраторов), без force-push и удаления.
+- `main`: PR обязателен, обязательные проверки: `Lint · Format · Typecheck`, `Test (unit + integration)`, `Build`, `Runner image build-export-import`, `gitleaks (new commits)` (в том числе для администраторов), без force-push и удаления.
 - Секрет `PROMOTE_TOKEN` (необязательный, fine-grained PAT: Contents + Workflows) нужен Promote для диапазонов с изменениями `.github/workflows/`; без него такие продвижения выполняются ручным FF.
 - `prod`: без force-push и удаления; двигается только fast-forward через Promote.
 - Environment `production`: при необходимости владелец включает Required reviewers в Settings → Environments; Deploy будет ждать подтверждения.
@@ -140,7 +140,7 @@ bash scripts/github/apply-branch-protection.sh
 1. **Dependabot alerts** и **Dependabot security updates**: Enable.
 2. **Secret scanning** и **Push protection**: Enable (репозиторий публичный, бесплатно).
 3. **Code scanning**: workflow `codeql.yml` загружает результаты сам; в Settings ничего менять не нужно, при первом запуске проверьте вкладку Security → Code scanning.
-4. Required checks `main` (по желанию, через `scripts/github/apply-branch-protection.sh`): добавить `pnpm audit (prod, high+)` и `Analyze (javascript-typescript)` после первого зелёного прогона на `main`.
+4. Required checks `main`: `gitleaks (new commits)` уже в `scripts/github/apply-branch-protection.sh` (решение владельца, 27.2.3). По желанию добавить туда `pnpm audit (prod, high+)` и `Analyze (javascript-typescript)` после первого зелёного прогона на `main`; в скрипте они не включены.
 
 Первая волна находок:
 
