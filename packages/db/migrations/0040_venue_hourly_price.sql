@@ -1,0 +1,2 @@
+ALTER TABLE "venues" ADD COLUMN "hourly_price" integer;--> statement-breakpoint
+ALTER TABLE "venues" ADD CONSTRAINT "venues_hourly_price_range" CHECK ("venues"."hourly_price" IS NULL OR "venues"."hourly_price" BETWEEN 0 AND 10000000);

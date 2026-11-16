@@ -1,4 +1,14 @@
-import { closeDb, db, eq, eventSeries, events, organizations, users } from '@volley-time/db'
+import {
+  and,
+  auditLog,
+  closeDb,
+  db,
+  eq,
+  eventSeries,
+  events,
+  organizations,
+  users,
+} from '@volley-time/db'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { eventService } from '../events/service'
@@ -105,6 +115,100 @@ describe('venueService (integration)', () => {
     )
     const updated = await venueService.update({ userId: ownerId }, v.id, { address: null }, orgId)
     expect(updated.address).toBeNull()
+  })
+
+  // 21.4.13 (DEF-23): цена за час в минимальных единицах, `null` — не указана
+  it('creates without an hourly price by default and with one in kopecks', async () => {
+    const ctx = { userId: ownerId }
+    expect(
+      (await venueService.create(ctx, { organizationId: orgId, name: 'Без цены' })).hourlyPrice,
+    ).toBeNull()
+    const priced = await venueService.create(ctx, {
+      organizationId: orgId,
+      name: 'С ценой',
+      hourlyPrice: 1550,
+    })
+    expect(priced.hourlyPrice).toBe(1550)
+    const listed = await venueService.listByOrg(ctx, orgId)
+    expect(listed.find((v) => v.id === priced.id)?.hourlyPrice).toBe(1550)
+    expect(
+      (await venueService.create(ctx, { organizationId: orgId, name: 'Пусто', hourlyPrice: null }))
+        .hourlyPrice,
+    ).toBeNull()
+  })
+
+  it('accepts 0 and the maximum, rejects negative, fractional, above maximum and strings', async () => {
+    const ctx = { userId: ownerId }
+    for (const hourlyPrice of [0, 10_000_000]) {
+      const v = await venueService.create(ctx, {
+        organizationId: orgId,
+        name: `Зал ${hourlyPrice}`,
+        hourlyPrice,
+      })
+      expect(v.hourlyPrice).toBe(hourlyPrice)
+    }
+    for (const hourlyPrice of [-1, 15.5, 10_000_001, '1500', Number.NaN]) {
+      await expect(
+        venueService.create(ctx, {
+          organizationId: orgId,
+          name: 'Плохая цена',
+          hourlyPrice: hourlyPrice as number,
+        }),
+      ).rejects.toThrow()
+    }
+    const v = await venueService.create(ctx, { organizationId: orgId, name: 'Правка' })
+    await expect(venueService.update(ctx, v.id, { hourlyPrice: -5 }, orgId)).rejects.toThrow()
+    await expect(venueService.update(ctx, v.id, { hourlyPrice: 0.5 }, orgId)).rejects.toThrow()
+    expect((await venueService.getById(ctx, v.id)).hourlyPrice).toBeNull()
+  })
+
+  it('update sets, keeps when omitted and clears the hourly price; audit records it', async () => {
+    const ctx = { userId: ownerId }
+    const v = await venueService.create(ctx, { organizationId: orgId, name: 'Цена' })
+    expect((await venueService.update(ctx, v.id, { hourlyPrice: 1500 }, orgId)).hourlyPrice).toBe(
+      1500,
+    )
+    // правка других полей без hourlyPrice цену не трогает
+    expect((await venueService.update(ctx, v.id, { name: 'Цена 2' }, orgId)).hourlyPrice).toBe(1500)
+    expect((await venueService.update(ctx, v.id, { hourlyPrice: null }, orgId)).hourlyPrice).toBe(
+      null,
+    )
+    const logged = await db
+      .select()
+      .from(auditLog)
+      .where(and(eq(auditLog.entityType, 'venue'), eq(auditLog.entityId, v.id)))
+    expect(logged.some((r) => (r.newValue as { hourlyPrice?: number })?.hourlyPrice === 1500)).toBe(
+      true,
+    )
+  })
+
+  it('a foreign venue price cannot be changed through another group', async () => {
+    const [u2] = await db
+      .insert(users)
+      .values({ email: `hp-${Math.random()}@t.by` })
+      .returning()
+    const other = await organizationService.create({ userId: u2!.id }, { name: 'Other HP' })
+    const foreign = await venueService.create(
+      { userId: u2!.id },
+      { organizationId: other.id, name: 'Чужой', hourlyPrice: 2000 },
+    )
+    await expect(
+      venueService.update({ userId: ownerId }, foreign.id, { hourlyPrice: 1 }, orgId),
+    ).rejects.toThrow(VenueNotFoundError)
+    expect((await venueService.getById({ userId: u2!.id }, foreign.id)).hourlyPrice).toBe(2000)
+  })
+
+  it('the hourly price does not change the price of an event in that venue', async () => {
+    const ctx = { userId: ownerId }
+    const v = await venueService.create(ctx, {
+      organizationId: orgId,
+      name: 'Зал',
+      hourlyPrice: 1500,
+    })
+    const ev = await eventService.create(ctx, orgId, { ...eventAt(v.id), price: 700 })
+    await venueService.update(ctx, v.id, { hourlyPrice: 9900 }, orgId)
+    const [row] = await db.select().from(events).where(eq(events.id, ev.id))
+    expect(row?.price).toBe(700)
   })
 
   it('rejects whitespace-only names and trims valid ones', async () => {
