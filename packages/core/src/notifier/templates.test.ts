@@ -274,6 +274,8 @@ describe('ownership transfer templates (21.4.7)', () => {
       'ownership_transfer_accepted',
       'ownership_transfer_cancelled',
       'ownership_transfer_expired',
+      'ownership_transfer_cancelled_recipient',
+      'ownership_transfer_expired_recipient',
     ] as const) {
       const m = renderMessage(type, {
         organizationName: 'Группа',

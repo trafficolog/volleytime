@@ -206,7 +206,7 @@ describe('ownership transfer bot link (HTTP integration)', { timeout: 60_000 }, 
     })
   })
 
-  it('accept and cancel notify only the previous owner', async () => {
+  it('accept notifies only the previous owner; cancel notifies owner and recipient (21.4.20)', async () => {
     const first = await start(ownerId)
     const token = (first.body as { links: { web: string } }).links.web.split('#')[1]!
     sent.length = 0
@@ -228,7 +228,9 @@ describe('ownership transfer bot link (HTTP integration)', { timeout: 60_000 }, 
     sent.length = 0
     const del = await request('DELETE', base(), { user: recipientId })
     expect(del.status).toBe(200)
-    expect(sent.map((p) => p.telegramId)).toEqual([String(TG.recipient)])
+    // отменивший owner (бывший получатель) и получатель этой передачи (бывший owner), без токена
+    expect(sent.map((p) => p.telegramId)).toEqual([String(TG.recipient), String(TG.owner)])
+    expect(JSON.stringify(sent)).not.toContain(token)
   })
 
   describe('IDOR', () => {

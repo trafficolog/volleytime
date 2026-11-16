@@ -19,7 +19,7 @@ import { setNotifierTransport } from '../notifier/service'
 import type { NotifyPayload } from '../notifier/types'
 import { organizationService } from '../organizations/service'
 
-import { ownershipTransferService } from './service'
+import { organizationDeletionService, ownershipTransferService } from './service'
 
 /**
  * Task 21.4.7 (решение владельца 2026-11-11): бот присылает получателю личную ссылку передачи
@@ -272,12 +272,11 @@ describe('ownership transfer bot notifications (PostgreSQL)', { timeout: 30_000 
       expect(await persistedText()).not.toContain(token)
     })
 
-    it('cancel: the owner gets a confirmation; the recipient and others get nothing', async () => {
+    it('cancel: the owner gets a confirmation; others get nothing', async () => {
       const { token } = await start()
       await ownershipTransferService.cancel({ userId: owner }, orgId)
       expect(to(TG.owner)).toHaveLength(1)
       expect(to(TG.owner)[0]!.text).toContain('отмен')
-      expect(to(TG.recipient)).toHaveLength(0)
       expect(to(TG.other)).toHaveLength(0)
       expect(JSON.stringify(sent)).not.toContain(token)
     })
@@ -298,7 +297,6 @@ describe('ownership transfer bot notifications (PostgreSQL)', { timeout: 30_000 
       expect(to(TG.owner)[0]!.text).toContain('истёк')
       expect(await ownershipTransferService.expireDue(later)).toBe(0)
       expect(to(TG.owner)).toHaveLength(1)
-      expect(to(TG.recipient)).toHaveLength(0)
     })
 
     it('expiry found on accept: the expired link is rejected and the owner is told', async () => {
@@ -336,6 +334,239 @@ describe('ownership transfer bot notifications (PostgreSQL)', { timeout: 30_000 
       await expect(ownershipTransferService.cancel({ userId: recipient }, orgId)).resolves.toEqual({
         cancelled: true,
       })
+    })
+  })
+
+  /** Task 21.4.20: получателю — отмена и истечение; итог каждой доставки — в audit_log. */
+  describe('outcome to the recipient and delivery audit (21.4.20)', () => {
+    const deliveries = async (transferId: number) =>
+      (await db.select().from(auditLog).where(eq(auditLog.entityId, transferId)))
+        .filter((r) => r.action.startsWith('ownership_transfer.bot_delivery.'))
+        .map((r) => ({ action: r.action, newValue: r.newValue, oldValue: r.oldValue }))
+
+    const expire = async (transferId: number) =>
+      db
+        .update(organizationOwnershipTransfers)
+        .set({
+          expiresAt: new Date(Date.now() - 1000),
+          createdAt: new Date(Date.now() - 3_600_000),
+        })
+        .where(eq(organizationOwnershipTransfers.id, transferId))
+
+    it('cancel: the recipient is told, without any link or token', async () => {
+      const { token, transfer, url } = await start()
+      await ownershipTransferService.deliverLink({ userId: owner }, orgId, transfer.id, url)
+      sent.length = 0
+      await ownershipTransferService.cancel({ userId: owner }, orgId)
+      expect(to(TG.recipient)).toHaveLength(1)
+      const msg = to(TG.recipient)[0]!
+      expect(msg.text).toContain('Волейбол Минск')
+      expect(msg.text).toContain('отменил')
+      expect(JSON.stringify(msg)).not.toContain(token)
+      expect(JSON.stringify(msg)).not.toContain('startapp')
+      expect(to(TG.other)).toHaveLength(0)
+    })
+
+    it('expiry by the scheduler: the recipient is told once, without the token', async () => {
+      const { token } = await start()
+      const later = new Date(Date.now() + 73 * 3_600_000)
+      await ownershipTransferService.expireDue(later)
+      await ownershipTransferService.expireDue(later)
+      expect(to(TG.recipient)).toHaveLength(1)
+      expect(to(TG.recipient)[0]!.text).toContain('истёк')
+      expect(JSON.stringify(sent)).not.toContain(token)
+      expect(to(TG.other)).toHaveLength(0)
+    })
+
+    it('expiry found on accept and on cancel: the recipient is told', async () => {
+      const a = await start()
+      await expire(a.transfer.id)
+      await expect(
+        ownershipTransferService.accept({ userId: recipient }, a.token),
+      ).rejects.toThrow()
+      expect(to(TG.recipient)).toHaveLength(1)
+      const b = await start()
+      await expire(b.transfer.id)
+      await ownershipTransferService.cancel({ userId: owner }, orgId)
+      expect(to(TG.recipient)).toHaveLength(2)
+      expect(to(TG.recipient)[1]!.text).toContain('истёк')
+    })
+
+    it('delivered path: one audit entry per message, only {status, reason}', async () => {
+      const { transfer } = await start()
+      await ownershipTransferService.cancel({ userId: owner }, orgId)
+      const rows = await deliveries(transfer.id)
+      expect(rows).toEqual(
+        expect.arrayContaining([
+          {
+            action: 'ownership_transfer.bot_delivery.cancelled_owner',
+            newValue: { status: 'delivered' },
+            oldValue: null,
+          },
+          {
+            action: 'ownership_transfer.bot_delivery.cancelled_recipient',
+            newValue: { status: 'delivered' },
+            oldValue: null,
+          },
+        ]),
+      )
+      expect(rows).toHaveLength(2)
+      for (const r of rows) expect(Object.keys(r.newValue as object)).toEqual(['status'])
+    })
+
+    it('accept: the delivery to the previous owner is recorded, the recipient gets nothing', async () => {
+      const { token, transfer } = await start()
+      await ownershipTransferService.accept({ userId: recipient }, token)
+      expect(to(TG.recipient)).toHaveLength(0)
+      expect(await deliveries(transfer.id)).toEqual([
+        {
+          action: 'ownership_transfer.bot_delivery.accepted_owner',
+          newValue: { status: 'delivered' },
+          oldValue: null,
+        },
+      ])
+    })
+
+    it.each([
+      ['blocked', () => new DeliveryError('blocked'), 'blocked'],
+      ['transient', () => new DeliveryError('transient'), 'failed'],
+      ['unknown', () => new Error('boom'), 'failed'],
+    ])(
+      'failed path (%s): cancel and expiry succeed, status recorded, token absent everywhere',
+      async (_name, make, reason) => {
+        const a = await start()
+        await ownershipTransferService.deliverLink({ userId: owner }, orgId, a.transfer.id, a.url)
+        failWith = make
+        await expect(ownershipTransferService.cancel({ userId: owner }, orgId)).resolves.toEqual({
+          cancelled: true,
+        })
+        const b = await start()
+        await ownershipTransferService.deliverLink({ userId: owner }, orgId, b.transfer.id, b.url)
+        const later = new Date(Date.now() + 73 * 3_600_000)
+        expect(await ownershipTransferService.expireDue(later)).toBe(1)
+        for (const id of [a.transfer.id, b.transfer.id]) {
+          const rows = await deliveries(id)
+          expect(rows).toHaveLength(2)
+          for (const r of rows) expect(r.newValue).toEqual({ status: 'not_delivered', reason })
+        }
+        const [ra, rb] = await Promise.all(
+          [a.transfer.id, b.transfer.id].map((id) =>
+            db.query.organizationOwnershipTransfers.findFirst({
+              where: eq(organizationOwnershipTransfers.id, id),
+            }),
+          ),
+        )
+        expect(ra!.status).toBe('cancelled')
+        expect(rb!.status).toBe('expired')
+        const text = await persistedText()
+        for (const tok of [a.token, b.token]) expect(text).not.toContain(tok)
+        expect(text).not.toContain('startapp')
+        expect(await db.select().from(notifications)).toHaveLength(0)
+        expect(await db.select().from(scheduledJobs)).toHaveLength(0)
+      },
+    )
+
+    it('delivered path: token absent from feed, queue, audit log, rows and logs', async () => {
+      const a = await start()
+      await ownershipTransferService.deliverLink({ userId: owner }, orgId, a.transfer.id, a.url)
+      await ownershipTransferService.cancel({ userId: owner }, orgId)
+      const b = await start()
+      await ownershipTransferService.deliverLink({ userId: owner }, orgId, b.transfer.id, b.url)
+      await ownershipTransferService.expireDue(new Date(Date.now() + 73 * 3_600_000))
+      const text = await persistedText()
+      for (const tok of [a.token, b.token]) expect(text).not.toContain(tok)
+      expect(text).not.toContain('startapp')
+      // токен — только в самом сообщении со ссылкой, не в сообщениях об исходе
+      const withToken = sent.filter((p) => JSON.stringify(p).includes(a.token))
+      expect(withToken).toHaveLength(1)
+      expect(withToken[0]!.text).toContain('передаёт вам')
+      expect(await db.select().from(notifications)).toHaveLength(0)
+      expect(await db.select().from(scheduledJobs)).toHaveLength(0)
+    })
+
+    it('a recipient without a bot chat: status no_telegram recorded, cancel succeeds', async () => {
+      await db.update(users).set({ telegramUserId: null }).where(eq(users.id, recipient))
+      const { transfer } = await start()
+      await ownershipTransferService.cancel({ userId: owner }, orgId)
+      const rows = await deliveries(transfer.id)
+      expect(rows.find((r) => r.action.endsWith('cancelled_recipient'))?.newValue).toEqual({
+        status: 'not_delivered',
+        reason: 'no_telegram',
+      })
+    })
+
+    it('a repeated outcome does not duplicate the message or the record', async () => {
+      const { transfer } = await start()
+      await ownershipTransferService.cancel({ userId: owner }, orgId)
+      await ownershipTransferService.cancel({ userId: owner }, orgId)
+      const [row] = await db
+        .select()
+        .from(organizationOwnershipTransfers)
+        .where(eq(organizationOwnershipTransfers.id, transfer.id))
+      // повторный вызов исхода для уже записанной передачи ничего не отправляет
+      const { notifyTransferOutcome } = await import('./notify')
+      await notifyTransferOutcome('cancelled', row!)
+      expect(to(TG.recipient)).toHaveLength(1)
+      expect(to(TG.owner)).toHaveLength(1)
+      expect(await deliveries(transfer.id)).toHaveLength(2)
+    })
+
+    it('expiry found on group deletion: owner and recipient told once, {status} only, no token', async () => {
+      const a = await start()
+      await ownershipTransferService.deliverLink({ userId: owner }, orgId, a.transfer.id, a.url)
+      await expire(a.transfer.id)
+      sent.length = 0
+      await organizationDeletionService.delete({ userId: owner }, orgId, {
+        confirmName: 'Волейбол Минск',
+      })
+      expect(to(TG.owner)).toHaveLength(1)
+      expect(to(TG.recipient)).toHaveLength(1)
+      expect(to(TG.other)).toHaveLength(0)
+      expect(JSON.stringify(sent)).not.toContain(a.token)
+      const rows = await deliveries(a.transfer.id)
+      expect(rows).toHaveLength(2)
+      expect(rows.map((r) => r.action).sort()).toEqual([
+        'ownership_transfer.bot_delivery.expired_owner',
+        'ownership_transfer.bot_delivery.expired_recipient',
+      ])
+      for (const r of rows) expect(r.newValue).toEqual({ status: 'delivered' })
+      const text = await persistedText()
+      expect(text).not.toContain(a.token)
+      expect(text).not.toContain('startapp')
+    })
+    it('IDOR: another group, its owner and an outsider get no message and no record', async () => {
+      const foreignOwner = await newUser('foreign3', 7097n)
+      const outsider = await newUser('outsider', 7096n)
+      const foreignOrg = (
+        await organizationService.create({ userId: foreignOwner }, { name: 'Чужая 3' })
+      ).id
+      const { transfer } = await start()
+      // чужой owner не может отменить передачу этой группы
+      await expect(
+        ownershipTransferService.cancel({ userId: foreignOwner }, orgId),
+      ).rejects.toBeInstanceOf(Error)
+      await expect(
+        ownershipTransferService.cancel({ userId: foreignOwner }, foreignOrg),
+      ).resolves.toEqual({ cancelled: false })
+      // посторонний и получатель тоже не отменяют
+      for (const uid of [outsider, recipient, other])
+        await expect(
+          ownershipTransferService.cancel({ userId: uid }, orgId),
+        ).rejects.toBeInstanceOf(Error)
+      expect(sent).toHaveLength(0)
+      expect(await deliveries(transfer.id)).toHaveLength(0)
+      await ownershipTransferService.cancel({ userId: owner }, orgId)
+      expect(sent.map((p) => p.telegramId).sort()).toEqual(
+        [String(TG.owner), String(TG.recipient)].sort(),
+      )
+      const foreignRows = await db
+        .select()
+        .from(auditLog)
+        .where(eq(auditLog.organizationId, foreignOrg))
+      expect(foreignRows.some((r) => r.action.includes('bot_delivery'))).toBe(false)
+      const rows = await db.select().from(auditLog).where(eq(auditLog.entityId, transfer.id))
+      for (const r of rows.filter((x) => x.action.includes('bot_delivery.')))
+        expect(r.organizationId).toBe(orgId)
     })
   })
 })
