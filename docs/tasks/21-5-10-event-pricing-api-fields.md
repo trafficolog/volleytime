@@ -86,6 +86,8 @@ tags: [reference-v3, api, money]
 
 Доказательство идентичности: тест паритета сравнивает новые поля с `pricing` в каждом из шести мест ответа для игрока и организатора на сценариях fixed, free, абонемент, split capacity/current (несколько мест, округление копеек 10001/3), переполнение после уменьшения вместимости, settled (остаток копейки 3334/3333/3333), отмена и `no_show` после расчёта, платежи pending/succeeded/cancelled/refunded. Экраны не изменены: потребители продолжают читать `pricing` до 21.5.9; при переводе на новые поля цифры совпадают по построению. Контракт `pricing` не меняется — ADR не требуется.
 
+Временная цена (принято ревью PR #293): до 21.5.9 списки (`events`, `bookings/my`) и `dashboard` выполняют около 3 лишних запросов на событие (`readEventPriceForecast` и `readMyEventShare` рядом с `readEventPricing`). 21.5.9 удаляет `readEventPricing` и переводит потребителей на новые поля, а не оставляет третью копию расчёта.
+
 Замечание к п. 1: `pricing.myPaymentStatus` фактически принимает только `pending`, `succeeded` или `null` (тип шире); при платежах только `cancelled`/`refunded` значение `null`. `myShare.paymentStatus` повторяет это без нового расчёта статусов; «оплачено, место освобождено» уже отдаёт `seatPayments.releasedPaidSeats` (21.1.8). Новый показ `cancelled`/`refunded` изменил бы экран и вне scope.
 
 | field               | replacement (21.5.10)                                                 |
