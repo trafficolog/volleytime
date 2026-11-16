@@ -5,7 +5,8 @@ defineRouteMeta({
     tags: ['venues'],
     summary: 'Правка зала группы',
     description:
-      '21.2.13: name, address, capacityHint, notes (address/capacityHint/notes можно сбросить в null). ' +
+      '21.2.13: name, address, capacityHint, notes; 21.4.13: hourlyPrice — цена за час в минимальных ' +
+      'единицах валюты группы, целое 0…10 000 000 (address/capacityHint/notes/hourlyPrice можно сбросить в null). ' +
       'Статус зала не меняется. Зал чужой группы — 404. Владелец и организатор.',
     parameters: [
       { in: 'path', name: 'orgId', required: true, schema: { type: 'integer' } },

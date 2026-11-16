@@ -33,6 +33,7 @@ export const venueService = {
           address: data.address ?? null,
           capacityHint: data.capacityHint ?? null,
           notes: data.notes ?? null,
+          hourlyPrice: data.hourlyPrice ?? null,
         })
         .returning()
       await auditService.record(tx, {
@@ -40,7 +41,7 @@ export const venueService = {
         action: AUDIT_ACTIONS.VENUE_CREATED,
         entityType: 'venue',
         entityId: venue!.id,
-        newValue: { name: venue!.name },
+        newValue: { name: venue!.name, hourlyPrice: venue!.hourlyPrice },
       })
       return venue!
     })
