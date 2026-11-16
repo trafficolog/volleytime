@@ -121,20 +121,6 @@
       "expires": "2026-12-15"
     },
     {
-      "ghsa": "GHSA-r4xp-prcw-77qf",
-      "package": "better-auth",
-      "severity": "high",
-      "reason": "Usage: runtime. Fix needs a dependency bump (patched in >=1.7.7), out of scope for 27.2.2; tracked by task 27.2.6. Plugins OAuth Proxy and Magic Link are not enabled in packages/auth/src/config.ts (only telegramPlugin and emailOTP; no social providers), so the flaw is not reachable in the current configuration; still fix by upgrading.",
-      "expires": "2026-11-29"
-    },
-    {
-      "ghsa": "GHSA-965c-763c-88jm",
-      "package": "better-auth",
-      "severity": "critical",
-      "reason": "Usage: runtime. Fix needs a dependency bump (patched in >=1.7.7), out of scope for 27.2.2; tracked by task 27.2.6. Plugins OAuth Proxy and Magic Link are not enabled in packages/auth/src/config.ts (only telegramPlugin and emailOTP; no social providers), so the flaw is not reachable in the current configuration; still fix by upgrading.",
-      "expires": "2026-11-29"
-    },
-    {
       "ghsa": "GHSA-4w7w-5xrc-9h26",
       "package": "undici",
       "severity": "high",

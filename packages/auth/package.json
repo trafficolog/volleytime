@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@volley-time/db": "workspace:*",
-    "better-auth": "^1.7.4",
+    "better-auth": "^1.7.25",
     "zod": "^4.6.4"
   },
   "devDependencies": {
