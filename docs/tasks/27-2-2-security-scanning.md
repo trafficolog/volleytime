@@ -2,11 +2,11 @@
 id: '27.2.2'
 phase: '27'
 epic: '27.2'
-status: in_progress
+status: done
 release: 'v0.3.1'
 sync_state: synced
-last_reviewed: 2026-11-10
-status_note: 'Из аудита 2026-11-10 (CI-02). Релиз v0.3.1 (решение владельца 2026-11-10), параллельно с эпиками 21.4–21.5.'
+last_reviewed: 2026-11-16
+status_note: 'Выполнено 2026-11-15, PR #261 (merge d8f87285): `.github/dependabot.yml` (npm, github-actions, docker; раз в неделю), `dependency-audit.yml` с `scripts/audit-gate.mjs` (high/critical без записи в `audit-exceptions.json` блокируют CI), `codeql.yml` на PR, push в `main` и по расписанию. Dependabot уже открыл PR по всем трём экосистемам, CodeQL и аудит проходят на PR. Первая волна находок передана карточками 27.2.6–27.2.8. Включение secret scanning, push protection и Dependabot alerts — за владельцем (`docs/GITHUB_SETUP.md` §9). CI зелёный.'
 ref_id: ''
 review_ref: 'CI-02'
 priority: P1

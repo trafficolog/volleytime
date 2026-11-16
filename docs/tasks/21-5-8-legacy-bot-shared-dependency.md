@@ -2,11 +2,11 @@
 id: '21.5.8'
 phase: '21'
 epic: '21.5'
-status: in_progress
+status: done
 release: 'v0.3.1'
 sync_state: synced
-last_reviewed: 2026-10-28
-status_note: 'Решение владельца OQ-6 (2026-10-28): удалить зависимость @volley-time/shared у бота; согласие на изменение pnpm-lock.yaml дано этим решением. Пакет из отчёта 21.5.1: LEG-24. Отдельный PR, чтобы diff lockfile был читаемым.'
+last_reviewed: 2026-11-16
+status_note: 'Выполнено 2026-11-15, PR #275 (merge a02fafee): `@volley-time/shared` убран из `apps/bot/package.json`, в `pnpm-lock.yaml` удалена только запись importer bot→shared; Dockerfile не менялся. CI зелёный, включая `Runner image build-export-import`.'
 ref_id: ''
 complexity: M
 impl_model: claude-sonnet-5-5

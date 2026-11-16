@@ -2,11 +2,11 @@
 id: '21.5.2'
 phase: '21'
 epic: '21.5'
-status: in_progress
+status: done
 release: 'v0.3.1'
 sync_state: synced
-last_reviewed: 2026-10-28
-status_note: 'Пакет 1 из отчёта 21.5.1: LEG-01…LEG-03. LEG-02 без MEMBER_STATUS_LABELS (появился потребитель PlayerDrawer.vue). PR на ревью.'
+last_reviewed: 2026-11-16
+status_note: 'Выполнено 2026-11-16, PR #277 (merge a337a431): удалены LEG-01 (`useEvents.ts`), LEG-02 (`BOOKING_STATUS_LABELS`, `SUBSCRIPTION_STATUS_LABELS`), LEG-03 (`APP_NAME`, `CLOSE_BEFORE_MINUTES`); `MEMBER_STATUS_LABELS` оставлен (появился потребитель `PlayerDrawer.vue`). Данные, схема, lockfile не менялись. CI зелёный.'
 ref_id: ''
 complexity: M
 impl_model: claude-sonnet-5-5

@@ -2,11 +2,11 @@
 id: '21.5.5'
 phase: '21'
 epic: '21.5'
-status: in_progress
+status: done
 release: 'v0.3.1'
 sync_state: synced
-last_reviewed: 2026-10-28
-status_note: 'Пакет из отчёта 21.5.1: LEG-13. Решение владельца OQ-7 принято 2026-10-28 (разрешено); старт после 21.3.1, diff deploy.md показывается владельцу в ревью.'
+last_reviewed: 2026-11-16
+status_note: 'Выполнено 2026-11-11, PR #255 (merge b94addb9): баннеры LEG-13 перенесены дословно в архивы (64 из current-state, 13 из RELEASES, 3 абзаца из deploy.md); счёт строк `> **` сходится, битых локальных ссылок нет; в описании PR отдельный блок для владельца с diff deploy.md без изменения процедур. CI зелёный.'
 ref_id: ''
 complexity: M
 impl_model: claude-sonnet-5-5
