@@ -1,6 +1,5 @@
 // @vitest-environment happy-dom
 /* eslint-disable vue/one-component-per-file -- local test hosts mount the real pages */
-import type { EventPricingView } from '@volley-time/shared'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -29,10 +28,11 @@ import MyChip from '~/components/vt/MyChip.vue'
 import SeatsMini from '~/components/vt/SeatsMini.vue'
 import StateChip from '~/components/vt/StateChip.vue'
 import Toggle from '~/components/vt/Toggle.vue'
+import { priceFields, type PriceScenario } from '~/utils/__fixtures__/price-fields'
 import { withSplitPriceFetch } from '~/utils/__fixtures__/split-quote'
 
 const route = reactive({ params: { orgId: '30', eventId: '71' }, fullPath: '/m/orgs/30/events/71' })
-const pricing: EventPricingView = {
+const pricing: PriceScenario = {
   mode: 'split',
   targetAmount: 10000,
   settledAt: null,
@@ -59,7 +59,7 @@ const fixture = () => ({
   cancellationDeadlineHours: null as number | null,
   venue: null,
   locationText: null,
-  pricing: { ...pricing },
+  ...priceFields({ ...pricing }),
   myBooking: null as null | {
     id: number
     status: string
@@ -181,7 +181,7 @@ const cancellableBooking = () => ({
   id: 5,
   organizationId: 30,
   status: 'confirmed',
-  pricing: { ...pricing },
+  ...priceFields({ ...pricing }),
   event: fixture(),
 })
 async function beginHeldBookingCancellation() {
@@ -260,13 +260,13 @@ describe('player split pricing interactions', () => {
           event: {
             ...fixture(),
             taken: 0,
-            pricing: {
+            ...priceFields({
               ...pricing,
               basis: 'capacity',
               participantCount: 4,
               minAmount: 2500,
               maxAmount: 2500,
-            },
+            }),
           },
           tz: 'Europe/Minsk',
           to: '/m/orgs/30/events/71',
@@ -323,7 +323,7 @@ describe('player split pricing interactions', () => {
             status: 'closed',
             taken: 4,
             myBooking: { id: 5, status: 'waitlisted' },
-            pricing: { ...pricing, basis: 'settled', settledAt: '2026-10-02T11:00:00Z' },
+            ...priceFields({ ...pricing, basis: 'settled', settledAt: '2026-10-02T11:00:00Z' }),
           },
           tz: 'Europe/Minsk',
           to: '/m/orgs/30/events/71',
@@ -352,13 +352,13 @@ describe('player split pricing interactions', () => {
           id: 5,
           organizationId: 30,
           status: 'confirmed',
-          pricing: {
+          ...priceFields({
             ...pricing,
             basis: 'settled',
             settledAt: '2026-10-02T11:00:00Z',
             myAllocatedAmount: 3334,
             myPaymentStatus: 'refunded',
-          },
+          }),
           event: fixture(),
         },
       ],
@@ -396,34 +396,34 @@ describe('player split pricing interactions', () => {
           id: 5,
           organizationId: 30,
           status: 'cancelled',
-          pricing: {
+          ...priceFields({
             ...pricing,
             basis: 'settled',
             settledAt: '2026-10-02T11:00:00Z',
             myAllocatedAmount: 3334,
             myPaymentStatus: 'refunded',
-          },
+          }),
           event: fixture(),
         },
         {
           id: 6,
           organizationId: 30,
           status: 'cancelled',
-          pricing: {
+          ...priceFields({
             ...pricing,
             mode: 'fixed',
             basis: 'fixed',
             targetAmount: null,
             minAmount: 1500,
             maxAmount: 1500,
-          },
+          }),
           event: { ...fixture(), id: 72, title: 'Отменённый fixed' },
         },
         {
           id: 7,
           organizationId: 30,
           status: 'cancelled',
-          pricing: { ...pricing },
+          ...priceFields({ ...pricing }),
           event: { ...fixture(), id: 73, title: 'Отменённый прогноз' },
         },
       ],
@@ -464,21 +464,21 @@ describe('player split pricing interactions', () => {
           id: 5,
           organizationId: 30,
           status: 'pending_payment',
-          pricing: { ...pricing },
+          ...priceFields({ ...pricing }),
           event: fixture(),
         },
         {
           id: 6,
           organizationId: 30,
           status: 'waitlisted',
-          pricing: { ...pricing },
+          ...priceFields({ ...pricing }),
           event: { ...fixture(), id: 72, taken: 4 },
         },
         {
           id: 7,
           organizationId: 30,
           status: 'waitlisted',
-          pricing: { ...pricing, basis: 'settled', settledAt: '2026-10-02T11:00:00Z' },
+          ...priceFields({ ...pricing, basis: 'settled', settledAt: '2026-10-02T11:00:00Z' }),
           event: { ...fixture(), id: 73, status: 'closed', taken: 4 },
         },
       ],
@@ -563,7 +563,7 @@ describe('player split pricing interactions', () => {
       bookings: [
         {
           ...cancellableBooking(),
-          pricing: { ...pricing, myAllocatedAmount: 3334, basis: 'settled' },
+          ...priceFields({ ...pricing, myAllocatedAmount: 3334, basis: 'settled' }),
         },
       ],
     })
@@ -586,7 +586,7 @@ describe('player split pricing interactions', () => {
       bookings: [
         {
           ...cancellableBooking(),
-          pricing: { ...pricing, myAllocatedAmount: 3334, basis: 'settled' },
+          ...priceFields({ ...pricing, myAllocatedAmount: 3334, basis: 'settled' }),
         },
       ],
     })
@@ -660,12 +660,12 @@ describe('player split pricing interactions', () => {
         bookings: [
           {
             ...cancellableBooking(),
-            pricing: {
+            ...priceFields({
               ...pricing,
               basis: 'settled',
               myAllocatedAmount: 3334,
               myPaymentStatus: 'refunded',
-            },
+            }),
           },
         ],
       })
@@ -835,12 +835,12 @@ describe('player split pricing interactions', () => {
           bookings: [
             {
               ...cancellableBooking(),
-              pricing: {
+              ...priceFields({
                 ...pricing,
                 basis: 'settled',
                 myAllocatedAmount: 3334,
                 myPaymentStatus: 'refunded',
-              },
+              }),
             },
           ],
         })
@@ -980,13 +980,16 @@ describe('player split pricing interactions', () => {
     expect(wrapper.text()).toContain('Прогноз')
     expect(wrapper.text()).not.toContain('Бесплатно')
     expect(wrapper.text()).not.toContain('Оплачено')
-    data.value.event.pricing = {
-      ...pricing,
-      basis: 'capacity',
-      minAmount: 2500,
-      maxAmount: 2500,
-      participantCount: 4,
-    }
+    Object.assign(
+      data.value.event,
+      priceFields({
+        ...pricing,
+        basis: 'capacity',
+        minAmount: 2500,
+        maxAmount: 2500,
+        participantCount: 4,
+      }),
+    )
     data.value.event.taken = 0
     await flushPromises()
     // пока никого нет, прогноз — «я один»: вся сумма на одно место
@@ -997,13 +1000,16 @@ describe('player split pricing interactions', () => {
   it.each(['pending', 'succeeded', 'cancelled', 'refunded'] as const)(
     'settled own amount remains exact and payment %s is explicit',
     async (status) => {
-      data.value.event.pricing = {
-        ...pricing,
-        basis: 'settled',
-        settledAt: '2026-10-02T11:00:00Z',
-        myAllocatedAmount: 3334,
-        myPaymentStatus: status,
-      }
+      Object.assign(
+        data.value.event,
+        priceFields({
+          ...pricing,
+          basis: 'settled',
+          settledAt: '2026-10-02T11:00:00Z',
+          myAllocatedAmount: 3334,
+          myPaymentStatus: status,
+        }),
+      )
       data.value.event.myBooking = { id: 5, status: 'confirmed', method: 'cash', paymentId: 11 }
       const wrapper = await renderPage()
       const own = wrapper.find('[aria-label="Ваша запись"]').text()
@@ -1038,12 +1044,15 @@ describe('player split pricing interactions', () => {
     data.value.event.status = 'closed'
     data.value.event.startsAt = '2026-10-03T16:00:00Z'
     data.value.event.cancellationDeadlineHours = 48
-    data.value.event.pricing = {
-      ...pricing,
-      basis: 'settled',
-      settledAt: '2026-10-02T11:00:00Z',
-      myAllocatedAmount: null,
-    }
+    Object.assign(
+      data.value.event,
+      priceFields({
+        ...pricing,
+        basis: 'settled',
+        settledAt: '2026-10-02T11:00:00Z',
+        myAllocatedAmount: null,
+      }),
+    )
     data.value.event.myBooking = {
       id: 5,
       status: 'waitlisted',
@@ -1060,14 +1069,17 @@ describe('player split pricing interactions', () => {
     wrapper.unmount()
   })
   it('fixed free booking still submits free directly', async () => {
-    data.value.event.pricing = {
-      ...pricing,
-      mode: 'fixed',
-      basis: 'fixed',
-      targetAmount: null,
-      minAmount: 0,
-      maxAmount: 0,
-    }
+    Object.assign(
+      data.value.event,
+      priceFields({
+        ...pricing,
+        mode: 'fixed',
+        basis: 'fixed',
+        targetAmount: null,
+        minAmount: 0,
+        maxAmount: 0,
+      }),
+    )
     const wrapper = await renderPage()
     await wrapper
       .findAll('button')

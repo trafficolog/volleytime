@@ -3,7 +3,7 @@ import { formatDay, formatTime } from '@volley-time/shared'
 
 import type { EventListItem } from '~/components/EventCard.vue'
 import PlayerHomeTiles from '~/components/PlayerHomeTiles.vue'
-import { eventPricingLabel } from '~/utils/event-pricing-label'
+import { eventPricingLabel, priceSourceOf } from '~/utils/event-pricing-label'
 import type { sessionsTile } from '~/utils/player-home'
 import { quotePriceLabel } from '~/utils/player-price-view'
 import { eventStateOf, meterTintOnDark, seatsOf } from '~/utils/status-model'
@@ -25,11 +25,12 @@ const seats = computed(() =>
   seatsOf({ taken: props.hero.taken, capacity: props.hero.capacity }, state.value),
 )
 // split: цена из `quoteEventPrice` (то же, что GET …/price, 20.4.6); `null` — без числа, а не
-// подстановка из `readEventPricing`. Без поля `priceQuote` остаётся проекция `pricing`.
+// подстановка прогноза. Без поля `priceQuote` остаётся прогноз `priceForecast` (21.5.9).
+const priceSource = computed(() => priceSourceOf(props.hero))
 const quoteMode = computed(
-  () => props.hero.pricing?.mode === 'split' && props.hero.priceQuote !== undefined,
+  () => priceSource.value?.priceMode === 'split' && props.hero.priceQuote !== undefined,
 )
-const pricing = computed(() => {
+const priceLabel = computed(() => {
   if (quoteMode.value) {
     const label =
       props.hero.status === 'cancelled'
@@ -41,15 +42,15 @@ const pricing = computed(() => {
           })
     return label
   }
-  return props.hero.pricing ? eventPricingLabel(props.hero.pricing, props.hero.currency) : null
+  return priceSource.value ? eventPricingLabel(priceSource.value, props.hero.currency) : null
 })
 const forecastNote = computed(
   () =>
-    props.hero.pricing?.mode === 'split' &&
-    !!pricing.value &&
+    priceSource.value?.priceMode === 'split' &&
+    !!priceLabel.value &&
     (quoteMode.value
       ? props.hero.priceQuote?.basis === 'forecast'
-      : props.hero.pricing.basis !== 'settled'),
+      : priceSource.value.priceForecast.basis !== 'settled'),
 )
 const place = computed(() => props.hero.venue?.name ?? props.hero.locationText)
 </script>
@@ -73,9 +74,11 @@ const place = computed(() => props.hero.venue?.name ?? props.hero.locationText)
         {{ formatTime(hero.startsAt, tz) }}
       </div>
       <div class="mt-2 break-words text-sm font-semibold">{{ hero.title }}</div>
-      <div v-if="pricing" class="mt-2 text-xs text-[var(--vt-on-hero-2)]">{{ pricing.text }}</div>
-      <p v-if="forecastNote && pricing" class="mt-1 text-[11px] text-[var(--vt-on-hero-3)]">
-        {{ pricing.description }}
+      <div v-if="priceLabel" class="mt-2 text-xs text-[var(--vt-on-hero-2)]">
+        {{ priceLabel.text }}
+      </div>
+      <p v-if="forecastNote && priceLabel" class="mt-1 text-[11px] text-[var(--vt-on-hero-3)]">
+        {{ priceLabel.description }}
       </p>
       <div v-if="place" class="mt-1 break-words text-xs text-[var(--vt-on-hero-3)]">
         {{ place }}

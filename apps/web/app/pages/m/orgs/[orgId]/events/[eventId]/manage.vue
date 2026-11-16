@@ -4,7 +4,7 @@ import type { Event } from '@volley-time/db'
 import {
   formatDay,
   formatTime,
-  type EventPricingView,
+  type EventPriceForecast,
   type PricingFinancials,
   type PricingPermissions,
 } from '@volley-time/shared'
@@ -72,7 +72,7 @@ const {
     taken: number
     waitlist: number
     waitlistSeats?: number
-    pricing: EventPricingView
+    priceForecast: EventPriceForecast
     pricingPermissions?: PricingPermissions
     pricingFinancials?: PricingFinancials
   }
@@ -224,7 +224,7 @@ async function settlePricing() {
   try {
     const count = target.taken
     const ok = await confirm(
-      `Закрыть запись и распределить ${formatMoneyRu(target.pricing.targetAmount ?? 0, target.currency)} между ${count} участниками? Доли будут зафиксированы; лист ожидания не участвует. Состав и суммы окончательно проверит сервер.`,
+      `Закрыть запись и распределить ${formatMoneyRu(target.targetAmount ?? 0, target.currency)} между ${count} участниками? Доли будут зафиксированы; лист ожидания не участвует. Состав и суммы окончательно проверит сервер.`,
     )
     if (!ok || !routeStillCurrent(key) || !ev.value?.pricingPermissions?.canSettle) return
     await $fetch(`/api/organizations/${target.organizationId}/events/${target.id}/settle`, {
@@ -336,7 +336,7 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
     if (action === 'reject') {
       const ok = await confirm(
         `Отклонить оплату ${displayName(payment.user)}? ${
-          ev.value.pricing?.mode === 'split' && ev.value.pricing.settledAt
+          ev.value.priceMode === 'split' && ev.value.pricingSettledAt
             ? 'Запись будет отменена. Лист ожидания не продвигается. Доли остальных не изменятся.'
             : 'Запись будет отменена, место перейдёт следующему в листе ожидания.'
         }`,
@@ -444,7 +444,7 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
 
       <p v-if="actionError" class="text-sm text-vt-rose-ink" role="alert">{{ actionError }}</p>
       <button
-        v-if="actionError && ev.pricing?.mode === 'split'"
+        v-if="actionError && ev.priceMode === 'split'"
         class="vt-btn vt-btn--ghost"
         type="button"
         :disabled="mutationBusy"
@@ -496,9 +496,9 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
                 <OrganizerRosterRow
                   :booking="b"
                   :pricing="{
-                    priceMode: ev.pricing?.mode === 'split' ? 'split' : 'fixed',
-                    free: ev.pricing?.mode !== 'split' && ev.price === 0,
-                    settled: !!ev.pricing?.settledAt,
+                    priceMode: ev.priceMode === 'split' ? 'split' : 'fixed',
+                    free: ev.priceMode !== 'split' && ev.price === 0,
+                    settled: !!ev.pricingSettledAt,
                   }"
                   :currency="ev.currency"
                 >
@@ -578,8 +578,8 @@ async function actPayment(payment: PendingPayment, action: 'confirm' | 'reject')
         class="space-y-3"
       >
         <EventPricingPanel
-          v-if="ev.pricing?.mode === 'split'"
-          :pricing="ev.pricing"
+          v-if="ev.priceMode === 'split'"
+          :event="ev"
           :financials="ev.pricingFinancials ?? null"
           :currency="ev.currency"
           :tz="tz"

@@ -6,6 +6,7 @@ import { computed, defineComponent, h, onUnmounted, reactive, ref, Suspense, wat
 import Bookings from './bookings.vue'
 
 import MyChip from '~/components/vt/MyChip.vue'
+import { bookingPriceFields, type PriceScenario } from '~/utils/__fixtures__/price-fields'
 import { apiErrorMessage } from '~/utils/api-error'
 
 const BookingsHost = defineComponent({
@@ -54,12 +55,11 @@ const event = (id: number) => ({
   currency: 'BYN',
   venue: null,
 })
-const booking = (id: number, status: string, pricing: unknown) => ({
+const booking = (id: number, status: string, price: PriceScenario) => ({
   id,
   status,
   organizationId: 30,
-  pricing,
-  event: event(id + 100),
+  ...bookingPriceFields(price, event(id + 100)),
 })
 
 async function mountBookings(items: unknown[]) {

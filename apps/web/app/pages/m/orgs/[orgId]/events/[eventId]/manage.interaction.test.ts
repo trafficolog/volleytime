@@ -20,10 +20,22 @@ import OrganizerRosterRow from '~/components/OrganizerRosterRow.vue'
 import MyChip from '~/components/vt/MyChip.vue'
 import SeatsMini from '~/components/vt/SeatsMini.vue'
 import StateChip from '~/components/vt/StateChip.vue'
+import { priceFields, type PriceScenario } from '~/utils/__fixtures__/price-fields'
 
 const managePath = '/m/orgs/30/events/71/manage'
 const route = reactive({ params: { orgId: '30', eventId: '71' }, fullPath: managePath })
 const routerRoute = ref({ params: { orgId: '30', eventId: '71' }, fullPath: managePath })
+const splitScenario: PriceScenario = {
+  mode: 'split',
+  targetAmount: 10000,
+  settledAt: null,
+  participantCount: 1,
+  minAmount: 10000,
+  maxAmount: 10000,
+  basis: 'current',
+  myAllocatedAmount: null,
+  myPaymentStatus: null,
+}
 const event = {
   id: 71,
   organizationId: 30,
@@ -34,17 +46,8 @@ const event = {
   taken: 1,
   waitlist: 0,
   currency: 'BYN',
-  pricing: {
-    mode: 'split',
-    targetAmount: 10000,
-    settledAt: null as string | null,
-    participantCount: 1,
-    minAmount: 10000,
-    maxAmount: 10000,
-    basis: 'current',
-    myAllocatedAmount: null,
-    myPaymentStatus: null,
-  },
+  ...priceFields(splitScenario),
+
   pricingPermissions: { canChangePriceMode: false, canChangeTargetAmount: true, canSettle: true },
   pricingFinancials: { collected: 0, pending: 0, cancelled: 0, refunded: 0, currency: 'BYN' },
 }
@@ -186,7 +189,7 @@ describe('event management interactions', () => {
     eventData = ref({
       event: {
         ...event,
-        pricing: { ...event.pricing, settledAt: '2026-10-03T23:15:00Z', basis: 'settled' },
+        ...priceFields({ ...splitScenario, settledAt: '2026-10-03T23:15:00Z', basis: 'settled' }),
       },
     }) as typeof eventData
     const wrapper = await renderManage()
@@ -208,7 +211,7 @@ describe('event management interactions', () => {
       event: {
         ...event,
         status: 'closed',
-        pricing: { ...event.pricing, settledAt: '2026-10-03T23:15:00Z', basis: 'settled' },
+        ...priceFields({ ...splitScenario, settledAt: '2026-10-03T23:15:00Z', basis: 'settled' }),
       },
     }) as typeof eventData
     const wrapper = await renderManage()

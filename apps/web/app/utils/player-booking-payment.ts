@@ -12,8 +12,10 @@ import { formatMoneyRu } from './labels'
 export interface PayableBooking {
   status: string
   method: string | null
-  event: { status: string }
-  pricing?: { mode: string; minAmount?: number; myAllocatedAmount?: number | null }
+  event: { status: string; priceMode?: string }
+  /** Прогноз цены места и своя доля (21.5.10, 21.5.9). */
+  priceForecast?: { minAmount: number }
+  myShare?: { allocatedAmount: number | null } | null
   seatPayments?: { pendingSeats: number }
 }
 
@@ -28,7 +30,7 @@ export function canPayBooking(b: PayableBooking): boolean {
     owes &&
     (b.method === 'cash' || b.method === 'transfer') &&
     b.event.status !== 'cancelled' &&
-    !(b.pricing?.mode === 'split' && (b.pricing.myAllocatedAmount ?? null) === null)
+    !(b.event.priceMode === 'split' && (b.myShare?.allocatedAmount ?? null) === null)
   )
 }
 
@@ -47,9 +49,10 @@ export function heldDebtLabel(
 ): { text: string; amount: boolean } | null {
   const pending = b.seatPayments?.pendingSeats ?? 0
   if (!HELD_STATUSES.includes(b.status) || pending <= 0) return null
-  if (b.pricing?.mode === 'fixed' && (b.pricing.minAmount ?? 0) > 0)
+  const seatPrice = b.priceForecast?.minAmount ?? 0
+  if (b.event.priceMode === 'fixed' && seatPrice > 0)
     return {
-      text: `${formatMoneyRu(pending * b.pricing.minAmount!, currency)} · ${seatsLabel(pending)}`,
+      text: `${formatMoneyRu(pending * seatPrice, currency)} · ${seatsLabel(pending)}`,
       amount: true,
     }
   return { text: `к оплате ${seatsLabel(pending)}`, amount: false }

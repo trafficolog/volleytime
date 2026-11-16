@@ -1,14 +1,24 @@
 import { describe, expect, it } from 'vitest'
 
+import { priceFields, type PriceScenario } from './__fixtures__/price-fields'
 import { canPayBooking, heldDebtLabel, payBookingPath } from './player-booking-payment'
 
-const booking = (over: Record<string, unknown> = {}) => ({
-  status: 'pending_payment',
-  method: 'transfer',
-  event: { status: 'published' },
-  pricing: { mode: 'fixed' },
-  ...over,
-})
+// price — сценарий цены; запись получает поля ответа API (priceMode, priceForecast, myShare; 21.5.9)
+const booking = ({
+  price = { mode: 'fixed' },
+  event = { status: 'published' },
+  ...over
+}: { price?: PriceScenario; event?: { status: string } } & Record<string, unknown> = {}) => {
+  const fields = priceFields(price)
+  return {
+    status: 'pending_payment',
+    method: 'transfer',
+    event: { ...event, priceMode: fields.priceMode },
+    priceForecast: fields.priceForecast,
+    myShare: fields.myShare,
+    ...over,
+  }
+}
 
 describe('canPayBooking (21.4.8): the «Оплатить» button', () => {
   it('shows for a booking that waits for a cash or transfer payment', () => {
@@ -33,12 +43,10 @@ describe('canPayBooking (21.4.8): the «Оплатить» button', () => {
   })
 
   it('does not show for split pricing until the amount is allocated', () => {
-    expect(canPayBooking(booking({ pricing: { mode: 'split', myAllocatedAmount: null } }))).toBe(
+    expect(canPayBooking(booking({ price: { mode: 'split', myAllocatedAmount: null } }))).toBe(
       false,
     )
-    expect(canPayBooking(booking({ pricing: { mode: 'split', myAllocatedAmount: 700 } }))).toBe(
-      true,
-    )
+    expect(canPayBooking(booking({ price: { mode: 'split', myAllocatedAmount: 700 } }))).toBe(true)
   })
 })
 
@@ -84,7 +92,7 @@ describe('canPayBooking (21.4.19): debtors of a held booking', () => {
         booking({
           status: 'attended',
           seatPayments: debt,
-          pricing: { mode: 'split', myAllocatedAmount: null },
+          price: { mode: 'split', myAllocatedAmount: null },
         }),
       ),
     ).toBe(false)
@@ -110,7 +118,7 @@ describe('heldDebtLabel (21.4.19)', () => {
   const held = (over: Record<string, unknown> = {}) =>
     booking({
       status: 'attended',
-      pricing: { mode: 'fixed', minAmount: 1500 },
+      price: { mode: 'fixed', minAmount: 1500 },
       seatPayments: { pendingSeats: 1 },
       ...over,
     })
@@ -124,7 +132,7 @@ describe('heldDebtLabel (21.4.19)', () => {
   })
 
   it('shows only the number of seats when the per-seat amount is not reliable (split)', () => {
-    const label = heldDebtLabel(held({ pricing: { mode: 'split', myAllocatedAmount: 700 } }), 'BYN')
+    const label = heldDebtLabel(held({ price: { mode: 'split', myAllocatedAmount: 700 } }), 'BYN')
     expect(label).toEqual({ text: 'к оплате 1 место', amount: false })
   })
 

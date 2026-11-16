@@ -1,6 +1,6 @@
 /**
  * Цена split для игрока (20.4.6, M-07): экран события и списки игрока. Все суммы берутся только из
- * ответа `GET …/events/{id}/price` (`quoteEventPrice`, 20.1.1, D-01 (B)), а не из `readEventPricing`/
+ * ответа `GET …/events/{id}/price` (`quoteEventPrice`, 20.1.1, D-01 (B)), а не из `priceForecast`/
  * `previewSplitAmount`. «Мест нет» определяется занятостью события, а не ценой (`seatCount.current`
  * ограничен вместимостью); для отменённого события цена не показывается.
  */

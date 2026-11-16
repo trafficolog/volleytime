@@ -1,6 +1,6 @@
-import type { EventPricingView } from '@volley-time/shared'
 import { describe, expect, it } from 'vitest'
 
+import { priceFields, type PriceScenario } from './__fixtures__/price-fields'
 import {
   bookingPaymentChip,
   playerEventLoadErrorNotice,
@@ -217,7 +217,7 @@ describe('player event view state', () => {
   })
 
   it('locks only an allocated split booking after settlement', () => {
-    const pricing: EventPricingView = {
+    const pricing: PriceScenario = {
       mode: 'split',
       targetAmount: 10000,
       settledAt: '2026-09-24T09:00:00Z',
@@ -230,7 +230,7 @@ describe('player event view state', () => {
     }
     expect(
       projectPlayerEvent(
-        { ...event, price: 0, pricing, myBooking: { status: 'waitlisted' } },
+        { ...event, price: 0, ...priceFields(pricing), myBooking: { status: 'waitlisted' } },
         access,
         now,
       ).canCancel,
@@ -240,7 +240,7 @@ describe('player event view state', () => {
         {
           ...event,
           price: 0,
-          pricing: { ...pricing, myAllocatedAmount: 3334, myPaymentStatus: 'pending' },
+          ...priceFields({ ...pricing, myAllocatedAmount: 3334, myPaymentStatus: 'pending' }),
           myBooking: { status: 'pending_payment' },
         },
         access,

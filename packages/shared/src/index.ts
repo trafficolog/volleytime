@@ -53,8 +53,9 @@ export {
   zonedInputToDate,
 } from './datetime/datetime'
 export type {
+  EventPriceBasis,
   EventPriceForecast,
-  EventPricingView,
+  EventPriceSource,
   MyEventShare,
   PricingFinancials,
   PricingPermissions,

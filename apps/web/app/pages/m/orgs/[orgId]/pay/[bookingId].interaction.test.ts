@@ -6,6 +6,7 @@ import { computed, defineComponent, h, ref, Suspense } from 'vue'
 import Pay from './[bookingId].vue'
 
 import PlayerPaymentInstructions from '~/components/PlayerPaymentInstructions.vue'
+import { bookingPriceFields, type PriceScenario } from '~/utils/__fixtures__/price-fields'
 import { apiErrorMessage } from '~/utils/api-error'
 
 const fetchMock = vi.fn<(url: string, opts?: unknown) => Promise<unknown>>()
@@ -21,15 +22,21 @@ function stubPage(bookingId: string) {
   vi.stubGlobal('apiErrorCode', () => undefined)
 }
 
-const booking = (id: number, over: Record<string, unknown> = {}) => ({
+// price — сценарий цены (21.5.9): режим уходит в строку события, прогноз и доля — в запись
+const booking = (
+  id: number,
+  {
+    price = { mode: 'fixed', minAmount: 1500, maxAmount: 1500, myAllocatedAmount: null },
+    ...over
+  }: { price?: PriceScenario } & Record<string, unknown> = {},
+) => ({
   id,
   organizationId: 30,
   status: 'pending_payment',
   method: 'transfer',
   seats: 2,
-  pricing: { mode: 'fixed', minAmount: 1500, maxAmount: 1500, myAllocatedAmount: null },
   seatPayments: { paidSeats: 0, pendingSeats: 2, releasedPaidSeats: 0 },
-  event: {
+  ...bookingPriceFields(price, {
     id: 3,
     organizationId: 30,
     title: 'Воскресная игра',
@@ -37,7 +44,7 @@ const booking = (id: number, over: Record<string, unknown> = {}) => ({
     startsAt: '2099-10-04T16:00:00.000Z',
     currency: 'BYN',
     venue: { name: 'Школа №24' },
-  },
+  }),
   ...over,
 })
 
@@ -163,7 +170,7 @@ describe('payment screen of a booking (21.4.8, M-13)', () => {
       booking(7, {
         status: 'no_show',
         seats: 2,
-        pricing: { mode: 'split', myAllocatedAmount: 700, basis: 'settled' },
+        price: { mode: 'split', myAllocatedAmount: 700, basis: 'settled' },
         seatPayments: { paidSeats: 1, pendingSeats: 1, releasedPaidSeats: 0 },
       }),
     ])

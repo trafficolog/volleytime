@@ -1,6 +1,5 @@
 // @vitest-environment happy-dom
 import { BookInput } from '@volley-time/core'
-import type { EventPricingView } from '@volley-time/shared'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -25,6 +24,7 @@ import MyChip from '~/components/vt/MyChip.vue'
 import SeatsMini from '~/components/vt/SeatsMini.vue'
 import StateChip from '~/components/vt/StateChip.vue'
 import Toggle from '~/components/vt/Toggle.vue'
+import { priceFields, type PriceScenario } from '~/utils/__fixtures__/price-fields'
 import { apiErrorCode, apiErrorMessage, apiErrorStatus } from '~/utils/api-error'
 
 /**
@@ -33,7 +33,7 @@ import { apiErrorCode, apiErrorMessage, apiErrorStatus } from '~/utils/api-error
  */
 const NOW = new Date('2027-10-03T10:00:00Z')
 const route = reactive({ params: { orgId: '30', eventId: '71' }, fullPath: '/m/orgs/30/events/71' })
-const fixedPricing = (): EventPricingView => ({
+const fixedPricing = (): PriceScenario => ({
   mode: 'fixed',
   targetAmount: null,
   settledAt: null,
@@ -74,7 +74,7 @@ const fixture = () => ({
   bookingOpensAt: null as string | null,
   venue: null,
   locationText: null,
-  pricing: fixedPricing(),
+  ...priceFields(fixedPricing()),
   myBooking: null as MyBooking,
 })
 const orgFixture = (
@@ -388,7 +388,7 @@ describe('no free seats: queue branch keeps the payment choice (M-06, D-03 C)', 
 
   it('a free event in the queue shows no payment choice and says so', async () => {
     data.value.event.price = 0
-    data.value.event.pricing = { ...fixedPricing(), minAmount: 0, maxAmount: 0 }
+    Object.assign(data.value.event, priceFields({ ...fixedPricing(), minAmount: 0, maxAmount: 0 }))
     wrapper = await render()
     await pageButton('Встать в лист ожидания')!.trigger('click')
     await flushPromises()
@@ -403,7 +403,7 @@ describe('no free seats: queue branch keeps the payment choice (M-06, D-03 C)', 
 describe('free event with several seats (M-06)', () => {
   it('opens the stepper instead of posting at once and sends method free', async () => {
     data.value.event.price = 0
-    data.value.event.pricing = { ...fixedPricing(), minAmount: 0, maxAmount: 0 }
+    Object.assign(data.value.event, priceFields({ ...fixedPricing(), minAmount: 0, maxAmount: 0 }))
     wrapper = await render()
     await pageButton('Записаться')!.trigger('click')
     await flushPromises()

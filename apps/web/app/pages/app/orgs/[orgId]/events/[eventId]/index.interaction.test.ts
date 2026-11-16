@@ -8,6 +8,7 @@ import DesktopManage from './index.vue'
 import EventPricingPanel from '~/components/EventPricingPanel.vue'
 import SeatsMini from '~/components/vt/SeatsMini.vue'
 import StateChip from '~/components/vt/StateChip.vue'
+import { priceFields } from '~/utils/__fixtures__/price-fields'
 
 const path = '/app/orgs/30/events/71'
 const route = reactive({ params: { orgId: '30', eventId: '71' }, path, fullPath: path })
@@ -33,7 +34,7 @@ const event = {
   taken: 1,
   waitlist: 0,
   currency: 'BYN',
-  pricing,
+  ...priceFields(pricing),
   pricingPermissions: { canChangePriceMode: false, canChangeTargetAmount: true, canSettle: true },
 }
 const refresh = vi.fn()
@@ -98,7 +99,7 @@ describe('desktop settlement full route and lifecycle', () => {
       data: ref({
         event: {
           ...event,
-          pricing: { ...pricing, settledAt: '2026-10-03T23:15:00Z', basis: 'settled' },
+          ...priceFields({ ...pricing, settledAt: '2026-10-03T23:15:00Z', basis: 'settled' }),
         },
       }),
       pending: ref(false),

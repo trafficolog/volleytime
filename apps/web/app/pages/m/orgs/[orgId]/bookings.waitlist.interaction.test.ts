@@ -6,6 +6,7 @@ import { computed, defineComponent, h, onUnmounted, reactive, ref, Suspense, wat
 import Bookings from './bookings.vue'
 
 import MyChip from '~/components/vt/MyChip.vue'
+import { bookingPriceFields } from '~/utils/__fixtures__/price-fields'
 import { apiErrorMessage } from '~/utils/api-error'
 
 const BookingsHost = defineComponent({
@@ -58,8 +59,7 @@ const booking = (id: number, extra: Record<string, unknown>) => ({
   id,
   status: 'waitlisted',
   organizationId: 30,
-  pricing: fixed,
-  event: event(id + 100),
+  ...bookingPriceFields(fixed, event(id + 100)),
   ...extra,
 })
 

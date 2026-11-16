@@ -7,10 +7,11 @@ import { computed, defineComponent, h, onUnmounted, reactive, ref, Suspense, wat
 import Bookings from './bookings.vue'
 
 import MyChip from '~/components/vt/MyChip.vue'
+import { priceFields } from '~/utils/__fixtures__/price-fields'
 import { apiErrorMessage } from '~/utils/api-error'
 import { formatMoneyRu } from '~/utils/labels'
 
-/** Task 20.4.6: «Мои записи» берёт цену split из ответа цены (priceQuote), а не из pricing. */
+/** Task 20.4.6: «Мои записи» берёт цену split из ответа цены (priceQuote), а не из прогноза priceForecast. */
 const route = reactive({ params: { orgId: '30' }, fullPath: '/m/orgs/30/bookings' })
 const fetchBookings = vi.fn<(url: string) => Promise<unknown>>()
 vi.stubGlobal('definePageMeta', () => undefined)
@@ -57,7 +58,7 @@ const item = (id: number, status: string, priceQuote: unknown, over: object = {}
   id,
   status,
   organizationId: 30,
-  pricing: legacy,
+  ...priceFields(legacy),
   priceQuote,
   event: {
     id: id + 100,
@@ -69,6 +70,7 @@ const item = (id: number, status: string, priceQuote: unknown, over: object = {}
     cancellationDeadlineHours: null,
     currency: 'BYN',
     venue: null,
+    priceMode: 'split',
     ...over,
   },
 })
@@ -97,7 +99,7 @@ async function mountBookings(items: unknown[]) {
 }
 
 describe('player bookings: цена split из priceQuote (20.4.6)', () => {
-  it('booked and waitlisted show the quote, not readEventPricing', async () => {
+  it('booked and waitlisted show the quote, not прогноз priceForecast', async () => {
     const mine = quote(8, 1)
     const queued = quote(14, 0)
     const w = await mountBookings([

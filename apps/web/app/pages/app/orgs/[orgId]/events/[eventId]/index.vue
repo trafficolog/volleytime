@@ -5,7 +5,7 @@ import {
   formatDay,
   formatTime,
   type EventPriceQuote,
-  type EventPricingView,
+  type EventPriceForecast,
   type PricingFinancials,
   type PricingPermissions,
 } from '@volley-time/shared'
@@ -46,7 +46,7 @@ const { data, pending, error, refresh } = await useFetch<{
     waitlist: number
     waitlistSeats?: number
     venue: { name: string } | null
-    pricing: EventPricingView
+    priceForecast: EventPriceForecast
     pricingPermissions?: PricingPermissions
     pricingFinancials?: PricingFinancials
     manualClose?: boolean
@@ -184,10 +184,10 @@ const waitlist = computed(() => rows.value.filter((booking) => booking.status ==
 const started = computed(() => !!event.value && new Date(event.value.startsAt) <= new Date())
 const cancelled = computed(() => event.value?.status === 'cancelled')
 const rosterPricing = computed(() => ({
-  priceMode: event.value?.pricing?.mode === 'split' ? ('split' as const) : ('fixed' as const),
+  priceMode: event.value?.priceMode === 'split' ? ('split' as const) : ('fixed' as const),
   perSeat: quote.value?.mode === 'fixed' ? quote.value.perSeat.max : null,
-  free: event.value?.pricing?.mode !== 'split' && (event.value?.price ?? 0) === 0,
-  settled: !!event.value?.pricing?.settledAt,
+  free: event.value?.priceMode !== 'split' && (event.value?.price ?? 0) === 0,
+  settled: !!event.value?.pricingSettledAt,
 }))
 const payments = computed(() =>
   rosterLoading.value || rosterError.value
@@ -195,8 +195,7 @@ const payments = computed(() =>
     : paymentSummaryOf(rows.value, rosterPricing.value),
 )
 const showPayments = computed(
-  () =>
-    !cancelled.value && (event.value?.pricing?.mode === 'split' || (event.value?.price ?? 0) > 0),
+  () => !cancelled.value && (event.value?.priceMode === 'split' || (event.value?.price ?? 0) > 0),
 )
 const priceView = computed(() =>
   event.value
@@ -247,7 +246,7 @@ async function settlePricing() {
   actionError.value = ''
   try {
     const ok = window.confirm(
-      `Закрыть запись и распределить ${formatMoneyRu(target.pricing.targetAmount ?? 0, target.currency)} между ${target.taken} участниками? Доли будут зафиксированы; лист ожидания не участвует. Состав и суммы окончательно проверит сервер.`,
+      `Закрыть запись и распределить ${formatMoneyRu(target.targetAmount ?? 0, target.currency)} между ${target.taken} участниками? Доли будут зафиксированы; лист ожидания не участвует. Состав и суммы окончательно проверит сервер.`,
     )
     if (
       !ok ||
@@ -444,7 +443,7 @@ async function resolvePayment(booking: EventBookingRow, action: 'confirm' | 'rej
       </p>
       <p v-if="actionError" class="text-vt-rose-ink" role="alert">{{ actionError }}</p>
       <button
-        v-if="actionError && event.pricing?.mode === 'split'"
+        v-if="actionError && event.priceMode === 'split'"
         class="vt-btn vt-btn--ghost"
         type="button"
         :disabled="busy"
@@ -591,8 +590,8 @@ async function resolvePayment(booking: EventBookingRow, action: 'confirm' | 'rej
           <EventPriceBlock v-if="priceView && priceView.mode === 'split'" :view="priceView" />
 
           <EventPricingPanel
-            v-if="event.pricing?.mode === 'split'"
-            :pricing="event.pricing"
+            v-if="event.priceMode === 'split'"
+            :event="event"
             :financials="event.pricingFinancials ?? null"
             :currency="event.currency"
             :tz="tz"
@@ -610,16 +609,16 @@ async function resolvePayment(booking: EventBookingRow, action: 'confirm' | 'rej
             <dl>
               <dt>Тип оплаты</dt>
               <dd>
-                {{ event.pricing?.mode === 'split' ? 'Делим общую сумму' : 'Фиксированная цена' }}
+                {{ event.priceMode === 'split' ? 'Делим общую сумму' : 'Фиксированная цена' }}
               </dd>
-              <template v-if="event.pricing?.mode === 'split'">
+              <template v-if="event.priceMode === 'split'">
                 <dt>Сумма к сбору</dt>
                 <dd class="vt-mono">
-                  {{ formatMoneyRu(event.pricing.targetAmount ?? 0, event.currency) }}
+                  {{ formatMoneyRu(event.targetAmount ?? 0, event.currency) }}
                 </dd>
               </template>
               <template v-if="priceView">
-                <dt>{{ event.pricing?.mode === 'split' ? 'За место' : 'Цена за место' }}</dt>
+                <dt>{{ event.priceMode === 'split' ? 'За место' : 'Цена за место' }}</dt>
                 <dd class="vt-mono" data-price-param>{{ priceView.headline }}</dd>
               </template>
               <dt>Состав</dt>

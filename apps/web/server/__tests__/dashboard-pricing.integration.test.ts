@@ -136,12 +136,13 @@ describe('dashboard pricing projection', () => {
     await request('POST', `/api/organizations/${orgId}/events/${eventId}/settle`, { user: ownerId })
     const res = await request('GET', dashboard(), { user: playerId })
     const body = res.body as {
-      hero: { id: number; status: string; pricing: { basis: string; myPaymentStatus: string } }
+      hero: { id: number; status: string; priceForecast: { basis: string } }
       bookingsAwaitingPayment: number
     }
     expect(body.hero).toMatchObject({
       id: eventId,
-      pricing: { basis: 'settled', myPaymentStatus: 'pending' },
+      priceForecast: { basis: 'settled' },
+      myShare: { paymentStatus: 'pending' },
     })
     expect(body.hero.status).not.toBe('published')
     expect(body.bookingsAwaitingPayment).toBe(1)
@@ -154,11 +155,12 @@ describe('dashboard pricing projection', () => {
     expect(before.body).toMatchObject({
       myBookings: [
         {
-          pricing: { basis: 'current', myAllocatedAmount: null, myPaymentStatus: null },
+          priceForecast: { basis: 'current' },
+          myShare: { allocatedAmount: null, paymentStatus: null },
           event: { currency: 'BYN' },
         },
       ],
-      upcoming: [{ pricing: { basis: 'current', minAmount: 10000, maxAmount: 10000 } }],
+      upcoming: [{ priceForecast: { basis: 'current', minAmount: 10000, maxAmount: 10000 } }],
     })
     await bookingService.book({ userId: otherId }, orgId, eventId, { method: 'cash' })
     await bookingService.book({ userId: ownerId }, orgId, eventId, { method: 'cash' })
@@ -169,7 +171,8 @@ describe('dashboard pricing projection', () => {
       manager: null,
       myBookings: [
         {
-          pricing: { basis: 'settled', myAllocatedAmount: 3334, myPaymentStatus: 'pending' },
+          priceForecast: { basis: 'settled' },
+          myShare: { allocatedAmount: 3334, paymentStatus: 'pending' },
           event: { id: eventId, currency: 'BYN' },
         },
       ],

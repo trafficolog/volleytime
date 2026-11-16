@@ -71,7 +71,7 @@ const dimmed = (event: EventListItem) => eventStateOf(event, now.value) !== null
           </td>
           <th scope="row" class="vt-desktop-table__title">
             <NuxtLink :to="`${base}/events/${event.id}`">{{ event.title }}</NuxtLink>
-            <VtChip v-if="event.pricing?.mode === 'split'" tone="flame">делёж суммы</VtChip>
+            <VtChip v-if="event.priceMode === 'split'" tone="flame">делёж суммы</VtChip>
           </th>
           <td class="vt-desktop-table__venue">{{ venueOf(event) }}</td>
           <td>

@@ -8,6 +8,8 @@ import Icon from './vt/Icon.vue'
 import SeatsMini from './vt/SeatsMini.vue'
 import StateChip from './vt/StateChip.vue'
 
+import { priceFields } from '~/utils/__fixtures__/price-fields'
+
 vi.stubGlobal('computed', computed)
 afterEach(() => vi.unstubAllGlobals())
 
@@ -104,7 +106,7 @@ describe('organizer event row payment chips (21.1.1)', () => {
   it('shows the split price per seat as a forecast', () => {
     const wrapper = mountRow('published', 5, {
       event: {
-        pricing: {
+        ...priceFields({
           mode: 'split',
           targetAmount: 24000,
           settledAt: null,
@@ -114,7 +116,7 @@ describe('organizer event row payment chips (21.1.1)', () => {
           basis: 'current',
           myAllocatedAmount: null,
           myPaymentStatus: null,
-        },
+        }),
       },
     })
     expect(wrapper.get('[data-split-forecast]').text()).toBe('≈ 30,00 BYN')

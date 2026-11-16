@@ -13,13 +13,13 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 
 import { organizationService } from '../organizations/service'
 
-import { readEventPriceQuote, readEventPricing } from './pricing-read-model'
+import { readEventPriceForecast, readEventPriceQuote } from './pricing-read-model'
 import { eventPricingService } from './pricing-service'
 import { eventService } from './service'
 
 /**
  * Разбор 500 при расчёте цены, когда занятых мест больше вместимости (QA 20.5.6): список событий и
- * карточка читают `readEventPricing`, которая бросала RangeError из `previewSplitAmount`, тогда как
+ * карточка читали прогноз (ныне `readEventPriceForecast`), который бросала RangeError из `previewSplitAmount`, тогда как
  * `readEventPriceQuote` уже ограничивала занятость вместимостью. Состояние возможно после
  * уменьшения вместимости и у данных, созданных до многоместной записи.
  */
@@ -81,10 +81,10 @@ describe('split pricing with seats taken above capacity', () => {
   })
   afterAll(closeDb)
 
-  it('readEventPricing clamps the roster to capacity instead of throwing', async () => {
-    const pricing = await readEventPricing({ userId: ownerId }, eventId)
-    expect(pricing).toMatchObject({ mode: 'split', participantCount: 4, basis: 'current' })
-    expect(pricing.minAmount).toBe(2500)
+  it('readEventPriceForecast clamps the roster to capacity instead of throwing', async () => {
+    const forecast = await readEventPriceForecast({ userId: ownerId }, eventId)
+    expect(forecast).toMatchObject({ participantCount: 4, basis: 'current' })
+    expect(forecast.minAmount).toBe(2500)
   })
 
   it('the price quote agrees with the clamped forecast', async () => {

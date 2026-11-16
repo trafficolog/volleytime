@@ -334,7 +334,6 @@ describe('cabinet events list: payments column and row menu (20.5.8)', () => {
       price: 0,
       priceMode: 'split',
       targetAmount: 10001,
-      pricing: { mode: 'split' },
       paymentTotals: { paid: 3000, pending: 1500, currency: 'BYN' },
       splitShareQuote: {
         mode: 'split',

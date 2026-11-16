@@ -9,34 +9,32 @@ interface SplitEventFixture {
   taken: number
   currency: string
   status?: string
-  pricing: {
-    mode: string
-    targetAmount: number | null
-    settledAt: string | null
-    participantCount: number
-    myAllocatedAmount: number | null
-  }
+  priceMode?: string
+  targetAmount?: number | null
+  pricingSettledAt?: string | Date | null
+  priceForecast: { participantCount: number }
+  myShare: { allocatedAmount: number | null } | null
   myBooking?: { status: string; seats?: number } | null
 }
 
 const ACTIVE = ['confirmed', 'pending_payment', 'attended', 'no_show']
 
 export function splitPriceResponse(event: SplitEventFixture): { price?: unknown } {
-  if (event.pricing.mode !== 'split' || event.status === 'cancelled') return {}
+  if (event.priceMode !== 'split' || event.status === 'cancelled') return {}
   const mine =
     event.myBooking && ACTIVE.includes(event.myBooking.status) ? (event.myBooking.seats ?? 1) : 0
   const taken = Math.min(event.taken, event.capacity)
   const quote = quoteEventPrice({
     mode: 'split',
-    targetAmount: event.pricing.targetAmount ?? 10000,
+    targetAmount: event.targetAmount ?? 10000,
     capacity: event.capacity,
     takenSeats: Math.max(taken, mine),
     mySeats: mine,
     seats: mine || 1,
-    settled: event.pricing.settledAt
+    settled: event.pricingSettledAt
       ? {
-          participantCount: event.pricing.participantCount,
-          myAllocatedAmount: event.pricing.myAllocatedAmount,
+          participantCount: event.priceForecast.participantCount,
+          myAllocatedAmount: event.myShare?.allocatedAmount ?? null,
         }
       : null,
   })

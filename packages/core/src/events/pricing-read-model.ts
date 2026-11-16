@@ -14,7 +14,6 @@ import {
   quoteEventPrice,
   type EventPriceForecast,
   type EventPriceQuote,
-  type EventPricingView,
   type MyEventShare,
   type PricingFinancials,
   type PricingPermissions,
@@ -27,77 +26,12 @@ import { getDb, type ServiceContext } from '../shared/context'
 
 import { EventNotFoundError } from './errors'
 
-export async function readEventPricing(
-  ctx: ServiceContext,
-  eventId: number,
-): Promise<EventPricingView> {
-  const db = getDb(ctx)
-  const event = await db.query.events.findFirst({ where: eq(events.id, eventId) })
-  if (!event) throw new EventNotFoundError(eventId)
-  const [counts] = await db
-    .select({ taken: takenSeatsSql })
-    .from(bookings)
-    .where(eq(bookings.eventId, eventId))
-  // статус оплаты моей записи — по живым платежам мест (20.1.2): есть неоплаченное место — pending
-  const [mine] = await db
-    .select({
-      allocatedAmount: bookings.allocatedAmount,
-      // имена квалифицированы явно: drizzle не пишет таблицу у колонок запроса без JOIN,
-      // а в коррелированном подзапросе "id" разрешился бы в payments.id
-      paymentStatus: sql<'pending' | 'succeeded' | null>`(
-        SELECT CASE WHEN bool_or(p.status = 'pending') THEN 'pending' ELSE 'succeeded' END
-        FROM "payments" p
-        WHERE p.booking_id = "bookings"."id"
-          AND p.booking_incarnation = "bookings"."incarnation"
-          AND p.seat_released_at IS NULL
-          AND p.status IN ('pending', 'succeeded')
-        HAVING count(*) > 0)`,
-    })
-    .from(bookings)
-    .where(and(eq(bookings.eventId, eventId), eq(bookings.userId, ctx.userId)))
-  const common = {
-    mode: event.priceMode,
-    targetAmount: event.targetAmount,
-    settledAt: event.pricingSettledAt?.toISOString() ?? null,
-    myAllocatedAmount: mine?.allocatedAmount ?? null,
-    myPaymentStatus: mine?.paymentStatus ?? null,
-  }
-  if (event.priceMode === 'fixed')
-    return {
-      ...common,
-      participantCount: counts?.taken ?? 0,
-      minAmount: event.price,
-      maxAmount: event.price,
-      basis: 'fixed',
-    }
-  if (event.pricingSettledAt !== null) {
-    const participantCount = event.pricingParticipantCount!
-    const minAmount = Math.floor(event.targetAmount! / participantCount)
-    return {
-      ...common,
-      participantCount,
-      minAmount,
-      maxAmount: minAmount + (event.targetAmount! % participantCount === 0 ? 0 : 1),
-      basis: 'settled',
-    }
-  }
-  return {
-    ...common,
-    // занятость выше вместимости (уменьшенная вместимость, многоместные записи) не должна ронять чтение
-    ...previewSplitAmount(
-      event.targetAmount!,
-      Math.min(counts?.taken ?? 0, event.capacity),
-      event.capacity,
-    ),
-  }
-}
-
 /**
- * Прогноз цены места события для экранов (21.5.10): те же числа, что `pricing.participantCount`/
- * `minAmount`/`maxAmount`/`basis` (`readEventPricing`), без данных игрока — для игрока и управляющего,
- * fixed и split. Отдельно от `quoteEventPrice` (котировка игрока: активные записи плюс свои места):
- * экраны, читающие прогноз, показывают те же цифры. Дублирует ветки `readEventPricing` до её
- * удаления в 21.5.9; паритет закреплён тестом.
+ * Прогноз цены места события для экранов (21.5.10; единственный источник после удаления проекции
+ * `pricing` в 21.5.9): без данных игрока — для игрока и управляющего, fixed и split. Отдельно от
+ * `quoteEventPrice` (котировка игрока: активные записи плюс свои места). fixed — цена события и
+ * занятые места; settled — снимок `pricing_participant_count`; иначе прогноз по текущему составу
+ * или ёмкости.
  */
 export async function readEventPriceForecast(
   ctx: ServiceContext,
@@ -135,11 +69,11 @@ export async function readEventPriceForecast(
 }
 
 /**
- * Доля и статус оплаты СВОЕЙ записи на событие (21.5.10): те же числа, что `pricing.myAllocatedAmount`/
- * `myPaymentStatus`, для записи в любом статусе (отменённая, `no_show`…), вне `priceQuote`.
+ * Доля и статус оплаты СВОЕЙ записи на событие (21.5.10) для записи в любом статусе (отменённая,
+ * `no_show`…), вне `priceQuote`.
  * Только запись `ctx.userId` в группе `orgId`; нет записи — `null`. Статус — по живым платежам мест
  * текущего воплощения (20.1.2): `pending`, если есть неоплаченное место, иначе `succeeded`; без живых
- * платежей (в том числе только `cancelled`/`refunded`) — `null`, как в `pricing`.
+ * платежей (в том числе только `cancelled`/`refunded`) — `null`.
  */
 export async function readMyEventShare(
   ctx: ServiceContext,

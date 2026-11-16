@@ -12,7 +12,11 @@ import {
 } from '@volley-time/db'
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { readEventPriceQuote, readEventPricing } from '../events/pricing-read-model'
+import {
+  readEventPriceForecast,
+  readEventPriceQuote,
+  readMyEventShare,
+} from '../events/pricing-read-model'
 import { eventPricingService } from '../events/pricing-service'
 import { eventService } from '../events/service'
 import { memberService } from '../members/service'
@@ -193,8 +197,10 @@ describe('multi-seat booking (20.1.2, PostgreSQL)', () => {
       code: 'payment.not_pending',
     })
     expect(await db.select().from(ledgerEntries)).toHaveLength(3)
-    expect(await readEventPricing({ userId: p }, ev.id)).toMatchObject({
-      myPaymentStatus: 'succeeded',
+    expect(await readMyEventShare({ userId: p }, orgId, ev.id)).toMatchObject({
+      paymentStatus: 'succeeded',
+    })
+    expect(await readEventPriceForecast({ userId: p }, ev.id)).toMatchObject({
       participantCount: 3,
     })
   })
@@ -207,8 +213,8 @@ describe('multi-seat booking (20.1.2, PostgreSQL)', () => {
     await paymentService.confirm(owner(), b.paymentId!, { orgId })
     const grown = await bookingService.changeSeats({ userId: p }, b.id, { seats: 3 })
     expect(grown.booking).toMatchObject({ status: 'pending_payment', seats: 3 })
-    expect(await readEventPricing({ userId: p }, ev.id)).toMatchObject({
-      myPaymentStatus: 'pending',
+    expect(await readMyEventShare({ userId: p }, orgId, ev.id)).toMatchObject({
+      paymentStatus: 'pending',
     })
     const w = await bookingService.book({ userId: waiting }, orgId, ev.id, { method: 'cash' })
     expect(w.status).toBe('waitlisted')

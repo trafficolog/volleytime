@@ -10,6 +10,7 @@ import Chip from './vt/Chip.vue'
 import Icon from './vt/Icon.vue'
 import MyChip from './vt/MyChip.vue'
 
+import { priceFields } from '~/utils/__fixtures__/price-fields'
 import { formatMoneyRu } from '~/utils/labels'
 
 vi.stubGlobal('computed', computed)
@@ -53,7 +54,7 @@ const hero = (over: Partial<EventListItem> = {}): EventListItem => ({
   myBooking: { id: 1, status: 'confirmed' },
   venue: { name: 'Школа №24' },
   locationText: null,
-  pricing: legacy,
+  ...priceFields(legacy),
   priceQuote: quote(),
   ...over,
 })
@@ -74,7 +75,7 @@ const mountBento = (h: EventListItem) =>
   })
 
 describe('PlayerHomeBento hero: цена split из ответа GET …/price (20.4.6, 20.4.4)', () => {
-  it('прогноз и диапазон равны ответу цены, а не pricing (readEventPricing)', () => {
+  it('прогноз и диапазон равны ответу цены, а не прогноз priceForecast', () => {
     const h = hero()
     const q = h.priceQuote!
     const text = mountBento(h).text()
@@ -100,7 +101,7 @@ describe('PlayerHomeBento hero: цена split из ответа GET …/price (
       hero({
         status: 'closed',
         priceQuote,
-        pricing: { ...legacy, basis: 'settled', settledAt: '2099-10-04T10:00:00Z' },
+        ...priceFields({ ...legacy, basis: 'settled', settledAt: '2099-10-04T10:00:00Z' }),
       }),
     ).text()
     expect(text).toContain(money(3334))

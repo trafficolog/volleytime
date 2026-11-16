@@ -4,8 +4,9 @@ import {
   formatDay,
   formatTime,
   paidSeatsReleasedByRemoving,
+  type EventPriceForecast,
   type EventPriceQuote,
-  type EventPricingView,
+  type MyEventShare,
   type SeatPaymentsView,
 } from '@volley-time/shared'
 
@@ -30,6 +31,7 @@ import {
   sessionReturnsOnCancel,
   SUBSCRIPTION_RETURN_NOTE,
 } from '~/utils/player-booking-cancel'
+import { canPayBooking } from '~/utils/player-booking-payment'
 import {
   bookingPaymentChip,
   playerEventLoadErrorNotice,
@@ -42,7 +44,6 @@ import {
   runPlayerEventAction,
   shouldRefreshPlayerEventAfterRejection,
 } from '~/utils/player-event-action'
-import { canPayBooking } from '~/utils/player-booking-payment'
 import { playerHomeAccess } from '~/utils/player-home'
 import {
   clearStashedInviteToken,
@@ -60,7 +61,9 @@ import { waitlistPeopleLabel } from '~/utils/status-model'
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
 type EventDetails = Event & {
-  pricing: EventPricingView
+  /** Прогноз цены места и своя доля (21.5.10, 21.5.9). */
+  priceForecast: EventPriceForecast
+  myShare: MyEventShare | null
   taken: number
   /** Игроков в составе: меньше `taken`, когда кто-то занял несколько мест (20.1.2). */
   players?: number
@@ -164,10 +167,10 @@ const myTotalSeats = computed(() =>
   my.value ? (my.value.seats ?? 1) + (my.value.waitlistSeats ?? 0) : 0,
 )
 const priceLabel = computed(() =>
-  ev.value ? eventPricingLabel(ev.value.pricing, ev.value.currency) : null,
+  ev.value ? eventPricingLabel(ev.value, ev.value.currency) : null,
 )
 const paymentLabel = computed(() =>
-  ev.value && my.value ? splitBookingPaymentLabel(ev.value.pricing, my.value.status) : null,
+  ev.value && my.value ? splitBookingPaymentLabel(ev.value, my.value.status) : null,
 )
 // «Как оплатить» (21.2.11): только показ способов группы у ждущей оплаты записи наличными или
 // переводом; у split до распределения суммы платить ещё нечего. На запись и платёж не влияет.
@@ -178,8 +181,9 @@ const showPayInstructions = computed(
     canPayBooking({
       status: my.value.status,
       method: my.value.method,
-      event: { status: ev.value.status },
-      pricing: ev.value.pricing,
+      event: { status: ev.value.status, priceMode: ev.value.priceMode },
+      priceForecast: ev.value.priceForecast,
+      myShare: ev.value.myShare,
       seatPayments: my.value.seatPayments,
     }),
 )
@@ -187,7 +191,7 @@ const paymentChip = computed(() =>
   my.value
     ? bookingPaymentChip(
         my.value.status,
-        ev.value?.pricing,
+        ev.value ?? null,
         my.value.seatPayments?.pendingSeats ?? 0,
       )
     : null,
@@ -322,10 +326,10 @@ const cancelDeadline = computed(() => {
 const canCancel = computed(() => eventView.value?.canCancel === true)
 /** Подпись «Занятие вернётся на абонемент» — только пока отмена открыта и ядро реально вернёт занятие. */
 const returnsSession = computed(
-  () => canCancel.value && !!my.value && sessionReturnsOnCancel(my.value, ev.value?.pricing.mode),
+  () => canCancel.value && !!my.value && sessionReturnsOnCancel(my.value, ev.value?.priceMode),
 )
 const noCancelExplanation = computed(() => {
-  if (ev.value?.pricing.mode === 'split' && ev.value.pricing.myAllocatedAmount !== null)
+  if (ev.value?.priceMode === 'split' && (ev.value.myShare?.allocatedAmount ?? null) !== null)
     return 'Доля зафиксирована — для отмены напишите организатору.'
   if (cancelDeadline.value && new Date() > cancelDeadline.value)
     return 'Дедлайн отмены прошёл — если не сможете прийти, напишите организатору.'
@@ -348,16 +352,16 @@ const confirmationGuard = createPlayerRequestGuard(() => route.fullPath)
 const routeGuard = createPlayerRequestGuard(() => currentViewKey)
 const optionsGuard = createPlayerRequestGuard(() => route.fullPath)
 
-// цена split — только из ответа GET …/price (`quoteEventPrice`, 20.1.1, D-01 (B)), не из `pricing`
-// события (`readEventPricing`). Запрос без `seats`: места моей записи или одно место (20.4.6).
-const splitMode = computed(() => ev.value?.pricing.mode === 'split')
+// цена split — только из ответа GET …/price (`quoteEventPrice`, 20.1.1, D-01 (B)), не из прогноза
+// события (`priceForecast`). Запрос без `seats`: места моей записи или одно место (20.4.6).
+const splitMode = computed(() => ev.value?.priceMode === 'split')
 const priceQuote = ref<(EventPriceQuote & { currency: string }) | null>(null)
 const priceFailed = ref(false)
 let priceRequest = 0
 async function loadPrice() {
   const request = ++priceRequest
   const current = ev.value
-  if (!current || current.pricing.mode !== 'split' || current.status === 'cancelled') {
+  if (!current || current.priceMode !== 'split' || current.status === 'cancelled') {
     priceQuote.value = null
     priceFailed.value = false
     return
@@ -382,8 +386,8 @@ watch(
     [
       ev.value?.id,
       ev.value?.status,
-      ev.value?.pricing.mode,
-      ev.value?.pricing.settledAt,
+      ev.value?.priceMode,
+      ev.value?.pricingSettledAt,
       ev.value?.taken,
       ev.value?.capacity,
       ev.value?.myBooking?.id,
@@ -419,7 +423,7 @@ const splitView = computed(() =>
         now.value,
         {
           hasBooking: myActiveBooking.value,
-          paid: ev.value.pricing.myPaymentStatus === 'succeeded',
+          paid: ev.value.myShare?.paymentStatus === 'succeeded',
           waitlisted: my.value?.status === 'waitlisted',
         },
       )
@@ -582,11 +586,11 @@ async function openBooking() {
   consent.value = false
   chosenMethod.value = ''
   // одно место и бесплатно — выбирать нечего, запись уходит сразу (как до 20.4.5)
-  if (ev.value.pricing.mode === 'fixed' && ev.value.price === 0 && maxSeats.value === 1)
+  if (ev.value.priceMode === 'fixed' && ev.value.price === 0 && maxSeats.value === 1)
     return doBook('free')
   // абонементы нужны и очереди: занятия спишутся при переходе в состав (D-03, уточнение C)
   if (
-    ev.value.pricing.mode === 'split' ||
+    ev.value.priceMode === 'split' ||
     subscriptionsEnabled.value !== true ||
     ev.value.price === 0
   ) {
@@ -681,7 +685,7 @@ async function doBook(
 // к оплате сейчас: места основы; в очереди ничего не списывается — показываем сумму «если получите»
 const payableSeats = computed(() => (queueOnly.value ? seats.value : plan.value.mainSeats))
 const priceTotalText = computed(() => {
-  if (!ev.value || ev.value.pricing.mode !== 'fixed' || ev.value.price <= 0) return null
+  if (!ev.value || ev.value.priceMode !== 'fixed' || ev.value.price <= 0) return null
   if (payableSeats.value <= 1) return priceLabel.value?.text ?? null
   return quote.value?.seats === payableSeats.value
     ? formatMoneyRu(quote.value.total, quote.value.currency)
@@ -696,7 +700,7 @@ const splitTotalText = computed(() =>
 const methodOptions = computed<BookingMethodOption[]>(() => {
   const methods = eventView.value?.paymentMethods ?? []
   if (!ev.value || methods.includes('free')) return []
-  const split = ev.value.pricing.mode === 'split'
+  const split = ev.value.priceMode === 'split'
   const queued = queueOnly.value
   const options: BookingMethodOption[] = []
   for (const s of methods.includes('subscription') ? subs.value : []) {
@@ -787,12 +791,12 @@ watch(
   async ([open, count]) => {
     quote.value = null
     const current = ev.value
-    const split = current?.pricing.mode === 'split'
+    const split = current?.priceMode === 'split'
     if (
       !open ||
       count <= 1 ||
       !current ||
-      (!split && (current.pricing.mode !== 'fixed' || current.price <= 0))
+      (!split && (current.priceMode !== 'fixed' || current.price <= 0))
     )
       return
     const request = quoteGuard.begin()
@@ -871,7 +875,7 @@ watch(
 const bookLabel = computed(() => {
   if (eventView.value?.action === 'waitlist') return 'Встать в лист ожидания'
   const price =
-    gate.value.state === 'invited' && ev.value?.pricing.mode === 'fixed' && ev.value.price > 0
+    gate.value.state === 'invited' && ev.value?.priceMode === 'fixed' && ev.value.price > 0
       ? priceLabel.value?.text
       : null
   return price ? `Записаться · ${price}` : 'Записаться'
