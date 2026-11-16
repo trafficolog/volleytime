@@ -3,6 +3,7 @@ import type { EventPricingView } from '@volley-time/shared'
 import { myBookingSeatsText, myBookingTitle } from './booking-seats'
 import { splitBookingPaymentLabel } from './event-pricing-label'
 import { isDeniedOrgError } from './player-home'
+import { HELD_STATUSES } from './player-booking-payment'
 
 export function playerEventReady(sources: {
   eventMatches: boolean
@@ -107,10 +108,7 @@ export function bookingPaymentChip(
   const split = pricing ? splitBookingPaymentLabel(pricing, status) : null
   if (split) return { tone: split.tone, text: split.text }
   // долг по проведённой записи (21.4.19): неоплаченное место после отметки посещения
-  if (
-    status === 'pending_payment' ||
-    (['attended', 'no_show'].includes(status) && pendingSeats > 0)
-  )
+  if (status === 'pending_payment' || (HELD_STATUSES.includes(status) && pendingSeats > 0))
     return { tone: 'amber' as const, text: 'Ждёт оплаты' }
   return null
 }

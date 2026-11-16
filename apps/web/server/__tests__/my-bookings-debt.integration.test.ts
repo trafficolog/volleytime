@@ -52,7 +52,9 @@ describe('my bookings: debt of attended / no_show bookings (21.4.19)', () => {
       price: 1500,
     })
     const booking = await bookingService.book({ userId }, orgId, event.id, { method: 'cash' })
-    // посещение отмечается после начала игры; здесь важен только итоговый статус записи
+    // Статус пишется в БД напрямую: ни один текущий поток не создаёт долг у attended/no_show записи
+    // (changeSeats возвращает запись в pending_payment, bulkAttendance такую запись отклоняет).
+    // Кнопка — защитная проверка для устаревших или ручных данных; в production таких записей 0 (2026-11-16).
     await db.update(bookings).set({ status }).where(eq(bookings.id, booking.id))
     return booking
   }

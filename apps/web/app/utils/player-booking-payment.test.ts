@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { canPayBooking, payBookingPath } from './player-booking-payment'
+import { canPayBooking, heldDebtLabel, payBookingPath } from './player-booking-payment'
 
 const booking = (over: Record<string, unknown> = {}) => ({
   status: 'pending_payment',
@@ -88,6 +88,49 @@ describe('canPayBooking (21.4.19): debtors of a held booking', () => {
         }),
       ),
     ).toBe(false)
+  })
+})
+
+describe('held booking with released seats only (21.4.19)', () => {
+  it('does not show for a released paid seat without an unpaid one', () => {
+    for (const status of ['attended', 'no_show']) {
+      expect(
+        canPayBooking(
+          booking({
+            status,
+            seatPayments: { pendingSeats: 0, releasedPaidSeats: 1, paidSeats: 0 },
+          }),
+        ),
+      ).toBe(false)
+    }
+  })
+})
+
+describe('heldDebtLabel (21.4.19)', () => {
+  const held = (over: Record<string, unknown> = {}) =>
+    booking({
+      status: 'attended',
+      pricing: { mode: 'fixed', minAmount: 1500 },
+      seatPayments: { pendingSeats: 1 },
+      ...over,
+    })
+
+  it('multiplies the unpaid seats by the per-seat price (fixed)', () => {
+    expect(heldDebtLabel(held(), 'BYN')?.amount).toBe(true)
+    expect(heldDebtLabel(held(), 'BYN')?.text).toContain('15,00')
+    expect(heldDebtLabel(held({ seatPayments: { pendingSeats: 2 } }), 'BYN')?.text).toContain(
+      '30,00',
+    )
+  })
+
+  it('shows only the number of seats when the per-seat amount is not reliable (split)', () => {
+    const label = heldDebtLabel(held({ pricing: { mode: 'split', myAllocatedAmount: 700 } }), 'BYN')
+    expect(label).toEqual({ text: 'к оплате 1 место', amount: false })
+  })
+
+  it('is empty for a booking that is not held or has no debt', () => {
+    expect(heldDebtLabel(held({ status: 'pending_payment' }), 'BYN')).toBeNull()
+    expect(heldDebtLabel(held({ seatPayments: { pendingSeats: 0 } }), 'BYN')).toBeNull()
   })
 })
 

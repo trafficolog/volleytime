@@ -142,6 +142,34 @@ describe('payment screen of a booking (21.4.8, M-13)', () => {
     }
   })
 
+  it('shows the owed part only for a held booking with 2 seats and 1 unpaid (21.4.19)', async () => {
+    stubPage('7')
+    const wrapper = await render([
+      booking(7, {
+        status: 'attended',
+        seats: 2,
+        seatPayments: { paidSeats: 1, pendingSeats: 1, releasedPaidSeats: 0 },
+      }),
+    ])
+    const amount = wrapper.get('[data-testid="pay-amount"]').text()
+    expect(amount).toContain('15,00')
+    expect(amount).not.toContain('30,00')
+    expect(amount).toContain('1 место')
+  })
+
+  it('shows seats without an amount for a held split booking (21.4.19)', async () => {
+    stubPage('7')
+    const wrapper = await render([
+      booking(7, {
+        status: 'no_show',
+        seats: 2,
+        pricing: { mode: 'split', myAllocatedAmount: 700, basis: 'settled' },
+        seatPayments: { paidSeats: 1, pendingSeats: 1, releasedPaidSeats: 0 },
+      }),
+    ])
+    expect(wrapper.get('[data-testid="pay-amount"]').text()).toBe('к оплате 1 место')
+  })
+
   it('says nothing is due for a held booking that is already paid or has no debt', async () => {
     stubPage('7')
     const wrapper = await render([

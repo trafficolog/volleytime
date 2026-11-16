@@ -6,7 +6,7 @@ status: in_progress
 release: 'v0.3.2'
 sync_state: synced
 last_reviewed: 2026-11-16
-status_note: 'Взята в работу 2026-11-16. Условие canPayBooking расширено: attended и no_show с неоплаченным местом (seatPayments.pendingSeats > 0; сервер отдаёт только свои записи); схема и миграции не менялись. Ждёт ревью и merge.'
+status_note: 'Взята в работу 2026-11-16. Условие canPayBooking расширено: attended и no_show с неоплаченным местом (seatPayments.pendingSeats > 0; сервер отдаёт только свои записи); схема и миграции не менялись. Решение владельца 2026-11-16: оставить как защитную проверку. Ни один текущий поток не создаёт долг у attended/no_show записи (changeSeats возвращает запись в pending_payment, bulkAttendance её отклоняет), кнопка нужна для устаревших или ручных данных; в production таких записей 0 на 2026-11-16. Ждёт ревью и merge. Follow-up (отдельная карточка позже): confirmed-запись с pendingSeats > 0 (добавленное место) кнопки и чипа не получает.'
 ref_id: 'M-13'
 complexity: S
 impl_model: claude-sonnet-5-5
