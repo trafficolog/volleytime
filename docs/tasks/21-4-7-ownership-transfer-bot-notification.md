@@ -66,4 +66,4 @@ tags: [reference-v3, defects]
 
 ## Follow-ups
 
-- **Решение владельца 2026-11-16 ([журнал](../operations/decisions/2026-10-12-reference-v3-decisions.md)):** уведомлять получателя, когда передача отменена или истекла, и хранить статус доставки бота в `audit_log`. Вынесено в [21.4.20](21-4-20-ownership-transfer-outcomes-delivery-audit.md) (`v0.4.0`); эта карточка не меняется.
+- **Решение владельца 2026-11-16 ([журнал](../operations/decisions/2026-10-12-reference-v3-decisions.md)):** уведомлять получателя, когда передача отменена или истекла, и хранить статус доставки бота в `audit_log`. Вынесено в [21.4.20](21-4-20-ownership-transfer-outcomes-delivery-audit.md) (`v0.3.2`, третья задача); эта карточка не меняется.
