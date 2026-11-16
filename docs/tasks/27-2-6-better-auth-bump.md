@@ -2,11 +2,11 @@
 id: '27.2.6'
 phase: '27'
 epic: '27.2'
-status: todo
-release: ''
+status: in_progress
+release: 'v0.3.1'
 sync_state: synced
-last_reviewed: 2026-11-15
-status_note: 'Из первого pnpm audit (PR 27.2.2): better-auth 1.7.4 содержит critical GHSA-965c-763c-88jm и high GHSA-r4xp-prcw-77qf. Релиз назначает владелец; срок исключения аудита 2026-11-29.'
+last_reviewed: 2026-11-16
+status_note: 'better-auth 1.7.4 -> 1.7.25 (lockfile: только семейство better-auth, better-call, @better-fetch/fetch), исключения аудита better-auth удалены; PR открыт, ждёт ревью claude-opus-5-5 и CI. Релиз v0.3.1 (решение владельца 2026-11-16).'
 ref_id: ''
 review_ref: 'CI-02'
 priority: P1
@@ -48,6 +48,8 @@ tags: [audit-2026-11, security, dependencies, auth]
 - ✅ `pnpm audit --prod --audit-level=high` не показывает better-auth
 - ✅ Вход через Telegram и email-OTP работает (интеграционные тесты зелёные)
 - ✅ Пять gates CODING_STANDARDS на tested revision; ревью `claude-opus-5-5` без Critical/Important
+- ✅ emailOTP `allowedAttempts: 3` задан явно; тест: после трёх неверных кодов (в том числе конкурентных) верный код отклоняется
+- ⚠️ Set-cookie сессии в 1.7.4 и 1.7.25 для нашей конфигурации одинаков (`HttpOnly; SameSite=Lax; Path=/`, на https `__Secure-` и `Secure`). Release QA в [21.4.3](./21-4-3-defects-recheck-release.md) всё равно должна включать smoke-тест входа в Mini App и в кабинете.
 
 ## Не делать
 
