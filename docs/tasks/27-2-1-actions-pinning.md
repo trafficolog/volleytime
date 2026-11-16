@@ -2,11 +2,11 @@
 id: '27.2.1'
 phase: '27'
 epic: '27.2'
-status: in_progress
+status: done
 release: 'v0.3.1'
 sync_state: synced
 last_reviewed: 2026-11-16
-status_note: 'Из аудита 2026-11-10 (CI-01). Смёржено PR #248 (merge 0f10d83c), CI exact head 42977300372 success. Проверено 2026-11-16 на main 13c6eb12: все uses: по SHA, appleboy нет, permissions во всех 7 workflows; VPS_KNOWN_HOSTS задан 2026-11-11, VPS disk monitor 14/14 success. Не закрыта: нет evidence ревью claude-opus-5-5 (у PR 0 review). Deploy через новый SSH-путь ещё не запускался (первый — выкладка v0.3.1).'
+status_note: 'Закрыта 2026-11-16: PR #248 (merge 0f10d83c), CI exact head 42977300372 success; ретроспективное ревью claude-opus-5-5 2026-11-16 — accept, Critical и Important нет. Первая выкладка через новый путь (OpenSSH/scp -O) успешна: Deploy 43864927844 на 98b60193. Релиз v0.3.1.'
 ref_id: ''
 review_ref: 'CI-01'
 priority: P1
@@ -58,3 +58,11 @@ Workflows не зависят от изменяемых тегов сторон�
 
 - ❌ Не менять шаги выкладки по сути
 - ❌ Не запускать deploy для проверки без подтверждения владельца
+
+## Ревью и evidence
+
+- **Реализация:** PR #248, merge `0f10d83c`; CI exact head [42977300372](https://github.com/trafficolog/volleytime/actions/runs/42977300372): 4 job success, gitleaks success. На `main` `13c6eb12` проверено: все `uses:` по полному SHA, `appleboy/*` нет, `permissions` во всех 7 workflows.
+- **Ревью:** `claude-opus-5-5`, ретроспективное, 2026-11-16 (диапазон `aa8d8f9a..0f10d83c` в части 27.2.1). Вердикт: **accept**. Critical — 0, Important — 0.
+- **Low (не блокируют):** (1) ключ не удаляется в конце job — приемлемо на эфемерных runners; (2) резерв `/tmp` в проверке ёмкости теперь излишне осторожен; (3) формат `host:port` не поддерживается, только порт 22.
+- **Первая реальная выкладка через новый путь:** [Deploy 43864927844](https://github.com/trafficolog/volleytime/actions/runs/43864927844) success (`98b60193`, 2026-11-16, `scp -O`, `known_hosts` из `VPS_KNOWN_HOSTS`).
+- **Предварительные read-only проверки перед выкладкой:** секреты на месте; на VPS bash 5.3 и `scp`; ключ с ограничением `restrict` и только им; следов staging нет.
