@@ -2,11 +2,11 @@
 id: '21.4.9'
 phase: '21'
 epic: '21.4'
-status: in_progress
+status: done
 release: 'v0.3.1'
 sync_state: synced
-last_reviewed: 2026-11-15
-status_note: 'Перенесена из backlog v0.3.0 решением владельца 2026-11-10; по решению AQ-13 (2026-11-10) четыре кнопки — «Буду», «Пропущу», «Мой абонемент», «Кто уже играет», «Сборы» исключена. Разделена 2026-11-15 по шагу 1: «Мой абонемент» и «Кто уже играет» реализованы в PR (ревью Opus не пройдено) поверх subscriptionService.listMineDetailed и bookingService.publicRoster без схемы; «Буду» (нет хранения присутствия) и «Пропущу» (нет функции отказа от предложения места; cancelMyBooking не подходит: при waitlistSeats снимет основные места) вынесены в 21.4.18 с ADR.'
+last_reviewed: 2026-11-16
+status_note: 'Выполнено 2026-11-16, PR #278 (merge a17ac352): «Мой абонемент» и «Кто уже играет» поверх `subscriptionService.listMineDetailed` и `bookingService.publicRoster`, без схемы. «Буду» и «Пропущу» вынесены в 21.4.18 (ADR), «Сборы» исключена решением AQ-13. CI зелёный.'
 ref_id: 'P-16'
 complexity: L
 impl_model: claude-sonnet-5-5

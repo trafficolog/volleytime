@@ -2,11 +2,11 @@
 id: '21.4.5'
 phase: '21'
 epic: '21.4'
-status: in_progress
+status: done
 release: 'v0.3.1'
 sync_state: synced
-last_reviewed: 2026-11-05
-status_note: 'Выделена из 21.1.5 решением владельца 2026-11-05. Реализация без схемы (решение координатора 2026-11-11): все виды под типом `organizer_action_required`, вид — `payload.params.kind`.'
+last_reviewed: 2026-11-16
+status_note: 'Выполнено 2026-11-15, PR #258 (merge c26f41f6): четыре вида ленты организатора под `organizer_action_required` (`payments_pending`, `booking_created`, `booking_cancelled`, `event_balance_low`) и `collectionId` в уведомлении об обещании (диплинк в Mini App и в боте), без схемы и миграций. Сверка 19.0.2: [отчёт](../operations/qa/2026-11-11-21-4-5-org-notifications-visual.md), без Critical/Important. Находки ревью I1–I3 и M1 исправлены в PR (advisory lock, гонки, savepoint), M2–M5 записаны в PR как известные ограничения. CI зелёный.'
 ref_id: ''
 complexity: M
 impl_model: claude-sonnet-5-5

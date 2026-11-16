@@ -2,11 +2,11 @@
 id: '27.2.7'
 phase: '27'
 epic: '27.2'
-status: in_progress
+status: done
 release: 'v0.3.1'
 sync_state: synced
-last_reviewed: 2026-11-15
-status_note: 'Реализация в PR (ветка trafficolog/fix/27.2.7-nuxt-devtools-criticals): @nuxt/devtools 3.4.2 → 3.4.4 (убрана зависимость simple-git, launch-editor 2.14.2), shell-quote 1.10.0 → 1.12.0 (lockfile); записи simple-git, @simple-git/argv-parser, shell-quote, launch-editor удалены из audit-exceptions. Ждёт ревью claude-opus-5-5 и merge. Релиз v0.3.1 назначен решением владельца 2026-11-16.'
+last_reviewed: 2026-11-16
+status_note: 'Выполнено 2026-11-16, PR #279 (merge c7d87f76): `@nuxt/devtools` 3.4.2 → 3.4.4 (убрана зависимость `simple-git` и `@simple-git/argv-parser`, `launch-editor` 2.14.2), `shell-quote` 1.10.0 → 1.12.0 (только lockfile); шесть записей удалены из `audit-exceptions.json`; в `.output/server/node_modules` web-образа этих пакетов нет. CI зелёный (build, test, audit, CodeQL, сборка образов).'
 ref_id: ''
 review_ref: 'CI-02'
 priority: P1
