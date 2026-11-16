@@ -5,8 +5,8 @@ status: todo
 release: 'v0.3.1'
 sync_state: synced
 last_reviewed: 2026-10-28
-status_note: '21.5.9 перенесена в v0.3.2 (решение владельца 2026-11-11). Решение владельца 2026-10-27. Аудит 21.5.1 read-only (отчёт 2026-10-28, 8 пакетов удаления); вопросы OQ-1…OQ-8 решены 2026-10-28. Удаление — после 21.3.1; 21.5.9 ещё после 21.2.18 и 21.2.1.'
-estimated_hours: '33-83'
+status_note: '21.5.9 перенесена в v0.3.2 (решение владельца 2026-11-11). Решение владельца 2026-10-27. Аудит 21.5.1 read-only (отчёт 2026-10-28, 8 пакетов удаления); вопросы OQ-1…OQ-8 решены 2026-10-28. Удаление — после 21.3.1; 21.5.9 ещё после 21.2.18, 21.2.1 и 21.5.10 (поля API).'
+estimated_hours: '41-99'
 depends_on: ['21.3.1']
 ---
 
@@ -20,7 +20,7 @@ depends_on: ['21.3.1']
 
 Порядок: сначала **аудит без правок кода** (21.5.1), по его результату — удаление пакетами (21.5.2 и следующие), каждый пакет с тестами и ревью. Аудит только читает репозиторий и пишет отчёт `docs/operations/reviews/<дата>-legacy-inventory.md`, поэтому не конфликтует с работой фазы 21 и **может идти параллельно с ней**. Удаление трогает код и стартует после `21.3.1`, чтобы не конфликтовать с задачами фазы 21 по файлам.
 
-Карточки пакетов удаления созданы из отчёта аудита [2026-10-28-legacy-inventory](../operations/reviews/2026-10-28-legacy-inventory.md): `21.5.2`…`21.5.9`; `depends_on` релизной 21.4.3 и эпика 21.4 пополнен. Вопросы владельца OQ-1…OQ-8 решены 2026-10-28 ([журнал](../operations/decisions/2026-10-12-reference-v3-decisions.md)): GHCR и `:latest` (OQ-1), `deploy-local-build.sh` (OQ-2), `members/leave` и тестовые политики (OQ-5) остаются; Python-прототип с документами фаз 1–2 (OQ-3), сценарии `.pwcode` (OQ-4), зависимость бота (OQ-6) и проекция `pricing` (OQ-8) удаляются отдельными пакетами; сворачивание истории (OQ-7) разрешено. Откат, данные и миграции в пакеты не входят; пункты, ждущие 21.3.1, перепроверяются после релиза v0.3.0.
+Карточки пакетов удаления созданы из отчёта аудита [2026-10-28-legacy-inventory](../operations/reviews/2026-10-28-legacy-inventory.md): `21.5.2`…`21.5.9`, плюс [21.5.10](../tasks/21-5-10-event-pricing-api-fields.md) (поля API перед 21.5.9, 2026-11-16); `depends_on` релизной 21.4.3 и эпика 21.4 пополнен. Вопросы владельца OQ-1…OQ-8 решены 2026-10-28 ([журнал](../operations/decisions/2026-10-12-reference-v3-decisions.md)): GHCR и `:latest` (OQ-1), `deploy-local-build.sh` (OQ-2), `members/leave` и тестовые политики (OQ-5) остаются; Python-прототип с документами фаз 1–2 (OQ-3), сценарии `.pwcode` (OQ-4), зависимость бота (OQ-6) и проекция `pricing` (OQ-8) удаляются отдельными пакетами; сворачивание истории (OQ-7) разрешено. Откат, данные и миграции в пакеты не входят; пункты, ждущие 21.3.1, перепроверяются после релиза v0.3.0.
 
 ## Definition of Done
 
@@ -30,17 +30,18 @@ depends_on: ['21.3.1']
 
 ## Задачи
 
-| ID                                                           | Задача                                                             | Референс | Сложн. | Реализация          | Ревью               |
-| ------------------------------------------------------------ | ------------------------------------------------------------------ | -------- | ------ | ------------------- | ------------------- |
-| [21.5.1](../tasks/21-5-1-legacy-audit.md)                    | Аудит наследия до-v3 (read-only): инвентарь и план пакетов         | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
-| [21.5.2](../tasks/21-5-2-legacy-removal-batches.md)          | Пакет 1: мёртвый код клиента и общих пакетов (LEG-01…03)           | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
-| [21.5.3](../tasks/21-5-3-legacy-removal-styles.md)           | Пакет 2: стили без потребителей (LEG-04, 05)                       | —        | S      | `claude-haiku-5-5`  | `claude-sonnet-5-5` |
-| [21.5.4](../tasks/21-5-4-legacy-removal-dev-config-docs.md)  | Пакет 3: dev-конфигурация и устаревшие гайды (LEG-06…12)           | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
-| [21.5.5](../tasks/21-5-5-legacy-history-condense.md)         | Пакет 4: история в status-документах (LEG-13)                      | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
-| [21.5.6](../tasks/21-5-6-legacy-python-prototype.md)         | Пакет 5: Python-прототип и документы фаз 1–2 (LEG-21)              | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
-| [21.5.7](../tasks/21-5-7-legacy-qa-pwcode.md)                | Пакет 6: сценарии `scripts/qa/*.pwcode` (LEG-22)                   | —        | S      | `claude-haiku-5-5`  | `claude-sonnet-5-5` |
-| [21.5.8](../tasks/21-5-8-legacy-bot-shared-dependency.md)    | Пакет 7: зависимость бота `@volley-time/shared` (LEG-24)           | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
-| [21.5.9](../tasks/21-5-9-legacy-event-pricing-projection.md) | Пакет 8 (v0.3.2): `readEventPricing` и проекция `pricing` (LEG-17) | —        | L      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
+| ID                                                           | Задача                                                                      | Референс | Сложн. | Реализация          | Ревью               |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------- | -------- | ------ | ------------------- | ------------------- |
+| [21.5.1](../tasks/21-5-1-legacy-audit.md)                    | Аудит наследия до-v3 (read-only): инвентарь и план пакетов                  | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
+| [21.5.2](../tasks/21-5-2-legacy-removal-batches.md)          | Пакет 1: мёртвый код клиента и общих пакетов (LEG-01…03)                    | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
+| [21.5.3](../tasks/21-5-3-legacy-removal-styles.md)           | Пакет 2: стили без потребителей (LEG-04, 05)                                | —        | S      | `claude-haiku-5-5`  | `claude-sonnet-5-5` |
+| [21.5.4](../tasks/21-5-4-legacy-removal-dev-config-docs.md)  | Пакет 3: dev-конфигурация и устаревшие гайды (LEG-06…12)                    | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
+| [21.5.5](../tasks/21-5-5-legacy-history-condense.md)         | Пакет 4: история в status-документах (LEG-13)                               | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
+| [21.5.6](../tasks/21-5-6-legacy-python-prototype.md)         | Пакет 5: Python-прототип и документы фаз 1–2 (LEG-21)                       | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
+| [21.5.7](../tasks/21-5-7-legacy-qa-pwcode.md)                | Пакет 6: сценарии `scripts/qa/*.pwcode` (LEG-22)                            | —        | S      | `claude-haiku-5-5`  | `claude-sonnet-5-5` |
+| [21.5.8](../tasks/21-5-8-legacy-bot-shared-dependency.md)    | Пакет 7: зависимость бота `@volley-time/shared` (LEG-24)                    | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
+| [21.5.10](../tasks/21-5-10-event-pricing-api-fields.md)      | Предусловие 21.5.9 (v0.3.2): недостающие поля v3 API для удаления `pricing` | —        | L      | `claude-opus-5-5`   | `claude-opus-5-5`   |
+| [21.5.9](../tasks/21-5-9-legacy-event-pricing-projection.md) | Пакет 8 (v0.3.2): `readEventPricing` и проекция `pricing` (LEG-17)          | —        | L      | `claude-sonnet-5-5` | `claude-opus-5-5`   |
 
 ## Не делать
 

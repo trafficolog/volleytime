@@ -39,15 +39,15 @@ tags: [reference-v3, api, money]
 - **Деньги:** правило ORCHESTRATION №1 — реализация и ревью `claude-opus-5-5`, `review_gate: opus+tests`, тесты граничных случаев и гонок. Расчёт долей, округление копеек (D-01) и статусы оплаты не меняются.
 - Инвентаризация потребителей поля `pricing` (выполнена 2026-11-16):
 
-  | field | consumers | replacement |
-  |---|---|---|
-  | mode/targetAmount | 4 routes + client | yes (event row, quote.mode) |
-  | minAmount/maxAmount | organizer-miniapp.ts:226, event-row.ts, EventCard.vue, EventPricingPanel.vue, event-pricing-label.ts | partly (players only via priceQuote.perSeat) |
-  | basis | EventPricingPanel.vue:55, event-pricing-label.ts:28-44, PlayerBookingRow.vue:74, PlayerHomeBento.vue:52, EventCard.vue:109, organizer-miniapp.ts:191,226 | no for current vs capacity |
-  | participantCount | EventPricingPanel.vue:57 | no |
-  | settledAt | organizer-miniapp.ts:191 | yes (pricingSettledAt) |
-  | myAllocatedAmount | bookings.vue, player-event.ts, player-booking-payment.ts, event-pricing-label.ts, event index.vue:321 | partly |
-  | myPaymentStatus | event-pricing-label.ts:21,49-71, event index.vue:415 | no |
+  | field               | consumers                                                                                                                                                | replacement                                  |
+  | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+  | mode/targetAmount   | 4 routes + client                                                                                                                                        | yes (event row, quote.mode)                  |
+  | minAmount/maxAmount | organizer-miniapp.ts:226, event-row.ts, EventCard.vue, EventPricingPanel.vue, event-pricing-label.ts                                                     | partly (players only via priceQuote.perSeat) |
+  | basis               | EventPricingPanel.vue:55, event-pricing-label.ts:28-44, PlayerBookingRow.vue:74, PlayerHomeBento.vue:52, EventCard.vue:109, organizer-miniapp.ts:191,226 | no for current vs capacity                   |
+  | participantCount    | EventPricingPanel.vue:57                                                                                                                                 | no                                           |
+  | settledAt           | organizer-miniapp.ts:191                                                                                                                                 | yes (pricingSettledAt)                       |
+  | myAllocatedAmount   | bookings.vue, player-event.ts, player-booking-payment.ts, event-pricing-label.ts, event index.vue:321                                                    | partly                                       |
+  | myPaymentStatus     | event-pricing-label.ts:21,49-71, event index.vue:415                                                                                                     | no                                           |
 
 - Причина остановки 21.5.9: `quote` считает долю игрока иначе (только активные записи плюс свои места), чем `pricing` (ёмкость или текущий состав); менеджеры получают `priceQuote: null`.
 
