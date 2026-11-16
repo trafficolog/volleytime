@@ -2,11 +2,11 @@
 id: '27.2.6'
 phase: '27'
 epic: '27.2'
-status: in_progress
+status: done
 release: 'v0.3.1'
 sync_state: synced
 last_reviewed: 2026-11-16
-status_note: 'better-auth 1.7.4 → 1.7.25 смёржено, PR #280 (merge 67858f9f): lockfile только семейство better-auth, better-call, @better-fetch/fetch; исключения аудита better-auth удалены; `allowedAttempts: 3` задан явно с тестами. Карточка остаётся в работе: смоук-тест входа в Mini App и в кабинете после обновления выполняется в release QA 21.4.3 (устройства, шаги владельца); после него закрыть. Релиз v0.3.1 (решение владельца 2026-11-16).'
+status_note: 'Закрыта 2026-11-16 решением владельца: better-auth 1.7.4 → 1.7.25 смёржено, PR #280 (merge 67858f9f): lockfile только семейство better-auth, better-call, @better-fetch/fetch; исключения аудита better-auth удалены; `allowedAttempts: 3` задан явно с тестами. Смоук-тест входа в Mini App и в кабинете отслеживается только в 21.4.3 (release QA). Релиз v0.3.1.'
 ref_id: ''
 review_ref: 'CI-02'
 priority: P1
