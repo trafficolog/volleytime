@@ -73,9 +73,11 @@ const price = computed(() => {
   const label = eventPricingLabel(x.pricing, x.event.currency)
   return { ...label, forecast: x.pricing.mode === 'split' && x.pricing.basis !== 'settled' }
 })
-/** «Оплатить» (21.4.8): только запись, ждущая оплаты; ведёт на экран с реквизитами организатора. */
+/** «Оплатить» (21.4.8, 21.4.19): запись, ждущая оплаты, или проведённая с долгом; ведёт на экран с реквизитами организатора. */
 const payable = computed(() => canPayBooking(b.value))
-const paymentChip = computed(() => bookingPaymentChip(b.value.status, b.value.pricing))
+const paymentChip = computed(() =>
+  bookingPaymentChip(b.value.status, b.value.pricing, b.value.seatPayments?.pendingSeats ?? 0),
+)
 const releasedLabel = computed(() =>
   releasedPaidSeatsLabel(b.value.seatPayments?.releasedPaidSeats ?? 0),
 )

@@ -1,19 +1,28 @@
 /**
- * Кнопка «Оплатить» в «Моих записях» (21.4.8, M-13): только для записи, которая ждёт оплаты
- * наличными или переводом. Правило совпадает с показом «Как оплатить» на экране события
- * (21.2.11): у split до распределения суммы платить ещё нечего, абонемент и онлайн — не вручную.
- * Только показ реквизитов: запись и платёж не меняются.
+ * Кнопка «Оплатить» в «Моих записях» (21.4.8, 21.4.19, M-13): для записи, которая ждёт оплаты
+ * наличными или переводом, и для проведённой записи (`attended`, `no_show`) с неоплаченным местом.
+ * Правило совпадает с показом «Как оплатить» на экране события (21.2.11): у split до распределения
+ * суммы платить ещё нечего, абонемент и онлайн — не вручную. Долг по проведённой записи берётся
+ * из `seatPayments.pendingSeats` (сервер, только свои записи, 21.1.8): оплаченная проведённая запись
+ * кнопку не показывает. Только показ реквизитов: запись и платёж не меняются.
  */
 export interface PayableBooking {
   status: string
   method: string | null
   event: { status: string }
   pricing?: { mode: string; myAllocatedAmount?: number | null }
+  seatPayments?: { pendingSeats: number }
 }
 
+/** Проведённая запись: посещение уже отмечено, платёж остаётся долгом, пока не подтверждён. */
+const HELD_STATUSES = ['attended', 'no_show']
+
 export function canPayBooking(b: PayableBooking): boolean {
+  const owes =
+    b.status === 'pending_payment' ||
+    (HELD_STATUSES.includes(b.status) && (b.seatPayments?.pendingSeats ?? 0) > 0)
   return (
-    b.status === 'pending_payment' &&
+    owes &&
     (b.method === 'cash' || b.method === 'transfer') &&
     b.event.status !== 'cancelled' &&
     !(b.pricing?.mode === 'split' && (b.pricing.myAllocatedAmount ?? null) === null)

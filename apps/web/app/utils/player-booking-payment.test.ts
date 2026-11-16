@@ -17,6 +17,7 @@ describe('canPayBooking (21.4.8): the «Оплатить» button', () => {
   })
 
   it('does not show for paid, confirmed, attended, cancelled or waitlisted bookings', () => {
+    // attended и no_show без долга (оплачены): seatPayments не ждёт оплаты
     for (const status of ['confirmed', 'attended', 'no_show', 'cancelled', 'waitlisted']) {
       expect(canPayBooking(booking({ status }))).toBe(false)
     }
@@ -38,6 +39,55 @@ describe('canPayBooking (21.4.8): the «Оплатить» button', () => {
     expect(canPayBooking(booking({ pricing: { mode: 'split', myAllocatedAmount: 700 } }))).toBe(
       true,
     )
+  })
+})
+
+describe('canPayBooking (21.4.19): debtors of a held booking', () => {
+  const debt = { pendingSeats: 1 }
+  const paid = { pendingSeats: 0 }
+
+  it('shows for an attended or no_show booking with an unpaid seat', () => {
+    for (const status of ['attended', 'no_show']) {
+      for (const method of ['cash', 'transfer']) {
+        expect(canPayBooking(booking({ status, method, seatPayments: debt }))).toBe(true)
+      }
+    }
+  })
+
+  it('does not show for a held booking that is paid or has no payment data', () => {
+    for (const status of ['attended', 'no_show']) {
+      expect(canPayBooking(booking({ status, seatPayments: paid }))).toBe(false)
+      expect(canPayBooking(booking({ status }))).toBe(false)
+    }
+  })
+
+  it('does not turn a debt on other statuses into a button', () => {
+    for (const status of ['confirmed', 'cancelled', 'waitlisted']) {
+      expect(canPayBooking(booking({ status, seatPayments: debt }))).toBe(false)
+    }
+  })
+
+  it('does not show for a held debtor of a cancelled event', () => {
+    expect(
+      canPayBooking(
+        booking({ status: 'attended', seatPayments: debt, event: { status: 'cancelled' } }),
+      ),
+    ).toBe(false)
+  })
+
+  it('does not show for a held subscription or online booking, or unallocated split', () => {
+    for (const method of ['subscription', 'online']) {
+      expect(canPayBooking(booking({ status: 'no_show', method, seatPayments: debt }))).toBe(false)
+    }
+    expect(
+      canPayBooking(
+        booking({
+          status: 'attended',
+          seatPayments: debt,
+          pricing: { mode: 'split', myAllocatedAmount: null },
+        }),
+      ),
+    ).toBe(false)
   })
 })
 

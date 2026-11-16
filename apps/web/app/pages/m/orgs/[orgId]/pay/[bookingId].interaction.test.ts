@@ -131,6 +131,37 @@ describe('payment screen of a booking (21.4.8, M-13)', () => {
     expect(wrapper.find('[data-method]').exists()).toBe(false)
   })
 
+  it('opens requisites for a debtor whose booking is attended or no_show (21.4.19)', async () => {
+    for (const status of ['attended', 'no_show']) {
+      stubPage('7')
+      const wrapper = await render([booking(7, { status })])
+      expect(wrapper.find('[data-empty]').exists()).toBe(false)
+      expect(wrapper.find('[data-method="cash"]').exists()).toBe(true)
+      wrapper.unmount()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('says nothing is due for a held booking that is already paid or has no debt', async () => {
+    stubPage('7')
+    const wrapper = await render([
+      booking(7, {
+        status: 'attended',
+        seatPayments: { paidSeats: 2, pendingSeats: 0, releasedPaidSeats: 0 },
+      }),
+    ])
+    expect(wrapper.find('[data-empty]').text()).toBe('Оплата не требуется')
+    expect(wrapper.find('[data-method]').exists()).toBe(false)
+  })
+
+  it('says nothing is due for a held debtor booking of a cancelled event', async () => {
+    stubPage('7')
+    const wrapper = await render([
+      booking(7, { status: 'no_show', event: { ...booking(7).event, status: 'cancelled' } }),
+    ])
+    expect(wrapper.find('[data-empty]').text()).toBe('Оплата не требуется')
+  })
+
   it('says nothing is due for a booking that does not wait for payment', async () => {
     stubPage('7')
     const wrapper = await render([booking(7, { status: 'confirmed' })])

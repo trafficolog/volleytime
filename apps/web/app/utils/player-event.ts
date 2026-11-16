@@ -98,11 +98,20 @@ const BOOKING_CARDS: Record<
  * Участие («Иду», «В очереди») и состояние события рисуют `VtMyChip` / `VtStateChip`,
  * поэтому здесь только деньги; `null` — отдельного платёжного чипа нет.
  */
-export function bookingPaymentChip(status: string | null, pricing?: EventPricingView) {
+export function bookingPaymentChip(
+  status: string | null,
+  pricing?: EventPricingView,
+  pendingSeats = 0,
+) {
   if (!status || status === 'waitlisted') return null
   const split = pricing ? splitBookingPaymentLabel(pricing, status) : null
   if (split) return { tone: split.tone, text: split.text }
-  if (status === 'pending_payment') return { tone: 'amber' as const, text: 'Ждёт оплаты' }
+  // долг по проведённой записи (21.4.19): неоплаченное место после отметки посещения
+  if (
+    status === 'pending_payment' ||
+    (['attended', 'no_show'].includes(status) && pendingSeats > 0)
+  )
+    return { tone: 'amber' as const, text: 'Ждёт оплаты' }
   return null
 }
 

@@ -180,10 +180,17 @@ const showPayInstructions = computed(
       method: my.value.method,
       event: { status: ev.value.status },
       pricing: ev.value.pricing,
+      seatPayments: my.value.seatPayments,
     }),
 )
 const paymentChip = computed(() =>
-  my.value ? bookingPaymentChip(my.value.status, ev.value?.pricing) : null,
+  my.value
+    ? bookingPaymentChip(
+        my.value.status,
+        ev.value?.pricing,
+        my.value.seatPayments?.pendingSeats ?? 0,
+      )
+    : null,
 )
 // Часы экрана по времени сервера (часы телефона уходят): сдвиг берётся при каждой загрузке события.
 // Один таймер: каждую секунду, пока есть предложение места; иначе — до ближайшего открытия или
