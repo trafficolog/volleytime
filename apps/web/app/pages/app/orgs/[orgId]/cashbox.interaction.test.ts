@@ -218,6 +218,8 @@ describe('desktop cashbox v3', () => {
     expect(options).toEqual(
       expect.arrayContaining(['Аренда', 'Инвентарь', 'Мячи', 'Судья', 'Тренер']),
     )
+    // DEF-11: оплата тренера идёт под «Тренер», «Зарплата» в форме новой записи не предлагается.
+    expect(options).not.toContain('Зарплата')
     await wrapper.get('form select').setValue('balls')
     await save('Мячи для игры')
     const first = calls.find((c) => c.opts?.method === 'POST')!

@@ -215,7 +215,8 @@ async function save() {
   }
 }
 
-const EXPENSE_CATS = ['rent', 'equipment', 'salary', 'other']
+// DEF-11: без «Зарплата», оплата тренера идёт под «Тренер»; прежние записи остаются в истории.
+const EXPENSE_CATS = ['rent', 'equipment', 'coach', 'other']
 const INCOME_CATS = ['contribution', 'carryover', 'donation', 'sponsorship', 'other_income']
 
 function entrySubtitle(e: Entry): string {

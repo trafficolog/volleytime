@@ -2,11 +2,11 @@
 id: '21.4.2'
 phase: '21'
 epic: '21.4'
-status: todo
+status: in_progress
 release: 'v0.3.1'
 sync_state: synced
-last_reviewed: 2026-10-27
-status_note: 'Заготовка: состав работ заполняется из бэклога 21.4.1. Крупные группы выносятся в карточки 21.4.10+.'
+last_reviewed: 2026-11-15
+status_note: 'В работе 2026-11-15: Critical в бэклоге нет; из Important DEF-23 (миграция) вынесен в 21.4.13, DEF-33 ждёт владельца. Исправлен DEF-11 («Зарплата» убрана из форм новой записи кассы, FE). Остальное — по решению владельца (21.4.10–21.4.12, 21.4.14–21.4.17).'
 ref_id: ''
 complexity: L
 impl_model: claude-sonnet-5-5

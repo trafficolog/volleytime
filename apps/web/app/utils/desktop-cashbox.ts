@@ -22,13 +22,16 @@ export const DESKTOP_INCOME_CATEGORIES = [
   'sponsorship',
   'other_income',
 ] as const
+/**
+ * Категории расхода формы новой записи. «Зарплата» (`salary`) не предлагается (DEF-11, решение
+ * владельца 2026-11-05): оплата тренера идёт под «Тренер»; прежние записи остаются в истории.
+ */
 export const DESKTOP_EXPENSE_CATEGORIES = [
   'rent',
   'equipment',
   'balls',
   'referee',
   'coach',
-  'salary',
   'other',
 ] as const
 
