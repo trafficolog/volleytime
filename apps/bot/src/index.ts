@@ -10,6 +10,7 @@ import { registerMenuHandler } from './handlers/menu'
 import { registerMyChatMemberHandler } from './handlers/my-chat-member'
 import { registerMyHandler } from './handlers/my'
 import { registerStartHandler } from './handlers/start'
+import { registerSubscriptionHandler } from './handlers/subscription'
 import { startInternalServer } from './internal-server'
 import {
   logFatalError,
@@ -32,6 +33,7 @@ async function main(): Promise<void> {
   registerHelpHandler(bot)
   registerGamesHandler(bot)
   registerMyHandler(bot)
+  registerSubscriptionHandler(bot)
   registerMenuHandler(bot)
   registerCallbackHandler(bot)
   registerChatLinkHandler(bot)

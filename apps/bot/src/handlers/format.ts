@@ -21,3 +21,13 @@ export function formatWhen(iso: string, timeZone: string): string {
 export function short(s: string, max = 32): string {
   return s.length > max ? `${s.slice(0, max - 1)}…` : s
 }
+
+/** «28 мая 2026» в часовом поясе группы. */
+export function formatDate(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat('ru-RU', {
+    timeZone,
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(iso))
+}

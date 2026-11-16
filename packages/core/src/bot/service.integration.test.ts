@@ -5,6 +5,8 @@ import { bookingService } from '../bookings/service'
 import { eventService } from '../events/service'
 import { memberService } from '../members/service'
 import { organizationService } from '../organizations/service'
+import { planService } from '../subscription-plans/service'
+import { subscriptionService } from '../subscriptions/service'
 
 import { botService } from './service'
 
@@ -191,6 +193,135 @@ describe('botService (20.3.3, integration)', () => {
       })
       await db.execute(sql`UPDATE events SET status = 'cancelled' WHERE id = ${ev.id}`)
       expect(await botService.acceptMyOffer(p.tg, ev.id)).toBe('closed')
+    })
+  })
+
+  /** Игроки, которые не должны получать данные группы: чужой, заблокированный, вышедший, из другой группы. */
+  async function deniedPlayers() {
+    const outsider = await newPlayer({ member: false })
+    const blocked = await newPlayer()
+    await db.execute(
+      sql`UPDATE organization_members SET status = 'blocked' WHERE user_id = ${blocked.id}`,
+    )
+    const left = await newPlayer()
+    await memberService.leaveOrg({ userId: left.id }, orgId)
+    const other = await newPlayer({ member: false })
+    const otherOrg = await organizationService.create({ userId: other.id }, { name: 'Other' })
+    return { outsider, blocked, left, other, otherOrg }
+  }
+
+  async function activeSub(userId: number, forOrg = orgId, totalSessions = 4) {
+    const plan = await planService.create(
+      { userId: ownerId },
+      { organizationId: forOrg, name: 'Абонемент 4', totalSessions },
+    )
+    return subscriptionService.createFromPlan({ userId }, forOrg, plan.id, { autoActivate: true })
+  }
+
+  describe('listMySubscriptions (21.4.9)', () => {
+    it('returns the active subscription with remaining sessions', async () => {
+      const p = await newPlayer()
+      const sub = await activeSub(p.id)
+      await db.execute(sql`UPDATE subscriptions SET used_sessions = 1 WHERE id = ${sub.id}`)
+      const rows = await botService.listMySubscriptions(p.tg)
+      expect(rows).toHaveLength(1)
+      expect(rows[0]).toMatchObject({
+        organizationId: orgId,
+        organizationName: 'Bot Org',
+        planName: 'Абонемент 4',
+        remaining: 3,
+        total: 4,
+      })
+    })
+    it('hides pending, exhausted, expired and cancelled subscriptions', async () => {
+      const p = await newPlayer()
+      const plan = await planService.create(
+        { userId: ownerId },
+        { organizationId: orgId, name: 'Plan', totalSessions: 2 },
+      )
+      for (const status of ['pending', 'exhausted', 'cancelled', 'expired'] as const) {
+        const s = await subscriptionService.createFromPlan({ userId: p.id }, orgId, plan.id)
+        await db.execute(sql`UPDATE subscriptions SET status = ${status} WHERE id = ${s.id}`)
+      }
+      const lapsed = await activeSub(p.id)
+      await db.execute(
+        sql`UPDATE subscriptions SET expires_at = now() - interval '1 day' WHERE id = ${lapsed.id}`,
+      )
+      expect(await botService.listMySubscriptions(p.tg)).toEqual([])
+    })
+    it('hides groups with subscriptions switched off', async () => {
+      const p = await newPlayer()
+      await activeSub(p.id)
+      await db.execute(sql`UPDATE organizations SET subscriptions_enabled = false`)
+      expect(await botService.listMySubscriptions(p.tg)).toEqual([])
+    })
+    it('IDOR: never shows another player subscription, even in the same group', async () => {
+      const p = await newPlayer()
+      const q = await newPlayer()
+      await activeSub(q.id)
+      expect(await botService.listMySubscriptions(p.tg)).toEqual([])
+      expect(await botService.listMySubscriptions('424242')).toEqual([])
+      expect(await botService.listMySubscriptions('abc')).toEqual([])
+    })
+    it('IDOR: non-members, blocked and left players get nothing; other group is not mixed in', async () => {
+      const { outsider, blocked, left, other, otherOrg } = await deniedPlayers()
+      for (const u of [outsider, blocked, left]) await activeSub(u.id)
+      await activeSub(other.id, otherOrg.id)
+      for (const u of [outsider, blocked, left])
+        expect(await botService.listMySubscriptions(u.tg), String(u.id)).toEqual([])
+      const rows = await botService.listMySubscriptions(other.tg)
+      expect(rows.map((r) => r.organizationId)).toEqual([otherOrg.id])
+    })
+  })
+
+  describe('eventRoster (21.4.9)', () => {
+    it('member sees names and seats only, waitlist is not shown', async () => {
+      const a = await newPlayer()
+      const b = await newPlayer()
+      const w = await newPlayer()
+      await db.execute(
+        sql`UPDATE users SET name = 'Анна', telegram_username = 'anna_tg' WHERE id = ${a.id}`,
+      )
+      await db.execute(sql`UPDATE users SET name = 'Борис' WHERE id = ${b.id}`)
+      const ev = await makeEvent({ capacity: 2 })
+      await bookingService.book({ userId: a.id }, orgId, ev.id, { method: 'free' })
+      await bookingService.book({ userId: b.id }, orgId, ev.id, { method: 'free' })
+      const wl = await bookingService.book({ userId: w.id }, orgId, ev.id, { method: 'free' })
+      expect(wl.status).toBe('waitlisted')
+      const res = await botService.eventRoster(a.tg, ev.id)
+      expect(res).toMatchObject({ result: 'ok', title: 'Основа', capacity: 2 })
+      if (res.result !== 'ok') throw new Error('unreachable')
+      expect(res.players).toEqual([
+        { name: 'Анна', seats: 1 },
+        { name: 'Борис', seats: 1 },
+      ])
+      expect(JSON.stringify(res)).not.toContain('anna_tg')
+      // повтор безопасен: тот же результат
+      expect(await botService.eventRoster(a.tg, ev.id)).toEqual(res)
+    })
+    it('IDOR: non-members, blocked, left and members of another group get not_found', async () => {
+      const { outsider, blocked, left, other } = await deniedPlayers()
+      const a = await newPlayer()
+      const ev = await makeEvent()
+      await bookingService.book({ userId: a.id }, orgId, ev.id, { method: 'free' })
+      for (const u of [outsider, blocked, left, other])
+        expect(await botService.eventRoster(u.tg, ev.id), String(u.id)).toEqual({
+          result: 'not_found',
+        })
+      expect(await botService.eventRoster('424242', ev.id)).toEqual({ result: 'not_found' })
+      expect(await botService.eventRoster(a.tg, 0)).toEqual({ result: 'not_found' })
+    })
+    it('draft events and deleted groups are not_found for members', async () => {
+      const a = await newPlayer()
+      const ev = await makeEvent()
+      await db.execute(sql`UPDATE events SET status = 'draft' WHERE id = ${ev.id}`)
+      expect(await botService.eventRoster(a.tg, ev.id)).toEqual({ result: 'not_found' })
+      await db.execute(sql`UPDATE events SET status = 'published' WHERE id = ${ev.id}`)
+      expect((await botService.eventRoster(a.tg, ev.id)).result).toBe('ok')
+      await db.execute(
+        sql`UPDATE organizations SET deleted_at = now(), restore_until = now() + interval '30 days' WHERE id = ${orgId}`,
+      )
+      expect(await botService.eventRoster(a.tg, ev.id)).toEqual({ result: 'not_found' })
     })
   })
 })
