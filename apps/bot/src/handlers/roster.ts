@@ -1,7 +1,7 @@
 /** `callback_data` кнопки «Кто уже играет» (21.4.9): `rs:<id события>`, авторизация — в web по Telegram id. */
 export const rosterAskData = (eventId: number) => `rs:${eventId}`
 export const ROSTER_BUTTON = '👥 Кто уже играет'
-export const ROSTER_MARK = '👥 Кто уже играет'
+export const ROSTER_MARK = '👥 Состав события'
 export const ROSTER_DENIED = 'Состав доступен участникам группы'
 const ROSTER_MAX_LINES = 30
 
@@ -30,5 +30,5 @@ export function buildRosterBlock(r: {
   })
   const rest = r.players.length - lines.length
   if (rest > 0) lines.push(`…и ещё ${rest}`)
-  return `${ROSTER_MARK} (занято ${taken} из ${r.capacity})\n${lines.join('\n')}`
+  return `${ROSTER_MARK}: занято ${taken} из ${r.capacity}\n${lines.join('\n')}`
 }

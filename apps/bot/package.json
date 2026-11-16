@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@sentry/node": "^10.75.0",
-    "@volley-time/shared": "workspace:*",
     "grammy": "^1.40.1"
   },
   "devDependencies": {

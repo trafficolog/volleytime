@@ -27,6 +27,7 @@ export const OFFER_DONE = '✅ Место подтверждено.'
 export const OFFER_EXPIRED = '⌛ Время на подтверждение вышло — место ушло дальше.'
 export const OFFER_CLOSED = '⚠️ Запись на игру закрыта.'
 export const OFFER_NOT_FOUND = '⚠️ Предложение не найдено.'
+const TEXT_LIMIT = 4096
 const STALE = 'Кнопка устарела, откройте /my'
 const TOO_FAST = 'Слишком часто, подождите немного'
 
@@ -124,7 +125,10 @@ export function registerCallbackHandler(bot: Bot<BotContext>): void {
       // блок состава дописывается к сообщению; при повторном нажатии заменяется, а не дублируется
       const cut = text.indexOf(`\n\n${ROSTER_MARK}`)
       const head = cut >= 0 ? text.slice(0, cut) : text
-      await editMessage(ctx, `${head}\n\n${buildRosterBlock(res)}`, msg.entities, rows ?? [])
+      const full = `${head}\n\n${buildRosterBlock(res)}`
+      // лимит Telegram на текст сообщения — 4096 символов
+      const next = full.length > TEXT_LIMIT ? `${full.slice(0, TEXT_LIMIT - 1)}…` : full
+      await editMessage(ctx, next, msg.entities, rows ?? [])
       return
     }
     if (action === 'cx') {

@@ -2,11 +2,11 @@
 id: '21.5.2'
 phase: '21'
 epic: '21.5'
-status: todo
+status: in_progress
 release: 'v0.3.1'
 sync_state: synced
 last_reviewed: 2026-10-28
-status_note: 'Пакет 1 из отчёта 21.5.1: LEG-01…LEG-03. Остальные пакеты — 21.5.3, 21.5.4, 21.5.5.'
+status_note: 'Пакет 1 из отчёта 21.5.1: LEG-01…LEG-03. LEG-02 без MEMBER_STATUS_LABELS (появился потребитель PlayerDrawer.vue). PR на ревью.'
 ref_id: ''
 complexity: M
 impl_model: claude-sonnet-5-5
@@ -47,7 +47,7 @@ tags: [reference-v3, cleanup]
 ## Что должно быть сделано
 
 1. Повторить команды проверки на текущем `main`; если у объекта появился потребитель, исключить его из пакета и записать в отчёте.
-2. Удалить `LEG-01`…`LEG-03`. Не удалять `DEFAULT_CLOSE_BEFORE_MINUTES`, схему `CloseBeforeMinutes` и остальные экспорты `labels.ts` (`EVENT_STATUS_LABELS`, `ROLE_LABELS` и др.).
+2. Удалить `LEG-01`…`LEG-03`. Не удалять `DEFAULT_CLOSE_BEFORE_MINUTES`, схему `CloseBeforeMinutes` и остальные экспорты `labels.ts` (`EVENT_STATUS_LABELS`, `ROLE_LABELS` и др.). `LEG-02` удалён частично: `MEMBER_STATUS_LABELS` оставлен, у него появился потребитель `PlayerDrawer.vue`.
 3. В `apps/web/app/utils/labels.test.ts` заменить пример `BOOKING_STATUS_LABELS` на оставшуюся таблицу (например `EVENT_STATUS_LABELS` или `ROLE_LABELS`), сохранив проверку `label()` и значения по умолчанию.
 4. Проверить `rg` по именам удалённого (код, тесты, документы живых разделов); исторические карточки фазы 5 в `docs/tasks` не править.
 5. Обновить отчёт аудита: статус `LEG-01`…`LEG-03` — удалено + номер PR.

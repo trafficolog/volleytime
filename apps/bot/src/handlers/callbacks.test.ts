@@ -202,7 +202,7 @@ describe('«Кто уже играет» (21.4.9)', () => {
     })
     const edit = of(calls, 'editMessageText')[0]!
     expect(edit.payload.text).toBe(
-      `${START_TEXT}\n\n👥 Кто уже играет (занято 3 из 6)\n1. Анна\n2. Игрок +1`,
+      `${START_TEXT}\n\n👥 Состав события: занято 3 из 6\n1. Анна\n2. Игрок +1`,
     )
     expect(rowsOf(edit)).toEqual(startRows)
   })
@@ -210,11 +210,21 @@ describe('«Кто уже играет» (21.4.9)', () => {
   it('a repeated press refreshes the block instead of duplicating it', async () => {
     web.mockResolvedValue(roster)
     const { bot, calls } = setup()
-    const first = `${START_TEXT}\n\n👥 Кто уже играет (занято 1 из 6)\n1. Анна`
+    const first = `${START_TEXT}\n\n👥 Состав события: занято 1 из 6\n1. Анна`
     await bot.handleUpdate(callbackUpdate('rs:5', { text: first, rows: startRows }))
     const text = String(of(calls, 'editMessageText')[0]!.payload.text)
-    expect(text.match(/Кто уже играет \(/g)).toHaveLength(1)
+    expect(text.match(/Состав события:/g)).toHaveLength(1)
     expect(text.startsWith(START_TEXT)).toBe(true)
+  })
+
+  it('keeps the edited text within the 4096-character Telegram limit', async () => {
+    web.mockResolvedValue({
+      ...roster,
+      players: Array.from({ length: 100 }, (_, i) => ({ name: `Игрок ${i}`.repeat(30), seats: 1 })),
+    })
+    const { bot, calls } = setup()
+    await bot.handleUpdate(callbackUpdate('rs:5', { text: START_TEXT, rows: startRows }))
+    expect(String(of(calls, 'editMessageText')[0]!.payload.text).length).toBeLessThanOrEqual(4096)
   })
 
   it('not a member / foreign event: toast only, the message is not edited', async () => {

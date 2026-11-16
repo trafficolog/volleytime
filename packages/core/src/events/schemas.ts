@@ -3,7 +3,6 @@ import { z } from 'zod'
 import { LevelCode } from '../levels/schemas'
 
 /** Допустимые сроки закрытия записи до начала, мин (20.3.1, решение владельца 2026-10-16). */
-export const CLOSE_BEFORE_MINUTES = [60, 120, 360, 1440] as const
 export const DEFAULT_CLOSE_BEFORE_MINUTES = 120
 export const CloseBeforeMinutes = z.union([
   z.literal(60),
