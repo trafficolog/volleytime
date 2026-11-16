@@ -7,6 +7,8 @@ import PlayerBookingRow from './PlayerBookingRow.vue'
 import Chip from './vt/Chip.vue'
 import MyChip from './vt/MyChip.vue'
 
+import { priceFields } from '~/utils/__fixtures__/price-fields'
+
 vi.stubGlobal('computed', computed)
 afterEach(() => vi.unstubAllGlobals())
 
@@ -21,10 +23,11 @@ function mountRow(status: string, seatPayments?: Record<string, number>) {
         seats: 1,
         waitlistSeats: 0,
         paymentId: null,
-        pricing: { mode: 'fixed', price: 1500 },
+        ...priceFields({ mode: 'fixed', price: 1500 }),
         seatPayments,
         event: {
           id: 3,
+          priceMode: 'fixed',
           title: 'Игра',
           status: 'published',
           startsAt: '2099-10-04T16:00:00.000Z',

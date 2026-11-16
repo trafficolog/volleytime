@@ -1,6 +1,5 @@
 // @vitest-environment happy-dom
 import { BookInput } from '@volley-time/core'
-import type { EventPricingView } from '@volley-time/shared'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -22,6 +21,7 @@ import PlayerInviteCard from '~/components/PlayerInviteCard.vue'
 import MyChip from '~/components/vt/MyChip.vue'
 import SeatsMini from '~/components/vt/SeatsMini.vue'
 import StateChip from '~/components/vt/StateChip.vue'
+import { priceFields, type PriceScenario } from '~/utils/__fixtures__/price-fields'
 import { apiErrorCode, apiErrorMessage, apiErrorStatus } from '~/utils/api-error'
 import {
   readStashedInviteToken,
@@ -35,7 +35,7 @@ import {
  */
 const NOW = new Date('2027-10-03T10:00:00Z')
 const route = reactive({ params: { orgId: '30', eventId: '71' }, fullPath: '/m/orgs/30/events/71' })
-const pricing = (): EventPricingView => ({
+const pricing = (): PriceScenario => ({
   mode: 'fixed',
   targetAmount: null,
   settledAt: null,
@@ -66,7 +66,7 @@ const fixture = () => ({
   bookingOpensAt: null as string | null,
   venue: null,
   locationText: null,
-  pricing: pricing(),
+  ...priceFields(pricing()),
   myBooking: null,
 })
 const organizer = { name: 'Иван Петренко', telegramUsername: null, image: null }

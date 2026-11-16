@@ -14,6 +14,7 @@ import VtChip from '~/components/vt/Chip.vue'
 import VtIcon from '~/components/vt/Icon.vue'
 import SeatsMini from '~/components/vt/SeatsMini.vue'
 import StateChip from '~/components/vt/StateChip.vue'
+import { priceFields } from '~/utils/__fixtures__/price-fields'
 import { formatMoneyRu } from '~/utils/labels'
 
 const path = '/app/orgs/30/events/71'
@@ -39,8 +40,8 @@ const splitEvent = (over: Record<string, unknown> = {}) => ({
   bookingOpensAt: null,
   closeBeforeMinutes: 120,
   venue: { name: 'Школа 24' },
-  // readEventPricing намеренно «врёт»: интерфейс не должен брать цену из него
-  pricing: {
+  // прогноз priceForecast намеренно «врёт»: интерфейс не должен брать цену из него
+  ...priceFields({
     mode: 'split',
     targetAmount: 10000,
     settledAt: null,
@@ -50,7 +51,7 @@ const splitEvent = (over: Record<string, unknown> = {}) => ({
     basis: 'current',
     myAllocatedAmount: null,
     myPaymentStatus: null,
-  },
+  }),
   pricingPermissions: { canChangePriceMode: false, canChangeTargetAmount: true, canSettle: true },
   ...over,
 })
@@ -172,7 +173,7 @@ beforeEach(() => {
 })
 
 describe('W-05: цена только из GET …/price', () => {
-  it('показанная цена и прогноз совпадают с ответом эндпоинта для тех же мест, а не с readEventPricing', async () => {
+  it('показанная цена и прогноз совпадают с ответом эндпоинта для тех же мест, а не с прогноз priceForecast', async () => {
     const quote = quoteEventPrice({
       mode: 'split',
       targetAmount: 10000,
@@ -196,7 +197,7 @@ describe('W-05: цена только из GET …/price', () => {
       `≈ ${formatMoneyRu(quote.perSeat.max, 'BYN')}`,
     )
     expect(wrapper.text()).toContain('с места при записи сейчас')
-    // значения readEventPricing (1,11 / 2,22 BYN) нигде не показываются
+    // значения прогноз priceForecast (1,11 / 2,22 BYN) нигде не показываются
     expect(wrapper.text()).not.toContain('1,11')
     expect(wrapper.text()).not.toContain('2,22')
     wrapper.unmount()
@@ -349,7 +350,7 @@ describe('W-05: состав', () => {
   })
 
   it('бесплатное событие: «оплачено» не показывается, карточка оплат скрыта', async () => {
-    current = splitEvent({ pricing: { ...splitEvent().pricing, mode: 'fixed' }, price: 0 })
+    current = splitEvent({ priceMode: 'fixed', price: 0 })
     quotePayload = quoteEventPrice({
       mode: 'fixed',
       price: 0,

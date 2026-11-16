@@ -5,7 +5,6 @@ import {
   eventService,
   readBookingAvailability,
   readEventPriceForecast,
-  readEventPricing,
   readMyEventShare,
   readManualClose,
   readMySeatPayments,
@@ -28,7 +27,6 @@ export default defineApiHandler(async (event) => {
   const stats = (await eventService.statsFor(ctx, [ev.id])).get(ev.id)!
   // Маршрут только для участников группы (requireOrgMember): уровни видны только им (решение 2026-10-14).
   const roster = await bookingService.publicRoster(ctx, orgId, ev.id, { includeLevel: true })
-  const pricing = await readEventPricing(ctx, ev.id)
   const managerPricing = canManageContent(event.context.member ?? null)
     ? {
         pricingFinancials: await readPricingFinancials(ctx, ev.id),
@@ -57,8 +55,7 @@ export default defineApiHandler(async (event) => {
       ...stats,
       myBooking,
       ...availability,
-      pricing,
-      // замена проекции pricing (21.5.10): прогноз события и доля/статус своей записи
+      // прогноз события и доля/статус своей записи (21.5.10, 21.5.9)
       priceForecast: await readEventPriceForecast(ctx, ev.id),
       myShare: await readMyEventShare(ctx, orgId, ev.id),
       ...managerPricing,

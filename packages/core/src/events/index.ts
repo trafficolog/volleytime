@@ -10,7 +10,6 @@ export { eventPricingService, type SplitSettlementResult } from './pricing-servi
 export {
   readEventPriceQuote,
   readEventPriceForecast,
-  readEventPricing,
   readMyEventShare,
   readPricingFinancials,
   readPricingPermissions,

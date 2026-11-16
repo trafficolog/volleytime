@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Organization, OrganizationMember } from '@volley-time/db'
-import { formatShortDate, type EventPricingView } from '@volley-time/shared'
+import { formatShortDate } from '@volley-time/shared'
 
 import type { EventListItem } from '~/components/EventCard.vue'
 import GroupLogo from '~/components/GroupLogo.vue'
@@ -35,7 +35,6 @@ interface Dashboard {
   myBookings: {
     id: number
     status: string
-    pricing?: EventPricingView
     event: {
       id: number
       title: string

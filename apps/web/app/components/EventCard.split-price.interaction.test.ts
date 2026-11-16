@@ -11,13 +11,14 @@ import MyChip from './vt/MyChip.vue'
 import SeatsMini from './vt/SeatsMini.vue'
 import StateChip from './vt/StateChip.vue'
 
+import { priceFields } from '~/utils/__fixtures__/price-fields'
 import { formatMoneyRu } from '~/utils/labels'
 
 vi.stubGlobal('computed', computed)
 afterEach(() => vi.unstubAllGlobals())
 
 const money = (minor: number) => formatMoneyRu(minor, 'BYN')
-// readEventPricing в фикстуре расходится с ответом цены: на карточке должна быть цена из ответа
+// прогноз priceForecast в фикстуре расходится с ответом цены: на карточке должна быть цена из ответа
 const legacy = {
   mode: 'split',
   targetAmount: 10000,
@@ -46,7 +47,7 @@ function event(over: Partial<EventListItem> = {}): EventListItem {
     myBooking: null,
     venue: { name: 'Зал' },
     locationText: null,
-    pricing: legacy,
+    ...priceFields(legacy),
     priceQuote: {
       ...quoteEventPrice({
         mode: 'split',
@@ -108,7 +109,7 @@ describe.each(['card', 'schedule'] as const)(
       const w = render(
         event({
           priceQuote,
-          pricing: { ...legacy, basis: 'settled', settledAt: '2099-10-04T10:00:00Z' },
+          ...priceFields({ ...legacy, basis: 'settled', settledAt: '2099-10-04T10:00:00Z' }),
           myBooking: { id: 1, status: 'confirmed' },
         }),
         presentation,

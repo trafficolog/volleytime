@@ -39,7 +39,8 @@ const loadView = createPlayerBookingsLoader<MyBooking>(
     ).bookings.filter(
       (booking) =>
         (booking.status !== 'cancelled' ||
-          (booking.pricing?.mode === 'split' && booking.pricing.myAllocatedAmount !== null) ||
+          (booking.event.priceMode === 'split' &&
+            (booking.myShare?.allocatedAmount ?? null) !== null) ||
           // оплачено, место освобождено без возврата (D-14, 21.1.8): строка остаётся в истории
           (booking.seatPayments?.releasedPaidSeats ?? 0) > 0) &&
         booking.organizationId === requestedOrgId &&
@@ -153,7 +154,7 @@ function bookingPolicy(booking: MyBooking) {
 function canCancel(booking: MyBooking) {
   return (
     filter.value === 'upcoming' &&
-    booking.pricing.myAllocatedAmount === null &&
+    (booking.myShare?.allocatedAmount ?? null) === null &&
     canCancelPlayerBooking(bookingPolicy(booking), new Date())
   )
 }

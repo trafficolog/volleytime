@@ -21,6 +21,7 @@ import OrganizerEventRow from '~/components/OrganizerEventRow.vue'
 import MyChip from '~/components/vt/MyChip.vue'
 import SeatsMini from '~/components/vt/SeatsMini.vue'
 import StateChip from '~/components/vt/StateChip.vue'
+import { priceFields } from '~/utils/__fixtures__/price-fields'
 import { apiErrorMessage } from '~/utils/api-error'
 import { formatMoneyRu } from '~/utils/labels'
 
@@ -128,7 +129,7 @@ describe('organizer Home', () => {
       myBooking: null,
       venue: null,
       locationText: null,
-      pricing,
+      ...priceFields(pricing),
     }
     fetchDashboard.mockResolvedValueOnce({
       isManager: false,
@@ -138,13 +139,13 @@ describe('organizer Home', () => {
         {
           ...event,
           taken: 0,
-          pricing: {
+          ...priceFields({
             ...pricing,
             basis: 'capacity',
             participantCount: 4,
             minAmount: 2500,
             maxAmount: 2500,
-          },
+          }),
         },
         { ...event, id: 72, startsAt: '2027-10-02T16:00:00Z' },
       ],
@@ -153,25 +154,25 @@ describe('organizer Home', () => {
           id: 5,
           status: 'confirmed',
           event: { ...event, id: 73 },
-          pricing: {
+          ...priceFields({
             ...pricing,
             basis: 'settled',
             settledAt: '2026-10-02T12:00:00Z',
             myAllocatedAmount: 3334,
             myPaymentStatus: 'refunded',
-          },
+          }),
         },
-        { id: 6, status: 'pending_payment', event: { ...event, id: 74 }, pricing },
-        { id: 7, status: 'waitlisted', event: { ...event, id: 75 }, pricing },
+        { id: 6, status: 'pending_payment', event: { ...event, id: 74 }, ...priceFields(pricing) },
+        { id: 7, status: 'waitlisted', event: { ...event, id: 75 }, ...priceFields(pricing) },
         {
           id: 8,
           status: 'waitlisted',
           event: { ...event, id: 76, status: 'closed' },
-          pricing: {
+          ...priceFields({
             ...pricing,
             basis: 'settled',
             settledAt: '2026-10-02T12:00:00Z',
-          },
+          }),
         },
       ],
     })
@@ -602,9 +603,13 @@ describe('player Home bento v3 (20.4.4)', () => {
     const rowQuote = quoteOf(12, 0)
     const w = await mountPlayer({
       upcoming: [
-        { ...game(1, 28, { id: 9, status: 'confirmed' }), pricing: legacy, priceQuote: heroQuote },
-        { ...game(2, 30), pricing: legacy, priceQuote: rowQuote },
-        { ...game(3, 29), status: 'cancelled', pricing: legacy, priceQuote: rowQuote },
+        {
+          ...game(1, 28, { id: 9, status: 'confirmed' }),
+          ...priceFields(legacy),
+          priceQuote: heroQuote,
+        },
+        { ...game(2, 30), ...priceFields(legacy), priceQuote: rowQuote },
+        { ...game(3, 29), status: 'cancelled', ...priceFields(legacy), priceQuote: rowQuote },
       ],
     })
     const hero = w.get('a[href="/m/orgs/30/events/1"]').text()

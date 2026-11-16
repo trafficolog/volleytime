@@ -1,5 +1,4 @@
 // @vitest-environment happy-dom
-import type { EventPricingView } from '@volley-time/shared'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -26,6 +25,7 @@ import MyChip from '~/components/vt/MyChip.vue'
 import SeatsMini from '~/components/vt/SeatsMini.vue'
 import StateChip from '~/components/vt/StateChip.vue'
 import Toggle from '~/components/vt/Toggle.vue'
+import { priceFields, type PriceScenario } from '~/utils/__fixtures__/price-fields'
 import { withSplitPriceFetch } from '~/utils/__fixtures__/split-quote'
 import { apiErrorCode, apiErrorMessage, apiErrorStatus } from '~/utils/api-error'
 
@@ -35,6 +35,17 @@ const levelsCatalog = [
 ]
 const path = '/m/orgs/30/events/71'
 const route = reactive({ params: { orgId: '30', eventId: '71' }, fullPath: path })
+const splitScenario: PriceScenario = {
+  mode: 'split',
+  targetAmount: 10000,
+  settledAt: null,
+  participantCount: 3,
+  minAmount: 3333,
+  maxAmount: 3334,
+  basis: 'current',
+  myAllocatedAmount: null,
+  myPaymentStatus: null,
+}
 const fixture = () => ({
   id: 71,
   organizationId: 30,
@@ -52,17 +63,8 @@ const fixture = () => ({
   cancellationAllowed: true,
   venue: null,
   locationText: null,
-  pricing: {
-    mode: 'split',
-    targetAmount: 10000,
-    settledAt: null,
-    participantCount: 3,
-    minAmount: 3333,
-    maxAmount: 3334,
-    basis: 'current',
-    myAllocatedAmount: null,
-    myPaymentStatus: null,
-  } as EventPricingView,
+  ...priceFields(splitScenario),
+
   myBooking: { id: 5, status: 'pending_payment', method: 'cash', paymentId: null } as null | {
     id: number
     status: string
@@ -137,13 +139,16 @@ const submitInSheet = () =>
     .find((b) => b.text().startsWith('Записаться'))!
     .trigger('click')
 const settleLatest = () => {
-  data.value.event.pricing = {
-    ...data.value.event.pricing,
-    basis: 'settled',
-    settledAt: '2026-10-04T09:00:00Z',
-    myAllocatedAmount: 3334,
-    myPaymentStatus: 'pending',
-  }
+  Object.assign(
+    data.value.event,
+    priceFields({
+      ...splitScenario,
+      basis: 'settled',
+      settledAt: '2026-10-04T09:00:00Z',
+      myAllocatedAmount: 3334,
+      myPaymentStatus: 'pending',
+    }),
+  )
   data.value.event.status = 'closed'
 }
 beforeEach(() => {
@@ -409,7 +414,7 @@ describe('self-cancellation policy, deadline and partial seats (20.4.8)', () => 
       data.value.event.cancellationAllowed = true
       data.value.event.cancellationDeadlineHours = null
       data.value.event.price = 5000
-      data.value.event.pricing = { ...data.value.event.pricing, mode: 'fixed' }
+      data.value.event.priceMode = 'fixed'
       data.value.event.myBooking = {
         id: 5,
         status: 'confirmed',

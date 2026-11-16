@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { priceFields } from './__fixtures__/price-fields'
 import {
   organizerMenuLinks,
   organizerHomeSubtitle,
@@ -262,7 +263,7 @@ describe('organizer event chips (21.1.1)', () => {
       ...ev,
       price: 0,
       paymentTotals: { paid: 3000, pending: 0 },
-      pricing: { mode: 'split', settledAt: null, basis: 'current' },
+      ...priceFields({ mode: 'split', settledAt: null, basis: 'current' }),
     }
     expect(organizerEventChips(open, 0)).toEqual([])
     expect(organizerEventChips(open, 2)).toEqual([{ tone: 'amber', text: '2 ждут оплаты' }])
@@ -273,13 +274,16 @@ describe('organizer event chips (21.1.1)', () => {
       ...ev,
       status: 'closed',
       price: 0,
-      pricing: { mode: 'split', settledAt: null, basis: 'capacity' },
+      ...priceFields({ mode: 'split', settledAt: null, basis: 'capacity' }),
     }
     expect(organizerEventChips(closed, 0)).toEqual([{ tone: 'amber', text: 'нужно распределить' }])
     expect(organizerEventChips(closed, null)).toEqual([
       { tone: 'amber', text: 'нужно распределить' },
     ])
-    const settled = { ...closed, pricing: { mode: 'split', settledAt: '2027-01-01T00:00:00Z' } }
+    const settled = {
+      ...closed,
+      ...priceFields({ mode: 'split', settledAt: '2027-01-01T00:00:00Z' }),
+    }
     expect(organizerEventChips(settled, 0)).toEqual([])
   })
 
@@ -301,12 +305,12 @@ describe('organizer event chips (21.1.1)', () => {
 
   it('labels the split price per seat as a forecast until settled', () => {
     const base = { status: 'published', currency: 'BYN' }
-    const pricing = { mode: 'split', maxAmount: 3000, basis: 'current' }
-    expect(splitForecastLabel({ ...base, pricing })).toBe('≈ 30,00 BYN')
-    expect(splitForecastLabel({ ...base, pricing: { ...pricing, basis: 'settled' } })).toBe(
+    const split = { mode: 'split', maxAmount: 3000, basis: 'current' }
+    expect(splitForecastLabel({ ...base, ...priceFields(split) })).toBe('≈ 30,00 BYN')
+    expect(splitForecastLabel({ ...base, ...priceFields({ ...split, basis: 'settled' }) })).toBe(
       '30,00 BYN',
     )
-    expect(splitForecastLabel({ ...base, pricing: { ...pricing, mode: 'fixed' } })).toBeNull()
-    expect(splitForecastLabel({ ...base, status: 'cancelled', pricing })).toBeNull()
+    expect(splitForecastLabel({ ...base, ...priceFields({ ...split, mode: 'fixed' }) })).toBeNull()
+    expect(splitForecastLabel({ ...base, status: 'cancelled', ...priceFields(split) })).toBeNull()
   })
 })

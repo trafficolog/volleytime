@@ -1,27 +1,26 @@
-export interface EventPricingView {
-  mode: 'fixed' | 'split'
-  targetAmount: number | null
-  settledAt: string | null
+/** Базис прогноза цены места (21.5.10). */
+export type EventPriceBasis = 'fixed' | 'current' | 'capacity' | 'settled'
+
+/** Прогноз цены места события (21.5.10, `readEventPriceForecast`). */
+export interface EventPriceForecast {
   participantCount: number
   minAmount: number
   maxAmount: number
-  basis: 'fixed' | 'current' | 'capacity' | 'settled'
-  myAllocatedAmount: number | null
-  myPaymentStatus: 'pending' | 'succeeded' | 'cancelled' | 'refunded' | null
+  basis: EventPriceBasis
 }
 
-/** Прогноз цены места события (21.5.10): замена `pricing.participantCount/min/max/basis`. */
-export type EventPriceForecast = Pick<
-  EventPricingView,
-  'participantCount' | 'minAmount' | 'maxAmount' | 'basis'
->
-
-/** Доля и статус оплаты своей записи (21.5.10): замена `pricing.myAllocatedAmount/myPaymentStatus`. */
+/** Доля и статус оплаты своей записи (21.5.10, `readMyEventShare`). */
 export interface MyEventShare {
   allocatedAmount: number | null
-  paymentStatus: EventPricingView['myPaymentStatus']
+  paymentStatus: 'pending' | 'succeeded' | 'cancelled' | 'refunded' | null
 }
 
+/** Поля ответа API, из которых экраны показывают цену события (21.5.9). */
+export interface EventPriceSource {
+  priceMode: 'fixed' | 'split'
+  priceForecast: EventPriceForecast
+  myShare: MyEventShare | null
+}
 export interface PricingFinancials {
   collected: number
   pending: number

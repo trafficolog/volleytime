@@ -172,7 +172,8 @@ interface ChipEvent {
   waitlistSeats?: number
   price: number
   priceMode?: 'fixed' | 'split'
-  pricing?: { mode: string; settledAt?: string | null; basis?: string }
+  pricingSettledAt?: string | null
+  priceForecast?: { basis: string }
   /** Суммы платежей события (список кабинета); на главной из дашборда их нет. */
   paymentTotals?: { paid: number; pending: number }
 }
@@ -187,8 +188,9 @@ export function organizerEventChips(
   pending: number | null,
 ): OrganizerEventChip[] {
   const chips: OrganizerEventChip[] = []
-  const split = event.pricing?.mode === 'split' || event.priceMode === 'split'
-  const unsettledSplit = split && !event.pricing?.settledAt && event.pricing?.basis !== 'settled'
+  const split = event.priceMode === 'split'
+  const unsettledSplit =
+    split && !event.pricingSettledAt && event.priceForecast?.basis !== 'settled'
   const live = event.status !== 'cancelled' && event.status !== 'draft'
   if (live) {
     if (unsettledSplit && event.status === 'closed')
@@ -219,9 +221,10 @@ export function organizerEventChips(
 export function splitForecastLabel(event: {
   status: string
   currency: string
-  pricing?: { mode: string; maxAmount: number; basis: string }
+  priceMode?: string
+  priceForecast?: { maxAmount: number; basis: string }
 }): string | null {
-  const pricing = event.pricing
-  if (pricing?.mode !== 'split' || event.status === 'cancelled') return null
-  return `${pricing.basis === 'settled' ? '' : '≈ '}${formatMoneyRu(pricing.maxAmount, event.currency)}`
+  const forecast = event.priceForecast
+  if (event.priceMode !== 'split' || !forecast || event.status === 'cancelled') return null
+  return `${forecast.basis === 'settled' ? '' : '≈ '}${formatMoneyRu(forecast.maxAmount, event.currency)}`
 }

@@ -1,9 +1,17 @@
-import type { EventPricingView } from '@volley-time/shared'
 import { describe, expect, it } from 'vitest'
 
-import { eventPricingLabel, splitBookingPaymentLabel } from './event-pricing-label'
+import { priceFields, type PriceScenario } from './__fixtures__/price-fields'
+import {
+  eventPricingLabel as labelOf,
+  splitBookingPaymentLabel as paymentOf,
+} from './event-pricing-label'
 
-const current: EventPricingView = {
+// сценарии задаются прежними числами; метки читают поля ответа API (21.5.9)
+const eventPricingLabel = (s: PriceScenario, currency: string) => labelOf(priceFields(s), currency)
+const splitBookingPaymentLabel = (s: PriceScenario, status: string) =>
+  paymentOf(priceFields(s), status)
+
+const current: PriceScenario = {
   mode: 'split',
   targetAmount: 10000,
   settledAt: null,

@@ -66,7 +66,12 @@ describe('split settlement and pricing HTTP projections', () => {
             canChangeTargetAmount: true,
             canSettle: true,
           },
-          pricing: { basis: 'capacity', participantCount: 3, minAmount: 3333, maxAmount: 3334 },
+          priceForecast: {
+            basis: 'capacity',
+            participantCount: 3,
+            minAmount: 3333,
+            maxAmount: 3334,
+          },
         },
       })
       await db
@@ -119,7 +124,7 @@ describe('split settlement and pricing HTTP projections', () => {
           refunded: 0,
           currency: 'BYN',
         },
-        pricing: { myAllocatedAmount: null, myPaymentStatus: null },
+        myShare: null,
       },
     })
     const player = (await request('GET', route(), { user: playerId })).body as {
@@ -127,8 +132,10 @@ describe('split settlement and pricing HTTP projections', () => {
       roster: unknown[]
     }
     expect(player.event).toMatchObject({
-      pricing: { myAllocatedAmount: 10000, myPaymentStatus: 'pending', basis: 'settled' },
+      priceForecast: { basis: 'settled' },
+      myShare: { allocatedAmount: 10000, paymentStatus: 'pending' },
     })
+    expect(player.event).not.toHaveProperty('pricing')
     expect(player.event).not.toHaveProperty('pricingPermissions')
     expect(player.event).not.toHaveProperty('pricingFinancials')
     expect(player.roster).toEqual([
@@ -143,12 +150,12 @@ describe('split settlement and pricing HTTP projections', () => {
     expect(
       (await request('GET', `/api/organizations/${orgId}/events`, { user: playerId })).body,
     ).toMatchObject({
-      events: [{ pricing: { myAllocatedAmount: 10000, myPaymentStatus: 'pending' } }],
+      events: [{ myShare: { allocatedAmount: 10000, paymentStatus: 'pending' } }],
     })
     expect(
       (await request('GET', `/api/organizations/${orgId}/bookings/my`, { user: playerId })).body,
     ).toMatchObject({
-      bookings: [{ pricing: { myAllocatedAmount: 10000, myPaymentStatus: 'pending' } }],
+      bookings: [{ myShare: { allocatedAmount: 10000, paymentStatus: 'pending' } }],
     })
     expect(
       (await request('PATCH', route(), { user: ownerId, body: { status: 'published' } })).status,
@@ -202,7 +209,7 @@ describe('split settlement and pricing HTTP projections', () => {
           canChangeTargetAmount: true,
           canSettle: false,
         },
-        pricing: { basis: 'capacity', minAmount: 0, maxAmount: 1 },
+        priceForecast: { basis: 'capacity', minAmount: 0, maxAmount: 1 },
       },
     })
     await eventService.cancel({ userId: ownerId }, eventId)

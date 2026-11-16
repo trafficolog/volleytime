@@ -1,5 +1,4 @@
 // @vitest-environment happy-dom
-import type { EventPricingView } from '@volley-time/shared'
 import { quoteEventPrice } from '@volley-time/shared'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -26,17 +25,18 @@ import MyChip from '~/components/vt/MyChip.vue'
 import SeatsMini from '~/components/vt/SeatsMini.vue'
 import StateChip from '~/components/vt/StateChip.vue'
 import Toggle from '~/components/vt/Toggle.vue'
+import { priceFields, type PriceScenario } from '~/utils/__fixtures__/price-fields'
 import { formatMoneyRu } from '~/utils/labels'
 
 /**
  * Task 20.4.6 (M-07): событие со сбором суммой. Цена и прогноз берутся из ответа
  * `GET …/events/{id}/price` (`quoteEventPrice`), а не из `pricing` самого события
- * (`readEventPricing`): в фикстуре `pricing` намеренно расходится с ответом цены.
+ * (`priceForecast`): в фикстуре прогноз намеренно расходится с ответом цены.
  */
 const route = reactive({ params: { orgId: '30', eventId: '71' }, fullPath: '/m/orgs/30/events/71' })
 const money = (minor: number) => formatMoneyRu(minor, 'BYN')
 // «чужая» проекция: если экран возьмёт цену отсюда, тесты увидят 11,11
-const legacyPricing = (): EventPricingView => ({
+const legacyPricing = (): PriceScenario => ({
   mode: 'split',
   targetAmount: 10000,
   settledAt: null,
@@ -73,7 +73,7 @@ const fixture = () => ({
   bookingOpensAt: null as string | null,
   venue: null,
   locationText: null,
-  pricing: legacyPricing(),
+  ...priceFields(legacyPricing()),
   myBooking: null as MyBooking,
 })
 const forecastQuote = (taken: number, mySeats = 0, seats = 1) => ({
@@ -229,7 +229,7 @@ describe('M-07 · событие со сбором суммой: цена из G
     const text = wrapper.text()
     expect(text).toContain(money(quote.perSeat.max))
     expect(text).toContain(money(quote.perSeat.min))
-    // readEventPricing в фикстуре говорит 11,11 — на экране этой цифры быть не должно
+    // прогноз priceForecast в фикстуре говорит 11,11 — на экране этой цифры быть не должно
     expect(text).not.toContain(money(1111))
     // сводная ячейка «Цена» шапки показывает ту же цифру
     expect(wrapper.get('[data-summary-price]').text()).toBe(`≈ ${money(quote.perSeat.max)}`)
@@ -266,13 +266,13 @@ describe('M-07 · событие со сбором суммой: цена из G
         status: 'closed',
         taken: 3,
         myBooking: { id: 5, status: 'pending_payment', method: 'cash', paymentId: 9, seats: 2 },
-        pricing: {
+        ...priceFields({
           ...legacyPricing(),
           basis: 'settled',
           settledAt: '2027-10-03T09:00:00Z',
           myAllocatedAmount: 6667,
           myPaymentStatus: 'pending',
-        },
+        }),
       },
     }
     const wrapper = await renderPage()
@@ -297,13 +297,13 @@ describe('M-07 · событие со сбором суммой: цена из G
         status: 'closed',
         taken: 3,
         myBooking: { id: 5, status: 'confirmed', method: 'cash', paymentId: 9, seats: 1 },
-        pricing: {
+        ...priceFields({
           ...legacyPricing(),
           basis: 'settled',
           settledAt: '2027-10-03T09:00:00Z',
           myAllocatedAmount: 3334,
           myPaymentStatus: 'succeeded',
-        },
+        }),
       },
     }
     const wrapper = await renderPage()
@@ -318,7 +318,7 @@ describe('M-07 · событие со сбором суммой: цена из G
     priceResponse = () => ({ price: forecastQuote(14) })
     data.value = {
       ...data.value,
-      event: { ...fixture(), taken: 14, freeSeats: 0, pricing: legacyPricing() },
+      event: { ...fixture(), taken: 14, freeSeats: 0, ...priceFields(legacyPricing()) },
     }
     const wrapper = await renderPage()
     expect(wrapper.get('[data-player-split]').text()).toContain('мест нет')
@@ -341,7 +341,7 @@ describe('M-07 · событие со сбором суммой: цена из G
     wrapper.unmount()
   })
 
-  it('ответ цены недоступен: чисел из readEventPricing нет, экран честно говорит об этом', async () => {
+  it('ответ цены недоступен: чисел из прогноз priceForecast нет, экран честно говорит об этом', async () => {
     priceResponse = () => {
       throw new Error('network')
     }
@@ -422,14 +422,14 @@ describe('M-07 · событие со сбором суммой: цена из G
       event: {
         ...fixture(),
         price: 1500,
-        pricing: {
+        ...priceFields({
           ...legacyPricing(),
           mode: 'fixed',
           basis: 'fixed',
           minAmount: 1500,
           maxAmount: 1500,
           targetAmount: null,
-        },
+        }),
       },
     }
     const wrapper = await renderPage()

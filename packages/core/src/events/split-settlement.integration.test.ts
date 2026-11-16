@@ -21,7 +21,7 @@ import { paymentService } from '../payments/service'
 
 import { eventService } from './service'
 
-import * as pricing from './index'
+import * as eventsModule from './index'
 
 describe('atomic split settlement (PostgreSQL)', () => {
   let ownerId: number
@@ -30,8 +30,8 @@ describe('atomic split settlement (PostgreSQL)', () => {
   let eventId: number
   const ctx = () => ({ userId: ownerId })
   const settle = async () => {
-    expect(pricing.eventPricingService, 'settlement service must exist').toBeDefined()
-    return pricing.eventPricingService.settle(ctx(), orgId, eventId)
+    expect(eventsModule.eventPricingService, 'settlement service must exist').toBeDefined()
+    return eventsModule.eventPricingService.settle(ctx(), orgId, eventId)
   }
   const reserve = async (count = 3) => {
     const result = []
@@ -82,8 +82,8 @@ describe('atomic split settlement (PostgreSQL)', () => {
       method: 'transfer',
     })
     const notifications: PendingNotification[] = []
-    expect(pricing.eventPricingService).toBeDefined()
-    const result = await pricing.eventPricingService.settle(
+    expect(eventsModule.eventPricingService).toBeDefined()
+    const result = await eventsModule.eventPricingService.settle(
       { ...ctx(), notifications },
       orgId,
       eventId,
@@ -132,13 +132,15 @@ describe('atomic split settlement (PostgreSQL)', () => {
       bookingService.book({ userId: playerIds[1]! }, orgId, eventId, { method: 'cash' }),
     ).rejects.toThrow()
     await expect(eventService.update(ctx(), eventId, { status: 'published' })).rejects.toThrow()
-    expect(await pricing.readEventPricing({ userId: playerIds[0]! }, eventId)).toMatchObject({
+    expect(await eventsModule.readEventPriceForecast({ userId: playerIds[0]! }, eventId)).toEqual({
       basis: 'settled',
       participantCount: 3,
       minAmount: 3333,
       maxAmount: 3334,
-      myAllocatedAmount: 3334,
-      myPaymentStatus: 'succeeded',
+    })
+    expect(await eventsModule.readMyEventShare({ userId: playerIds[0]! }, orgId, eventId)).toEqual({
+      allocatedAmount: 3334,
+      paymentStatus: 'succeeded',
     })
     expect((await bookingService.publicRoster(ctx(), orgId, eventId)).map((r) => r.paid)).toEqual([
       true,
@@ -153,7 +155,7 @@ describe('atomic split settlement (PostgreSQL)', () => {
     await paymentService.confirm(ctx(), first!.paymentId!)
     await bookingService.cancel(ctx(), first!.id, { byAdmin: true })
     expect((await paymentService.getById(ctx(), first!.paymentId!)).status).toBe('succeeded')
-    expect(await pricing.readPricingFinancials(ctx(), eventId)).toEqual({
+    expect(await eventsModule.readPricingFinancials(ctx(), eventId)).toEqual({
       collected: 3334,
       pending: 6666,
       cancelled: 0,
@@ -172,7 +174,7 @@ describe('atomic split settlement (PostgreSQL)', () => {
       { type: 'expense', category: 'refund', amount: 3334 },
     ])
     expect((await bookingService.getById(ctx(), first!.id)).allocatedAmount).toBe(3334)
-    expect(await pricing.readPricingFinancials(ctx(), eventId)).toEqual({
+    expect(await eventsModule.readPricingFinancials(ctx(), eventId)).toEqual({
       collected: 0,
       pending: 0,
       cancelled: 6666,
@@ -212,10 +214,12 @@ describe('atomic split settlement (PostgreSQL)', () => {
     async (count) => {
       await reserve(count)
       await eventService.update(ctx(), eventId, { targetAmount: 2 })
-      expect(pricing.eventPricingService).toBeDefined()
-      await expect(pricing.eventPricingService.settle(ctx(), orgId, eventId)).rejects.toMatchObject(
-        { code: count === 0 ? 'event.split_empty' : 'event.split_target_too_small' },
-      )
+      expect(eventsModule.eventPricingService).toBeDefined()
+      await expect(
+        eventsModule.eventPricingService.settle(ctx(), orgId, eventId),
+      ).rejects.toMatchObject({
+        code: count === 0 ? 'event.split_empty' : 'event.split_target_too_small',
+      })
       expect(await db.select().from(payments)).toEqual([])
       expect(await eventService.getById(ctx(), eventId)).toMatchObject({
         status: 'published',
@@ -225,29 +229,29 @@ describe('atomic split settlement (PostgreSQL)', () => {
   )
   it('rejects wrong tenant, player, inactive manager and non-published state', async () => {
     await reserve(1)
-    expect(pricing.eventPricingService).toBeDefined()
+    expect(eventsModule.eventPricingService).toBeDefined()
     await expect(
-      pricing.eventPricingService.settle(ctx(), orgId + 10000, eventId),
+      eventsModule.eventPricingService.settle(ctx(), orgId + 10000, eventId),
     ).rejects.toThrow()
     await expect(
-      pricing.eventPricingService.settle({ userId: playerIds[0]! }, orgId, eventId),
+      eventsModule.eventPricingService.settle({ userId: playerIds[0]! }, orgId, eventId),
     ).rejects.toThrow()
     await db
       .update(organizationMembers)
       .set({ status: 'blocked' })
       .where(eq(organizationMembers.userId, ownerId))
-    await expect(pricing.eventPricingService.settle(ctx(), orgId, eventId)).rejects.toThrow()
+    await expect(eventsModule.eventPricingService.settle(ctx(), orgId, eventId)).rejects.toThrow()
     await db
       .update(organizationMembers)
       .set({ status: 'active' })
       .where(eq(organizationMembers.userId, ownerId))
     await eventService.update(ctx(), eventId, { status: 'draft' })
-    await expect(pricing.eventPricingService.settle(ctx(), orgId, eventId)).rejects.toThrow()
+    await expect(eventsModule.eventPricingService.settle(ctx(), orgId, eventId)).rejects.toThrow()
     expect(await db.select().from(payments)).toEqual([])
   })
   it('rolls back earlier payments, allocations, status and audit when a later database insert fails', async () => {
     const reserved = await reserve()
-    expect(pricing.eventPricingService).toBeDefined()
+    expect(eventsModule.eventPricingService).toBeDefined()
     const beforeAudit = await db.select().from(auditLog)
     await db.execute(
       sql.raw(
@@ -255,7 +259,7 @@ describe('atomic split settlement (PostgreSQL)', () => {
       ),
     )
     try {
-      await expect(pricing.eventPricingService.settle(ctx(), orgId, eventId)).rejects.toThrow()
+      await expect(eventsModule.eventPricingService.settle(ctx(), orgId, eventId)).rejects.toThrow()
     } finally {
       await db.execute(sql`ALTER TABLE payments DROP CONSTRAINT split_test_reject_insert`)
     }

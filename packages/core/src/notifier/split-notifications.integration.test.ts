@@ -274,7 +274,8 @@ describe('split notifications after commit (PostgreSQL)', () => {
     expect(response.body).toMatchObject({
       event: {
         status: 'closed',
-        pricing: { basis: 'settled', myAllocatedAmount: 3334, myPaymentStatus: 'pending' },
+        priceForecast: { basis: 'settled' },
+        myShare: { allocatedAmount: 3334, paymentStatus: 'pending' },
       },
     })
   })

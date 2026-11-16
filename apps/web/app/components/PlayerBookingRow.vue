@@ -2,8 +2,10 @@
 import type { Booking, Event, Venue } from '@volley-time/db'
 import {
   formatTime,
+  type EventPriceForecast,
   type EventPriceQuote,
-  type EventPricingView,
+  type EventPriceSource,
+  type MyEventShare,
   type SeatPaymentsView,
 } from '@volley-time/shared'
 
@@ -16,7 +18,9 @@ import { quotePriceLabel } from '~/utils/player-price-view'
 import { participationOf } from '~/utils/status-model'
 
 export type MyBooking = Booking & {
-  pricing: EventPricingView
+  /** Прогноз цены места и своя доля (21.5.10, 21.5.9). */
+  priceForecast: EventPriceForecast
+  myShare: MyEventShare | null
   /** Статус оплаты мест своей записи (21.1.8, D-14): счётчики без сумм. */
   seatPayments?: SeatPaymentsView
   /** Цена split из `quoteEventPrice` (как GET …/price, 20.4.6); `undefined` — источник не передан. */
@@ -41,6 +45,11 @@ const props = defineProps<{
 const emit = defineEmits<{ cancel: [] }>()
 
 const b = computed(() => props.booking)
+const source = computed<EventPriceSource>(() => ({
+  priceMode: b.value.event.priceMode,
+  priceForecast: b.value.priceForecast,
+  myShare: b.value.myShare,
+}))
 const waitlisted = computed(() => b.value.status === 'waitlisted')
 const day = computed(() =>
   new Intl.DateTimeFormat('ru-RU', { timeZone: props.tz, day: 'numeric' }).format(
@@ -56,7 +65,8 @@ const weekday = computed(() =>
 const price = computed(() => {
   const x = b.value
   // отменённая запись показывает зафиксированную долю/возврат (факт, не прогноз) — прежняя проекция
-  if (x.pricing.mode === 'split' && x.priceQuote !== undefined && x.status !== 'cancelled') {
+  const src = source.value
+  if (src.priceMode === 'split' && x.priceQuote !== undefined && x.status !== 'cancelled') {
     const label =
       x.event.status === 'cancelled'
         ? null
@@ -70,13 +80,16 @@ const price = computed(() => {
       forecast: x.priceQuote?.basis === 'forecast' && !!label,
     }
   }
-  const label = eventPricingLabel(x.pricing, x.event.currency)
-  return { ...label, forecast: x.pricing.mode === 'split' && x.pricing.basis !== 'settled' }
+  const label = eventPricingLabel(src, x.event.currency)
+  return {
+    ...label,
+    forecast: src.priceMode === 'split' && src.priceForecast.basis !== 'settled',
+  }
 })
 /** «Оплатить» (21.4.8, 21.4.19): запись, ждущая оплаты, или проведённая с долгом; ведёт на экран с реквизитами организатора. */
 const payable = computed(() => canPayBooking(b.value))
 const paymentChip = computed(() =>
-  bookingPaymentChip(b.value.status, b.value.pricing, b.value.seatPayments?.pendingSeats ?? 0),
+  bookingPaymentChip(b.value.status, source.value, b.value.seatPayments?.pendingSeats ?? 0),
 )
 const releasedLabel = computed(() =>
   releasedPaidSeatsLabel(b.value.seatPayments?.releasedPaidSeats ?? 0),
@@ -104,9 +117,9 @@ const releasedLabel = computed(() =>
           price.description
         }}</span>
         <span
-          v-if="waitlisted && b.pricing.mode === 'split'"
+          v-if="waitlisted && source.priceMode === 'split'"
           class="mt-1 block text-xs text-vt-mute-2"
-          >{{ splitBookingPaymentLabel(b.pricing, b.status)?.description }}</span
+          >{{ splitBookingPaymentLabel(source, b.status)?.description }}</span
         >
         <span v-if="b.offer" class="mt-1 block text-xs font-semibold text-vt-amber-ink">{{
           offerDeadlineLabel(b.offer.expiresAt, tz)

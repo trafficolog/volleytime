@@ -1,9 +1,9 @@
-import type { EventPricingView } from '@volley-time/shared'
+import type { EventPriceForecast, EventPriceSource, MyEventShare } from '@volley-time/shared'
 
 import { myBookingSeatsText, myBookingTitle } from './booking-seats'
-import { splitBookingPaymentLabel } from './event-pricing-label'
-import { isDeniedOrgError } from './player-home'
+import { priceSourceOf, splitBookingPaymentLabel } from './event-pricing-label'
 import { HELD_STATUSES } from './player-booking-payment'
+import { isDeniedOrgError } from './player-home'
 
 export function playerEventReady(sources: {
   eventMatches: boolean
@@ -101,11 +101,11 @@ const BOOKING_CARDS: Record<
  */
 export function bookingPaymentChip(
   status: string | null,
-  pricing?: EventPricingView,
+  price?: EventPriceSource | null,
   pendingSeats = 0,
 ) {
   if (!status || status === 'waitlisted') return null
-  const split = pricing ? splitBookingPaymentLabel(pricing, status) : null
+  const split = price ? splitBookingPaymentLabel(price, status) : null
   if (split) return { tone: split.tone, text: split.text }
   // долг по проведённой записи (21.4.19): неоплаченное место после отметки посещения
   if (status === 'pending_payment' || (HELD_STATUSES.includes(status) && pendingSeats > 0))
@@ -123,7 +123,9 @@ export function projectPlayerEvent(
     capacity: number
     taken: number
     price: number
-    pricing?: EventPricingView
+    priceMode?: string
+    priceForecast?: EventPriceForecast
+    myShare?: MyEventShare | null
     /** Свободные места для новой записи с учётом предложений из очереди (сервер, 20.3.1). */
     freeSeats?: number
     /** Время открытия записи (20.3.1): до него запись закрыта для всех. */
@@ -170,7 +172,9 @@ export function projectPlayerEvent(
     !opensAt &&
     !closedBySchedule
   const action = bookable ? (freeSeats === 0 ? 'waitlist' : 'book') : 'none'
-  const split = event.pricing?.mode === 'split'
+  const priceSource = priceSourceOf(event)
+  const split = priceSource?.priceMode === 'split'
+  const myAllocated = priceSource?.myShare?.allocatedAmount ?? null
   const paymentMethods: ('free' | 'cash' | 'transfer' | 'subscription')[] =
     action === 'none' ? [] : !split && event.price === 0 ? ['free'] : ['cash', 'transfer']
   if (
@@ -189,7 +193,7 @@ export function projectPlayerEvent(
   const canCancel =
     context.memberActive &&
     event.cancellationAllowed !== false &&
-    !(split && event.pricing?.myAllocatedAmount !== null) &&
+    !(split && myAllocated !== null) &&
     !started &&
     ['confirmed', 'pending_payment', 'waitlisted'].includes(bookingStatus ?? '') &&
     (deadline === null || now <= deadline)
@@ -200,7 +204,7 @@ export function projectPlayerEvent(
       ? { ...baseCard, title: myBookingTitle(event.myBooking, baseCard.title) }
       : baseCard
   const splitPayment =
-    event.pricing && bookingStatus ? splitBookingPaymentLabel(event.pricing, bookingStatus) : null
+    priceSource && bookingStatus ? splitBookingPaymentLabel(priceSource, bookingStatus) : null
   return {
     action,
     paymentMethods,
@@ -210,7 +214,7 @@ export function projectPlayerEvent(
         ? {
             ...bookingCard,
             ...(bookingStatus === 'pending_payment' &&
-            event.pricing?.myAllocatedAmount === null &&
+            myAllocated === null &&
             (event.myBooking?.seats ?? 1) <= 1
               ? { title: 'Место забронировано' }
               : {}),

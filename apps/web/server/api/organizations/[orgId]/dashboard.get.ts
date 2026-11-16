@@ -6,7 +6,6 @@ import {
   overviewService,
   paymentService,
   readEventPriceForecast,
-  readEventPricing,
   readMyEventShare,
   readPlayerPriceQuote,
   requireOrgMember,
@@ -48,7 +47,7 @@ export default defineApiHandler(async (event) => {
     ...new Set([...upcoming.map((e) => e.id), ...(goingBooking ? [goingBooking.eventId] : [])]),
   ])
 
-  // Цена split — единый расчёт GET …/price (`quoteEventPrice`), а не `readEventPricing` (20.4.6).
+  // Цена split — единый расчёт GET …/price (`quoteEventPrice`) (20.4.6).
   const quoteFor = (eventId: number, mode: string) =>
     readPlayerPriceQuote(ctx, { organizationId: orgId, eventId, mode, isManager })
 
@@ -84,8 +83,7 @@ export default defineApiHandler(async (event) => {
       myBookings.slice(0, 3).map(async (b) => ({
         id: b.id,
         status: b.status,
-        pricing: await readEventPricing(ctx, b.eventId),
-        // замена проекции pricing (21.5.10): прогноз события и доля/статус своей записи
+        // прогноз события и доля/статус своей записи (21.5.10, 21.5.9)
         priceForecast: await readEventPriceForecast(ctx, b.eventId),
         myShare: await readMyEventShare(ctx, orgId, b.eventId),
         event: {
@@ -99,15 +97,13 @@ export default defineApiHandler(async (event) => {
     ),
     hero: goingBooking
       ? await (async () => {
-          const pricing = await readEventPricing(ctx, goingBooking.eventId)
           return {
             ...goingBooking.event,
             // stats переопределяет связь `venue` (name + address) — как в `upcoming`
             ...stats.get(goingBooking.eventId)!,
-            pricing,
             priceForecast: await readEventPriceForecast(ctx, goingBooking.eventId),
             myShare: await readMyEventShare(ctx, orgId, goingBooking.eventId),
-            priceQuote: await quoteFor(goingBooking.eventId, pricing.mode),
+            priceQuote: await quoteFor(goingBooking.eventId, goingBooking.event.priceMode),
           }
         })()
       : null,
@@ -121,14 +117,12 @@ export default defineApiHandler(async (event) => {
       : null,
     upcoming: await Promise.all(
       upcoming.map(async (e) => {
-        const pricing = await readEventPricing(ctx, e.id)
         return {
           ...e,
           ...stats.get(e.id)!,
-          pricing,
           priceForecast: await readEventPriceForecast(ctx, e.id),
           myShare: await readMyEventShare(ctx, orgId, e.id),
-          priceQuote: await quoteFor(e.id, pricing.mode),
+          priceQuote: await quoteFor(e.id, e.priceMode),
         }
       }),
     ),

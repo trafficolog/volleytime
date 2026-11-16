@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import type { EventPricingView, PricingFinancials } from '@volley-time/shared'
+import type { EventPriceForecast, PricingFinancials } from '@volley-time/shared'
 
 import { formatMoneyRu } from '~/utils/labels'
 
 const props = defineProps<{
-  pricing: EventPricingView
+  /** Поля события: режим, сумма, момент фиксации и прогноз (21.5.10, 21.5.9). */
+  event: {
+    priceMode: string
+    targetAmount: number | null
+    pricingSettledAt: string | Date | null
+    priceForecast: EventPriceForecast
+  }
   financials: PricingFinancials | null
   currency: string
   tz: string
@@ -18,7 +24,7 @@ const amounts = computed(() =>
   props.financials?.currency === props.currency ? props.financials : null,
 )
 const settledTime = computed(() =>
-  props.pricing.settledAt
+  props.event.pricingSettledAt
     ? new Intl.DateTimeFormat('ru-RU', {
         timeZone: props.tz,
         day: 'numeric',
@@ -27,44 +33,48 @@ const settledTime = computed(() =>
         hour: '2-digit',
         minute: '2-digit',
         hourCycle: 'h23',
-      }).format(new Date(props.pricing.settledAt))
+      }).format(new Date(props.event.pricingSettledAt))
     : null,
 )
 </script>
 
 <template>
   <section
-    v-if="pricing.mode === 'split'"
+    v-if="event.priceMode === 'split'"
     class="vt-card space-y-3 p-4"
     aria-label="Распределение общей суммы"
     :aria-busy="pending"
   >
     <h2 class="text-base font-bold">
-      {{ pricing.settledAt ? 'Зафиксировано после закрытия записи' : 'Делим общую сумму' }}
+      {{ event.pricingSettledAt ? 'Зафиксировано после закрытия записи' : 'Делим общую сумму' }}
     </h2>
     <dl class="grid gap-3 sm:grid-cols-2 text-sm">
       <div>
         <dt class="text-vt-mute-2">Общая сумма</dt>
         <dd class="font-semibold tabular-nums">
-          {{ formatMoneyRu(pricing.targetAmount ?? 0, currency) }}
+          {{ formatMoneyRu(event.targetAmount ?? 0, currency) }}
         </dd>
       </div>
       <template v-if="!hidePerSeat">
         <div>
           <dt class="text-vt-mute-2">
-            {{ pricing.basis === 'capacity' ? 'Мест для прогноза' : 'Участников распределения' }}
+            {{
+              event.priceForecast.basis === 'capacity'
+                ? 'Мест для прогноза'
+                : 'Участников распределения'
+            }}
           </dt>
-          <dd class="font-semibold tabular-nums">{{ pricing.participantCount }}</dd>
+          <dd class="font-semibold tabular-nums">{{ event.priceForecast.participantCount }}</dd>
         </div>
         <div class="sm:col-span-2">
           <dt class="text-vt-mute-2">
-            {{ pricing.settledAt ? 'Сумма за место' : 'Прогноз за место' }}
+            {{ event.pricingSettledAt ? 'Сумма за место' : 'Прогноз за место' }}
           </dt>
           <dd class="font-semibold tabular-nums">
-            <template v-if="!pricing.settledAt">≈ </template>
-            {{ formatMoneyRu(pricing.minAmount, currency)
-            }}<template v-if="pricing.maxAmount !== pricing.minAmount">
-              – {{ formatMoneyRu(pricing.maxAmount, currency) }}</template
+            <template v-if="!event.pricingSettledAt">≈ </template>
+            {{ formatMoneyRu(event.priceForecast.minAmount, currency)
+            }}<template v-if="event.priceForecast.maxAmount !== event.priceForecast.minAmount">
+              – {{ formatMoneyRu(event.priceForecast.maxAmount, currency) }}</template
             >
           </dd>
         </div>
@@ -72,13 +82,13 @@ const settledTime = computed(() =>
       <div v-if="settledTime" class="sm:col-span-2">
         <dt class="text-vt-mute-2">Время распределения</dt>
         <dd>
-          <time :datetime="pricing.settledAt!">{{ settledTime }}</time>
+          <time :datetime="String(event.pricingSettledAt)">{{ settledTime }}</time>
         </dd>
       </div>
     </dl>
     <p class="text-sm text-vt-mute-2">
       {{
-        pricing.settledAt
+        event.pricingSettledAt
           ? 'Доли зафиксированы. Отмена записи не пересчитывает суммы остальных участников.'
           : 'Точная сумма определится после ручного закрытия записи. Абонементы недоступны; лист ожидания не участвует в распределении.'
       }}
@@ -103,7 +113,7 @@ const settledTime = computed(() =>
       </div>
     </dl>
     <button
-      v-if="!pricing.settledAt"
+      v-if="!event.pricingSettledAt"
       type="button"
       class="vt-btn vt-btn--primary min-h-11 w-full whitespace-normal sm:w-auto"
       :disabled="!canSettle || pending"

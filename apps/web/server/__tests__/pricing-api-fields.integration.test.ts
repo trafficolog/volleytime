@@ -13,25 +13,16 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { createTestApi } from './harness'
 
 /**
- * Task 21.5.10: поля `priceForecast` и `myShare` рядом с проекцией `pricing` во всех ответах, где она
- * есть (`events`, `events/{id}`, `bookings/my`, `dashboard` myBookings/hero/upcoming). Паритет: каждое
- * новое поле равно тому, что сейчас даёт `pricing`, для игрока и управляющего; IDOR: `myShare` —
- * только своя запись вызывающего.
+ * Task 21.5.10: поля `priceForecast` и `myShare` во всех ответах, где была проекция `pricing`
+ * (`events`, `events/{id}`, `bookings/my`, `dashboard` myBookings/hero/upcoming). Ожидаемые числа —
+ * явные литералы, сверенные с `pricing` в 21.5.10; после удаления проекции (21.5.9) они не меняются,
+ * а `pricing` в ответах нет. IDOR: `myShare` — только своя запись вызывающего.
  */
-type Pricing = {
-  participantCount: number
-  minAmount: number
-  maxAmount: number
-  basis: string
-  myAllocatedAmount: number | null
-  myPaymentStatus: string | null
-}
 type View = {
   id?: number
   eventId?: number
   event?: { id: number }
-  pricing: Pricing
-  priceForecast: Omit<Pricing, 'myAllocatedAmount' | 'myPaymentStatus'>
+  priceForecast: { participantCount: number; minAmount: number; maxAmount: number; basis: string }
   myShare: { allocatedAmount: number | null; paymentStatus: string | null } | null
 }
 
@@ -93,7 +84,7 @@ describe('event pricing API fields (21.5.10)', () => {
     return out
   }
 
-  /** Паритет новых полей с `pricing` во всех ответах + ожидаемые числа; возвращает места проверки. */
+  /** Ожидаемые числа во всех ответах, без проекции `pricing` (21.5.9); возвращает места проверки. */
   const expectParity = async (
     user: number,
     eventId: number,
@@ -104,15 +95,7 @@ describe('event pricing API fields (21.5.10)', () => {
   ) => {
     const all = await views(user, eventId)
     for (const { where, view } of all) {
-      const p = view.pricing
-      expect(view.priceForecast, where).toEqual({
-        participantCount: p.participantCount,
-        minAmount: p.minAmount,
-        maxAmount: p.maxAmount,
-        basis: p.basis,
-      })
-      expect(view.myShare?.allocatedAmount ?? null, where).toBe(p.myAllocatedAmount)
-      expect(view.myShare?.paymentStatus ?? null, where).toBe(p.myPaymentStatus)
+      expect(view, where).not.toHaveProperty('pricing')
       expect(view.priceForecast, where).toEqual(expected.forecast)
       expect(view.myShare, where).toEqual(expected.share)
     }

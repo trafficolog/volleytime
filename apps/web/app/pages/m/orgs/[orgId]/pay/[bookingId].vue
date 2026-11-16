@@ -59,13 +59,16 @@ const amount = computed(() => {
   // проведённая запись (21.4.19): долг — неоплаченные места, а не вся цена записи
   const held = heldDebtLabel(b, b.event.currency)
   if (held) return held.text
-  if (b.pricing.mode === 'split' && b.priceQuote !== undefined) {
+  if (b.event.priceMode === 'split' && b.priceQuote !== undefined) {
     return (
       quotePriceLabel(b.priceQuote, b.event.currency, { hasBooking: true, waitlisted: false })
         ?.text ?? ''
     )
   }
-  return eventPricingLabel(b.pricing, b.event.currency).text
+  return eventPricingLabel(
+    { priceMode: b.event.priceMode, priceForecast: b.priceForecast, myShare: b.myShare },
+    b.event.currency,
+  ).text
 })
 const payable = computed(() => !!booking.value && canPayBooking(booking.value))
 const seats = computed(() => booking.value?.seats ?? 1)

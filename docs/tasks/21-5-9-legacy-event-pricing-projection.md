@@ -2,11 +2,11 @@
 id: '21.5.9'
 phase: '21'
 epic: '21.5'
-status: todo
+status: in_progress
 release: 'v0.3.2'
 sync_state: synced
 last_reviewed: 2026-11-16
-status_note: 'Заблокирована карточкой [21.5.10](21-5-10-event-pricing-api-fields.md) (недостающие поля v3 API); инвентаризация потребителей pricing выполнена 2026-11-16, таблица — в 21.5.10. Перенесена в v0.3.2 решением владельца 2026-11-11 (журнал, «Перенос 21.5.9 в v0.3.2»); после 21.5.10 — чистое удаление. Решение OQ-8 (2026-10-28) в силе.'
+status_note: 'В работе 2026-11-16 (PR после #293): `readEventPricing`, тип `EventPricingView` и проекция `pricing` удалены из ответов events, events/{id}, bookings/my, dashboard; потребители Mini App и кабинета читают `priceMode`/`targetAmount`/`pricingSettledAt` строки события, `priceForecast` и `myShare` (21.5.10). Бот `pricing` не использует. Ждёт ревью Opus и merge. Решение OQ-8 (2026-10-28) в силе.'
 ref_id: ''
 complexity: L
 impl_model: claude-sonnet-5-5

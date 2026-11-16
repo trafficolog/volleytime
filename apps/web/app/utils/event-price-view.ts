@@ -1,6 +1,6 @@
 /**
  * Блок цены карточки события в кабинете (20.5.6, W-05). Цена — только из ответа
- * `GET …/events/{id}/price` (`quoteEventPrice`, 20.1.1), а не из `readEventPricing`/`previewSplitAmount`
+ * `GET …/events/{id}/price` (`quoteEventPrice`, 20.1.1), а не из `priceForecast`/`previewSplitAmount`
  * (D-01 (B)). «Мест нет» определяется занятостью события, а не ценой: `seatCount.current` ограничен
  * вместимостью (ревью 20.1.1). Для отменённого события цена не показывается.
  */

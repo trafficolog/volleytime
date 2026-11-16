@@ -21,7 +21,7 @@ export interface PaymentsCell {
 export function paymentsCellOf(event: EventListItem): PaymentsCell {
   const totals = event.paymentTotals
   const currency = totals?.currency ?? event.currency
-  const split = event.priceMode === 'split' || event.pricing?.mode === 'split'
+  const split = event.priceMode === 'split'
   const nothingToPay = !split && event.price === 0 && totals?.paid === 0 && totals.pending === 0
   const quote = event.splitShareQuote
   return {

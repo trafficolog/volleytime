@@ -4,7 +4,6 @@ import {
   quoteSplitShare,
   readEventListMoney,
   readEventPriceForecast,
-  readEventPricing,
   readMyEventShare,
   readPlayerPriceQuote,
   requireOrgMember,
@@ -34,12 +33,10 @@ export default defineApiHandler(async (event) => {
     total,
     events: await Promise.all(
       list.map(async (e) => {
-        const pricing = await readEventPricing(ctx, e.id)
         return {
           ...e,
           ...stats.get(e.id)!,
-          pricing,
-          // замена проекции pricing (21.5.10): прогноз события и доля/статус своей записи
+          // прогноз события и доля/статус своей записи (21.5.10, 21.5.9)
           priceForecast: await readEventPriceForecast(ctx, e.id),
           myShare: await readMyEventShare(ctx, organizationId, e.id),
           ...(totals
@@ -52,7 +49,7 @@ export default defineApiHandler(async (event) => {
           priceQuote: await readPlayerPriceQuote(ctx, {
             organizationId,
             eventId: e.id,
-            mode: pricing.mode,
+            mode: e.priceMode,
             isManager,
           }),
         }

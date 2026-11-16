@@ -51,12 +51,22 @@ describe('event price API (20.1.1)', () => {
     expect(res.status, JSON.stringify(res.body)).toBe(200)
     return (res.body as { booking: { id: number } }).booking.id
   }
-  const eventView = async (eventId: number, user: number) =>
-    (
-      (await request('GET', `/api/organizations/${orgId}/events/${eventId}`, { user })).body as {
-        event: { pricing: { minAmount: number; maxAmount: number; myAllocatedAmount: number } }
+  // прогноз события и своя доля в GET /events/{id} (priceForecast, myShare; 21.5.9)
+  const eventView = async (eventId: number, user: number) => {
+    const { event } = (
+      await request('GET', `/api/organizations/${orgId}/events/${eventId}`, { user })
+    ).body as {
+      event: {
+        priceForecast: { minAmount: number; maxAmount: number }
+        myShare: { allocatedAmount: number | null } | null
       }
-    ).event.pricing
+    }
+    return {
+      minAmount: event.priceForecast.minAmount,
+      maxAmount: event.priceForecast.maxAmount,
+      myAllocatedAmount: event.myShare?.allocatedAmount ?? null,
+    }
+  }
 
   beforeAll(async () => {
     request = await createTestApi()
@@ -137,7 +147,7 @@ describe('event price API (20.1.1)', () => {
       seatCount: { current: 3, max: 4 },
     })
     // Сверяется только perSeat.max уже записавшегося игрока (N ≥ 1 записавшихся, места по умолчанию)
-    // с maxAmount представления GET /events/{id} (readEventPricing) для игрока и организатора.
+    // с maxAmount представления GET /events/{id} (priceForecast) для игрока и организатора.
     // Единый источник цены на экранах — критерий 20.4.6, 20.5.6, 20.6.1 (решение владельца 2026-10-14).
     expect((current.perSeat as { max: number }).max).toBe(
       (await eventView(eventId, players[0]!)).maxAmount,
