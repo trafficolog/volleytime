@@ -6,7 +6,7 @@ status: in_progress
 release: 'v0.3.2'
 sync_state: synced
 last_reviewed: 2026-11-16
-status_note: 'В работе 2026-11-16: аддитивные поля priceForecast и myShare во всех ответах с pricing (events, events/{id}, bookings/my, dashboard myBookings/hero/upcoming); паритет и IDOR — pps/web/server/__tests__/pricing-api-fields.integration.test.ts. Ждёт ревью Opus и merge.'
+status_note: 'В работе 2026-11-16 (PR #293): аддитивные поля `priceForecast` и `myShare` во всех ответах с `pricing` (events, events/{id}, bookings/my, dashboard myBookings/hero/upcoming); паритет и IDOR — `apps/web/server/__tests__/pricing-api-fields.integration.test.ts`. Временно около 3 лишних запросов на событие в списках и dashboard до 21.5.9 (принято). Ждёт ревью Opus и merge.'
 ref_id: ''
 complexity: L
 impl_model: claude-opus-5-5
