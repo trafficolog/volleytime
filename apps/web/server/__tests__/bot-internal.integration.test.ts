@@ -47,6 +47,8 @@ describe('internal bot API (integration)', () => {
       ['POST', 'reachable', { telegramId: playerTg }],
       ['POST', 'cancel-booking', { telegramId: playerTg, eventId: 1 }],
       ['POST', 'accept-offer', { telegramId: playerTg, eventId: 1 }],
+      ['GET', `subscriptions?telegramId=${playerTg}`, undefined],
+      ['POST', 'event-roster', { telegramId: playerTg, eventId: 1 }],
     ] as const) {
       expect((await request(m, `/api/internal/bot/${p}`, { body })).status, p).toBe(401)
       expect(
@@ -118,6 +120,40 @@ describe('internal bot API (integration)', () => {
     expect((await post('cancel-booking', { telegramId: playerTg, eventId: ev.id })).body).toEqual({
       result: 'already_cancelled',
     })
+  })
+
+  it('subscriptions and event-roster are read-only and scoped to the caller (21.4.9)', async () => {
+    const ev = await eventService.create({ userId: ownerId }, orgId, {
+      title: 'Основа',
+      startsAt: new Date(Date.now() + 86400_000),
+      endsAt: new Date(Date.now() + 93600_000),
+      capacity: 4,
+      price: 0,
+    })
+    await db.update(users).set({ name: 'Игрок' }).where(eq(users.id, playerId))
+    await bookingService.book({ userId: playerId }, orgId, ev.id, { method: 'free' })
+
+    const roster = await post('event-roster', { telegramId: playerTg, eventId: ev.id })
+    expect(roster.status).toBe(200)
+    expect(roster.body).toMatchObject({
+      result: 'ok',
+      players: [{ name: 'Игрок', seats: 1 }],
+    })
+    // чужой Telegram-пользователь (не участник группы) состава не получает
+    expect((await post('event-roster', { telegramId: otherTg, eventId: ev.id })).body).toEqual({
+      result: 'not_found',
+    })
+    expect((await post('event-roster', { telegramId: playerTg, eventId: -1 })).status).toBe(422)
+
+    const subs = await request('GET', `/api/internal/bot/subscriptions?telegramId=${playerTg}`, {
+      headers: secret,
+    })
+    expect(subs.status).toBe(200)
+    expect(subs.body).toEqual({ subscriptions: [] })
+    const bad = await request('GET', '/api/internal/bot/subscriptions?telegramId=abc', {
+      headers: secret,
+    })
+    expect(bad.status).toBe(422)
   })
 
   it('rate limits a single telegram user (429 with retry-after)', async () => {

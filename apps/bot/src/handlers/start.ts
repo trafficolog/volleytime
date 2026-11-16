@@ -7,6 +7,7 @@ import { markUserReachable } from '../web-client'
 
 import { parseDeeplink } from './deeplink'
 import { sendMenu } from './menu'
+import { ROSTER_BUTTON, rosterAskData } from './roster'
 
 export interface InvitePreview {
   status: 'valid' | 'revoked' | 'expired' | 'exhausted' | 'not_found'
@@ -98,6 +99,20 @@ export function buildMiniAppUrl(startParam: string | undefined): string {
   return base
 }
 
+/** Кнопки `/start`: Mini App и, для ссылки на событие, «Кто уже играет» (21.4.9). */
+export function buildStartKeyboard(
+  startParam: string | undefined,
+  preview?: InvitePreview | null,
+): InlineKeyboard {
+  const keyboard = new InlineKeyboard().webApp(
+    preview?.status === 'valid' ? '🏐 Открыть приглашение' : '🏐 Открыть Volley Time',
+    buildMiniAppUrl(startParam),
+  )
+  const dl = parseDeeplink(startParam)
+  if (dl.kind === 'event') keyboard.row().text(ROSTER_BUTTON, rosterAskData(dl.eventId))
+  return keyboard
+}
+
 export function registerStartHandler(bot: Bot<BotContext>): void {
   bot.chatType('private').command('start', async (ctx) => {
     const user = ctx.from
@@ -109,10 +124,7 @@ export function registerStartHandler(bot: Bot<BotContext>): void {
     const dl = parseDeeplink(startParam)
     const preview = dl.kind === 'org_invite' ? await fetchInvitePreview(dl.token) : null
     const text = buildStartMessage(user.first_name, startParam, preview)
-    const keyboard = new InlineKeyboard().webApp(
-      preview?.status === 'valid' ? '🏐 Открыть приглашение' : '🏐 Открыть Volley Time',
-      buildMiniAppUrl(startParam),
-    )
+    const keyboard = buildStartKeyboard(startParam, preview)
     await ctx.reply(text, { reply_markup: keyboard, parse_mode: 'HTML' })
     // пользователь написал боту: доставка снова возможна (снять users.bot_blocked_at, 20.3.2)
     await markUserReachable(user.id)

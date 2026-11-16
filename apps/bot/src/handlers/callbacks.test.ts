@@ -31,7 +31,7 @@ const rowsOf = (call: { payload: Record<string, unknown> }) =>
 
 describe('callback_data validation', () => {
   it('accepts only known actions with numeric id and fits the 64-byte limit', () => {
-    for (const ok of ['cx:5', 'cy:12', 'cn:1', 'oa:2147483647'])
+    for (const ok of ['cx:5', 'cy:12', 'cn:1', 'oa:2147483647', 'rs:5'])
       expect(CALLBACK_RE.test(ok)).toBe(true)
     for (const bad of ['cx:', 'cx:-1', 'cx:5;drop', 'zz:5', 'cx:5 ', 'CX:5', 'cx:12345678901'])
       expect(CALLBACK_RE.test(bad)).toBe(false)
@@ -167,5 +167,76 @@ describe('inline callbacks (20.3.3)', () => {
     const { bot } = setup()
     for (let i = 0; i < 12; i++) await bot.handleUpdate(callbackUpdate('cy:5'))
     expect(web.mock.calls.length).toBe(8)
+  })
+})
+
+describe('«Кто уже играет» (21.4.9)', () => {
+  const START_TEXT = 'Привет, Артём!\n\nТебя приглашают на событие.'
+  const startRows = [
+    [{ text: 'Открыть', web_app: { url: 'https://vt.test/m/?startapp=event_5' } }],
+    [{ text: '👥 Кто уже играет', callback_data: 'rs:5' }],
+  ]
+  const roster = {
+    result: 'ok',
+    title: 'Основа',
+    startsAt: '2026-10-28T17:00:00.000Z',
+    timeZone: 'Europe/Minsk',
+    capacity: 6,
+    players: [
+      { name: 'Анна', seats: 1 },
+      { name: null, seats: 2 },
+    ],
+  }
+  beforeEach(() => {
+    web.mockReset()
+    resetCallbackLimiter()
+  })
+
+  it('appends names and seats to the message, keeps all buttons and calls web with the clicker id', async () => {
+    web.mockResolvedValue(roster)
+    const { bot, calls } = setup()
+    await bot.handleUpdate(callbackUpdate('rs:5', { text: START_TEXT, rows: startRows }))
+    expect(web).toHaveBeenCalledWith('event-roster', {
+      method: 'POST',
+      body: { telegramId: '42', eventId: 5 },
+    })
+    const edit = of(calls, 'editMessageText')[0]!
+    expect(edit.payload.text).toBe(
+      `${START_TEXT}\n\n👥 Кто уже играет (занято 3 из 6)\n1. Анна\n2. Игрок +1`,
+    )
+    expect(rowsOf(edit)).toEqual(startRows)
+  })
+
+  it('a repeated press refreshes the block instead of duplicating it', async () => {
+    web.mockResolvedValue(roster)
+    const { bot, calls } = setup()
+    const first = `${START_TEXT}\n\n👥 Кто уже играет (занято 1 из 6)\n1. Анна`
+    await bot.handleUpdate(callbackUpdate('rs:5', { text: first, rows: startRows }))
+    const text = String(of(calls, 'editMessageText')[0]!.payload.text)
+    expect(text.match(/Кто уже играет \(/g)).toHaveLength(1)
+    expect(text.startsWith(START_TEXT)).toBe(true)
+  })
+
+  it('not a member / foreign event: toast only, the message is not edited', async () => {
+    web.mockResolvedValue({ result: 'not_found' })
+    const { bot, calls } = setup()
+    await bot.handleUpdate(callbackUpdate('rs:5', { text: START_TEXT, rows: startRows }))
+    expect(of(calls, 'editMessageText')).toHaveLength(0)
+    expect(String(of(calls, 'answerCallbackQuery')[0]!.payload.text)).toContain('участникам группы')
+  })
+
+  it('web unavailable: toast only', async () => {
+    web.mockResolvedValue(null)
+    const { bot, calls } = setup()
+    await bot.handleUpdate(callbackUpdate('rs:5', { text: START_TEXT, rows: startRows }))
+    expect(of(calls, 'editMessageText')).toHaveLength(0)
+    expect(String(of(calls, 'answerCallbackQuery')[0]!.payload.text)).toContain('недоступен')
+  })
+
+  it('ignores presses outside the private chat with the user', async () => {
+    const { bot, calls } = setup()
+    await bot.handleUpdate(callbackUpdate('rs:5', { chatId: -100500, chatType: 'supergroup' }))
+    expect(web).not.toHaveBeenCalled()
+    expect(of(calls, 'editMessageText')).toHaveLength(0)
   })
 })

@@ -5,15 +5,17 @@ import type { BotContext } from '../context'
 import { callWeb } from '../web-client'
 
 import { UNAVAILABLE_TEXT } from './games'
+import { buildRosterBlock, ROSTER_DENIED, ROSTER_MARK, type RosterReply } from './roster'
 
 /**
  * Inline-кнопки бота (20.3.3). `callback_data` — только `<действие>:<id события>` (≤ 64 байт по
  * лимиту Bot API; здесь ≤ 14). Идентификатору из `callback_data` не доверяем: web находит запись и
  * предложение по Telegram id нажавшего, поэтому чужое событие даёт `not_found`.
  *   cx — «Не смогу»: спросить подтверждение; cy — подтвердить отмену; cn — оставить запись;
- *   oa — «Беру место»: принять предложение из листа ожидания.
+ *   oa — «Беру место»: принять предложение из листа ожидания;
+ *   rs — «Кто уже играет» (21.4.9): показать состав события участнику группы (только чтение).
  */
-export const CALLBACK_RE = /^(cx|cy|cn|oa):(\d{1,10})$/
+export const CALLBACK_RE = /^(cx|cy|cn|oa|rs):(\d{1,10})$/
 
 /** D-14: оплаченные места освобождаются без автоматического возврата (как у организатора). */
 export const CANCEL_QUESTION =
@@ -111,6 +113,20 @@ export function registerCallbackHandler(bot: Bot<BotContext>): void {
       if (!settled(line)) await editMessage(ctx, `${base}\n\n${line}`, msg.entities, linkRows(rows))
     }
 
+    if (action === 'rs') {
+      const res = await callWeb<RosterReply>('event-roster', {
+        method: 'POST',
+        body: { telegramId: String(ctx.from.id), eventId },
+      })
+      if (!res) return void (await ctx.answerCallbackQuery({ text: UNAVAILABLE_TEXT }))
+      if (res.result !== 'ok') return void (await ctx.answerCallbackQuery({ text: ROSTER_DENIED }))
+      await ctx.answerCallbackQuery()
+      // блок состава дописывается к сообщению; при повторном нажатии заменяется, а не дублируется
+      const cut = text.indexOf(`\n\n${ROSTER_MARK}`)
+      const head = cut >= 0 ? text.slice(0, cut) : text
+      await editMessage(ctx, `${head}\n\n${buildRosterBlock(res)}`, msg.entities, rows ?? [])
+      return
+    }
     if (action === 'cx') {
       await ctx.answerCallbackQuery()
       if (text.endsWith(CANCEL_QUESTION)) return

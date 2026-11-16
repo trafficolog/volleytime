@@ -28,6 +28,7 @@ import { takenSeatsSql } from '../bookings/seats'
 import { bookingService } from '../bookings/service'
 import type { PendingNotification } from '../notifier/types'
 import { orgNotDeletedSql } from '../organization-lifecycle/live'
+import { subscriptionService } from '../subscriptions/service'
 
 /** Сколько строк бот показывает в списках (`/games`, `/my`): сообщение остаётся коротким. */
 const LIST_LIMIT = 5
@@ -56,6 +57,30 @@ export interface BotBooking {
   status: 'confirmed' | 'pending_payment' | 'waitlisted' | 'attended' | 'no_show'
   seats: number
 }
+
+/** Действующий абонемент игрока в одной из его групп (кнопка «Мой абонемент», 21.4.9). */
+export interface BotSubscription {
+  organizationId: number
+  organizationName: string
+  timeZone: string
+  planName: string
+  remaining: number
+  total: number
+  /** `null` — бессрочный. */
+  expiresAt: string | null
+}
+
+/** Состав события для участника группы (кнопка «Кто уже играет», 21.4.9): только имена и места. */
+export type BotRosterOutcome =
+  | {
+      result: 'ok'
+      title: string
+      startsAt: string
+      timeZone: string
+      capacity: number
+      players: { name: string | null; seats: number }[]
+    }
+  | { result: 'not_found' }
 
 export type CancelOutcome = 'cancelled' | 'already_cancelled' | 'not_found' | 'not_allowed'
 export type AcceptOutcome = 'accepted' | 'expired' | 'closed' | 'not_found'
@@ -265,6 +290,88 @@ export const botService = {
       if (e instanceof EventNotBookableError) return 'closed'
       if (e instanceof WaitlistOfferNotFoundError) return 'not_found'
       throw e
+    }
+  },
+
+  /**
+   * Действующие абонементы игрока в его группах (`Мой абонемент`, 21.4.9). Только чтение поверх
+   * `subscriptionService.listMineDetailed`; группы без членства (вышел, заблокирован, удалена) и
+   * с выключенными абонементами не показываются. Ожидающие оплаты и истёкшие не входят.
+   */
+  async listMySubscriptions(telegramId: string): Promise<BotSubscription[]> {
+    const userId = await userByTelegramId(telegramId)
+    if (userId === null) return []
+    const orgs = await db
+      .select({
+        id: organizations.id,
+        name: organizations.name,
+        timeZone: organizations.defaultTimezone,
+      })
+      .from(organizations)
+      .where(
+        and(
+          inArray(organizations.id, memberOrgs(userId)),
+          eq(organizations.subscriptionsEnabled, true),
+        ),
+      )
+      .orderBy(asc(organizations.name), asc(organizations.id))
+      .limit(LIST_LIMIT)
+    const now = Date.now()
+    const out: BotSubscription[] = []
+    for (const org of orgs) {
+      for (const s of await subscriptionService.listMineDetailed({ userId }, org.id)) {
+        if (s.status !== 'active') continue
+        if (s.expiresAt && s.expiresAt.getTime() <= now) continue
+        out.push({
+          organizationId: org.id,
+          organizationName: org.name,
+          timeZone: org.timeZone,
+          planName: s.plan.name,
+          remaining: Math.max(0, s.totalSessions - s.usedSessions),
+          total: s.totalSessions,
+          expiresAt: s.expiresAt ? s.expiresAt.toISOString() : null,
+        })
+      }
+    }
+    return out
+  },
+
+  /**
+   * Состав события для игрока (`Кто уже играет`, 21.4.9): действующий участник группы события,
+   * событие не черновик и группа не удалена; состав — тот же `publicRoster`, что видит Mini App,
+   * но наружу уходят только имя и число мест (без username, аватара и уровня). Любое иное —
+   * `not_found`, чтобы не различать «нет события» и «чужая группа».
+   */
+  async eventRoster(telegramId: string, eventId: number): Promise<BotRosterOutcome> {
+    const userId = await userByTelegramId(telegramId)
+    if (userId === null || !Number.isInteger(eventId) || eventId <= 0)
+      return { result: 'not_found' }
+    const [row] = await db
+      .select({
+        organizationId: events.organizationId,
+        title: events.title,
+        startsAt: events.startsAt,
+        capacity: events.capacity,
+        timeZone: organizations.defaultTimezone,
+      })
+      .from(events)
+      .innerJoin(organizations, eq(organizations.id, events.organizationId))
+      .where(
+        and(
+          eq(events.id, eventId),
+          ne(events.status, 'draft'),
+          inArray(events.organizationId, memberOrgs(userId)),
+        ),
+      )
+    if (!row) return { result: 'not_found' }
+    const roster = await bookingService.publicRoster({ userId }, row.organizationId, eventId)
+    return {
+      result: 'ok',
+      title: row.title,
+      startsAt: row.startsAt.toISOString(),
+      timeZone: row.timeZone,
+      capacity: row.capacity,
+      players: roster.map((r) => ({ name: r.user.name, seats: r.seats })),
     }
   },
 }
