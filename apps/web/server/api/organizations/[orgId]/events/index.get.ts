@@ -3,7 +3,9 @@ import {
   eventService,
   quoteSplitShare,
   readEventListMoney,
+  readEventPriceForecast,
   readEventPricing,
+  readMyEventShare,
   readPlayerPriceQuote,
   requireOrgMember,
 } from '@volley-time/core'
@@ -37,6 +39,9 @@ export default defineApiHandler(async (event) => {
           ...e,
           ...stats.get(e.id)!,
           pricing,
+          // замена проекции pricing (21.5.10): прогноз события и доля/статус своей записи
+          priceForecast: await readEventPriceForecast(ctx, e.id),
+          myShare: await readMyEventShare(ctx, organizationId, e.id),
           ...(totals
             ? {
                 paymentTotals: totals.get(e.id)!,

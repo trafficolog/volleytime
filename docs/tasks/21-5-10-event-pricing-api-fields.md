@@ -2,11 +2,11 @@
 id: '21.5.10'
 phase: '21'
 epic: '21.5'
-status: todo
+status: in_progress
 release: 'v0.3.2'
 sync_state: synced
 last_reviewed: 2026-11-16
-status_note: 'Создана 2026-11-16 как предварительная карточка, которую требует запись журнала «Перенос 21.5.9 в v0.3.2» (2026-11-11): недостающие поля v3 API, без которых нельзя удалить проекцию `pricing`. Порядок в v0.3.2: после 21.4.20, до 21.5.9. 21.4.8 закрыта; инвентаризация потребителей `pricing` выполнена 2026-11-16 (таблица в Контексте). Не стартовала.'
+status_note: 'В работе 2026-11-16 (PR #293): аддитивные поля `priceForecast` и `myShare` во всех ответах с `pricing` (events, events/{id}, bookings/my, dashboard myBookings/hero/upcoming); паритет и IDOR — `apps/web/server/__tests__/pricing-api-fields.integration.test.ts`. Временно около 3 лишних запросов на событие в списках и dashboard до 21.5.9 (принято). Ждёт ревью Opus и merge.'
 ref_id: ''
 complexity: L
 impl_model: claude-opus-5-5
@@ -55,7 +55,7 @@ tags: [reference-v3, api, money]
 
 Новые поля добавляются рядом с `pricing` (аддитивно); `pricing` и `readEventPricing` не удаляются (это 21.5.9).
 
-1. Статус оплаты игрока, включая `cancelled` и `refunded`, в списке событий и в dashboard (`myBookings`, hero, upcoming); источник — `seatPayments`/логика 21.1.8, без нового расчёта статусов.
+1. Статус оплаты игрока в списке событий и в dashboard (`myBookings`, hero, upcoming) — замена с той же семантикой, что `pricing.myPaymentStatus`: `pending`/`succeeded`/`null`, без нового расчёта статусов (решение владельца 2026-11-16). Показ `cancelled`/`refunded` отдельными статусами — карточка [21.5.11](21-5-11-player-payment-cancelled-refunded-status.md).
 2. Выделенная доля игрока для неактивных записей (отменённая, `no_show` и т. п.) и вне котировки игрока (`priceQuote`), в тех же ответах.
 3. Для панели split организатора: `participantCount`, диапазон прогноза min/max и разница между базисом «текущий состав» и «ёмкость» (сейчас менеджеры получают `priceQuote: null`).
 4. Диапазон прогноза split для менеджеров и для событий с фиксированной ценой.
@@ -65,6 +65,7 @@ tags: [reference-v3, api, money]
 ## Критерии приёмки
 
 - ✅ Для каждой строки таблицы инвентаризации есть замена в v3 API или решение «замена не нужна» с обоснованием
+- ✅ Статус оплаты игрока в новом поле совпадает с `pricing.myPaymentStatus` (`pending`/`succeeded`/`null`), в том числе при платежах только `cancelled`/`refunded` (`null`)
 - ✅ Новые поля совпадают с `pricing` по цифрам во всех сценариях паритета; экраны не изменены
 - ✅ Решение по расхождению прогноза (п. 5) задокументировано
 - ✅ `pricing` в ответах и `readEventPricing` не тронуты (удаляет 21.5.9)
@@ -79,4 +80,23 @@ tags: [reference-v3, api, money]
 
 ## Решение по расхождению прогноза
 
-Заполняется исполнителем при реализации (п. 5): выбранный источник прогноза для игрока и организатора, обоснование и доказательство идентичности цифр.
+**Решение (2026-11-16, реализация 21.5.10):** котировка игрока `priceQuote` (`quoteEventPrice`, активные записи плюс свои места) и прогноз экранов остаются **двумя разными источниками**, ни одна формула не меняется. Для экранов, которые сейчас читают `pricing`, добавлены поля с той же семантикой, что и `pricing`:
+
+- `priceForecast` = `{ participantCount, minAmount, maxAmount, basis }` — `readEventPriceForecast` (core), те же ветки, что `readEventPricing`: fixed → цена события и занятые места; settled → снимок `pricing_participant_count`; иначе `previewSplitAmount(target, min(taken, capacity), capacity)` с базисом `current`/`capacity`. Событийное поле без данных игрока: одинаково для игрока и управляющего, для fixed, free и split (закрывает п. 3 и 4: у управляющего `priceQuote: null`, теперь прогноз есть).
+- `myShare` = `{ allocatedAmount, paymentStatus } | null` — `readMyEventShare` (core): своя запись `ctx.userId` в группе маршрута в любом статусе (отменённая, `no_show`), тот же подзапрос статуса по живым платежам мест текущего воплощения, что в `pricing`. `null` — у вызывающего нет записи (у `pricing` в этом случае обе подполя `null`).
+
+Доказательство идентичности: тест паритета сравнивает новые поля с `pricing` в каждом из шести мест ответа для игрока и организатора на сценариях fixed, free, абонемент, split capacity/current (несколько мест, округление копеек 10001/3), переполнение после уменьшения вместимости, settled (остаток копейки 3334/3333/3333), отмена и `no_show` после расчёта, платежи pending/succeeded/cancelled/refunded. Экраны не изменены: потребители продолжают читать `pricing` до 21.5.9; при переводе на новые поля цифры совпадают по построению. Контракт `pricing` не меняется — ADR не требуется.
+
+Временная цена (принято ревью PR #293): до 21.5.9 списки (`events`, `bookings/my`) и `dashboard` выполняют около 3 лишних запросов на событие (`readEventPriceForecast` и `readMyEventShare` рядом с `readEventPricing`). 21.5.9 удаляет `readEventPricing` и переводит потребителей на новые поля, а не оставляет третью копию расчёта.
+
+Статус оплаты (п. 1): `myShare.paymentStatus` повторяет `pricing.myPaymentStatus` — `pending`/`succeeded`/`null` (решение владельца 2026-11-16); показ `cancelled`/`refunded` вынесен в [21.5.11](21-5-11-player-payment-cancelled-refunded-status.md).
+
+| field               | replacement (21.5.10)                                                 |
+| ------------------- | --------------------------------------------------------------------- |
+| mode/targetAmount   | event row `priceMode`/`targetAmount` (уже есть), замена не нужна      |
+| minAmount/maxAmount | `priceForecast.minAmount/maxAmount` (игрок и управляющий, все режимы) |
+| basis               | `priceForecast.basis` (`fixed`/`current`/`capacity`/`settled`)        |
+| participantCount    | `priceForecast.participantCount`                                      |
+| settledAt           | event row `pricingSettledAt` (уже есть), замена не нужна              |
+| myAllocatedAmount   | `myShare.allocatedAmount` (любой статус записи)                       |
+| myPaymentStatus     | `myShare.paymentStatus`                                               |

@@ -12,8 +12,10 @@ import {
 import {
   previewSplitAmount,
   quoteEventPrice,
+  type EventPriceForecast,
   type EventPriceQuote,
   type EventPricingView,
+  type MyEventShare,
   type PricingFinancials,
   type PricingPermissions,
 } from '@volley-time/shared'
@@ -88,6 +90,85 @@ export async function readEventPricing(
       event.capacity,
     ),
   }
+}
+
+/**
+ * Прогноз цены места события для экранов (21.5.10): те же числа, что `pricing.participantCount`/
+ * `minAmount`/`maxAmount`/`basis` (`readEventPricing`), без данных игрока — для игрока и управляющего,
+ * fixed и split. Отдельно от `quoteEventPrice` (котировка игрока: активные записи плюс свои места):
+ * экраны, читающие прогноз, показывают те же цифры. Дублирует ветки `readEventPricing` до её
+ * удаления в 21.5.9; паритет закреплён тестом.
+ */
+export async function readEventPriceForecast(
+  ctx: ServiceContext,
+  eventId: number,
+): Promise<EventPriceForecast> {
+  const db = getDb(ctx)
+  const event = await db.query.events.findFirst({ where: eq(events.id, eventId) })
+  if (!event) throw new EventNotFoundError(eventId)
+  const [counts] = await db
+    .select({ taken: takenSeatsSql })
+    .from(bookings)
+    .where(eq(bookings.eventId, eventId))
+  if (event.priceMode === 'fixed')
+    return {
+      participantCount: counts?.taken ?? 0,
+      minAmount: event.price,
+      maxAmount: event.price,
+      basis: 'fixed',
+    }
+  if (event.pricingSettledAt !== null) {
+    const participantCount = event.pricingParticipantCount!
+    const minAmount = Math.floor(event.targetAmount! / participantCount)
+    return {
+      participantCount,
+      minAmount,
+      maxAmount: minAmount + (event.targetAmount! % participantCount === 0 ? 0 : 1),
+      basis: 'settled',
+    }
+  }
+  return previewSplitAmount(
+    event.targetAmount!,
+    Math.min(counts?.taken ?? 0, event.capacity),
+    event.capacity,
+  )
+}
+
+/**
+ * Доля и статус оплаты СВОЕЙ записи на событие (21.5.10): те же числа, что `pricing.myAllocatedAmount`/
+ * `myPaymentStatus`, для записи в любом статусе (отменённая, `no_show`…), вне `priceQuote`.
+ * Только запись `ctx.userId` в группе `orgId`; нет записи — `null`. Статус — по живым платежам мест
+ * текущего воплощения (20.1.2): `pending`, если есть неоплаченное место, иначе `succeeded`; без живых
+ * платежей (в том числе только `cancelled`/`refunded`) — `null`, как в `pricing`.
+ */
+export async function readMyEventShare(
+  ctx: ServiceContext,
+  orgId: number,
+  eventId: number,
+): Promise<MyEventShare | null> {
+  const [mine] = await getDb(ctx)
+    .select({
+      allocatedAmount: bookings.allocatedAmount,
+      paymentStatus: sql<'pending' | 'succeeded' | null>`(
+        SELECT CASE WHEN bool_or(p.status = 'pending') THEN 'pending' ELSE 'succeeded' END
+        FROM "payments" p
+        WHERE p.booking_id = "bookings"."id"
+          AND p.booking_incarnation = "bookings"."incarnation"
+          AND p.seat_released_at IS NULL
+          AND p.status IN ('pending', 'succeeded')
+        HAVING count(*) > 0)`,
+    })
+    .from(bookings)
+    .where(
+      and(
+        eq(bookings.eventId, eventId),
+        eq(bookings.userId, ctx.userId),
+        eq(bookings.organizationId, orgId),
+      ),
+    )
+  return mine
+    ? { allocatedAmount: mine.allocatedAmount ?? null, paymentStatus: mine.paymentStatus ?? null }
+    : null
 }
 
 export interface EventPriceQuoteView extends EventPriceQuote {

@@ -9,7 +9,9 @@ export { isInviteModeEnabled } from './join-mode-capability'
 export { eventPricingService, type SplitSettlementResult } from './pricing-service'
 export {
   readEventPriceQuote,
+  readEventPriceForecast,
   readEventPricing,
+  readMyEventShare,
   readPricingFinancials,
   readPricingPermissions,
   readPlayerPriceQuote,
