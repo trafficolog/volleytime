@@ -2,11 +2,11 @@
 id: '21.5.2'
 phase: '21'
 epic: '21.5'
-status: todo
+status: in_progress
 release: 'v0.3.1'
 sync_state: synced
 last_reviewed: 2026-10-28
-status_note: 'Пакет 1 из отчёта 21.5.1: LEG-01…LEG-03. Остальные пакеты — 21.5.3, 21.5.4, 21.5.5.'
+status_note: 'Пакет 1 из отчёта 21.5.1: LEG-01…LEG-03. LEG-02 без MEMBER_STATUS_LABELS (появился потребитель PlayerDrawer.vue). PR на ревью.'
 ref_id: ''
 complexity: M
 impl_model: claude-sonnet-5-5
