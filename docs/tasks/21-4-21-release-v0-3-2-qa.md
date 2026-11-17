@@ -2,11 +2,11 @@
 id: '21.4.21'
 phase: '21'
 epic: '21.4'
-status: in_progress
+status: done
 release: 'v0.3.2'
 sync_state: synced
 last_reviewed: 2026-11-17
-status_note: 'В работе 2026-11-17: кандидат e42f2c21 (origin/main), диапазон от prod 98b60193 — миграция 0040, workflows не меняются, env и флагов нет; read-only preflight VPS пройден. v0.3.2 готово к выкладке, не выложено: ждёт зелёный main CI на кандидате, подтверждение владельца на Promote и проверки на устройствах. Отчёт: docs/operations/qa/2026-11-17-21-4-21-release-v0-3-2.md.'
+status_note: 'Закрыта 2026-11-17: v0.3.2 выложен и принят владельцем, тег v0.3.2 на 807f6857. Promote 43977839666 success, Deploy 43977868727 success (backup и миграция 0040 применены), health release=807f6857f25a30a221de52b0e7c30e4d8af6e107, миграций 41. Отчёт: docs/operations/qa/2026-11-17-21-4-21-release-v0-3-2.md.'
 ref_id: ''
 complexity: M
 impl_model: claude-opus-5-5
@@ -50,6 +50,10 @@ tags: [reference-v3, release]
 - ✅ Backup создан до миграции
 - ✅ Шаги владельца на устройствах отмечены в отчёте QA или приняты владельцем
 - ✅ Отчёт QA релиза `docs/operations/qa/2026-11-17-21-4-21-release-v0-3-2.md`
+
+## Результат
+
+Закрыта 2026-11-17. Владелец подтвердил Promote в чате; [Promote 43977839666](https://github.com/trafficolog/volleytime/actions/runs/43977839666) success, [Deploy 43977868727](https://github.com/trafficolog/volleytime/actions/runs/43977868727) success (verify, test, deploy; backup до миграции 0040, миграция применена). Health `ok`, `release=807f6857f25a30a221de52b0e7c30e4d8af6e107`; web и bot healthy; миграций 41; колонка `venues.hourly_price` есть. В логах одна кратковременная ошибка: connection refused от caddy к bot (Telegram webhook) во время перезапуска bot. Владелец принял релиз в чате («accept»); аннотированный тег `v0.3.2` на `807f6857`. Приёмка владельца заменяет отдельные отметки проверок на устройствах. Подробности — в [отчёте QA](../operations/qa/2026-11-17-21-4-21-release-v0-3-2.md#результаты-после-promote).
 
 ## Не делать
 
