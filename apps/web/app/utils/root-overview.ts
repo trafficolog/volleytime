@@ -32,7 +32,7 @@ export function rootNavItems(): RootNavItem[] {
   return [
     { key: 'overview', label: 'Обзор платформы', icon: 'chart', to: '/root' },
     { key: 'organizations', label: 'Организации', icon: 'home', to: '/root/organizations' },
-    { key: 'users', label: 'Пользователи', icon: 'users', to: null },
+    { key: 'users', label: 'Пользователи', icon: 'users', to: '/root/users' },
     { key: 'billing', label: 'Баланс и тарифы', icon: 'card', to: null },
     { key: 'audit', label: 'Аудит', icon: 'clock', to: '/root/audit' },
     { key: 'settings', label: 'Настройки', icon: 'settings', to: null },

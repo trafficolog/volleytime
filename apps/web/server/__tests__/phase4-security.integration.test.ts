@@ -215,11 +215,13 @@ describe('Phase 4 API security (integration)', () => {
     expect(anon.status).toBe(401)
   })
 
-  it('9.10.4: smoke cleanup marks the account and drops its sessions', async () => {
-    const anon = await request('POST', '/api/internal/smoke/cleanup', {
-      body: { telegramUserId: '900000001' },
-    })
-    expect(anon.status).toBe(401)
+  it('9.10.4: smoke cleanup and prepare require the shared secret (behaviour: smoke-prepare test)', async () => {
+    for (const path of ['cleanup', 'prepare']) {
+      const anon = await request('POST', `/api/internal/smoke/${path}`, {
+        body: { telegramUserId: '900000001' },
+      })
+      expect(anon.status).toBe(401)
+    }
   })
 
   afterAll(async () => {

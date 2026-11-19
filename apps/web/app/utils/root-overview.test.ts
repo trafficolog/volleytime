@@ -34,9 +34,11 @@ describe('rootNavItems', () => {
     expect(items.filter((i) => i.to !== null).map((i) => i.key)).toEqual([
       'overview',
       'organizations',
+      'users',
       'audit',
     ])
     expect(items.find((i) => i.key === 'organizations')!.to).toBe('/root/organizations')
+    expect(items.find((i) => i.key === 'users')!.to).toBe('/root/users')
     expect(items.map((i) => i.key)).toEqual([
       'overview',
       'organizations',

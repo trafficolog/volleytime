@@ -10,3 +10,19 @@ export class PlatformOwnerError extends OrganizationError {
     this.name = 'PlatformOwnerError'
   }
 }
+
+/** Блокировка и разблокировка пользователя платформы (22.1.4). */
+export class PlatformUserError extends OrganizationError {
+  constructor(
+    code:
+      | 'platform.user_not_found'
+      | 'platform.user_cannot_block_self'
+      | 'platform.user_cannot_block_root'
+      | 'platform.user_already_blocked'
+      | 'platform.user_not_blocked',
+    message: string,
+  ) {
+    super(code, message)
+    this.name = 'PlatformUserError'
+  }
+}

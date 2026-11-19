@@ -950,3 +950,79 @@
     margin-block-end: 0.5rem;
   }
 }
+
+/* Пользователи платформы (22.1.4): список и карточка; таблица и плитки — общие с организациями */
+.vt-root-users__table {
+  min-width: 48rem;
+}
+
+.vt-root-users__contact {
+  color: var(--vt-ink-3);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.vt-root-users__contact[data-empty='true'] {
+  color: var(--vt-mute-2);
+}
+
+.vt-root-users__groups {
+  font-weight: 600;
+}
+
+.vt-root-users__role {
+  color: var(--vt-mute-2);
+  font-size: 0.6875rem;
+}
+
+.vt-root-user__kpis {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.vt-root-user__confirm {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1.125rem;
+  border: 1px solid var(--vt-rose);
+}
+
+.vt-root-user__confirm h2 {
+  margin: 0;
+  font-size: 1.0625rem;
+}
+
+.vt-root-user__confirm p {
+  margin: 0;
+  color: var(--vt-ink-3);
+  font-size: 0.875rem;
+}
+
+.vt-root-user__groups li {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.vt-root-user__link {
+  color: var(--vt-ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.vt-root-user__link:hover {
+  text-decoration: underline;
+}
+
+.vt-root-user__link:focus-visible {
+  outline: 2px solid var(--vt-flame);
+  outline-offset: 2px;
+}
+
+@media (max-width: 53rem) {
+  .vt-root-user__kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.vt-root-user__code {
+  display: block;
+  font-size: 0.6875rem;
+}

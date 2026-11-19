@@ -3,7 +3,9 @@
  * Smoke после деплоя (Task 9.9.2). Проверяет не только health, но и вход:
  *   1) /api/health (БД + схема better-auth)
  *   2) GET /api/auth/get-session → 200 (не 500)
- *   3) при SMOKE_BOT_TOKEN + SMOKE_TG_ID: вход по Telegram → авторизованный /api/organizations
+ *   3) при SMOKE_BOT_TOKEN + SMOKE_TG_ID: вход по Telegram → авторизованный /api/organizations;
+ *      перед входом (если задан BOT_INTERNAL_SECRET) шаг prepare включает технический аккаунт
+ *      (решение владельца 2026-11-19, «re-enable on each deploy»)
  *   4) webhook-маршрут: неверный секрет → не 404 (значит Caddy доводит запрос до бота)
  *
  * Использование: BASE_URL=https://volleytime.by node scripts/smoke.mjs
@@ -65,7 +67,29 @@ const session = await fetch(`${BASE}/api/auth/get-session`)
 check('auth/get-session', session.status === 200, `HTTP ${session.status}`)
 
 // 3. авторизованный сценарий
-if (process.env.SMOKE_BOT_TOKEN && process.env.SMOKE_TG_ID) {
+const haveSignIn = Boolean(process.env.SMOKE_BOT_TOKEN && process.env.SMOKE_TG_ID)
+let signInReady = true
+if (haveSignIn && process.env.BOT_INTERNAL_SECRET) {
+  // 3a. prepare: платформенная блокировка (Task 22.1.4) не пускает неактивный аккаунт, поэтому
+  // перед входом технический аккаунт включается обратно (сервер включает только настоящий smoke-аккаунт)
+  const prepare = await fetch(`${BASE}/api/internal/smoke/prepare`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-internal-secret': process.env.BOT_INTERNAL_SECRET,
+    },
+    body: JSON.stringify({ telegramUserId: process.env.SMOKE_TG_ID }),
+  })
+  const prepareBody = await json(prepare)
+  signInReady = prepare.status === 200 && prepareBody?.prepared === true
+  check('подготовка smoke-аккаунта', signInReady, JSON.stringify(prepareBody))
+} else if (haveSignIn) {
+  // Без секрета включить аккаунт нельзя: вход всё равно пробуем (аккаунт может быть активен),
+  // а если он заблокирован, проверка входа упадёт с понятным HTTP 403.
+  console.log('— BOT_INTERNAL_SECRET не задан: подготовка smoke-аккаунта пропущена')
+}
+
+if (haveSignIn && signInReady) {
   const signIn = await fetch(`${BASE}/api/auth/sign-in/telegram`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: BASE },
@@ -87,7 +111,7 @@ if (process.env.SMOKE_BOT_TOKEN && process.env.SMOKE_TG_ID) {
     body: JSON.stringify({ initData: signInitData(process.env.SMOKE_TG_ID, '') }),
   })
   check('подделка initData отвергнута', forged.status === 401, `HTTP ${forged.status}`)
-} else {
+} else if (!haveSignIn) {
   console.log('— SMOKE_BOT_TOKEN/SMOKE_TG_ID не заданы: авторизованный сценарий пропущен')
 }
 

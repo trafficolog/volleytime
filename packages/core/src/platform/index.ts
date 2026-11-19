@@ -5,4 +5,5 @@ export {
   type PlatformOrganizationCreateInput,
   type PlatformOrganizationsParams,
 } from './organizations'
-export { PlatformOwnerError } from './errors'
+export { platformUsersService, type PlatformUsersParams } from './users'
+export { PlatformOwnerError, PlatformUserError } from './errors'
