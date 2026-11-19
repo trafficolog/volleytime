@@ -35,7 +35,7 @@ export async function resetEventBalancePackages(): Promise<void> {
     FROM (VALUES
       ('events_10', 10, 5000, NULL::text, 10),
       ('events_30', 30, 12000, 'popular', 20),
-      ('events_100', 100, 35000, NULL::text, 30)
+      ('events_100', 100, 35000, 'discount', 30)
     ) AS s(code, units, amount, badge, sort_order)
     WHERE p.code = s.code`)
 }
