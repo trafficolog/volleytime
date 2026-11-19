@@ -46,6 +46,9 @@ export default defineNuxtConfig({
     // Private organizer cabinet uses the same client-side session flow without Telegram.
     '/app': { ssr: false },
     '/app/**': { ssr: false },
+    // Root Admin (22.1.1): тот же клиентский поток сессии; 403 не-root отдаёт server/middleware/root-pages.ts
+    '/root': { ssr: false },
+    '/root/**': { ssr: false },
   },
   // OpenAPI новых ресурсов (ADR v3): defineRouteMeta в обработчиках. Спецификация и Swagger UI
   // отдаются только в dev (/_openapi.json, /_swagger, /_scalar); в production-сборке маршрутов нет.

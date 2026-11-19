@@ -24,6 +24,8 @@ export const RESERVED_SHORT_LINKS: readonly string[] = [
   // принятие передачи владения (21.2.17): `/api/ownership-transfers/*`, `/app/transfer`, `/m/transfer`
   'ownership-transfers',
   'transfer',
+  // Root Admin (22.1.1): `/api/platform/*` (страница — `/root`, уже в списке ниже)
+  'platform',
   // служебные и вероятные будущие маршруты
   'logout',
   'register',

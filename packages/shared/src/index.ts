@@ -60,6 +60,12 @@ export type {
   PricingFinancials,
   PricingPermissions,
 } from './events/pricing-types'
+export type {
+  PlatformGateKey,
+  PlatformGateMetric,
+  PlatformOverview,
+  PlatformWeekCounter,
+} from './platform/types'
 export {
   OVERVIEW_CASH_WEEKS,
   overviewPeriods,
