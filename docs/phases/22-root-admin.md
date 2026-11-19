@@ -41,6 +41,10 @@ depends_on: []
 
 - ❌ Выплаты и сверка с провайдером — по D-07
 
+### Бэклог фазы
+
+Решение владельца 2026-11-19 ([D-17](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-17)): расхождения Root Admin с макетом вынесены в карточки бэклога без релиза: [22.1.5](../tasks/22-1-5-audit-log-severity-levels.md), [22.1.6](../tasks/22-1-6-audit-export-header-search.md), [22.1.7](../tasks/22-1-7-root-overview-activity-24h.md), [22.1.8](../tasks/22-1-8-root-org-create-plan-credits.md), [22.1.9](../tasks/22-1-9-root-org-create-invite-owner.md). В число задач, часов и состав `v0.4.0` они не входят.
+
 ### Открытые вопросы
 
 - Решения владельца: [журнал](../operations/decisions/2026-10-12-reference-v3-decisions.md). Визуальная сверка экранов Root Admin — вручную, а не харнессом 19.0.2: [D-16](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-16).
