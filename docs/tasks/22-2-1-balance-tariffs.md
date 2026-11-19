@@ -5,8 +5,8 @@ epic: '22.2'
 status: todo
 release: 'v0.4.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-11-19
+status_note: 'ADR accepted by owner decisions 2026-11-19, implementation next'
 ref_id: 'R-02'
 complexity: M
 impl_model: claude-sonnet-5-5
@@ -15,7 +15,7 @@ review_gate: opus
 roles: [FE, BACK]
 depends_on: ['20.2.1', '22.1.2']
 supersedes: ['7.7.2']
-decisions: []
+decisions: ['D-18']
 estimated_hours: '4-8'
 reference:
   spec: 'docs/design/reference-v3/specs/04-root-admin/R-02-balance-tariffs.md'
@@ -32,6 +32,7 @@ tags: [reference-v3]
 
 ## Контекст
 
+- **ADR:** [ADR-22-2-1 · Каталог пакетов баланса событий](../architecture/ADR-22-2-1-event-balance-packages.md) — схема `0041`, контракт API, атрибуция продаж, откат (решение [D-18](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-18)).
 - Спецификация референса: [R-02 · Баланс и тарифы](../design/reference-v3/specs/04-root-admin/R-02-balance-tariffs.md); макет: 7 Root Admin → Credits & тарифы.
 - **Как есть (main `e68acf2`):** Нет.
 - **Дельта до референса:** Пакеты, «Новый пакет», история изменений; изменение цены не трогает купленные пакеты.
