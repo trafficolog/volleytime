@@ -32,6 +32,10 @@ const CODE_STATUS: Record<string, number> = {
   'organization.subscriptions_disabled': 409,
   'organization.invalid_settings': 422,
   'payment_method.invalid': 422,
+  // владелец вручную создаваемой группы (22.1.3)
+  'platform.owner_not_found': 404,
+  'platform.owner_ambiguous': 409,
+  'platform.owner_inactive': 409,
   // логотип и короткая ссылка группы (21.2.16)
   'logo.not_found': 404,
   'logo.invalid': 422,
