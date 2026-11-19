@@ -136,7 +136,7 @@ A push to `prod`, or manual `deployment_mode=image-bundle` on `prod`, follows th
 4. Under `.deploy/image-bundle.lock` (`flock`), verify clean tracked `prod`, exact bundle/fast-forward ancestry, healthy old web/bot/public identity and local old images. Verify archive size/hash/metadata/architecture/labels and import capacity, load images, then inspect their actual identity. Loading does not activate containers.
 5. Recheck live identity, create and validate the private local `pg_dump`/gzip backup, snapshot old env, advance Git (or confirm candidate checkout already reached), and atomically install previous pointer, SHA manifest and candidate env.
 6. Use the staged `compose-images-only.yml` override to remove build definitions and set `pull_policy: never` for app/migration services. Run migration with `run --rm --no-deps --pull never migrate`, then `up --no-build -d web bot`; keep PostgreSQL/Caddy running. Check both services, database and exact public HTTPS health. Compose must support `!reset` overrides (validated locally with v5.1.1); verify the installed VPS CLI before rollout.
-7. Run bounded external exact-SHA synthetic initData/forged-signature smoke with technical-session cleanup, then `confirm-smoke FULL_SHA`. Only this confirmation records `smoke-passed`.
+7. Run bounded external exact-SHA synthetic initData/forged-signature smoke with smoke-account prepare and technical-session cleanup ([details](#path-a--image-bundle-new-workflow-default)), then `confirm-smoke FULL_SHA`. Only this confirmation records `smoke-passed`.
 
 The activation command used by the workflow is:
 
@@ -146,6 +146,14 @@ bash .deploy/incoming/FULL_SHA/scripts/deploy-image-bundle.sh deploy .deploy/inc
 ```
 
 Transfer and activation each have a 30-minute command timeout (35-minute step bound), with separate 2-minute SSH connection bounds. External synthetic smoke has a five-minute timeout plus a 15-second prewait. A timeout or disconnected runner does not prove the remote process stopped.
+
+**Smoke account and platform block (Tasks 9.10.4 and 22.1.4; owner decision 2026-11-19 «re-enable on each deploy»).** Root Admin blocking sets `users.is_active = false`, which refuses new sessions and every authenticated request (403 `user.blocked`). The smoke Telegram account (`SMOKE_TG_ID`, production user #4) must therefore be active when `scripts/smoke.mjs` signs in. Order inside the smoke step: `POST /api/internal/smoke/prepare` (header `x-internal-secret`, body `{telegramUserId}`) → Telegram sign-in → authenticated `/api/organizations` → forged-signature check → `POST /api/internal/smoke/cleanup`.
+
+- **prepare** sets `is_active = true` only for the user with that Telegram id and only when it is the technical account: not a root admin, no `organization_members` row in any status, and named `Smoke check` (the name cleanup leaves). Any other blocked user stays blocked and prepare answers `{prepared:false, reason:'not_smoke_account'}`, which fails the smoke check `подготовка smoke-аккаунта` and skips sign-in. A missing user is `prepared:true, reason:'user_not_found'` (the first sign-in creates it); an active one is `already_active`. The response contains no secrets or personal data; nothing is written to the platform audit log.
+- **cleanup** no longer touches `is_active`: it renames the account to `Smoke check` and deletes its sessions.
+- Without `BOT_INTERNAL_SECRET` smoke logs the skip, does not prepare or clean up, and still attempts the sign-in; a blocked account then fails the sign-in check with HTTP 403. The Deploy workflow always provides the secret.
+- The first Deploy after this change heals user #4, which cleanup left inactive before it: prepare re-enables it, sign-in succeeds, cleanup keeps it active.
+- If someone deliberately blocks the smoke account in Root Admin, the next Deploy re-enables it; to retire the account unset `SMOKE_TG_ID` instead.
 
 ## Release retention and disk monitoring (Task 9.8.18)
 
