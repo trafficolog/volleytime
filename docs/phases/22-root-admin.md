@@ -43,7 +43,7 @@ depends_on: []
 
 ### Открытые вопросы
 
-- Решения владельца: [журнал](../operations/decisions/2026-10-12-reference-v3-decisions.md).
+- Решения владельца: [журнал](../operations/decisions/2026-10-12-reference-v3-decisions.md). Визуальная сверка экранов Root Admin — вручную, а не харнессом 19.0.2: [D-16](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-16).
 
 ## Ссылки
 

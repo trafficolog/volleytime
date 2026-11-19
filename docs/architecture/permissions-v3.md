@@ -133,7 +133,7 @@ Mini App и Login Widget сходятся в одну Telegram-личность:
 |                           | `POST …/collections`, `PATCH …/collections/{id}`, `POST …/{id}/complete`, `POST …/{id}/cancel` — реализовано, в IDOR-таблице                                                        | manager           | 21.2.4            |
 |                           | `POST …/collections/{id}/contributions` (свой взнос) — реализовано, в IDOR-таблице                                                                                                  | member            | 21.2.4            |
 |                           | `POST …/collections/{id}/contributions/{contributionId}/confirm\|reject` — реализовано, в IDOR-таблице                                                                              | manager           | 21.2.4            |
-| Root Admin                | `/api/platform/**`: группы, баланс и гранты, заявки на покупку, настройки, журнал                                                                                                   | root              | 22.x              |
+| Root Admin                | `/api/platform/**`: группы, баланс и гранты, заявки на покупку, настройки, журнал; обзор `GET /api/platform/overview` и страница `/root` (22.1.1)                                   | root              | 22.x              |
 | Передача владения         | `POST /api/ownership-transfers/preview`, `POST /api/ownership-transfers/accept` (токен личной ссылки в теле) — реализовано                                                          | self (получатель) | 21.2.17           |
 
 Правила для v3:
