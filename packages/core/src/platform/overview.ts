@@ -59,6 +59,9 @@ export const platformOverviewService = {
     const dailyFrom = new Date(
       `${utcDay(new Date(now.getTime() - (DAILY_DAYS - 1) * DAY_MS))}T00:00:00.000Z`,
     )
+    // литерал, а не параметр: GROUP BY сравнивает выражение с SELECT, а разные $n считаются разными
+    const bookingWeek = sql<number>`CASE WHEN ${bookings.createdAt} >= ${sql.raw(`'${thisWeekFrom.toISOString()}'`)}::timestamptz THEN 0 ELSE 1 END`
+    const bookingDay = sql<string>`to_char(${bookings.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`
     const gateActiveFrom = new Date(now.getTime() - GATE_ACTIVE_DAYS * DAY_MS)
 
     const [registeredRows, eventRows, bookingActivityRows, dailyRows, totals] = await Promise.all([
@@ -76,7 +79,7 @@ export const platformOverviewService = {
       db
         .select({
           orgId: bookings.organizationId,
-          week: sql<number>`CASE WHEN ${bookings.createdAt} >= ${thisWeekFrom.toISOString()}::timestamptz THEN 0 ELSE 1 END`,
+          week: bookingWeek,
           n: sql<number>`count(*)::int`,
         })
         .from(bookings)
@@ -89,10 +92,10 @@ export const platformOverviewService = {
             lt(bookings.createdAt, now),
           ),
         )
-        .groupBy(bookings.organizationId, sql`2`),
+        .groupBy(bookings.organizationId, bookingWeek),
       db
         .select({
-          day: sql<string>`to_char(${bookings.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD')`,
+          day: bookingDay,
           n: sql<number>`count(*)::int`,
         })
         .from(bookings)
@@ -105,7 +108,7 @@ export const platformOverviewService = {
             lt(bookings.createdAt, now),
           ),
         )
-        .groupBy(sql`1`),
+        .groupBy(bookingDay),
       Promise.all([
         db
           .select({ n: sql<number>`count(*)::int` })

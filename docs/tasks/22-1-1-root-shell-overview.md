@@ -41,7 +41,7 @@ tags: [reference-v3]
 
 1. Оболочка и маршрутизация `/root`, доступ только `isRootAdmin`
 2. Обзор: North Star (активные организации за неделю), метрики гипотез Phase 10
-3. Сверить экраны с референсом через харнесс [19.0.2](19-0-2-visual-reference-harness.md) и приложить отчёт к PR.
+3. Сверить экраны с референсом и приложить отчёт к PR. По решению владельца [D-16](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-16) (2026-11-19) пункт выполняется ручной проверкой (десктоп 1440x900 и мобильный 375x812, отчёт в теле PR), а не харнессом [19.0.2](19-0-2-visual-reference-harness.md): в нём нет роли root.
 
 ## Критерии приёмки
 
@@ -55,6 +55,10 @@ tags: [reference-v3]
 - Скриншоты: [4b-root-admin/01-screen.png](../design/reference-v3/screenshots/4b-root-admin/01-screen.png) (окно 924×540 — ориентир; размеры и отступы брать из исходников).
 - Исходники макета: `docs/design/reference-v3/handoff/screens-admin.jsx`, `docs/design/reference-v3/handoff/screens-admin-forms.jsx`; токены — `handoff/styles.css`; доменные функции — `handoff/atoms.jsx`.
 - Handoff: [README](../design/reference-v3/handoff/README.md) — статусная модель, доменная логика, доступность.
+
+## Follow-ups
+
+- У `bookings` нет индекса по `created_at`: окна обзора (две недели и 14 суток) читают таблицу полным сканированием. На текущем масштабе принято; индекс требует миграции и делается отдельной карточкой.
 
 ## Не делать
 

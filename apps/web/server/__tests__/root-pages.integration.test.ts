@@ -7,6 +7,7 @@ import { createTestApi } from './harness'
 /** Task 22.1.1: страницы `/root/**` отдают 403 вошедшему не-root ещё до загрузки приложения. */
 describe('server middleware for /root pages (integration)', () => {
   let call: (path: string, user?: number) => Promise<number>
+  let cacheControl: (path: string, user?: number) => Promise<string | null>
   let rootId: number
   let plainId: number
 
@@ -17,14 +18,14 @@ describe('server middleware for /root pages (integration)', () => {
     app.use(mod.default)
     app.use(h3.defineEventHandler(() => 'page'))
     const web = h3.toWebHandler(app)
-    call = async (path, user) =>
-      (
-        await web(
-          new Request(`http://test${path}`, {
-            headers: user ? { 'x-test-user': String(user) } : {},
-          }),
-        )
-      ).status
+    const fetchPage = (path: string, user?: number) =>
+      web(
+        new Request(`http://test${path}`, {
+          headers: user ? { 'x-test-user': String(user) } : {},
+        }),
+      )
+    call = async (path, user) => (await fetchPage(path, user)).status
+    cacheControl = async (path, user) => (await fetchPage(path, user)).headers.get('cache-control')
     await db.delete(organizations)
     await db.delete(users)
     const people = await db
@@ -50,6 +51,12 @@ describe('server middleware for /root pages (integration)', () => {
   it('lets root and signed-out visitors reach the app (it redirects to sign-in itself)', async () => {
     expect(await call('/root', rootId)).toBe(200)
     expect(await call('/root')).toBe(200)
+  })
+
+  it('marks /root pages as no-store and leaves other pages alone', async () => {
+    expect(await cacheControl('/root', rootId)).toBe('no-store')
+    expect(await cacheControl('/root/organizations', rootId)).toBe('no-store')
+    expect(await cacheControl('/app', rootId)).toBeNull()
   })
 
   it('does not touch other pages', async () => {

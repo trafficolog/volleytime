@@ -11,6 +11,7 @@ const ROOT_PAGE = /^\/root(?:\/|$)/
  */
 export default defineEventHandler(async (event) => {
   if (!ROOT_PAGE.test(getRequestURL(event).pathname)) return
+  setResponseHeader(event, 'cache-control', 'no-store')
   let userId: number
   try {
     userId = (await requireAuth(event)).id

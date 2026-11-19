@@ -49,6 +49,7 @@ describe('GET /api/platform/overview (HTTP)', { timeout: 60_000 }, () => {
   it('root gets the overview', async () => {
     const res = await request('GET', '/api/platform/overview', { user: root })
     expect(res.status).toBe(200)
+    expect(res.headers.get('cache-control')).toBe('no-store')
     const body = res.body as PlatformOverview
     expect(body.northStar.registered).toBe(1)
     expect(body.bookingsDaily).toHaveLength(14)

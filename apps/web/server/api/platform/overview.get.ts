@@ -7,5 +7,6 @@ import { platformOverviewService } from '@volley-time/core'
  */
 export default defineApiHandler(async (event) => {
   const user = await requireRootAdmin(event)
+  setResponseHeader(event, 'cache-control', 'no-store')
   return platformOverviewService.getOverview({ userId: user.id })
 })
