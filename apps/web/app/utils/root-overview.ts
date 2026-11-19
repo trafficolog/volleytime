@@ -34,7 +34,7 @@ export function rootNavItems(): RootNavItem[] {
     { key: 'organizations', label: 'Организации', icon: 'home', to: null },
     { key: 'users', label: 'Пользователи', icon: 'users', to: null },
     { key: 'billing', label: 'Баланс и тарифы', icon: 'card', to: null },
-    { key: 'audit', label: 'Аудит', icon: 'clock', to: null },
+    { key: 'audit', label: 'Аудит', icon: 'clock', to: '/root/audit' },
     { key: 'settings', label: 'Настройки', icon: 'settings', to: null },
   ]
 }

@@ -360,6 +360,91 @@
   background: var(--vt-orange);
 }
 
+/* Аудит платформы (22.1.2): фильтры, таблица, счётчик */
+.vt-root-audit {
+  display: grid;
+  gap: 1rem;
+  max-width: 76rem;
+}
+
+.vt-root-audit__filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 12.5rem)) minmax(0, 1fr);
+  gap: 0.625rem;
+}
+
+.vt-root-audit__filters label {
+  display: block;
+}
+
+.vt-root-audit__filters .vt-field {
+  width: 100%;
+  min-height: 2.5rem;
+  font-size: 0.875rem;
+}
+
+.vt-root-audit__table-wrap {
+  padding: 0;
+  overflow-x: auto;
+}
+
+.vt-root-audit__table {
+  width: 100%;
+  min-width: 52rem;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+
+.vt-root-audit__table th,
+.vt-root-audit__table td {
+  padding: 0.625rem 1rem;
+  text-align: start;
+  vertical-align: middle;
+  border-block-end: 1px solid var(--vt-bone-2);
+}
+
+.vt-root-audit__table tbody tr:last-child td {
+  border-block-end: 0;
+}
+
+.vt-root-audit__table th {
+  color: var(--vt-mute-2);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.vt-root-audit__time {
+  color: var(--vt-mute-2);
+  white-space: nowrap;
+}
+
+.vt-root-audit__target {
+  color: var(--vt-flame-ink);
+}
+
+.vt-root-audit__details {
+  max-width: 22rem;
+  overflow: hidden;
+  color: var(--vt-mute-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vt-root-audit__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: var(--vt-mute-2);
+  font-size: 0.75rem;
+}
+
+.vt-root-audit__error {
+  margin: 0;
+  color: var(--vt-rose);
+}
+
 @media (max-width: 53rem) {
   .vt-root {
     display: block;
@@ -376,6 +461,10 @@
 
   .vt-root__exit {
     margin-block-start: 0.5rem;
+  }
+
+  .vt-root-audit__filters {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .vt-root-overview__tiles,

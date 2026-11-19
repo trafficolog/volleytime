@@ -31,7 +31,7 @@ describe('rootNavItems', () => {
   it('links only the screens that exist and keeps the rest as disabled placeholders', () => {
     const items = rootNavItems()
     expect(items[0]).toMatchObject({ key: 'overview', label: 'Обзор платформы', to: '/root' })
-    expect(items.filter((i) => i.to !== null).map((i) => i.key)).toEqual(['overview'])
+    expect(items.filter((i) => i.to !== null).map((i) => i.key)).toEqual(['overview', 'audit'])
     expect(items.map((i) => i.key)).toEqual([
       'overview',
       'organizations',
