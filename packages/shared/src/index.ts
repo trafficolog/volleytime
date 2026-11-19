@@ -69,6 +69,16 @@ export {
   type PlatformAuditPeriod,
 } from './platform/audit-types'
 export {
+  EVENT_BALANCE_PACKAGE_BADGE_VALUES,
+  type EventBalancePackageBadgeValue,
+  type PlatformEventBalancePackage,
+  type PlatformEventBalancePackages,
+  type PlatformPackageHistoryAction,
+  type PlatformPackageHistoryEntry,
+  type PlatformPackageHistoryPage,
+  type PlatformPackageSales,
+} from './platform/event-balance-packages-types'
+export {
   PLATFORM_ORG_SORTS,
   PLATFORM_ORG_STATUS_FILTERS,
   type PlatformOrgOwner,

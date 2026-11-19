@@ -1,12 +1,64 @@
 import { z } from 'zod'
 
-import { EVENT_BALANCE_PACKAGE_CODES } from './config'
+/** Код пакета каталога (22.2.1): строчные латинские буквы, цифры и `_`. */
+export const EVENT_BALANCE_PACKAGE_CODE_PATTERN = /^[a-z0-9_]{1,64}$/
 
-/** Заявка на покупку: только код пакета из каталога; количество и цена берутся из каталога. */
+/**
+ * Заявка на покупку: код пакета из каталога БД; количество и цена берутся из пакета. Неизвестный
+ * код, прошедший шаблон, — 409 `event_balance.package_unavailable` (сервис), а не 422.
+ */
 export const CreatePurchaseRequestInput = z
-  .object({ packageCode: z.enum(EVENT_BALANCE_PACKAGE_CODES) })
+  .object({ packageCode: z.string().regex(EVENT_BALANCE_PACKAGE_CODE_PATTERN) })
   .strict()
 export type CreatePurchaseRequestInput = z.input<typeof CreatePurchaseRequestInput>
+
+const Units = z.number().int().min(1).max(10_000)
+/** minor units; граница как у сумм кассы и цены зала (ADR 21.4.13). */
+const Amount = z.number().int().min(0).max(10_000_000)
+const Badge = z.enum(['popular', 'discount', 'best_price']).nullable()
+const SortOrder = z.number().int().min(0).max(10_000)
+const Version = z.number().int().min(1).max(2_147_483_647)
+
+/** Создание пакета root: код генерирует сервер; по умолчанию черновик. */
+export const CreatePackageInput = z
+  .object({
+    units: Units,
+    amount: Amount,
+    currency: z.literal('BYN').default('BYN'),
+    badge: Badge.default(null),
+    visible: z.boolean().default(false),
+    sortOrder: SortOrder.default(0),
+  })
+  .strict()
+export type CreatePackageInput = z.input<typeof CreatePackageInput>
+
+/** «Дублировать»: новый черновик; другое количество и цена — необязательно. */
+export const DuplicatePackageInput = z
+  .object({ units: Units.optional(), amount: Amount.optional() })
+  .strict()
+export type DuplicatePackageInput = z.input<typeof DuplicatePackageInput>
+
+/** Правка: только цена, бейдж, видимость и порядок; `units`, `currency`, `code` — 422. */
+export const UpdatePackageInput = z
+  .object({
+    version: Version,
+    amount: Amount.optional(),
+    badge: Badge.optional(),
+    visible: z.boolean().optional(),
+    sortOrder: SortOrder.optional(),
+  })
+  .strict()
+export type UpdatePackageInput = z.input<typeof UpdatePackageInput>
+
+export const ArchivePackageInput = z.object({ version: Version }).strict()
+export type ArchivePackageInput = z.input<typeof ArchivePackageInput>
+
+const CURSOR_ID = z.coerce.number().int().positive().max(2_147_483_647)
+export const PackageHistoryQuery = z.object({
+  cursor: CURSOR_ID.optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+})
+export type PackageHistoryQuery = z.input<typeof PackageHistoryQuery>
 
 export interface EventBalanceCursor {
   createdAt: string

@@ -19,7 +19,9 @@ defineRouteMeta({
             required: ['packageCode'],
             additionalProperties: false,
             properties: {
-              packageCode: { type: 'string', enum: ['events_10', 'events_30', 'events_100'] },
+              // тип OpenAPI Nitro не знает `pattern`, хотя документ его поддерживает (ADR-22-2-1)
+              // @ts-expect-error pattern отсутствует в StringSubtype
+              packageCode: { type: 'string', pattern: '^[a-z0-9_]{1,64}$' },
             },
           },
         },
@@ -29,7 +31,11 @@ defineRouteMeta({
       200: { description: 'Заявка в статусе pending: { purchaseRequest }' },
       401: { description: 'Нет сессии' },
       403: { description: 'Не участник группы или не владелец (forbidden.owner_only)' },
-      422: { description: 'Неизвестный пакет или лишние поля (validation_failed)' },
+      409: {
+        description:
+          'Пакет недоступен: неизвестный код, скрытый или архивный (event_balance.package_unavailable)',
+      },
+      422: { description: 'Код не по шаблону или лишние поля (validation_failed)' },
     },
   },
 })

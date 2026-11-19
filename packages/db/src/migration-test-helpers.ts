@@ -3,11 +3,24 @@ import postgres from 'postgres'
 import { rollbackLastMigration } from './rollback'
 
 /**
+ * Откат 0041 (22.2.1) отказывает, пока каталог пакетов отличается от сида или есть связи заявок,
+ * созданные после миграции; тесты старых миграций работают на чистом сиде. Помощник откатывает 0041
+ * и возвращает тег; следующая миграция добавляет свой шаг сюда.
+ */
+export async function rollbackEventBalancePackages(url: string): Promise<string> {
+  const tag = await rollbackLastMigration(url)
+  if (tag !== '0041_event_balance_packages')
+    throw new Error(`expected 0041 to roll back first, got ${tag}`)
+  return tag
+}
+
+/**
  * Откат 0040 (21.4.13) отказывает, пока у залов указана цена за час; тесты старых миграций
  * работают на базах без цены. Помощник откатывает 0040 и возвращает тег; следующая миграция
  * добавляет свой шаг сюда.
  */
 export async function rollbackVenueHourlyPrice(url: string): Promise<string> {
+  await rollbackEventBalancePackages(url) // 22.2.1: новая миграция откатывается первой
   const tag = await rollbackLastMigration(url)
   if (tag !== '0040_venue_hourly_price')
     throw new Error(`expected 0040 to roll back first, got ${tag}`)

@@ -7,6 +7,7 @@ import {
   db,
   eq,
   eventBalanceEntries,
+  eventBalancePackages,
   eventBalancePurchaseRequests,
   events,
   organizationEventBalances,
@@ -14,6 +15,7 @@ import {
   sql,
   users,
 } from '@volley-time/db'
+import { resetEventBalancePackages } from '@volley-time/db/test-utils'
 import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { bookingService } from '../bookings/service'
@@ -21,8 +23,23 @@ import { eventService } from '../events/service'
 import { memberService } from '../members/service'
 import { organizationService } from '../organizations/service'
 
-import { EVENT_BALANCE_LOW_THRESHOLD, EVENT_BALANCE_PACKAGES } from './config'
+import { EVENT_BALANCE_LOW_THRESHOLD } from './config'
 import { eventBalanceService } from './service'
+
+/** Сид миграции 0041: прежние цены константы каталога (владелец, 2026-10-14). */
+const SEEDED_STOREFRONT = [
+  { code: 'events_10', units: 10, amount: 5_000, currency: 'BYN', badge: null, popular: false },
+  {
+    code: 'events_30',
+    units: 30,
+    amount: 12_000,
+    currency: 'BYN',
+    badge: 'popular',
+    popular: true,
+  },
+  { code: 'events_100', units: 100, amount: 35_000, currency: 'BYN', badge: null, popular: false },
+]
+const pkg30 = { code: 'events_30', units: 30, amount: 12_000, currency: 'BYN' }
 
 const future = (h = 24) => new Date(Date.now() + h * 3600_000)
 const eventInput = (title = 'Игра', extra: Record<string, unknown> = {}) => ({
@@ -92,6 +109,7 @@ describe('event balance (integration, 20.2.1)', () => {
     process.env.EVENT_BALANCE_ENFORCED = 'true'
     await db.delete(organizations)
     await db.delete(users)
+    await resetEventBalancePackages()
     ownerId = await newUser('Owner')
     orgId = (await organizationService.create({ userId: ownerId }, { name: 'Balance Org' })).id
   })
@@ -127,7 +145,7 @@ describe('event balance (integration, 20.2.1)', () => {
       lowThreshold: EVENT_BALANCE_LOW_THRESHOLD,
       low: true,
     })
-    expect(view.packages).toEqual(EVENT_BALANCE_PACKAGES)
+    expect(view.packages).toEqual(SEEDED_STOREFRONT)
     expect(view.pendingRequests).toEqual([])
   })
 
@@ -305,7 +323,7 @@ describe('event balance (integration, 20.2.1)', () => {
   })
 
   it('purchase request: owner snapshot of a package, pending, audited, balance unchanged', async () => {
-    const pkg = EVENT_BALANCE_PACKAGES[1]!
+    const pkg = pkg30
     const request = await eventBalanceService.createPurchaseRequest({ userId: ownerId }, orgId, {
       packageCode: pkg.code,
     })
@@ -335,11 +353,18 @@ describe('event balance (integration, 20.2.1)', () => {
       expect.objectContaining({ id: request.id, units: pkg.units, amount: pkg.amount }),
     ])
 
+    // неизвестный код, прошедший шаблон, — 409, как скрытый и архивный пакет (было 422)
     await expect(
       eventBalanceService.createPurchaseRequest({ userId: ownerId }, orgId, {
-        packageCode: 'nope' as never,
+        packageCode: 'nope',
       }),
-    ).rejects.toMatchObject({ name: 'ZodError' })
+    ).rejects.toMatchObject({ code: 'event_balance.package_unavailable' })
+    // 422 — код не по шаблону и лишние поля
+    for (const packageCode of ['Nope', 'events-30', '', 'x'.repeat(65)]) {
+      await expect(
+        eventBalanceService.createPurchaseRequest({ userId: ownerId }, orgId, { packageCode }),
+      ).rejects.toMatchObject({ name: 'ZodError' })
+    }
     await expect(
       eventBalanceService.createPurchaseRequest({ userId: ownerId }, orgId, {
         packageCode: pkg.code,
@@ -347,6 +372,74 @@ describe('event balance (integration, 20.2.1)', () => {
       } as never),
     ).rejects.toMatchObject({ name: 'ZodError' })
     expect(await db.select().from(eventBalancePurchaseRequests)).toHaveLength(1)
+  })
+
+  it('purchase request links the package, snapshots it and audits packageId (22.2.1)', async () => {
+    const [seeded] = await db
+      .select()
+      .from(eventBalancePackages)
+      .where(eq(eventBalancePackages.code, 'events_30'))
+    const request = await eventBalanceService.createPurchaseRequest({ userId: ownerId }, orgId, {
+      packageCode: 'events_30',
+    })
+    expect(request.packageId).toBe(seeded!.id)
+    const [audit] = await db
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.action, 'event_balance.purchase_requested'))
+    expect(audit!.newValue).toMatchObject({ packageCode: 'events_30', packageId: seeded!.id })
+  })
+
+  it('purchase request refuses hidden and archived packages and unknown codes alike', async () => {
+    const insertPackage = async (code: string, units: number, extra = {}) => {
+      const [row] = await db
+        .insert(eventBalancePackages)
+        .values({ code, units, amount: 1_000, ...extra })
+        .returning()
+      return row!
+    }
+    await insertPackage('draft_7', 7) // visible = false по умолчанию
+    await insertPackage('archived_8', 8, { archivedAt: new Date() })
+    for (const packageCode of ['draft_7', 'archived_8', 'missing_9']) {
+      await expect(
+        eventBalanceService.createPurchaseRequest({ userId: ownerId }, orgId, { packageCode }),
+      ).rejects.toMatchObject({ code: 'event_balance.package_unavailable' })
+    }
+    expect(await db.select().from(eventBalancePurchaseRequests)).toHaveLength(0)
+  })
+
+  it('storefront lists only visible, non-archived packages in catalog order', async () => {
+    await db.insert(eventBalancePackages).values([
+      { code: 'draft_7', units: 7, amount: 700, sortOrder: 1 },
+      { code: 'shown_5', units: 5, amount: 400, visible: true, sortOrder: 5, badge: 'discount' },
+    ])
+    const view = await eventBalanceService.get({ userId: ownerId }, orgId)
+    expect(view.packages.map((p) => p.code)).toEqual([
+      'shown_5',
+      'events_10',
+      'events_30',
+      'events_100',
+    ])
+    expect(view.packages[0]).toMatchObject({ badge: 'discount', popular: false })
+  })
+
+  it('a price change affects only new requests: the pending request keeps its snapshot', async () => {
+    const request = await eventBalanceService.createPurchaseRequest({ userId: ownerId }, orgId, {
+      packageCode: 'events_10',
+    })
+    await db
+      .update(eventBalancePackages)
+      .set({ amount: 9_900, version: sql`${eventBalancePackages.version} + 1` })
+      .where(eq(eventBalancePackages.code, 'events_10'))
+    const [stored] = await db
+      .select()
+      .from(eventBalancePurchaseRequests)
+      .where(eq(eventBalancePurchaseRequests.id, request.id))
+    expect(stored).toMatchObject({ units: 10, amount: 5_000 })
+    const next = await eventBalanceService.createPurchaseRequest({ userId: ownerId }, orgId, {
+      packageCode: 'events_10',
+    })
+    expect(next.amount).toBe(9_900)
   })
 
   it('history: newest first with reason, author and event; keyset pages without overlap', async () => {

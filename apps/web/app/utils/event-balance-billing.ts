@@ -3,13 +3,19 @@ import { formatMoneyRu } from './labels'
 
 /** Экран «Баланс и оплата» кабинета (21.2.8, W-12). Форма данных — GET /event-balance и /entries (20.2.1). */
 export type BalancePackage = {
-  code: 'events_10' | 'events_30' | 'events_100'
+  /** Код из каталога БД (22.2.1): `^[a-z0-9_]{1,64}$`. */
+  code: string
   units: number
   /** minor units */
   amount: number
   currency: string
+  /** Бейдж каталога (22.2.1); у ответа без поля — только `popular`. */
+  badge?: 'popular' | 'discount' | 'best_price' | null
   popular: boolean
 }
+
+/** Подписи бейджей каталога; «Скидка» — фиксированная (D-18), не процент. */
+const CATALOG_BADGES = { popular: 'Популярный', discount: 'Скидка', best_price: 'Лучшая цена' }
 
 export type BalanceSummary = {
   balance: number
@@ -47,7 +53,9 @@ export function packageViews(packages: BalancePackage[]) {
   return packages.map((p) => {
     const perUnit = p.amount / p.units
     let badge: string | null = null
-    if (p.popular) badge = 'Популярный'
+    // бейдж, выбранный в Root Admin, главнее; без него — прежние правила D-11
+    if (p.badge) badge = CATALOG_BADGES[p.badge]
+    else if (p.popular) badge = 'Популярный'
     else if (base && p.code !== base.code) {
       const percent = Math.round((1 - perUnit / (base.amount / base.units)) * 100)
       if (percent > 0) badge = `−${percent}%`
@@ -59,7 +67,7 @@ export function packageViews(packages: BalancePackage[]) {
       price: formatMoneyRu(p.amount, p.currency),
       perUnit: formatMoneyRu(Math.round(perUnit), p.currency),
       badge,
-      popular: p.popular,
+      popular: p.popular || p.badge === 'popular',
     }
   })
 }

@@ -2,11 +2,11 @@
 id: '22.2.1'
 phase: '22'
 epic: '22.2'
-status: todo
+status: in_progress
 release: 'v0.4.0'
 sync_state: synced
 last_reviewed: 2026-11-19
-status_note: 'ADR accepted by owner decisions 2026-11-19, implementation next'
+status_note: 'Реализация в PR (ветка trafficolog/feat/22.2.1-balance-tariffs) по принятому ADR-22-2-1 и D-18, ждёт независимого ревью и CI. Сделано: миграция 0041 (таблица event_balance_packages с version, сид трёх прежних пакетов, purchase_requests.package_id и разовый бэкфилл approved/pending по точному снимку, откат с NULL-безопасным guard), каталог в БД вместо константы, покупка по packageCode (FOR SHARE; 409 event_balance.package_unavailable вместо 422), API /api/platform/event-balance/packages (список с ценой за событие, продажами и строкой «Без пакета», создание, дублирование, правка с оптимистичной блокировкой, архив, история из audit_log; requireRootAdmin, no-store, аудит в той же транзакции), страница /root/billing «Баланс и тарифы» (список, «Новый пакет», история), витрина организатора из БД, раздел runbook про 0041. Не вошло (соседние карточки): demo-квота и начисления root — 22.2.2, тариф и стартовый баланс при создании группы — 22.1.8, онлайн-оплата (D-07). Визуальная сверка с 4b-root-admin/05–07 выполнена вручную (1440x900 и 375x812, D-16), отчёт в теле PR.'
 ref_id: 'R-02'
 complexity: M
 impl_model: claude-sonnet-5-5

@@ -8,9 +8,11 @@ import {
   EVENT_BALANCE_DEMO_QUOTA,
   EventBalanceInsufficientError,
   eventBalanceEntries,
+  eventBalancePackages,
   eventBalancePurchaseRequests,
   events,
   hasEventBalanceEntryForEvent,
+  isNull,
   lockEventBalance,
   ne,
   organizationEventBalances,
@@ -19,6 +21,7 @@ import {
   type Event,
   type EventBalanceEntry,
   type EventBalanceEntryInput,
+  type EventBalancePackageBadge,
   type EventBalancePurchaseRequest,
 } from '@volley-time/db'
 
@@ -27,13 +30,8 @@ import { auditService } from '../audit/service'
 import { writeOrganizerFeed } from '../notifier/organizer-feed'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
 
-import {
-  EVENT_BALANCE_LOW_THRESHOLD,
-  EVENT_BALANCE_PACKAGES,
-  isEventBalanceEnforced,
-  type EventBalancePackage,
-} from './config'
-import { InsufficientEventBalanceError } from './errors'
+import { EVENT_BALANCE_LOW_THRESHOLD, isEventBalanceEnforced } from './config'
+import { EventBalancePackageUnavailableError, InsufficientEventBalanceError } from './errors'
 import {
   CreatePurchaseRequestInput,
   encodeEventBalanceCursor,
@@ -42,12 +40,24 @@ import {
   type ListEventBalanceEntriesQuery as ListEntriesQuery,
 } from './schemas'
 
+/** Пакет витрины организатора: видимый и не архивный (22.2.1). */
+export interface EventBalanceStorefrontPackage {
+  code: string
+  units: number
+  /** minor units */
+  amount: number
+  currency: string
+  badge: EventBalancePackageBadge | null
+  /** Производное от `badge = 'popular'`, для совместимости ответа. */
+  popular: boolean
+}
+
 export interface EventBalanceView {
   balance: number
   lowThreshold: number
   /** «Баланс заканчивается»: остаток не больше порога. */
   low: boolean
-  packages: readonly EventBalancePackage[]
+  packages: EventBalanceStorefrontPackage[]
   pendingRequests: Pick<
     EventBalancePurchaseRequest,
     'id' | 'units' | 'amount' | 'currency' | 'createdAt'
@@ -92,6 +102,21 @@ export const eventBalanceService = {
       .from(organizationEventBalances)
       .where(eq(organizationEventBalances.organizationId, orgId))
     const balance = row?.balance ?? 0
+    const catalog = await db
+      .select({
+        code: eventBalancePackages.code,
+        units: eventBalancePackages.units,
+        amount: eventBalancePackages.amount,
+        currency: eventBalancePackages.currency,
+        badge: eventBalancePackages.badge,
+      })
+      .from(eventBalancePackages)
+      .where(and(eq(eventBalancePackages.visible, true), isNull(eventBalancePackages.archivedAt)))
+      .orderBy(
+        asc(eventBalancePackages.sortOrder),
+        asc(eventBalancePackages.units),
+        asc(eventBalancePackages.id),
+      )
     const pendingRequests = await db
       .select({
         id: eventBalancePurchaseRequests.id,
@@ -112,7 +137,7 @@ export const eventBalanceService = {
       balance,
       lowThreshold: EVENT_BALANCE_LOW_THRESHOLD,
       low: balance <= EVENT_BALANCE_LOW_THRESHOLD,
-      packages: EVENT_BALANCE_PACKAGES,
+      packages: catalog.map((p) => ({ ...p, popular: p.badge === 'popular' })),
       pendingRequests,
     }
   },
@@ -190,8 +215,17 @@ export const eventBalanceService = {
     input: CreateRequestInput,
   ): Promise<EventBalancePurchaseRequest> {
     const data = CreatePurchaseRequestInput.parse(input)
-    const pkg = EVENT_BALANCE_PACKAGES.find((p) => p.code === data.packageCode)!
     return inTransaction(ctx, async (tx) => {
+      // FOR SHARE: правка, скрытие и архив пакета берут FOR UPDATE той же строки и сериализуются с
+      // заявкой — она видит либо старую, либо новую версию целиком (ADR-22-2-1)
+      const [pkg] = await getDb(tx)
+        .select()
+        .from(eventBalancePackages)
+        .where(eq(eventBalancePackages.code, data.packageCode))
+        .for('share')
+      if (!pkg || !pkg.visible || pkg.archivedAt !== null) {
+        throw new EventBalancePackageUnavailableError()
+      }
       const [request] = await getDb(tx)
         .insert(eventBalancePurchaseRequests)
         .values({
@@ -200,6 +234,7 @@ export const eventBalanceService = {
           units: pkg.units,
           amount: pkg.amount,
           currency: pkg.currency,
+          packageId: pkg.id,
         })
         .returning()
       await auditService.record(tx, {
@@ -208,6 +243,7 @@ export const eventBalanceService = {
         entityType: 'event_balance_purchase_request',
         entityId: request!.id,
         newValue: {
+          packageId: pkg.id,
           packageCode: pkg.code,
           units: pkg.units,
           amount: pkg.amount,

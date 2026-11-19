@@ -99,6 +99,11 @@ export const AUDIT_ACTIONS = {
   TELEGRAM_CHAT_TEST_SENT: 'telegram_chat.test_sent',
   // баланс событий (20.2.1); начисления и решения root пишет операторская команда (packages/db)
   EVENT_BALANCE_PURCHASE_REQUESTED: 'event_balance.purchase_requested',
+  // каталог пакетов баланса событий, Root Admin (22.2.1); запись платформенная, organization_id = NULL
+  EVENT_BALANCE_PACKAGE_CREATED: 'event_balance_package.created',
+  EVENT_BALANCE_PACKAGE_UPDATED: 'event_balance_package.updated',
+  EVENT_BALANCE_PACKAGE_VISIBILITY_CHANGED: 'event_balance_package.visibility_changed',
+  EVENT_BALANCE_PACKAGE_ARCHIVED: 'event_balance_package.archived',
   // сборы (21.2.4): жизненный цикл сбора и решения по взносам (платежам сбора)
   COLLECTION_CREATED: 'collection.created',
   COLLECTION_UPDATED: 'collection.updated',
@@ -124,6 +129,7 @@ export type AuditEntityType =
   | 'payment'
   | 'ledger_entry'
   | 'event_balance_purchase_request'
+  | 'event_balance_package'
   | 'event_invite_request'
   | 'event_series'
   | 'waitlist_offer'

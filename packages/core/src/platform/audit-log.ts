@@ -49,7 +49,7 @@ const SETTINGS_ACTIONS = [
   'organization.short_link_updated',
 ]
 const CATEGORY_PREFIXES: Record<PlatformAuditCategory, string[]> = {
-  balance: ['event_balance.', 'ledger.', 'collection.'],
+  balance: ['event_balance.', 'event_balance_package.', 'ledger.', 'collection.'],
   plans: ['plan.', 'subscription.'],
   organizations: ['organization.', 'ownership_transfer.', 'member.', 'invite.'],
   settings: ['venue.', 'schedule_slot.', 'telegram_chat.'],

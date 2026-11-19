@@ -29,11 +29,16 @@ defineRouteMeta({
                       items: {
                         type: 'object',
                         properties: {
-                          code: { type: 'string', enum: ['events_10', 'events_30', 'events_100'] },
+                          code: { type: 'string', description: 'код пакета: ^[a-z0-9_]{1,64}$' },
                           units: { type: 'integer' },
                           amount: { type: 'integer', description: 'minor units' },
                           currency: { type: 'string' },
-                          popular: { type: 'boolean' },
+                          badge: {
+                            type: 'string',
+                            nullable: true,
+                            enum: ['popular', 'discount', 'best_price'],
+                          },
+                          popular: { type: 'boolean', description: 'badge = popular' },
                         },
                       },
                     },
