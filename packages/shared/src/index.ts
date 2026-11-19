@@ -60,6 +60,14 @@ export type {
   PricingFinancials,
   PricingPermissions,
 } from './events/pricing-types'
+export {
+  PLATFORM_AUDIT_CATEGORIES,
+  PLATFORM_AUDIT_PERIODS,
+  type PlatformAuditCategory,
+  type PlatformAuditEntry,
+  type PlatformAuditPage,
+  type PlatformAuditPeriod,
+} from './platform/audit-types'
 export type {
   PlatformGateKey,
   PlatformGateMetric,
