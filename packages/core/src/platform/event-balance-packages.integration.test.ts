@@ -118,7 +118,7 @@ describe('platformEventBalancePackagesService (integration)', { timeout: 60_000 
       ).toEqual([
         ['events_10', 10, 5000, 500, null, true],
         ['events_30', 30, 12000, 400, 'popular', true],
-        ['events_100', 100, 35000, 350, null, true],
+        ['events_100', 100, 35000, 350, 'discount', true],
       ])
       expect(packages.every((p) => p.sales.length === 0 && p.version === 1)).toBe(true)
       expect(unattributed).toEqual([])
