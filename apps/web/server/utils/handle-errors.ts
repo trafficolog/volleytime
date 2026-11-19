@@ -36,6 +36,12 @@ const CODE_STATUS: Record<string, number> = {
   'platform.owner_not_found': 404,
   'platform.owner_ambiguous': 409,
   'platform.owner_inactive': 409,
+  // блокировка пользователя платформы (22.1.4)
+  'platform.user_not_found': 404,
+  'platform.user_cannot_block_self': 422,
+  'platform.user_cannot_block_root': 422,
+  'platform.user_already_blocked': 409,
+  'platform.user_not_blocked': 409,
   // логотип и короткая ссылка группы (21.2.16)
   'logo.not_found': 404,
   'logo.invalid': 422,

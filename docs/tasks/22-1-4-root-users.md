@@ -2,11 +2,11 @@
 id: '22.1.4'
 phase: '22'
 epic: '22.1'
-status: todo
+status: in_progress
 release: 'v0.4.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-11-19
+status_note: 'Реализация в PR (ветка trafficolog/feat/22-1-4-root-users), ждёт независимого ревью и CI. Сделано: GET /api/platform/users (список), GET /api/platform/users/{id} (карточка), POST /api/platform/users/{id}/block и /unblock; все за requireRootAdmin (401/403 forbidden.root_only, no-store), сервис platformUsersService повторно проверяет root по базе. Страницы /root/users и /root/users/{id}, пункт «Пользователи» в сайдбаре. Список: четыре плитки (всего, Telegram, email, активны 7д), фишки Все / Активные / Заблокированные со счётчиками, поиск по имени, email, @telegram и usr_N, страницы по 50 (фильтрация, сортировка и пагинация в SQL), фильтры в URL (?status=&q=&page=). Карточка: профиль, группы и роли, журнал блокировок, кнопки «Заблокировать» (с подтверждением) и «Разблокировать». Блокировка — существующее поле users.is_active = false (миграции нет): в одной транзакции флаг, закрытие всех сессий пользователя и запись журнала user.blocked / user.unblocked с автором root (платформенный журнал 22.1.2 показывает её без фильтра по разделу). Себя и другого root заблокировать нельзя (422 platform.user_cannot_block_self / platform.user_cannot_block_root); повтор — 409 без записи в журнал. Применение: бот уже читал is_active (userByTelegramId); теперь новую сессию не выдают ни email-OTP, ни Telegram (databaseHooks.session.create.before в packages/auth, 403 user.blocked), а requireAuth проверяет флаг на каждом запросе (403 user.blocked), поэтому доступ пропадает сразу. Персональные данные: root видит имя, email и Telegram-имя; телефон, числовой Telegram id и данные сессий наружу не отдаются. Не вошло: «Экспорт» (CSV — решение владельца), меню «…» в строке списка (действия вынесены в карточку), «Связаться в Telegram», блокировка по причине, фильтр категории «Пользователи» в журнале 22.1.2. Визуальная сверка с 4b-root-admin/10 выполнена вручную (1440x900 и 375x812, локальная БД), см. PR.'
 ref_id: ''
 complexity: M
 impl_model: claude-sonnet-5-5

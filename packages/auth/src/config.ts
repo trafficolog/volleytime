@@ -1,6 +1,7 @@
-import { accounts, db, sessions, users, verifications } from '@volley-time/db'
+import { accounts, db, eq, sessions, users, verifications } from '@volley-time/db'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
+import { APIError } from 'better-auth/api'
 import { emailOTP } from 'better-auth/plugins'
 
 import { getEmailDriver } from './email'
@@ -34,6 +35,26 @@ export const auth = betterAuth({
   session: {
     expiresIn: 60 * 60 * 24 * 30,
     updateAge: 60 * 60 * 24,
+  },
+  databaseHooks: {
+    session: {
+      create: {
+        // Платформенная блокировка (22.1.4, `users.is_active = false`): новую сессию не выдаём
+        // ни email-OTP, ни Telegram. Уже выданные закрывает `platformUsersService.block`.
+        before: async (session) => {
+          const [user] = await db
+            .select({ isActive: users.isActive })
+            .from(users)
+            .where(eq(users.id, Number(session.userId)))
+          if (user && !user.isActive) {
+            throw new APIError('FORBIDDEN', {
+              message: 'Аккаунт заблокирован. Обратитесь в поддержку.',
+              code: 'user.blocked',
+            })
+          }
+        },
+      },
+    },
   },
   plugins: [
     // Telegram Mini App → сессия better-auth (единый источник сессий, 3.9.4)

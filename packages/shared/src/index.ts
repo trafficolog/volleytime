@@ -81,6 +81,17 @@ export {
   type PlatformOrganizationsCounts,
   type PlatformOrganizationsPage,
 } from './platform/organizations-types'
+export {
+  PLATFORM_USER_STATUS_FILTERS,
+  type PlatformUserBlockResult,
+  type PlatformUserDetail,
+  type PlatformUserMembership,
+  type PlatformUserRow,
+  type PlatformUsersCounts,
+  type PlatformUsersPage,
+  type PlatformUserStatusFilter,
+  type PlatformUserTopRole,
+} from './platform/users-types'
 export type {
   PlatformGateKey,
   PlatformGateMetric,

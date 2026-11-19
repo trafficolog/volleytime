@@ -32,6 +32,10 @@ export const AUDIT_ACTIONS = {
   OWNERSHIP_TRANSFER_BOT_DELIVERY_EXPIRED_OWNER: 'ownership_transfer.bot_delivery.expired_owner',
   OWNERSHIP_TRANSFER_BOT_DELIVERY_EXPIRED_RECIPIENT:
     'ownership_transfer.bot_delivery.expired_recipient',
+  // платформенная блокировка пользователя root-администратором (22.1.4): в журнале только
+  // состояние `isActive`, без личных данных
+  USER_BLOCKED: 'user.blocked',
+  USER_UNBLOCKED: 'user.unblocked',
   MEMBER_ADDED: 'member.added',
   MEMBER_ROLE_CHANGED: 'member.role_changed',
   MEMBER_BLOCKED: 'member.blocked',
@@ -126,3 +130,4 @@ export type AuditEntityType =
   | 'telegram_chat'
   | 'collection'
   | 'ownership_transfer'
+  | 'user'
