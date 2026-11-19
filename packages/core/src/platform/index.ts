@@ -5,5 +5,6 @@ export {
   type PlatformOrganizationCreateInput,
   type PlatformOrganizationsParams,
 } from './organizations'
+export { platformEventBalancePackagesService } from './event-balance-packages'
 export { platformUsersService, type PlatformUsersParams } from './users'
 export { PlatformOwnerError, PlatformUserError } from './errors'

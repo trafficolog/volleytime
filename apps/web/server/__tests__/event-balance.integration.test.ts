@@ -205,11 +205,15 @@ describe('event balance API (HTTP integration)', () => {
       status: 'pending',
     })
 
-    for (const body of [
-      { packageCode: 'events_1000' },
-      { packageCode: 'events_10', units: 1 },
-      {},
-    ]) {
+    // код, прошедший шаблон, но не из каталога: 409, как скрытый и архивный пакет (раньше 422)
+    const unknown = await request('POST', `${base()}/purchase-requests`, {
+      user: ownerId,
+      body: { packageCode: 'events_1000' },
+    })
+    expect(unknown.status).toBe(409)
+    expect((unknown.body as Body).data?.code).toBe('event_balance.package_unavailable')
+
+    for (const body of [{ packageCode: 'Events_10' }, { packageCode: 'events_10', units: 1 }, {}]) {
       const bad = await request('POST', `${base()}/purchase-requests`, { user: ownerId, body })
       expect(bad.status, JSON.stringify(body)).toBe(422)
     }

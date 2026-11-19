@@ -1,21 +1,9 @@
 /**
- * Конфигурация баланса событий (20.2.1). Каталог пакетов до 22.2.1 — конфигурация приложения
- * (ADR v3): заявка хранит снимок, поэтому смена каталога не меняет старые заявки.
- * Цены — handoff v3 (10 → 50 Br, 30 → 120 Br, 100 → 350 Br), minor units BYN; подтверждены владельцем
- * 2026-10-14 (журнал решений, уточнение к D-11).
+ * Конфигурация баланса событий (20.2.1). Каталог пакетов с 22.2.1 живёт в БД
+ * (`event_balance_packages`, ADR-22-2-1); заявка хранит снимок, поэтому смена каталога не меняет
+ * старые заявки. Начальные значения — сид миграции 0041: 10 → 50 Br, 30 → 120 Br «популярный»,
+ * 100 → 350 Br (minor units BYN; цены подтверждены владельцем 2026-10-14, уточнение к D-11).
  */
-export const EVENT_BALANCE_PACKAGES = [
-  { code: 'events_10', units: 10, amount: 5_000, currency: 'BYN', popular: false },
-  { code: 'events_30', units: 30, amount: 12_000, currency: 'BYN', popular: true },
-  { code: 'events_100', units: 100, amount: 35_000, currency: 'BYN', popular: false },
-] as const
-
-export type EventBalancePackage = (typeof EVENT_BALANCE_PACKAGES)[number]
-export type EventBalancePackageCode = EventBalancePackage['code']
-export const EVENT_BALANCE_PACKAGE_CODES = EVENT_BALANCE_PACKAGES.map((p) => p.code) as [
-  EventBalancePackageCode,
-  ...EventBalancePackageCode[],
-]
 
 /**
  * Порог «баланс заканчивается»: при остатке не больше порога кабинет предупреждает и предлагает

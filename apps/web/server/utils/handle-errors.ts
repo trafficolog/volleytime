@@ -136,6 +136,12 @@ const CODE_STATUS: Record<string, number> = {
   'payment.not_succeeded': 409,
   // баланс событий (20.2.1)
   'event_balance.insufficient': 409,
+  // каталог пакетов баланса событий (22.2.1): неизвестный, скрытый и архивный пакет — один ответ
+  'event_balance.package_unavailable': 409,
+  'event_balance_package.not_found': 404,
+  'event_balance_package.units_taken': 409,
+  'event_balance_package.stale': 409,
+  'event_balance_package.archived': 409,
   // серии событий (20.2.2)
   'series.not_found': 404,
   'series.invalid_rule': 422,

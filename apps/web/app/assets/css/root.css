@@ -1026,3 +1026,219 @@
   display: block;
   font-size: 0.6875rem;
 }
+
+/* Баланс и тарифы (22.2.1, R-02): каталог пакетов, форма «Новый пакет», история изменений */
+.vt-root-billing {
+  display: grid;
+  gap: 1rem;
+  max-width: 76rem;
+}
+
+.vt-root-billing__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.vt-root-billing__actions,
+.vt-root-billing__filter,
+.vt-root-billing__badge-row,
+.vt-root-billing__form-actions,
+.vt-root-billing__row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.vt-root-billing__card,
+.vt-root-billing__form-card {
+  display: grid;
+  gap: 0.875rem;
+  padding: 1.25rem;
+}
+
+.vt-root-billing__card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.vt-root-billing h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.vt-root-billing__hint {
+  margin: 0.25rem 0 0;
+  color: var(--vt-mute-2);
+  font-size: 0.8125rem;
+}
+
+.vt-root-billing__error {
+  margin: 0;
+  color: var(--vt-rose-ink);
+  font-size: 0.8125rem;
+}
+
+.vt-root-billing__form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 1.5rem;
+}
+
+.vt-root-billing__form-fields {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+.vt-root-billing__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.875rem;
+}
+
+.vt-root-billing__field {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.vt-root-billing__field .vt-field {
+  width: 100%;
+  min-height: 2.5rem;
+  font-weight: 600;
+}
+
+.vt-root-billing__field .vt-field[readonly] {
+  opacity: 0.7;
+}
+
+.vt-root-billing__badges {
+  display: grid;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.vt-root-billing__visible {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--r-chip);
+  background: var(--vt-paper);
+}
+
+.vt-root-billing__visible-title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.vt-root-billing__preview-card {
+  display: grid;
+  gap: 0.25rem;
+  padding: 1.125rem;
+}
+
+.vt-root-billing__preview-units {
+  margin: 0;
+  font-family: var(--f-display);
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.vt-root-billing__preview-price {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.vt-root-billing__table-wrap {
+  overflow-x: auto;
+  border-radius: var(--r-tile);
+  background: var(--vt-paper);
+}
+
+.vt-root-billing__table {
+  width: 100%;
+  min-width: 56rem;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.vt-root-billing__table th,
+.vt-root-billing__table td {
+  padding: 0.75rem 1rem;
+  text-align: start;
+  vertical-align: middle;
+  border-block-end: 1px solid var(--vt-bone-2);
+}
+
+.vt-root-billing__table tbody tr:last-child td {
+  border-block-end: 0;
+}
+
+.vt-root-billing__table th {
+  color: var(--vt-mute-2);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.vt-root-billing__table tr[data-draft] td {
+  color: var(--vt-mute-2);
+}
+
+.vt-root-billing__units {
+  display: block;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.vt-root-billing__code,
+.vt-root-billing__muted {
+  color: var(--vt-mute-2);
+  font-size: 0.75rem;
+}
+
+.vt-root-billing__price {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.vt-root-billing__income {
+  color: var(--vt-grass-ink, var(--vt-grass));
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.vt-root-billing__confirm {
+  display: grid;
+  gap: 0.625rem;
+  padding: 0.25rem 0;
+}
+
+.vt-root-billing__confirm p {
+  margin: 0;
+}
+
+.vt-root-billing__foot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 53rem) {
+  .vt-root-billing__form,
+  .vt-root-billing__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

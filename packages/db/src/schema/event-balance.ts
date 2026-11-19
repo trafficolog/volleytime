@@ -1,6 +1,8 @@
 import { sql } from 'drizzle-orm'
 import {
+  boolean,
   check,
+  foreignKey,
   index,
   integer,
   pgEnum,
@@ -56,6 +58,48 @@ export const organizationEventBalances = pgTable(
   (t) => [check('organization_event_balances_non_negative', sql`${t.balance} >= 0`)],
 )
 
+/**
+ * Каталог пакетов баланса событий (22.2.1, ADR-22-2-1, D-18). `code`, `units` и `currency` не
+ * меняются после создания; цена, бейдж, видимость и порядок правятся с оптимистичной блокировкой
+ * по `version`. Архив (`archived_at`) — «Удалить»; жёсткого удаления нет.
+ */
+export const EVENT_BALANCE_PACKAGE_BADGES = ['popular', 'discount', 'best_price'] as const
+export type EventBalancePackageBadge = (typeof EVENT_BALANCE_PACKAGE_BADGES)[number]
+
+export const eventBalancePackages = pgTable(
+  'event_balance_packages',
+  {
+    id: serial('id').primaryKey(),
+    code: text('code').notNull().unique(),
+    units: integer('units').notNull(),
+    amount: integer('amount').notNull(), // minor units
+    currency: varchar('currency', { length: 8 }).notNull().default('BYN'),
+    badge: text('badge').$type<EventBalancePackageBadge>(),
+    visible: boolean('visible').notNull().default(false),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    version: integer('version').notNull().default(1),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('event_balance_packages_units_currency_active')
+      .on(t.units, t.currency)
+      .where(sql`${t.archivedAt} IS NULL`),
+    check('event_balance_packages_code_format', sql`${t.code} ~ '^[a-z0-9_]{1,64}$'`),
+    check('event_balance_packages_units_positive', sql`${t.units} > 0`),
+    check('event_balance_packages_amount_non_negative', sql`${t.amount} >= 0`),
+    check(
+      'event_balance_packages_badge',
+      sql`${t.badge} IS NULL OR ${t.badge} IN ('popular', 'discount', 'best_price')`,
+    ),
+    check(
+      'event_balance_packages_archived_hidden',
+      sql`${t.archivedAt} IS NULL OR NOT ${t.visible}`,
+    ),
+  ],
+)
+
 /** Заявка организатора на покупку пакета (D-07: без онлайн-оплаты, подтверждает root). */
 export const eventBalancePurchaseRequests = pgTable(
   'event_balance_purchase_requests',
@@ -71,6 +115,8 @@ export const eventBalancePurchaseRequests = pgTable(
     units: integer('units').notNull(),
     amount: integer('amount').notNull(), // minor units
     currency: varchar('currency', { length: 8 }).notNull(),
+    // атрибуция продаж (22.2.1): источник истины заявки — снимок выше, а не пакет
+    packageId: integer('package_id'),
     status: purchaseRequestStatusEnum('status').notNull().default('pending'),
     decidedByUserId: integer('decided_by_user_id').references(() => users.id),
     decidedAt: timestamp('decided_at', { withTimezone: true }),
@@ -79,6 +125,13 @@ export const eventBalancePurchaseRequests = pgTable(
   },
   (t) => [
     index('event_balance_purchase_requests_org_idx').on(t.organizationId, t.createdAt),
+    index('event_balance_purchase_requests_package_idx').on(t.packageId),
+    // имя короче 63 символов: автоимя drizzle Postgres усекает
+    foreignKey({
+      name: 'event_balance_requests_package_id_fk',
+      columns: [t.packageId],
+      foreignColumns: [eventBalancePackages.id],
+    }).onDelete('restrict'),
     check('event_balance_purchase_requests_units_positive', sql`${t.units} > 0`),
     check('event_balance_purchase_requests_amount_non_negative', sql`${t.amount} >= 0`),
     check(
@@ -157,4 +210,5 @@ export const eventBalanceEntries = pgTable(
 export type OrganizationEventBalance = typeof organizationEventBalances.$inferSelect
 export type EventBalanceEntry = typeof eventBalanceEntries.$inferSelect
 export type NewEventBalanceEntry = typeof eventBalanceEntries.$inferInsert
+export type EventBalancePackage = typeof eventBalancePackages.$inferSelect
 export type EventBalancePurchaseRequest = typeof eventBalancePurchaseRequests.$inferSelect

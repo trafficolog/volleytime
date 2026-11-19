@@ -288,6 +288,13 @@
       "when": 1794833868337,
       "tag": "0040_venue_hourly_price",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1795105491791,
+      "tag": "0041_event_balance_packages",
+      "breakpoints": true
     }
   ]
 }

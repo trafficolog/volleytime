@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { DB } from './client'
 import { runMigrations } from './migrate'
+import { rollbackEventBalancePackages } from './migration-test-helpers'
 import { rollbackLastMigration } from './rollback'
 import * as schema from './schema'
 import { seedDemo } from './seed-demo'
@@ -68,6 +69,7 @@ describe('migration 0040 venue hourly price (integration)', { timeout: 60_000 },
     try {
       await runMigrations(url)
       expect(await objects(sql)).toBe(2)
+      await rollbackEventBalancePackages(url) // 22.2.1: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await objects(sql)).toBe(0)
       await runMigrations(url)
@@ -81,6 +83,7 @@ describe('migration 0040 venue hourly price (integration)', { timeout: 60_000 },
     const { url, sql } = await scratchDb()
     try {
       await runMigrations(url)
+      await rollbackEventBalancePackages(url) // 22.2.1: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG) // БД на 0039, как production
       const id = await venue(sql, 'vh-compat')
       await runMigrations(url)
@@ -124,6 +127,7 @@ describe('migration 0040 venue hourly price (integration)', { timeout: 60_000 },
     const { url, sql } = await scratchDb()
     try {
       await runMigrations(url)
+      await rollbackEventBalancePackages(url) // 22.2.1: новая миграция откатывается первой
       const id = await venue(sql, 'vh-guard')
       // 0 — тоже указанная цена («бесплатно»), потерять её нельзя
       await sql`UPDATE venues SET hourly_price = 0 WHERE id = ${id}`
@@ -151,6 +155,7 @@ describe('migration 0040 venue hourly price (integration)', { timeout: 60_000 },
       await seedDemo(database)
       const [venues] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM venues`
       expect(await sql`SELECT 1 FROM venues WHERE hourly_price IS NOT NULL`).toHaveLength(0)
+      await rollbackEventBalancePackages(url) // 22.2.1: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await sql`SELECT 1 FROM venues`).toHaveLength(venues!.n)
       await runMigrations(url)

@@ -43,6 +43,46 @@ describe('balance packages (W-12, D-11)', () => {
     expect(views.map((v) => v.unitsCaption)).toEqual(['событий', 'событий', 'событий'])
   })
 
+  it('shows the catalog badge chosen in Root Admin with fixed captions (22.2.1, D-18)', () => {
+    const views = packageViews([
+      {
+        code: 'events_10',
+        units: 10,
+        amount: 5000,
+        currency: 'BYN',
+        badge: 'best_price',
+        popular: false,
+      },
+      {
+        code: 'events_30',
+        units: 30,
+        amount: 12000,
+        currency: 'BYN',
+        badge: 'discount',
+        popular: false,
+      },
+      {
+        code: 'events_30_2',
+        units: 31,
+        amount: 12400,
+        currency: 'BYN',
+        badge: 'popular',
+        popular: true,
+      },
+      {
+        code: 'events_100',
+        units: 100,
+        amount: 35000,
+        currency: 'BYN',
+        badge: null,
+        popular: false,
+      },
+    ])
+    expect(views.map((v) => v.badge)).toEqual(['Лучшая цена', 'Скидка', 'Популярный', '−30%'])
+    expect(views.map((v) => v.popular)).toEqual([false, false, true, false])
+    expect(views[2]!.code).toBe('events_30_2')
+  })
+
   it('never shows a discount badge for the base package or a package that is not cheaper', () => {
     const views = packageViews([
       { code: 'events_10', units: 10, amount: 5000, currency: 'BYN', popular: false },
