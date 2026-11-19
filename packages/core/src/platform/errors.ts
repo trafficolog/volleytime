@@ -11,6 +11,17 @@ export class PlatformOwnerError extends OrganizationError {
   }
 }
 
+/** Ручное начисление баланса событий root (22.2.2). */
+export class PlatformGrantError extends OrganizationError {
+  constructor(
+    code: 'platform.grant_org_deleted' | 'platform.grant_idempotency_conflict',
+    message: string,
+  ) {
+    super(code, message)
+    this.name = 'PlatformGrantError'
+  }
+}
+
 /** Блокировка и разблокировка пользователя платформы (22.1.4). */
 export class PlatformUserError extends OrganizationError {
   constructor(

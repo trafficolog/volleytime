@@ -95,6 +95,22 @@ const HISTORY = {
   nextCursor: null,
 }
 
+const GRANTS = {
+  entries: [
+    {
+      id: 21,
+      createdAt: '2026-11-19T09:02:00.000Z',
+      organization: { id: 3, name: 'СОК Витебск' },
+      delta: 10,
+      balanceAfter: 15,
+      category: 'promo',
+      comment: 'Промо за фидбек',
+      actor: { id: 1, name: 'Root', email: 'root@vt.test' },
+    },
+  ],
+  nextCursor: 20,
+}
+
 beforeEach(() => {
   route.query = {}
   catalog = CATALOG
@@ -102,6 +118,7 @@ beforeEach(() => {
   refresh.mockReset().mockResolvedValue(undefined)
   apiFetch.mockReset().mockImplementation(async (url: string, opts?: { method?: string }) => {
     if (url === `${API}/history`) return HISTORY
+    if (url === '/api/platform/event-balance/grants') return GRANTS
     if (opts?.method) return pkg({})
     throw new Error(`unexpected ${url}`)
   })
@@ -316,5 +333,27 @@ describe('root balance and tariffs (R-02, 22.2.1)', () => {
     expect(entry).toContain('Цена: 130 Br → 120 Br')
     expect(entry).toContain('Root')
     expect(byText(w, 'К пакетам')).toBeDefined()
+  })
+
+  it('shows manual grants (22.2.2) only for that view and pages them by cursor', async () => {
+    const w = await render()
+    expect(apiFetch).not.toHaveBeenCalled()
+    expect(w.text()).toContain('Выдать баланс')
+    await byText(w, 'Начисления')!.trigger('click')
+    await flushPromises()
+    expect(apiFetch).toHaveBeenCalledWith('/api/platform/event-balance/grants', {
+      query: { limit: 10 },
+    })
+    const entry = w.get('[data-grant-row]').text()
+    expect(entry).toContain('СОК Витебск')
+    expect(entry).toContain('+10')
+    expect(entry).toContain('Промо: Промо за фидбек')
+    expect(entry).toContain('Root')
+    await byText(w, 'Загрузить ещё')!.trigger('click')
+    await flushPromises()
+    expect(apiFetch).toHaveBeenLastCalledWith('/api/platform/event-balance/grants', {
+      query: { limit: 10, cursor: 20 },
+    })
+    expect(w.text()).not.toMatch(/credit/i)
   })
 })

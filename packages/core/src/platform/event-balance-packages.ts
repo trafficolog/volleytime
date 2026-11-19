@@ -86,7 +86,7 @@ type SalesRow = { pid: number | null; currency: string; sold: number; revenue: n
  */
 async function salesRows(db: Db): Promise<SalesRow[]> {
   const rows = await db.execute(sql`
-    SELECT a.pid, a.currency, count(*)::int AS sold, sum(a.amount)::float8 AS revenue
+    SELECT a.pid, a.currency, count(*)::int AS sold, sum(a.amount)::bigint AS revenue
     FROM (
       SELECT r.amount, r.currency, COALESCE(r.package_id, m.id) AS pid
       FROM event_balance_purchase_requests r

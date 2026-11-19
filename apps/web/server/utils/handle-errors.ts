@@ -42,6 +42,8 @@ const CODE_STATUS: Record<string, number> = {
   'platform.user_cannot_block_root': 422,
   'platform.user_already_blocked': 409,
   'platform.user_not_blocked': 409,
+  'platform.grant_org_deleted': 409,
+  'platform.grant_idempotency_conflict': 409,
   // логотип и короткая ссылка группы (21.2.16)
   'logo.not_found': 404,
   'logo.invalid': 422,

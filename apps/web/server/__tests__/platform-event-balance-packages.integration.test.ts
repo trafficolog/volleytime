@@ -234,6 +234,7 @@ describe('/api/platform/event-balance/packages (HTTP)', { timeout: 60_000 }, () 
       .map((r) => `${r.method} ${r.route}`)
       .sort()
     expect(routes).toEqual([
+      'get /api/platform/event-balance/grants',
       'get /api/platform/event-balance/packages',
       'get /api/platform/event-balance/packages/history',
       'patch /api/platform/event-balance/packages/:id',

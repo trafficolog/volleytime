@@ -2,10 +2,12 @@
 import type {
   PlatformEventBalancePackage,
   PlatformEventBalancePackages,
+  PlatformGrantsPage,
   PlatformPackageHistoryPage,
 } from '@volley-time/shared'
 
 import { apiErrorCode, apiErrorStatus } from '~/utils/api-error'
+import { grantRowView } from '~/utils/root-grants'
 import { rootOverviewFailure } from '~/utils/root-overview'
 import {
   EMPTY_PACKAGE_FORM,
@@ -32,7 +34,13 @@ const toast = useToast()
 const route = useRoute()
 const router = useRouter()
 
-const view = computed(() => (route.query.view === 'history' ? 'history' : 'packages'))
+const view = computed(() =>
+  route.query.view === 'history'
+    ? 'history'
+    : route.query.view === 'grants'
+      ? 'grants'
+      : 'packages',
+)
 const archived = ref(false)
 
 const { data, pending, error, refresh } = await useFetch<PlatformEventBalancePackages>(API, {
@@ -235,10 +243,45 @@ watch(
   { immediate: true },
 )
 
-function showView(next: 'packages' | 'history') {
-  void router.push({ query: next === 'history' ? { view: 'history' } : {} })
+function showView(next: 'packages' | 'history' | 'grants') {
+  void router.push({ query: next === 'packages' ? {} : { view: next } })
 }
 const historyRows = computed(() => history.value.map((e) => historyEntryView(e)))
+
+// Ручные начисления (22.2.2): последние записи журнала `grant`
+const GRANTS_API = '/api/platform/event-balance/grants'
+const grants = ref<PlatformGrantsPage['entries']>([])
+const grantsCursor = ref<number | null>(null)
+const grantsPending = ref(false)
+const grantsFailed = ref(false)
+
+async function loadGrants(more = false) {
+  grantsPending.value = true
+  grantsFailed.value = false
+  try {
+    const page = await $fetch<PlatformGrantsPage>(GRANTS_API, {
+      query: { limit: 10, ...(more && grantsCursor.value ? { cursor: grantsCursor.value } : {}) },
+    })
+    grants.value = more ? [...grants.value, ...page.entries] : page.entries
+    grantsCursor.value = page.nextCursor
+  } catch (e) {
+    if (!reactToStatus(apiErrorStatus(e))) grantsFailed.value = true
+  } finally {
+    grantsPending.value = false
+  }
+}
+const grantsLoaded = ref(false)
+watch(
+  view,
+  (v) => {
+    if (v === 'grants' && !grantsLoaded.value) {
+      grantsLoaded.value = true
+      void loadGrants()
+    }
+  },
+  { immediate: true },
+)
+const grantRows = computed(() => grants.value.map((g) => grantRowView(g)))
 </script>
 
 <template>
@@ -263,6 +306,14 @@ const historyRows = computed(() => history.value.map((e) => historyEntryView(e))
           <VtIcon name="clock" :size="13" /> История изменений
         </button>
         <button
+          v-if="view === 'packages'"
+          type="button"
+          class="vt-btn vt-btn--ghost vt-btn--sm"
+          @click="showView('grants')"
+        >
+          <VtIcon name="gift" :size="13" /> Начисления
+        </button>
+        <button
           v-else
           type="button"
           class="vt-btn vt-btn--ghost vt-btn--sm"
@@ -270,6 +321,13 @@ const historyRows = computed(() => history.value.map((e) => historyEntryView(e))
         >
           <VtIcon name="chevron-l" :size="13" /> К пакетам
         </button>
+        <NuxtLink
+          v-if="view === 'packages'"
+          to="/root/billing-grant"
+          class="vt-btn vt-btn--ink vt-btn--sm"
+        >
+          <VtIcon name="plus" :size="13" /> Выдать баланс
+        </NuxtLink>
         <button
           v-if="view === 'packages'"
           type="button"
@@ -571,6 +629,77 @@ const historyRows = computed(() => history.value.map((e) => historyEntryView(e))
         </template>
       </section>
     </template>
+
+    <section
+      v-else-if="view === 'grants'"
+      class="vt-card vt-root-billing__card vt-root-billing__grants"
+      aria-labelledby="grants-title"
+    >
+      <div class="vt-root-billing__card-head">
+        <div>
+          <h2 id="grants-title">Ручные начисления</h2>
+          <p class="vt-root-billing__hint">
+            Промо, компенсации и исправления. Причина обязательна и попадает в аудит.
+          </p>
+        </div>
+        <NuxtLink to="/root/billing-grant" class="vt-btn vt-btn--ink vt-btn--sm">
+          <VtIcon name="plus" :size="13" /> Выдать баланс
+        </NuxtLink>
+      </div>
+      <SkeletonList v-if="grantsPending && !grants.length" :count="3" />
+      <ErrorState
+        v-else-if="grantsFailed && !grants.length"
+        message="Не удалось загрузить начисления"
+        @retry="loadGrants()"
+      />
+      <EmptyState
+        v-else-if="!grantRows.length"
+        icon="clock"
+        title="Начислений пока нет"
+        description="Здесь появятся ручные начисления баланса организациям"
+      />
+      <div v-else class="vt-root-billing__table-wrap">
+        <table class="vt-root-billing__table">
+          <caption class="sr-only">
+            Ручные начисления баланса событий, новые записи сверху
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col" class="vt-cap">Дата</th>
+              <th scope="col" class="vt-cap">Организация</th>
+              <th scope="col" class="vt-cap">Кол-во</th>
+              <th scope="col" class="vt-cap">Причина</th>
+              <th scope="col" class="vt-cap">Кем</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in grantRows" :key="row.id" data-grant-row>
+              <td class="vt-mono vt-root-billing__muted">
+                <time :datetime="row.isoTime">{{ row.time }}</time>
+              </td>
+              <td>
+                <NuxtLink :to="`/root/organizations/${row.organizationId}`">
+                  {{ row.organization }}
+                </NuxtLink>
+              </td>
+              <td class="vt-mono vt-root-billing__income">{{ row.amount }}</td>
+              <td>{{ row.reason }}</td>
+              <td class="vt-mono vt-root-billing__muted">{{ row.actor }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <footer v-if="grantsCursor !== null" class="vt-root-billing__foot">
+        <button
+          type="button"
+          class="vt-btn vt-btn--ghost vt-btn--sm"
+          :disabled="grantsPending"
+          @click="loadGrants(true)"
+        >
+          {{ grantsPending ? 'Загрузка…' : 'Загрузить ещё' }}
+        </button>
+      </footer>
+    </section>
 
     <section v-else class="vt-card vt-root-billing__card" aria-labelledby="history-title">
       <div class="vt-root-billing__card-head">
