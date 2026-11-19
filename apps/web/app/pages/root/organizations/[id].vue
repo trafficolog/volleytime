@@ -60,12 +60,21 @@ useHead({ title: computed(() => `${view.value?.title ?? 'Организация'
           </h1>
           <p class="vt-mono text-vt-mute-2">{{ view.subtitle }}</p>
         </div>
-        <NuxtLink
-          :to="{ path: '/root/audit', query: { organization: String(data.id) } }"
-          class="vt-btn vt-btn--ghost vt-btn--sm"
-        >
-          Полный аудит
-        </NuxtLink>
+        <div class="vt-root-orgs__actions">
+          <NuxtLink
+            v-if="!data.deletedAt"
+            :to="{ path: '/root/billing-grant', query: { org: String(data.id) } }"
+            class="vt-btn vt-btn--ink vt-btn--sm"
+          >
+            <VtIcon name="gift" :size="13" /> Выдать баланс
+          </NuxtLink>
+          <NuxtLink
+            :to="{ path: '/root/audit', query: { organization: String(data.id) } }"
+            class="vt-btn vt-btn--ghost vt-btn--sm"
+          >
+            Полный аудит
+          </NuxtLink>
+        </div>
       </header>
 
       <ul class="vt-root-org__kpis" aria-label="Показатели организации">

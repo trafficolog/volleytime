@@ -69,6 +69,16 @@ export {
   type PlatformAuditPeriod,
 } from './platform/audit-types'
 export {
+  PLATFORM_GRANT_CATEGORIES,
+  PLATFORM_GRANT_COMMENT_MAX,
+  PLATFORM_GRANT_COMMENT_MIN,
+  PLATFORM_GRANT_MAX_UNITS,
+  type PlatformGrantCategory,
+  type PlatformGrantResult,
+  type PlatformGrantRow,
+  type PlatformGrantsPage,
+} from './platform/event-balance-grants-types'
+export {
   EVENT_BALANCE_PACKAGE_BADGE_VALUES,
   type EventBalancePackageBadgeValue,
   type PlatformEventBalancePackage,

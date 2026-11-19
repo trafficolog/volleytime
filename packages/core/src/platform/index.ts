@@ -7,4 +7,5 @@ export {
 } from './organizations'
 export { platformEventBalancePackagesService } from './event-balance-packages'
 export { platformUsersService, type PlatformUsersParams } from './users'
-export { PlatformOwnerError, PlatformUserError } from './errors'
+export { platformEventBalanceGrantsService, type PlatformGrantInput } from './event-balance-grants'
+export { PlatformGrantError, PlatformOwnerError, PlatformUserError } from './errors'
