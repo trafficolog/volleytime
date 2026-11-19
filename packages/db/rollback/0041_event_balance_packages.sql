@@ -25,7 +25,7 @@ BEGIN
     FROM (VALUES
       ('events_10', 10, 5000, 'BYN', NULL::text, true, 10),
       ('events_30', 30, 12000, 'BYN', 'popular', true, 20),
-      ('events_100', 100, 35000, 'BYN', NULL::text, true, 30)
+      ('events_100', 100, 35000, 'BYN', 'discount', true, 30)
     ) AS s("code", "units", "amount", "currency", "badge", "visible", "sort_order")
     LEFT JOIN "event_balance_packages" p ON p."code" = s."code"
     WHERE p."id" IS NULL

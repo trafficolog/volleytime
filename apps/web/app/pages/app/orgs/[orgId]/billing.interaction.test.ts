@@ -16,7 +16,14 @@ let role = 'owner'
 const PACKAGES = [
   { code: 'events_10', units: 10, amount: 5000, currency: 'BYN', popular: false },
   { code: 'events_30', units: 30, amount: 12000, currency: 'BYN', popular: true },
-  { code: 'events_100', units: 100, amount: 35000, currency: 'BYN', popular: false },
+  {
+    code: 'events_100',
+    units: 100,
+    amount: 35000,
+    currency: 'BYN',
+    popular: false,
+    badge: 'discount',
+  },
 ]
 
 function summary(over: Record<string, unknown> = {}) {
@@ -119,7 +126,9 @@ describe('desktop balance and billing (W-12)', () => {
     expect(pkg).toContain('120,00 BYN')
     expect(pkg).toContain('4,00 BYN / событие')
     expect(pkg).toContain('Популярный')
-    expect(w.get('[data-testid="package-events_100"]').text()).toContain('−30%')
+    const big = w.get('[data-testid="package-events_100"]').text()
+    expect(big).toContain('Скидка')
+    expect(big).not.toMatch(/−\d+%/)
     const rows = w.findAll('[data-testid="balance-entry"]')
     expect(rows).toHaveLength(2)
     expect(rows[0]!.text()).toContain('Событие «Основа · 28 мая»')
