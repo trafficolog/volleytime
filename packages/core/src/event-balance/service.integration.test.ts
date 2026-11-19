@@ -37,7 +37,14 @@ const SEEDED_STOREFRONT = [
     badge: 'popular',
     popular: true,
   },
-  { code: 'events_100', units: 100, amount: 35_000, currency: 'BYN', badge: null, popular: false },
+  {
+    code: 'events_100',
+    units: 100,
+    amount: 35_000,
+    currency: 'BYN',
+    badge: 'discount',
+    popular: false,
+  },
 ]
 const pkg30 = { code: 'events_30', units: 30, amount: 12_000, currency: 'BYN' }
 

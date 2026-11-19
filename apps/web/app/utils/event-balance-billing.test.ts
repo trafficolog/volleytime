@@ -35,11 +35,11 @@ function entry(over: Partial<BalanceEntry> = {}): BalanceEntry {
 }
 
 describe('balance packages (W-12, D-11)', () => {
-  it('shows price per event in minor-unit-exact arithmetic and the discount against the smallest package', () => {
+  it('shows price per event in minor-unit-exact arithmetic and never computes a discount label (D-19)', () => {
     const views = packageViews(PACKAGES)
     expect(views.map((v) => v.perUnit)).toEqual(['5,00 BYN', '4,00 BYN', '3,50 BYN'])
     expect(views.map((v) => v.price)).toEqual(['50,00 BYN', '120,00 BYN', '350,00 BYN'])
-    expect(views.map((v) => v.badge)).toEqual([null, 'Популярный', '−30%'])
+    expect(views.map((v) => v.badge)).toEqual([null, 'Популярный', null])
     expect(views.map((v) => v.unitsCaption)).toEqual(['событий', 'событий', 'событий'])
   })
 
@@ -78,25 +78,17 @@ describe('balance packages (W-12, D-11)', () => {
         popular: false,
       },
     ])
-    expect(views.map((v) => v.badge)).toEqual(['Лучшая цена', 'Скидка', 'Популярный', '−30%'])
+    expect(views.map((v) => v.badge)).toEqual(['Лучшая цена', 'Скидка', 'Популярный', null])
     expect(views.map((v) => v.popular)).toEqual([false, false, true, false])
     expect(views[2]!.code).toBe('events_30_2')
   })
 
-  it('never shows a discount badge for the base package or a package that is not cheaper', () => {
-    const views = packageViews([
-      { code: 'events_10', units: 10, amount: 5000, currency: 'BYN', popular: false },
-      { code: 'events_30', units: 30, amount: 15000, currency: 'BYN', popular: false },
-    ])
-    expect(views.map((v) => v.badge)).toEqual([null, null])
-  })
-
-  it('rounds the discount to a whole percent and handles an empty catalog', () => {
+  it('never derives a «−N%» label from prices, whatever the catalog prices are (D-19)', () => {
     const views = packageViews([
       { code: 'events_10', units: 10, amount: 5000, currency: 'BYN', popular: false },
       { code: 'events_100', units: 100, amount: 34900, currency: 'BYN', popular: false },
     ])
-    expect(views[1]!.badge).toBe('−30%')
+    expect(views.map((v) => v.badge)).toEqual([null, null])
     expect(packageViews([])).toEqual([])
   })
 })

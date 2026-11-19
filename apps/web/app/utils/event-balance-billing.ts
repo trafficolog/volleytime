@@ -46,20 +46,12 @@ export type BalanceEntry = {
 }
 
 export function packageViews(packages: BalancePackage[]) {
-  const base = packages.reduce<BalancePackage | null>(
-    (min, p) => (min === null || p.units < min.units ? p : min),
-    null,
-  )
   return packages.map((p) => {
     const perUnit = p.amount / p.units
+    // только бейдж каталога из Root Admin (D-19): процент скидки в кабинете не вычисляется
     let badge: string | null = null
-    // бейдж, выбранный в Root Admin, главнее; без него — прежние правила D-11
     if (p.badge) badge = CATALOG_BADGES[p.badge]
     else if (p.popular) badge = 'Популярный'
-    else if (base && p.code !== base.code) {
-      const percent = Math.round((1 - perUnit / (base.amount / base.units)) * 100)
-      if (percent > 0) badge = `−${percent}%`
-    }
     return {
       code: p.code,
       units: p.units,

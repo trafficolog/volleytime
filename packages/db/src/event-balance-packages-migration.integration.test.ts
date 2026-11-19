@@ -19,7 +19,7 @@ const MIGRATIONS = path.join(path.dirname(fileURLToPath(import.meta.url)), '../m
 const SEED = [
   { code: 'events_10', units: 10, amount: 5000, badge: null, sort_order: 10 },
   { code: 'events_30', units: 30, amount: 12000, badge: 'popular', sort_order: 20 },
-  { code: 'events_100', units: 100, amount: 35000, badge: null, sort_order: 30 },
+  { code: 'events_100', units: 100, amount: 35000, badge: 'discount', sort_order: 30 },
 ]
 
 type Who = { org: number; user: number }
@@ -289,12 +289,16 @@ describe('migration 0041 event balance packages (integration)', { timeout: 90_00
       ],
       [
         'a badge set on a package that had none (NULL to value)',
-        (sql) =>
-          sql`UPDATE event_balance_packages SET badge = 'discount' WHERE code = 'events_100'`,
+        (sql) => sql`UPDATE event_balance_packages SET badge = 'discount' WHERE code = 'events_10'`,
       ],
       [
         'a badge removed from a package that had one (value to NULL)',
         (sql) => sql`UPDATE event_balance_packages SET badge = NULL WHERE code = 'events_30'`,
+      ],
+      [
+        'the seeded badge changed to another value',
+        (sql) =>
+          sql`UPDATE event_balance_packages SET badge = 'best_price' WHERE code = 'events_100'`,
       ],
       [
         'a changed visibility',

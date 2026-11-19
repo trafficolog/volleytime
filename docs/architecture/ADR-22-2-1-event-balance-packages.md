@@ -30,7 +30,7 @@
 | `updated_at`  | `timestamptz NOT NULL DEFAULT now()` | обновляет приложение; только для отображения, не для блокировки          |
 
 - Частичный уникальный индекс `event_balance_packages_units_currency_active` на `(units, currency) WHERE archived_at IS NULL`: среди неархивных пакетов нет двух с одинаковым количеством событий в одной валюте (черновики тоже участвуют — иначе публикация черновика нарушила бы правило).
-- Сид в той же миграции, идемпотентно: `INSERT … VALUES ('events_10', 10, 5000, 'BYN', NULL, true, 10), ('events_30', 30, 12000, 'BYN', 'popular', true, 20), ('events_100', 100, 35000, 'BYN', NULL, true, 30) ON CONFLICT (code) DO NOTHING`.
+- Сид в той же миграции, идемпотентно: `INSERT … VALUES ('events_10', 10, 5000, 'BYN', NULL, true, 10), ('events_30', 30, 12000, 'BYN', 'popular', true, 20), ('events_100', 100, 35000, 'BYN', 'discount', true, 30) ON CONFLICT (code) DO NOTHING`.
 - `event_balance_purchase_requests.package_id integer NULL REFERENCES event_balance_packages(id) ON DELETE RESTRICT` и индекс по `package_id`. Разовый бэкфилл в той же миграции (решение владельца 2026-11-19, отменяет прежнее «без бэкфилла»): существующие заявки `status IN ('approved', 'pending')` получают `package_id` сидированного пакета, у которого `(units, amount, currency)` точно совпадают со снимком заявки; несовпавшие и `rejected`/`cancelled` остаются `NULL`. Источник истины заявки — по-прежнему снимок `units`, `amount`, `currency`; `package_id` служит только атрибуции продаж.
 - Жёсткого удаления пакета нет ни в API, ни в UI; `RESTRICT` страхует ручные операции.
 
@@ -118,3 +118,7 @@
 2. Бейдж `discount` — фиксированная подпись «Скидка» вместо вычисляемого «−N%» макета. Подтверждено.
 3. Отмена «без бэкфилла»: миграция `0041` выполняет разовый бэкфилл `package_id` для `approved` и `pending` заявок по точному совпадению `(units, amount, currency)` с сидом; несовпавшие остаются `NULL`, атрибуция по снимку — только для них.
 4. Откат приложения на v0.3.x с возвратом цен константы и скрытием пакетов, созданных в Root Admin, принят.
+
+## Решения владельца (2026-11-20, в чате)
+
+1. [D-19](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-19): кабинет не вычисляет «−N%» (вариант (a)); показывается только бейдж каталога из Root Admin. Сид `events_100` получает бейдж `discount` («Скидка»). Поскольку `0041` не выкачена в production, меняется сид самой `0041` и сверка в её rollback guard (`events_100` → `'discount'`), без миграции `0042`; схема и снимок drizzle не меняются.
