@@ -68,6 +68,19 @@ export {
   type PlatformAuditPage,
   type PlatformAuditPeriod,
 } from './platform/audit-types'
+export {
+  PLATFORM_ORG_SORTS,
+  PLATFORM_ORG_STATUS_FILTERS,
+  type PlatformOrgOwner,
+  type PlatformOrgSort,
+  type PlatformOrgStatusFilter,
+  type PlatformOrganizationCreateResult,
+  type PlatformOrganizationDetail,
+  type PlatformOrganizationModules,
+  type PlatformOrganizationRow,
+  type PlatformOrganizationsCounts,
+  type PlatformOrganizationsPage,
+} from './platform/organizations-types'
 export type {
   PlatformGateKey,
   PlatformGateMetric,

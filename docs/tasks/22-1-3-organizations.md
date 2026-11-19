@@ -2,11 +2,11 @@
 id: '22.1.3'
 phase: '22'
 epic: '22.1'
-status: todo
+status: in_progress
 release: 'v0.4.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-11-19
+status_note: 'Реализация в PR (ветка trafficolog/feat/22.1.3-organizations), ждёт независимого ревью и CI. Сделано: GET /api/platform/organizations (список), GET /api/platform/organizations/{id} (карточка), POST /api/platform/organizations (ручное создание); все за requireRootAdmin (401/403 forbidden.root_only, no-store), сервис platformOrganizationsService повторно проверяет root по базе. Страницы /root/organizations, /root/organizations/new, /root/organizations/{id}, пункт «Организации» в сайдбаре. Список: фишки Все / Активные / В риске / Заблокированы со счётчиками, панель «Фильтры» по кнопке (баланс заканчивается, неактивны больше 7 дней, сортировка по событиям), поиск по названию, коду, городу и владельцу, страницы по 50; все фильтры в URL (?status=&lowBalance=1&inactive=1&sort=events&q=&page=). Карточка: профиль, модули группы (subscriptions, public_page, seo_index), показатели (баланс событий, игроки, события за 30 дней, активность), журнал группы за 7 дней без секретов, последние операции баланса. Создание: владелец ищется по email или @telegram-имени среди существующих пользователей, группа, членство owner, демо-квота баланса и записи журнала `organization.created` и `member.added` с автором root пишутся в одной транзакции (вызов organizationService.createForOwner). Без миграций и lockfile. Не вошло (нет данных в модели или чужие карточки): колонка и фильтры «План» (beta/demo) и стартовые credits формы (в схеме нет плана организации; демо-квота начисляется по умолчанию), блокировка организации, «Войти как owner», выдача баланса (22.2.2), feature flags, вкладки Члены / События / Финансы / Аудит карточки, CSV и глобальный поиск шапки, приглашение несуществующего владельца. Визуальная сверка с 4b-root-admin/02–04 выполнена вручную (1440x900 и 375x812, локальная БД с демо-сидом), см. PR.'
 ref_id: 'R-01'
 complexity: M
 impl_model: claude-sonnet-5-5
@@ -43,7 +43,7 @@ tags: [reference-v3]
 2. Фильтры по кнопке
 3. Ручное создание
 4. Карточка
-5. Сверить экраны с референсом через харнесс [19.0.2](19-0-2-visual-reference-harness.md) и приложить отчёт к PR.
+5. Сверить экраны с референсом и приложить отчёт к PR. По решению владельца [D-16](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-16) (2026-11-19) пункт выполняется ручной проверкой (десктоп 1440x900 и мобильный 375x812, отчёт в теле PR), а не харнессом [19.0.2](19-0-2-visual-reference-harness.md): в нём нет роли root.
 
 ## Критерии приёмки
 

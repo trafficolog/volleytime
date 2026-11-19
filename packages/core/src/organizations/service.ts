@@ -39,6 +39,21 @@ export const organizationService = {
    * Slug: из input (проверка занятости) или авто из name (уникальный).
    */
   async create(ctx: ServiceContext, input: CreateInput): Promise<Organization> {
+    return this.createForOwner(ctx, ctx.userId, input)
+  },
+
+  /**
+   * Создать организацию для `ownerUserId` (`create` передаёт вызывающего). Root Admin создаёт
+   * группу для другого пользователя (22.1.3): автор в журнале — root, а в значение записи
+   * `organization.created` добавлены `ownerUserId` и `createdByRoot`. Если `ctx.db` — транзакция,
+   * работа идёт в ней (вложенный вызов — savepoint), поэтому журнал атомарен с группой.
+   */
+  async createForOwner(
+    ctx: ServiceContext,
+    ownerUserId: number,
+    input: CreateInput,
+    options: { createdByRoot?: boolean } = {},
+  ): Promise<Organization> {
     const data = CreateOrganizationInput.parse(input)
     const db = getDb(ctx)
 
@@ -66,7 +81,7 @@ export const organizationService = {
           name: data.name,
           description: data.description ?? null,
           city: data.city ?? null,
-          ownerUserId: ctx.userId,
+          ownerUserId,
           defaultMemberStatus: data.defaultMemberStatus ?? 'active',
         })
         .returning()
@@ -77,7 +92,7 @@ export const organizationService = {
         .insert(organizationMembers)
         .values({
           organizationId: org.id,
-          userId: ctx.userId,
+          userId: ownerUserId,
           role: 'owner',
           status: 'active',
           joinedAt: new Date(),
@@ -90,7 +105,9 @@ export const organizationService = {
         action: AUDIT_ACTIONS.ORG_CREATED,
         entityType: 'organization',
         entityId: org.id,
-        newValue: { name: org.name, slug: org.slug },
+        newValue: options.createdByRoot
+          ? { name: org.name, slug: org.slug, ownerUserId, createdByRoot: true }
+          : { name: org.name, slug: org.slug },
       })
       await auditService.record(txCtx, {
         organizationId: org.id,

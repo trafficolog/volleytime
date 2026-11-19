@@ -17,7 +17,14 @@ useHead({ title: 'Аудит платформы — Root Admin' })
 
 const SEARCH_DELAY_MS = 300
 
-const filters = reactive<AuditFilters>({ period: '7d', organizationId: '', category: '', q: '' })
+// Ссылка из карточки организации (22.1.3) открывает журнал уже отфильтрованным: ?organization=<id>
+const initialOrganization = String(useRoute().query.organization ?? '')
+const filters = reactive<AuditFilters>({
+  period: '7d',
+  organizationId: /^[1-9]\d{0,9}$/.test(initialOrganization) ? initialOrganization : '',
+  category: '',
+  q: '',
+})
 const entries = ref<PlatformAuditEntry[]>([])
 const organizations = ref<PlatformAuditPage['organizations']>([])
 const total = ref(0)
