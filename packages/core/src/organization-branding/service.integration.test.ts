@@ -1,4 +1,13 @@
-import { auditLog, closeDb, db, eq, organizationLogos, organizations, users } from '@volley-time/db'
+import {
+  asc,
+  auditLog,
+  closeDb,
+  db,
+  eq,
+  organizationLogos,
+  organizations,
+  users,
+} from '@volley-time/db'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { AUDIT_ACTIONS } from '../audit/actions'
@@ -26,7 +35,8 @@ const ctx = () => ({ userId: ownerId })
 
 const orgRow = async (id = orgId) =>
   (await db.select().from(organizations).where(eq(organizations.id, id)))[0]!
-const audit = (action: string) => db.select().from(auditLog).where(eq(auditLog.action, action))
+const audit = (action: string) =>
+  db.select().from(auditLog).where(eq(auditLog.action, action)).orderBy(asc(auditLog.id))
 
 describe('organizationBrandingService (integration)', () => {
   beforeEach(async () => {
