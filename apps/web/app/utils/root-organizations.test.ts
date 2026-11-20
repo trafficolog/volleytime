@@ -36,6 +36,7 @@ const row = (over: Partial<PlatformOrganizationRow> = {}): PlatformOrganizationR
   owner: { id: 9, name: 'Иван П.', email: 'ivan@vt.by', telegramUsername: 'ivan_p' },
   balance: 32,
   lowBalance: false,
+  unlimited: null,
   members: 14,
   eventsMonth: 12,
   lastActivityAt: ago(5 * MIN),
@@ -204,6 +205,7 @@ describe('organization card view', () => {
     createdAt: '2026-03-18T21:30:00.000Z',
     owner: { id: 9, name: 'Иван П.', email: 'ivan@vt.by', telegramUsername: 'ivan_p' },
     modules: { subscriptions: true, publicPage: false, seoIndex: false },
+    unlimited: null,
     stats: {
       balance: 7,
       lowBalance: true,

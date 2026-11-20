@@ -114,7 +114,7 @@ export interface SeriesPreviewDate {
   startsAt: string
   endsAt: string
   status: 'published' | 'draft'
-  draftReason: 'balance' | 'venue_conflict' | null
+  draftReason: 'balance' | 'venue_conflict' | 'daily_limit' | null
 }
 
 /** Ответ POST …/series/preview (20.2.2). */
@@ -127,6 +127,10 @@ export interface SeriesPreviewView {
   drafts: number
   venueConflicts: number
   balanceEnforced: boolean
+  /** Безлимит событий группы (22.3.1): баланс не списывается; старый ответ без поля — нет. */
+  unlimited?: boolean
+  /** Дат-черновиков из-за дневного лимита платформы (22.3.1). */
+  dailyLimitDrafts?: number
   balanceBefore: number
   balanceAfter: number
 }
@@ -143,6 +147,22 @@ export interface BalanceNote {
 
 /** Последствия для баланса событий до публикации: что спишется, что станет черновиком (D-04). */
 export function seriesBalanceNote(preview: SeriesPreviewView): BalanceNote {
+  const note = balanceNoteBase(preview)
+  const limited = preview.dailyLimitDrafts ?? 0
+  if (limited <= 0) return note
+  return {
+    tone: 'warning',
+    text: `${note.text} Из-за дневного лимита платформы черновиками останутся: ${limited}.`,
+  }
+}
+
+function balanceNoteBase(preview: SeriesPreviewView): BalanceNote {
+  if (preview.unlimited) {
+    return {
+      tone: 'neutral',
+      text: 'Безлимит событий: баланс не списывается, все свободные даты будут опубликованы.',
+    }
+  }
   if (!preview.balanceEnforced) {
     return {
       tone: 'neutral',

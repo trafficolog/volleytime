@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { PlatformSettingsResponse } from '@volley-time/shared'
+
 import { rootNavItems } from '~/utils/root-overview'
 
 const route = useRoute()
@@ -11,7 +13,22 @@ function isCurrent(to: string) {
   return to === '/root' ? route.path === to : route.path.startsWith(to)
 }
 
-useHead({ title: 'Root Admin — Volley Time', meta: [{ name: 'robots', content: 'noindex' }] })
+// название платформы (22.3.1, `general.platformName`): шапка и `<title>` страниц /root; без ответа — "Volley Time"
+const { data: platform } = useFetch<PlatformSettingsResponse>('/api/platform/settings', {
+  key: 'root-platform-settings',
+  lazy: true,
+  server: false,
+})
+const platformName = computed(() => {
+  const value = platform.value?.settings?.['general.platformName']?.value
+  return typeof value === 'string' && value ? value : 'Volley Time'
+})
+
+useHead({
+  title: 'Root Admin',
+  titleTemplate: (title) => `${title ?? 'Root Admin'} · ${platformName.value}`,
+  meta: [{ name: 'robots', content: 'noindex' }],
+})
 </script>
 
 <template>
@@ -22,7 +39,7 @@ useHead({ title: 'Root Admin — Volley Time', meta: [{ name: 'robots', content:
       <NuxtLink to="/root" class="vt-root__brand">
         <img src="/logo/vt-mark-color.svg" alt="" width="32" height="32" />
         <span>
-          <strong>Volley Time</strong>
+          <strong data-testid="root-platform-name">{{ platformName }}</strong>
           <small class="vt-mono">PLATFORM ROOT</small>
         </span>
       </NuxtLink>

@@ -69,3 +69,17 @@ export class EventCapacityBelowTakenError extends EventError {
     super('event.capacity_below_taken', `Capacity cannot be lower than taken spots (${taken})`)
   }
 }
+/**
+ * Дневной лимит опубликованных событий группы исчерпан (409, 22.3.1, D-20): `date` — календарный
+ * день группы, `limit` — значение настройки `events.maxPublishedPerDay`.
+ */
+export class EventDailyLimitReachedError extends EventError {
+  details: { date: string; limit: number }
+  constructor(date: string, limit: number) {
+    super(
+      'event.daily_limit_reached',
+      `В этот день уже ${limit} опубликованных событий — лимит платформы`,
+    )
+    this.details = { date, limit }
+  }
+}

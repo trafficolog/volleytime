@@ -5,7 +5,6 @@ import {
   bookings,
   desc,
   eq,
-  EVENT_BALANCE_DEMO_QUOTA,
   EventBalanceInsufficientError,
   eventBalanceEntries,
   eventBalancePackages,
@@ -16,6 +15,7 @@ import {
   lockEventBalance,
   ne,
   organizationEventBalances,
+  organizations,
   sql,
   users,
   type Event,
@@ -25,9 +25,12 @@ import {
   type EventBalancePurchaseRequest,
 } from '@volley-time/db'
 
+import { unlimitedLastDay, type EventBalanceUnlimited } from '@volley-time/shared'
+
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
 import { writeOrganizerFeed } from '../notifier/organizer-feed'
+import { getPlatformSettings } from '../platform/settings'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
 
 import { EVENT_BALANCE_LOW_THRESHOLD, isEventBalanceEnforced } from './config'
@@ -54,6 +57,10 @@ export interface EventBalanceStorefrontPackage {
 
 export interface EventBalanceView {
   balance: number
+  /** Безлимит событий группы (22.3.1): последний день по Минску; `null` — безлимита нет или он истёк. */
+  unlimited: EventBalanceUnlimited | null
+  /** Контакт поддержки платформы (22.3.1, `general.supportContact`): «Вопросы по оплате — …»; `null` — не показывать. */
+  supportContact: string | null
   lowThreshold: number
   /** «Баланс заканчивается»: остаток не больше порога. */
   low: boolean
@@ -94,6 +101,22 @@ export interface EventBalanceHistoryRow {
   createdAt: string
 }
 
+/**
+ * Безлимит группы активен (22.3.1): исключающая граница в будущем. Время — часы приложения (как у
+ * остальных проверок срока), поэтому тесты фиксируют его фейковыми таймерами.
+ */
+export async function readActiveUnlimitedUntil(
+  ctx: ServiceContext,
+  orgId: number,
+  now: Date = new Date(),
+): Promise<Date | null> {
+  const [row] = await getDb(ctx)
+    .select({ until: organizations.eventBalanceUnlimitedUntil })
+    .from(organizations)
+    .where(eq(organizations.id, orgId))
+  return row?.until && row.until > now ? row.until : null
+}
+
 /** Провести операцию; нехватка баланса — доменная ошибка 409 (баланс никогда не уходит в минус). */
 async function append(ctx: ServiceContext, input: EventBalanceEntryInput) {
   try {
@@ -117,6 +140,7 @@ export const eventBalanceService = {
       .from(organizationEventBalances)
       .where(eq(organizationEventBalances.organizationId, orgId))
     const balance = row?.balance ?? 0
+    const unlimitedUntil = await readActiveUnlimitedUntil(ctx, orgId)
     const catalog = await db
       .select({
         code: eventBalancePackages.code,
@@ -180,6 +204,8 @@ export const eventBalanceService = {
     }))
     return {
       balance,
+      unlimited: unlimitedUntil ? { until: unlimitedLastDay(unlimitedUntil) } : null,
+      supportContact: (await getPlatformSettings(ctx))['general.supportContact'],
       lowThreshold: EVENT_BALANCE_LOW_THRESHOLD,
       low: balance <= EVENT_BALANCE_LOW_THRESHOLD,
       packages: catalog.map((p) => ({ ...p, popular: p.badge === 'popular' })),
@@ -305,14 +331,19 @@ export const eventBalanceService = {
     })
   },
 
-  /** Demo-квота новой группы — в транзакции создания организации. */
+  /**
+   * Стартовый баланс новой группы — в транзакции создания организации. Размер — настройка
+   * `eventBalance.newOrganizationGrant` (22.3.1, по умолчанию 5; из кэша, устаревание до 30 с);
+   * причина в журнале остаётся `demo_grant`.
+   */
   async grantDemoQuota(ctx: ServiceContext, orgId: number): Promise<EventBalanceEntry> {
+    const grant = (await getPlatformSettings(ctx))['eventBalance.newOrganizationGrant']
     return append(ctx, {
       organizationId: orgId,
-      delta: EVENT_BALANCE_DEMO_QUOTA,
+      delta: grant,
       reason: 'demo_grant',
       actor: { kind: 'system', source: 'org-create' },
-      comment: `Demo-квота новой группы: ${EVENT_BALANCE_DEMO_QUOTA} событий`,
+      comment: `Стартовый баланс новой группы: ${grant} событий`,
     })
   },
 
@@ -329,6 +360,9 @@ export const eventBalanceService = {
     const db = getDb(ctx)
     // предусловия — под блокировкой строки проекции (ADR, шаг 3)
     await lockEventBalance(db, event.organizationId)
+    // безлимит группы (22.3.1): проверка в момент публикации, списания и записи в журнале нет;
+    // отмена такого события баланс не возвращает (нет `spend`). Истёкший безлимит — обычное списание
+    if (await readActiveUnlimitedUntil(ctx, event.organizationId)) return null
     if (await hasEventBalanceEntryForEvent(db, event.id, 'spend')) return null
     const entry = await append(ctx, {
       organizationId: event.organizationId,

@@ -9,6 +9,8 @@ import {
   entryView,
   lowBalanceWarning,
   packageViews,
+  supportLine,
+  unlimitedBanner,
   type BalanceEntry,
   type BalanceSummary,
 } from '~/utils/event-balance-billing'
@@ -45,6 +47,8 @@ let alive = true
 
 const views = computed(() => packageViews(summary.value?.packages ?? []))
 const warning = computed(() => lowBalanceWarning(summary.value))
+const unlimited = computed(() => unlimitedBanner(summary.value))
+const support = computed(() => supportLine(summary.value?.supportContact))
 const rows = computed(() => entries.value.map(entryView))
 const pending = computed(() => summary.value?.pendingRequests ?? [])
 const decisions = computed(() => summary.value?.recentDecisions ?? [])
@@ -184,6 +188,23 @@ onBeforeUnmount(() => {
           </p>
         </section>
 
+        <section
+          v-if="unlimited"
+          class="vt-card vt-desktop-billing__unlimited"
+          data-testid="billing-unlimited"
+          role="status"
+        >
+          <h2>{{ unlimited.title }}</h2>
+          <p class="text-vt-mute-2 text-sm">{{ unlimited.kept }}</p>
+          <p
+            v-if="unlimited.ending"
+            class="vt-desktop-billing__ending"
+            data-testid="billing-unlimited-ending"
+          >
+            {{ unlimited.ending }}
+          </p>
+        </section>
+
         <p v-if="warning" class="vt-card vt-desktop-billing__warning" role="status">
           {{ warning }}
         </p>
@@ -228,6 +249,10 @@ onBeforeUnmount(() => {
         <h2 id="billing-packages">Пакеты событий</h2>
         <p class="text-vt-mute-2 text-sm">
           Чем больше пакет, тем дешевле каждое событие. Без подписки, без обязательств.
+        </p>
+
+        <p v-if="support" class="text-vt-mute-2 text-sm" data-testid="billing-support">
+          {{ support }}
         </p>
 
         <p v-if="purchaseNotice" class="vt-desktop-billing__notice" role="status">

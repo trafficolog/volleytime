@@ -6,7 +6,12 @@ import { eventBalanceCard } from '~/utils/cabinet-shell'
 /** Плашка «Баланс событий» в сайдбаре кабинета (20.5.3, W-01). Данные — GET /event-balance (20.2.1). */
 const props = defineProps<{ orgId: number }>()
 
-type Balance = { balance: number; lowThreshold: number; low: boolean }
+type Balance = {
+  balance: number
+  lowThreshold: number
+  low: boolean
+  unlimited?: { until: string } | null
+}
 
 const { data, error } = useFetch<{ eventBalance: Balance }>(
   () => `/api/organizations/${props.orgId}/event-balance`,

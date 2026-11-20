@@ -2702,6 +2702,21 @@ ol.vt-desktop-event-detail__rows > li {
   color: var(--vt-amber-ink);
   font-weight: 600;
 }
+.vt-desktop-billing__unlimited {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.875rem 1rem;
+  background: var(--vt-grass-soft);
+}
+.vt-desktop-billing__unlimited h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+.vt-desktop-billing__ending {
+  margin: 0.25rem 0 0;
+  color: var(--vt-amber-ink);
+  font-weight: 600;
+}
 .vt-desktop-billing__pending {
   padding: 1rem;
 }

@@ -1,10 +1,12 @@
 import { GrammyError } from 'grammy'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { getBotSettings } from '../platform-settings'
 import { callbackUpdate, makeTestBot, type ApiCall } from '../test-bot'
 import { callWeb } from '../web-client'
 
 import {
+  callbackRateLimited,
   CALLBACK_RE,
   CANCEL_DENIED,
   CANCEL_DONE,
@@ -18,7 +20,11 @@ import {
 } from './callbacks'
 
 vi.mock('../web-client', () => ({ callWeb: vi.fn(), markUserReachable: vi.fn() }))
+vi.mock('../platform-settings', () => ({ getBotSettings: vi.fn() }))
 const web = vi.mocked(callWeb)
+const settings = vi.mocked(getBotSettings)
+const DEFAULT_SETTINGS = { 'bot.callbackLimit': 8, 'bot.callbackWindowSeconds': 10 }
+settings.mockReturnValue(DEFAULT_SETTINGS)
 
 function setup(opts?: Parameters<typeof makeTestBot>[0]) {
   const t = makeTestBot(opts)
@@ -167,6 +173,54 @@ describe('inline callbacks (20.3.3)', () => {
     const { bot } = setup()
     for (let i = 0; i < 12; i++) await bot.handleUpdate(callbackUpdate('cy:5'))
     expect(web.mock.calls.length).toBe(8)
+  })
+})
+
+describe('callback rate limit settings (22.3.1)', () => {
+  beforeEach(() => {
+    web.mockReset()
+    settings.mockReset()
+    settings.mockReturnValue(DEFAULT_SETTINGS)
+    resetCallbackLimiter()
+  })
+
+  it('defaults keep 8 clicks per 10 seconds', () => {
+    const t = 1_000_000
+    for (let i = 0; i < 8; i++) expect(callbackRateLimited(1, t + i)).toBe(false)
+    expect(callbackRateLimited(1, t + 9)).toBe(true)
+    expect(callbackRateLimited(1, t + 10_001)).toBe(false) // первое нажатие вышло из окна
+  })
+
+  it('uses the configured limit and window, read on every click', () => {
+    settings.mockReturnValue({ 'bot.callbackLimit': 2, 'bot.callbackWindowSeconds': 60 })
+    const t = 2_000_000
+    expect(callbackRateLimited(7, t)).toBe(false)
+    expect(callbackRateLimited(7, t + 1)).toBe(false)
+    expect(callbackRateLimited(7, t + 2)).toBe(true)
+    // окно 60 с, а не 10: через 30 с нажатие всё ещё в окне
+    expect(callbackRateLimited(7, t + 30_000)).toBe(true)
+    expect(callbackRateLimited(7, t + 60_002)).toBe(false)
+    // ограничения изменились на лету
+    settings.mockReturnValue({ 'bot.callbackLimit': 100, 'bot.callbackWindowSeconds': 1 })
+    for (let i = 0; i < 50; i++) expect(callbackRateLimited(8, t + i)).toBe(false)
+  })
+
+  it('stale marks are cleaned by the configured window, not by a fixed 10 seconds', () => {
+    settings.mockReturnValue({ 'bot.callbackLimit': 1, 'bot.callbackWindowSeconds': 120 })
+    const t = 3_000_000
+    // 5001 пользователей: превышение порога очистки карты (5000)
+    for (let u = 1; u <= 5001; u++) callbackRateLimited(u, t)
+    // 30 с спустя новый пользователь запускает очистку: метки старше 10 с, но моложе окна 120 с,
+    // удалять их нельзя
+    callbackRateLimited(9999, t + 30_000)
+    expect(callbackRateLimited(1, t + 30_001)).toBe(true)
+  })
+
+  it('does not call web for settings itself: the snapshot comes from platform-settings', async () => {
+    web.mockResolvedValue({ result: 'cancelled' })
+    const { bot } = setup()
+    await bot.handleUpdate(callbackUpdate('cy:5'))
+    expect(web.mock.calls.map((c) => c[0])).toEqual(['cancel-booking'])
   })
 })
 

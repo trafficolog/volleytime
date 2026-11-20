@@ -48,6 +48,7 @@ describe('internal bot API (integration)', () => {
       ['POST', 'cancel-booking', { telegramId: playerTg, eventId: 1 }],
       ['POST', 'accept-offer', { telegramId: playerTg, eventId: 1 }],
       ['GET', `subscriptions?telegramId=${playerTg}`, undefined],
+      ['GET', 'settings', undefined], // 22.3.1
       ['POST', 'event-roster', { telegramId: playerTg, eventId: 1 }],
     ] as const) {
       expect((await request(m, `/api/internal/bot/${p}`, { body })).status, p).toBe(401)

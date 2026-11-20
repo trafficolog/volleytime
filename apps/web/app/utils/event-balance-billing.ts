@@ -1,3 +1,5 @@
+import { addIsoDays, minskToday, UNLIMITED_WARNING_DAYS } from '@volley-time/shared'
+
 import { pluralEvents } from './cabinet-shell'
 import { formatMoneyRu } from './labels'
 
@@ -17,8 +19,15 @@ export type BalancePackage = {
 /** Подписи бейджей каталога; «Скидка» — фиксированная (D-18), не процент. */
 const CATALOG_BADGES = { popular: 'Популярный', discount: 'Скидка', best_price: 'Лучшая цена' }
 
+/** Безлимит событий группы (22.3.1): `until` — последний день по Минску (`YYYY-MM-DD`). */
+export type BalanceUnlimited = { until: string }
+
 export type BalanceSummary = {
   balance: number
+  /** Безлимит событий (22.3.1); старый ответ без поля — нет. */
+  unlimited?: BalanceUnlimited | null
+  /** Контакт поддержки платформы (22.3.1); `null` или нет поля — строка не показывается. */
+  supportContact?: string | null
   lowThreshold: number
   low: boolean
   packages: BalancePackage[]
@@ -81,10 +90,41 @@ export function balanceSubtitle(balance: number | null): string {
   return `${balance} ${pluralEvents(balance)} на балансе`
 }
 
+/** «2026-12-31» → «31.12.2026». */
+export function formatIsoDateRu(date: string): string {
+  const [y, m, d] = date.split('-')
+  return `${d}.${m}.${y}`
+}
+
+/**
+ * Безлимит события (22.3.1): заголовок, остаток «сохранится после» и предупреждение за
+ * `UNLIMITED_WARNING_DAYS` дней до окончания (последний день включительно, по Минску).
+ */
+export function unlimitedBanner(
+  summary: { balance: number; unlimited?: BalanceUnlimited | null } | null,
+  now: Date = new Date(),
+): { title: string; kept: string; ending: string | null } | null {
+  const unlimited = summary?.unlimited
+  if (!summary || !unlimited) return null
+  const date = formatIsoDateRu(unlimited.until)
+  const lastWarningDay = addIsoDays(unlimited.until, -UNLIMITED_WARNING_DAYS)
+  return {
+    title: `Безлимит событий до ${date}`,
+    kept: `на балансе ${summary.balance} ${pluralEvents(summary.balance)} — сохранится после`,
+    ending: minskToday(now) >= lastWarningDay ? `Безлимит заканчивается ${date}` : null,
+  }
+}
+
+/** Строка про оплату с контактом поддержки (22.3.1); без контакта — `null`. */
+export function supportLine(contact: string | null | undefined): string | null {
+  return contact ? `Вопросы по оплате — ${contact}` : null
+}
+
 export function lowBalanceWarning(
-  summary: { balance: number; low: boolean } | null,
+  summary: { balance: number; low: boolean; unlimited?: BalanceUnlimited | null } | null,
 ): string | null {
-  if (!summary || !summary.low) return null
+  // при безлимите предупреждения «Мало событий» скрыты (22.3.1)
+  if (!summary || !summary.low || summary.unlimited) return null
   if (summary.balance <= 0) {
     return 'Баланс исчерпан. Пополните баланс, чтобы публиковать новые события.'
   }

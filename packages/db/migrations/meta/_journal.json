@@ -295,6 +295,13 @@
       "when": 1795105491791,
       "tag": "0041_event_balance_packages",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1795160536732,
+      "tag": "0042_platform_settings",
+      "breakpoints": true
     }
   ]
 }

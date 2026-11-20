@@ -14,6 +14,9 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/bot/node_modules ./apps/bot/node_modules
+# `@volley-time/shared` (настройки платформы, 22.3.1) тянет zod из packages/shared/node_modules;
+# tsup бандлит оба, в рантайм-образ они не попадают
+COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
 COPY . .
 # типы + сборка в JS: в рантайме нет tsx и исходников (Task 9.9.10)
 RUN pnpm -F @volley-time/bot exec tsc --noEmit

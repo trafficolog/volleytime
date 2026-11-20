@@ -7,8 +7,9 @@ export default defineConfig({
   format: ['esm'],
   target: 'node22',
   platform: 'node',
-  // воркспейс-пакеты бандлим, внешние зависимости оставляем в node_modules
-  noExternal: [/^@volley-time\//],
+  // воркспейс-пакеты бандлим, внешние зависимости оставляем в node_modules; zod тоже бандлится
+  // (22.3.1): его тянет `@volley-time/shared`, а в рантайм-образе нет `packages/shared/node_modules`
+  noExternal: [/^@volley-time\//, 'zod'],
   sourcemap: true,
   clean: true,
 })

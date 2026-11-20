@@ -2,11 +2,11 @@
 id: '22.3.1'
 phase: '22'
 epic: '22.3'
-status: todo
+status: in_progress
 release: 'v0.4.0'
 sync_state: synced
 last_reviewed: 2026-11-20
-status_note: 'ADR per owner decisions 2026-11-20, implementation next'
+status_note: 'Реализация по ADR-22-3-1 и D-20 в PR на ревью (`claude-opus-5-5`). Миграция 0042 (platform_settings, organizations.event_balance_unlimited_until) с guard отката и разделом runbook; реестр ключей в packages/shared; root API /api/platform/settings (GET, PATCH, history) и безлимит группы (PUT, POST cancel); внутренний GET /api/internal/bot/settings; дневной лимит под блокировкой дня группы; страница /root/settings, блок безлимита в карточке организации, кабинет (безлимит, контакт поддержки). Владелец разрешил правку lockfile 2026-11-20 только для 22.3.1: zod в packages/shared и @volley-time/shared (workspace:*) в apps/bot, иных изменений pnpm-lock.yaml нет. Визуальная сверка вручную (D-16) — в теле PR.'
 ref_id: 'R-05'
 complexity: L
 impl_model: claude-sonnet-5-5
