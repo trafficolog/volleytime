@@ -46,3 +46,6 @@ pnpm-lock.yaml
 *.webm
 *.woff
 *.woff2
+*.ttf
+*.otf
+*.ico
