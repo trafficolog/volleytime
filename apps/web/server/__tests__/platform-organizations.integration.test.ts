@@ -185,7 +185,7 @@ describe('/api/platform/organizations (HTTP)', { timeout: 60_000 }, () => {
     expect(await db.$count(organizations)).toBe(before)
   })
 
-  it('exposes only list, card, create and the balance grant (22.2.2) under /api/platform/organizations', async () => {
+  it('exposes only list, card, create, the balance grant (22.2.2) and unlimited events (22.3.1) under /api/platform/organizations', async () => {
     const routes = (await listApiRoutes())
       .filter((r) => r.route.startsWith('/api/platform/organizations'))
       .map((r) => `${r.method} ${r.route}`)
@@ -195,6 +195,8 @@ describe('/api/platform/organizations (HTTP)', { timeout: 60_000 }, () => {
       'get /api/platform/organizations/:id',
       'post /api/platform/organizations',
       'post /api/platform/organizations/:id/event-balance-grants',
+      'post /api/platform/organizations/:id/event-balance/unlimited/cancel',
+      'put /api/platform/organizations/:id/event-balance/unlimited',
     ])
   })
 })

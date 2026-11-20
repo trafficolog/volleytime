@@ -219,8 +219,16 @@ function reset() {
                       {{ row.name }}
                     </NuxtLink>
                     <span v-if="row.blocked" class="vt-chip vt-chip--rose">заблокирована</span>
-                    <span v-else-if="row.lowBalance" class="vt-chip vt-chip--amber"
+                    <span
+                      v-else-if="row.lowBalance && !row.unlimitedChip"
+                      class="vt-chip vt-chip--amber"
                       >низкий баланс</span
+                    >
+                    <span
+                      v-if="row.unlimitedChip"
+                      class="vt-chip vt-chip--solid"
+                      data-testid="org-unlimited-chip"
+                      >{{ row.unlimitedChip }}</span
                     >
                     <div class="vt-mono vt-root-orgs__code">{{ row.code }}</div>
                   </div>

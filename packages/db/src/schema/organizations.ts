@@ -66,6 +66,9 @@ export const organizations = pgTable(
     // восстановление в окне (до `restore_until`) возвращает группу в прежнее состояние
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     restoreUntil: timestamp('restore_until', { withTimezone: true }),
+    // безлимит событий до даты (22.3.1, ADR-22-3-1): ИСКЛЮЧАЮЩАЯ граница — начало дня после
+    // последнего дня безлимита по Минску; активен, пока `> now()`. NULL — безлимита нет
+    eventBalanceUnlimitedUntil: timestamp('event_balance_unlimited_until', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

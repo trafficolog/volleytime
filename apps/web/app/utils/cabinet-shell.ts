@@ -50,10 +50,15 @@ export function pluralEvents(n: number): string {
 
 /** Плашка «Баланс событий» в сайдбаре: единица — «событие» (D-10). */
 export function eventBalanceCard(
-  balance: { balance: number; low: boolean } | null,
+  balance: { balance: number; low: boolean; unlimited?: { until: string } | null } | null,
   failed = false,
 ) {
   if (!balance) return { value: '—', caption: failed ? 'нет данных' : 'баланс событий', low: false }
+  // безлимит (22.3.1): бейдж «Безлимит до …», предупреждение «Баланс заканчивается» скрыто
+  if (balance.unlimited) {
+    const [y, m, d] = balance.unlimited.until.split('-')
+    return { value: String(balance.balance), caption: `безлимит до ${d}.${m}.${y}`, low: false }
+  }
   return {
     value: String(balance.balance),
     caption: `${pluralEvents(balance.balance)} в балансе`,

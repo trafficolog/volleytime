@@ -18,6 +18,7 @@ import {
   setupGracefulShutdown,
   withRetries,
 } from './lifecycle'
+import { refreshBotSettings } from './platform-settings'
 import { initSentry } from './sentry'
 import { loggingMiddleware } from './middlewares/logging'
 import { registerWebhook, startWebhookServer } from './webhook-server'
@@ -45,6 +46,8 @@ async function main(): Promise<void> {
   // пока идут ретраи подключения (Task 9.9.10)
   const servers = [startInternalServer(bot, env.INTERNAL_PORT)]
   setupGracefulShutdown({ bot, servers })
+  // настройки платформы (22.3.1): первый снимок — в фоне, старт бота его не ждёт
+  void refreshBotSettings()
 
   // команды личного чата и команда привязки для администраторов групп; общий список (без области)
   // убираем, чтобы личные команды не показывались в группах (20.3.4)

@@ -2,6 +2,7 @@ import { GrammyError, InlineKeyboard, type Bot } from 'grammy'
 import type { InlineKeyboardButton, MessageEntity } from 'grammy/types'
 
 import type { BotContext } from '../context'
+import { getBotSettings } from '../platform-settings'
 import { callWeb } from '../web-client'
 
 import { UNAVAILABLE_TEXT } from './games'
@@ -34,18 +35,25 @@ const TOO_FAST = 'Слишком часто, подождите немного'
 type CancelResult = 'cancelled' | 'already_cancelled' | 'not_found' | 'not_allowed'
 type AcceptResult = 'accepted' | 'expired' | 'closed' | 'not_found'
 
-/** Ограничение частоты нажатий на пользователя: 8 за 10 с (защита web и Bot API от флуда). */
+/**
+ * Ограничение частоты нажатий на пользователя (защита web и Bot API от флуда): по умолчанию 8 нажатий
+ * за 10 с, значения — настройки платформы `bot.callbackLimit` и `bot.callbackWindowSeconds` (22.3.1).
+ * Снимок настроек читается синхронно, нажатие не ждёт сети; окно очистки меток — настроенное.
+ */
 const hits = new Map<number, number[]>()
 export function callbackRateLimited(userId: number, now = Date.now()): boolean {
-  const recent = (hits.get(userId) ?? []).filter((t) => t > now - 10_000)
-  if (recent.length >= 8) {
+  const settings = getBotSettings(now)
+  const limit = settings['bot.callbackLimit']
+  const windowMs = settings['bot.callbackWindowSeconds'] * 1000
+  const recent = (hits.get(userId) ?? []).filter((t) => t > now - windowMs)
+  if (recent.length >= limit) {
     hits.set(userId, recent)
     return true
   }
   recent.push(now)
   hits.set(userId, recent)
   if (hits.size > 5000)
-    for (const [k, v] of hits) if (v.every((t) => t <= now - 10_000)) hits.delete(k)
+    for (const [k, v] of hits) if (v.every((t) => t <= now - windowMs)) hits.delete(k)
   return false
 }
 export function resetCallbackLimiter(): void {

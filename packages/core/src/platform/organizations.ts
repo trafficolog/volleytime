@@ -18,15 +18,16 @@ import {
   sql,
   users,
 } from '@volley-time/db'
-import type {
-  PlatformOrgOwner,
-  PlatformOrganizationCreateResult,
-  PlatformOrganizationDetail,
-  PlatformOrganizationRow,
-  PlatformOrganizationsCounts,
-  PlatformOrganizationsPage,
-  PlatformOrgSort,
-  PlatformOrgStatusFilter,
+import {
+  unlimitedLastDay,
+  type PlatformOrgOwner,
+  type PlatformOrganizationCreateResult,
+  type PlatformOrganizationDetail,
+  type PlatformOrganizationRow,
+  type PlatformOrganizationsCounts,
+  type PlatformOrganizationsPage,
+  type PlatformOrgSort,
+  type PlatformOrgStatusFilter,
 } from '@volley-time/shared'
 import { z } from 'zod'
 
@@ -168,6 +169,10 @@ const ownerView = (u: {
     ? null
     : { id: u.id, name: u.name ?? '', email: u.email, telegramUsername: u.telegramUsername }
 
+/** Безлимит событий (22.3.1): последний день по Минску; истёкший или не заданный — `null`. */
+const unlimitedView = (until: Date | null, now: Date) =>
+  until && until > now ? { until: unlimitedLastDay(until) } : null
+
 const isLowBalance = (balance: number) => balance <= EVENT_BALANCE_LOW_THRESHOLD
 
 /** Момент, от которого считается активность: последнее событие или запись, иначе создание группы. */
@@ -202,6 +207,7 @@ export const platformOrganizationsService = {
         city: organizations.city,
         status: organizations.status,
         createdAt: organizations.createdAt,
+        unlimitedUntil: organizations.eventBalanceUnlimitedUntil,
         ownerId: users.id,
         ownerName: users.name,
         ownerEmail: users.email,
@@ -244,6 +250,7 @@ export const platformOrganizationsService = {
         }),
         balance,
         lowBalance,
+        unlimited: unlimitedView(r.unlimitedUntil, now),
         members: members.get(r.id) ?? 0,
         eventsMonth: act.eventsMonth,
         lastActivityAt: lastActivity.toISOString(),
@@ -378,6 +385,7 @@ export const platformOrganizationsService = {
         publicPage: o.publicPageEnabled,
         seoIndex: o.seoIndex,
       },
+      unlimited: unlimitedView(o.eventBalanceUnlimitedUntil, now),
       stats: {
         balance,
         lowBalance: isLowBalance(balance),

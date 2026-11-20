@@ -6,6 +6,18 @@ export {
   type PlatformOrganizationsParams,
 } from './organizations'
 export { platformEventBalancePackagesService } from './event-balance-packages'
+export {
+  PlatformUnlimitedError,
+  platformEventBalanceUnlimitedService,
+} from './event-balance-unlimited'
+export {
+  buildReadonlyStatus,
+  getPlatformSettings,
+  invalidatePlatformSettingsCache,
+  PlatformSettingsError,
+  platformSettingsService,
+  setPlatformSettingsReporter,
+} from './settings'
 export { platformUsersService, type PlatformUsersParams } from './users'
 export { platformEventBalanceGrantsService, type PlatformGrantInput } from './event-balance-grants'
 export {

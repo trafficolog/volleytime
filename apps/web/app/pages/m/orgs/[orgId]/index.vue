@@ -109,7 +109,11 @@ const home = computed(() => projectOrganizerHome(orgId.value, org.value, me.valu
 // Данные плиток, которых нет в дашборде: ожидающие платежи по событиям (чипы строк) и баланс событий.
 // Только управляющему; сбой одного запроса не ломает главную: плитка показывает «нет данных».
 const pendingByEvent = shallowRef<Map<number, number> | null>(null)
-const eventBalance = shallowRef<{ balance: number; low: boolean } | null>(null)
+const eventBalance = shallowRef<{
+  balance: number
+  low: boolean
+  unlimited?: { until: string } | null
+} | null>(null)
 const eventBalanceFailed = ref(false)
 const balanceTile = computed(() => eventBalanceCard(eventBalance.value, eventBalanceFailed.value))
 const roleMismatch = computed(() => !!dash.value && dash.value.isManager !== activeManager.value)
@@ -142,9 +146,9 @@ async function loadManagerExtras(requestedOrgId: number, isCurrent: () => boolea
     $fetch<{ payments?: { event?: { id: number } | null }[] }>(
       `/api/organizations/${requestedOrgId}/payments`,
     ),
-    $fetch<{ eventBalance?: { balance: number; low: boolean } }>(
-      `/api/organizations/${requestedOrgId}/event-balance`,
-    ),
+    $fetch<{
+      eventBalance?: { balance: number; low: boolean; unlimited?: { until: string } | null }
+    }>(`/api/organizations/${requestedOrgId}/event-balance`),
   ])
   if (!isCurrent()) return
   pendingByEvent.value =

@@ -27,6 +27,8 @@ import {
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
 import { isEventBalanceEnforced } from '../event-balance/config'
+import { readActiveUnlimitedUntil } from '../event-balance/service'
+import { countDailyEventsByDay, lockGroupDays, readDailyLimit } from '../events/daily-limit'
 import { EventNotFoundError, EventStartsInPastError } from '../events/errors'
 import { CreateEventInput, type UpdateEventInput } from '../events/schemas'
 import {
@@ -68,7 +70,7 @@ export interface SeriesOccurrence {
   endsAt: Date
 }
 
-export type SeriesDraftReason = 'balance' | 'venue_conflict'
+export type SeriesDraftReason = 'balance' | 'venue_conflict' | 'daily_limit'
 
 export interface PlannedSeriesDate extends SeriesOccurrence {
   status: 'published' | 'draft'
@@ -94,6 +96,10 @@ export interface SeriesPreview {
   venueConflicts: number
   /** Выключатель EVENT_BALANCE_ENFORCED: выключенный публикует без списания. */
   balanceEnforced: boolean
+  /** Безлимит событий группы активен (22.3.1): все даты публикуются без списания. */
+  unlimited: boolean
+  /** Дат-черновиков из-за дневного лимита платформы (22.3.1). */
+  dailyLimitDrafts: number
   balanceBefore: number
   balanceAfter: number
 }
@@ -137,13 +143,18 @@ const overlaps = (a: { startsAt: Date; endsAt: Date }, b: { startsAt: Date; ends
 /**
  * Распределить даты серии (D-04, ADR «Серии и черновики»). Дата, пересекающаяся с занятым залом
  * (`busy` — неотменённые события группы в этом зале) или с более ранней датой этой же серии, —
- * черновик независимо от баланса. Остальные по возрастанию: первые `balance` опубликованы, дальше —
+ * черновик независимо от баланса. Дата, день которой уже занят событиями до лимита платформы
+ * (`daily`, 22.3.1), — черновик `daily_limit` и баланс не расходует. Остальные по возрастанию: первые `balance` опубликованы, дальше —
  * черновики. Без списания (выключатель) публикуются все остальные.
  */
 export function planSeriesDates(
   occurrences: readonly SeriesOccurrence[],
   venue: { venueId: number | null; busy: readonly { startsAt: Date; endsAt: Date }[] },
   budget: { enforced: boolean; balance: number },
+  daily: { limit: number | null; counts: ReadonlyMap<string, number> } = {
+    limit: null,
+    counts: new Map(),
+  },
 ): PlannedSeriesDate[] {
   const taken = [...venue.busy]
   let left = budget.balance
@@ -153,6 +164,9 @@ export function planSeriesDates(
       return { ...o, status: 'draft' as const, draftReason: 'venue_conflict' as const }
     }
     if (venue.venueId !== null) taken.push(o)
+    if (daily.limit !== null && (daily.counts.get(o.date) ?? 0) >= daily.limit) {
+      return { ...o, status: 'draft' as const, draftReason: 'daily_limit' as const }
+    }
     if (!budget.enforced) return { ...o, status: 'published' as const, draftReason: null }
     if (left > 0) {
       left -= 1
@@ -164,8 +178,8 @@ export function planSeriesDates(
 
 type ParsedCreate = ReturnType<typeof PreviewSeriesInput.parse>
 
-/** Развернуть правило в даты и моменты начала в часовом поясе группы. */
-function expand(
+/** Развернуть правило в даты и моменты начала в часовом поясе группы (без проверки «в прошлом»). */
+function expandOccurrences(
   data: ParsedCreate,
   timezone: string,
 ): { occurrences: SeriesOccurrence[]; excluded: string[] } {
@@ -183,9 +197,17 @@ function expand(
     date,
     ...seriesOccurrence(date, data.template.startTime, data.template.durationMinutes, timezone),
   }))
-  // даты по возрастанию: достаточно проверить первую (5.13.11)
-  if (occurrences[0]!.startsAt <= new Date()) throw new EventStartsInPastError()
   return { occurrences, excluded: expanded.excluded }
+}
+
+/** То же с проверкой: даты по возрастанию, достаточно проверить первую (5.13.11). */
+function expand(
+  data: ParsedCreate,
+  timezone: string,
+): { occurrences: SeriesOccurrence[]; excluded: string[] } {
+  const expanded = expandOccurrences(data, timezone)
+  if (expanded.occurrences[0]!.startsAt <= new Date()) throw new EventStartsInPastError()
+  return expanded
 }
 
 /** Вход события на дату серии — через ту же схему, что и одиночное создание. */
@@ -214,6 +236,8 @@ async function plan(
   org: OrgEventDefaults,
   occurrences: SeriesOccurrence[],
   balance: number,
+  /** Лимит дня, прочитанный вызывающим; `undefined` — прочитать из настроек (предпросмотр). */
+  dailyLimit?: number | null,
 ) {
   const db = getDb(ctx)
   const venueId = data.template.venueId ?? null
@@ -237,15 +261,38 @@ async function plan(
             ),
           )
   const enforced = isEventBalanceEnforced(process.env.EVENT_BALANCE_ENFORCED)
-  const dates = planSeriesDates(occurrences, { venueId, busy }, { enforced, balance })
+  // безлимит группы (22.3.1): списания нет, даты публикуются; истечение между предпросмотром и
+  // созданием даёт черновики по D-04, потому что создание пересчитывает план в транзакции
+  const unlimited = (await readActiveUnlimitedUntil(ctx, orgId)) !== null
+  const charging = enforced && !unlimited
+  const limit = dailyLimit === undefined ? await readDailyLimit(ctx) : dailyLimit
+  const counts =
+    limit === null
+      ? new Map<string, number>()
+      : await countDailyEventsByDay(
+          ctx,
+          orgId,
+          occurrences[0]!.date,
+          occurrences.at(-1)!.date,
+          org.defaultTimezone,
+        )
+  const dates = planSeriesDates(
+    occurrences,
+    { venueId, busy },
+    { enforced: charging, balance },
+    { limit, counts },
+  )
   const published = dates.filter((d) => d.status === 'published').length
   return {
     dates,
     enforced,
+    unlimited,
+    dailyLimit: limit,
+    dailyLimitDrafts: dates.filter((d) => d.draftReason === 'daily_limit').length,
     published,
     drafts: dates.length - published,
     venueConflicts: dates.filter((d) => d.draftReason === 'venue_conflict').length,
-    balanceAfter: enforced ? balance - published : balance,
+    balanceAfter: charging ? balance - published : balance,
   }
 }
 
@@ -381,6 +428,8 @@ export const seriesService = {
       drafts: result.drafts,
       venueConflicts: result.venueConflicts,
       balanceEnforced: result.enforced,
+      unlimited: result.unlimited,
+      dailyLimitDrafts: result.dailyLimitDrafts,
       balanceBefore,
       balanceAfter: result.balanceAfter,
     }
@@ -403,6 +452,13 @@ export const seriesService = {
     return inTransaction(ctx, async (tx) => {
       const db = getDb(tx)
       const org = await readOrgEventDefaults(tx, orgId)
+      // дневной лимит (22.3.1): дни всех дат серии блокируются по возрастанию ДО блокировки баланса
+      // (порядок событие → день группы → баланс); значение читается один раз и передаётся вниз
+      const dailyLimit = await readDailyLimit(tx)
+      if (dailyLimit !== null) {
+        const days = expandOccurrences(data, org.defaultTimezone).occurrences.map((o) => o.date)
+        await lockGroupDays(tx, orgId, days)
+      }
       const balanceBefore = await lockEventBalance(db, orgId)
 
       const [existing] = await db
@@ -438,7 +494,7 @@ export const seriesService = {
       }
 
       const { occurrences } = expand(data, org.defaultTimezone)
-      const result = await plan(tx, orgId, data, org, occurrences, balanceBefore)
+      const result = await plan(tx, orgId, data, org, occurrences, balanceBefore, dailyLimit)
       const [series] = await db
         .insert(eventSeries)
         .values({
@@ -452,10 +508,14 @@ export const seriesService = {
         })
         .returning()
       for (const d of result.dates) {
-        await insertEvent(tx, orgId, eventInputFor(data.template, d), org, {
-          id: series!.id,
-          date: d.date,
-        })
+        await insertEvent(
+          tx,
+          orgId,
+          eventInputFor(data.template, d),
+          org,
+          { id: series!.id, date: d.date },
+          { dailyLimit },
+        )
       }
       const balanceAfter = await lockEventBalance(db, orgId)
       await auditService.record(tx, {
@@ -470,6 +530,8 @@ export const seriesService = {
           published: result.published,
           drafts: result.drafts,
           venueConflicts: result.venueConflicts,
+          dailyLimitDrafts: result.dailyLimitDrafts,
+          unlimited: result.unlimited,
           eventBalance: { before: balanceBefore, after: balanceAfter },
         },
       })

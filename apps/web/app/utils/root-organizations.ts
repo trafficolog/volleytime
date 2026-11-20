@@ -150,6 +150,8 @@ export interface OrgRowView {
   owner: string
   balance: number
   lowBalance: boolean
+  /** Фишка «Безлимит до …» (22.3.1); `null` — безлимита нет. */
+  unlimitedChip: string | null
   members: number
   eventsMonth: number
   /** Заполнение полосы «событий в месяц»: 5% на событие, как в макете. */
@@ -168,6 +170,9 @@ export function orgRowView(row: PlatformOrganizationRow, now: Date): OrgRowView 
     owner: ownerLabel(row.owner),
     balance: row.balance,
     lowBalance: row.lowBalance,
+    unlimitedChip: row.unlimited
+      ? `Безлимит до ${row.unlimited.until.split('-').reverse().join('.')}`
+      : null,
     members: row.members,
     eventsMonth: row.eventsMonth,
     eventsPercent: Math.min(100, row.eventsMonth * 5),

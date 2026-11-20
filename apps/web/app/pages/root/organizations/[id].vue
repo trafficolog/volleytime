@@ -108,6 +108,13 @@ useHead({ title: computed(() => `${view.value?.title ?? 'Организация'
             </dl>
           </section>
 
+          <RootOrgUnlimited
+            :org-id="data.id"
+            :unlimited="data.unlimited"
+            :disabled="!!data.deletedAt"
+            @changed="refresh()"
+          />
+
           <section class="vt-card vt-root-org__panel" aria-labelledby="org-audit">
             <h2 id="org-audit">События организации · 7 дней</h2>
             <p v-if="!view.audit.length" class="vt-root-org__empty">За 7 дней записей нет</p>

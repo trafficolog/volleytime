@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
+import { minskToday } from '@volley-time/shared'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed, defineComponent, h, onBeforeUnmount, reactive, ref, Suspense, watch } from 'vue'
 
@@ -179,6 +180,40 @@ describe('desktop balance and billing (W-12)', () => {
   it('never shows the word credits to the organizer', async () => {
     const w = await render()
     expect(w.text().toLowerCase()).not.toContain('credit')
+  })
+
+  it('shows unlimited with the kept balance, hides low-balance warnings, keeps buying (22.3.1)', async () => {
+    balanceBody = summary({
+      balance: 2,
+      low: true,
+      unlimited: { until: '2999-12-31' },
+      supportContact: '@volleytime_support',
+    })
+    const w = await render()
+    const block = w.get('[data-testid="billing-unlimited"]').text()
+    expect(block).toContain('Безлимит событий до 31.12.2999')
+    expect(block).toContain('на балансе 2 события — сохранится после')
+    expect(w.find('[data-testid="billing-unlimited-ending"]').exists()).toBe(false) // далеко от конца
+    expect(w.text()).not.toContain('Баланс заканчивается')
+    expect(w.text()).not.toContain('Баланс исчерпан')
+    expect(w.get('[data-testid="billing-support"]').text()).toBe(
+      'Вопросы по оплате — @volleytime_support',
+    )
+    expect(w.find('[data-testid="package-events_10"] button').exists()).toBe(true) // покупка доступна
+  })
+
+  it('warns that unlimited is ending within three days', async () => {
+    balanceBody = summary({ unlimited: { until: minskToday() } })
+    const w = await render()
+    expect(w.get('[data-testid="billing-unlimited-ending"]').text()).toMatch(
+      /^Безлимит заканчивается \d{2}\.\d{2}\.\d{4}$/,
+    )
+  })
+
+  it('shows neither the unlimited block nor the support line when they are absent', async () => {
+    const w = await render()
+    expect(w.find('[data-testid="billing-unlimited"]').exists()).toBe(false)
+    expect(w.find('[data-testid="billing-support"]').exists()).toBe(false)
   })
 
   it('warns when the balance is running out and stays quiet otherwise', async () => {

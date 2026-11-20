@@ -109,6 +109,12 @@ export const AUDIT_ACTIONS = {
   EVENT_BALANCE_PACKAGE_UPDATED: 'event_balance_package.updated',
   EVENT_BALANCE_PACKAGE_VISIBILITY_CHANGED: 'event_balance_package.visibility_changed',
   EVENT_BALANCE_PACKAGE_ARCHIVED: 'event_balance_package.archived',
+  // безлимит событий группы, Root Admin (22.3.1); organization_id — группа
+  EVENT_BALANCE_UNLIMITED_SET: 'event_balance.unlimited_set',
+  EVENT_BALANCE_UNLIMITED_CHANGED: 'event_balance.unlimited_changed',
+  EVENT_BALANCE_UNLIMITED_CANCELLED: 'event_balance.unlimited_cancelled',
+  // настройки платформы, Root Admin (22.3.1); запись платформенная, organization_id = NULL
+  PLATFORM_SETTING_UPDATED: 'platform_setting.updated',
   // сборы (21.2.4): жизненный цикл сбора и решения по взносам (платежам сбора)
   COLLECTION_CREATED: 'collection.created',
   COLLECTION_UPDATED: 'collection.updated',
@@ -136,6 +142,7 @@ export type AuditEntityType =
   | 'event_balance_purchase_request'
   | 'event_balance_entry'
   | 'event_balance_package'
+  | 'platform_setting'
   | 'event_invite_request'
   | 'event_series'
   | 'waitlist_offer'

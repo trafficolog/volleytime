@@ -15,6 +15,18 @@ export async function truncateAll(): Promise<void> {
 }
 
 /**
+ * Удаляет все строки настроек платформы и их записи аудита (22.3.1): `truncateAll` и `DELETE FROM
+ * users` их не трогают, а оставшийся лимит повлиял бы на соседние тесты. Только для тестов.
+ */
+export async function resetPlatformSettings(): Promise<void> {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('resetPlatformSettings is test-only and forbidden in production')
+  }
+  await db.execute(sql`DELETE FROM platform_settings`)
+  await db.execute(sql`DELETE FROM audit_log WHERE entity_type = 'platform_setting'`)
+}
+
+/**
  * Возвращает каталог пакетов баланса событий к сиду миграции 0041 (22.2.1): тесты, меняющие каталог,
  * вызывают это в `beforeEach`. Заявки на пакеты и записи аудита каталога очищаются (иначе пакеты не
  * убрать), поэтому вызывать нужно после очистки групп и пользователей. Только для тестов.

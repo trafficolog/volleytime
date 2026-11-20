@@ -24,6 +24,13 @@ defineRouteMeta({
                     balance: { type: 'integer', minimum: 0 },
                     lowThreshold: { type: 'integer' },
                     low: { type: 'boolean', description: 'остаток не больше порога' },
+                    unlimited: {
+                      type: 'object',
+                      nullable: true,
+                      description:
+                        'безлимит событий (22.3.1): until — последний день по Минску; null — нет',
+                      properties: { until: { type: 'string', format: 'date' } },
+                    },
                     packages: {
                       type: 'array',
                       items: {

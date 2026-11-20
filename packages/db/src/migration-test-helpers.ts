@@ -3,11 +3,34 @@ import postgres from 'postgres'
 import { rollbackLastMigration } from './rollback'
 
 /**
+ * Откат 0042 (22.3.1) отказывает, пока есть строки platform_settings или заданные даты безлимита
+ * событий; тесты старых миграций работают на базах без них. Помощник откатывает 0042 и возвращает
+ * тег; следующая миграция добавляет свой шаг сюда.
+ */
+export async function rollbackPlatformSettings(url: string): Promise<string> {
+  const tag = await rollbackLastMigration(url)
+  if (tag !== '0042_platform_settings')
+    throw new Error(`expected 0042 to roll back first, got ${tag}`)
+  return tag
+}
+
+/**
  * Откат 0041 (22.2.1) отказывает, пока каталог пакетов отличается от сида или есть связи заявок,
  * созданные после миграции; тесты старых миграций работают на чистом сиде. Помощник откатывает 0041
  * и возвращает тег; следующая миграция добавляет свой шаг сюда.
  */
 export async function rollbackEventBalancePackages(url: string): Promise<string> {
+  // 22.3.1: новая миграция откатывается первой; повторный вызов после отказа 0041 её уже не найдёт
+  const sql = postgres(url, { max: 1 })
+  let platformSettingsApplied: boolean
+  try {
+    const [row] = await sql<{ applied: boolean }[]>`
+      SELECT to_regclass('public.platform_settings') IS NOT NULL AS applied`
+    platformSettingsApplied = row!.applied
+  } finally {
+    await sql.end()
+  }
+  if (platformSettingsApplied) await rollbackPlatformSettings(url)
   const tag = await rollbackLastMigration(url)
   if (tag !== '0041_event_balance_packages')
     throw new Error(`expected 0041 to roll back first, got ${tag}`)

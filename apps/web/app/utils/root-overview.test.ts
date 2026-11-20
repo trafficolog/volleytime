@@ -38,6 +38,7 @@ describe('rootNavItems', () => {
       'billing',
       'payments',
       'audit',
+      'settings',
     ])
     expect(items.find((i) => i.key === 'billing')!.to).toBe('/root/billing')
     expect(items.find((i) => i.key === 'organizations')!.to).toBe('/root/organizations')

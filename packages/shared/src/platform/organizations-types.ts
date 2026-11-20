@@ -27,6 +27,8 @@ export interface PlatformOrganizationRow {
   balance: number
   /** Баланс не больше порога «баланс заканчивается» (`EVENT_BALANCE_LOW_THRESHOLD`). */
   lowBalance: boolean
+  /** Безлимит событий (22.3.1): последний день по Минску; `null` — безлимита нет или он истёк. */
+  unlimited: { until: string } | null
   /** Активные участники группы (включая организаторов). */
   members: number
   /** Состоявшиеся события за последние 30 суток. */
@@ -75,6 +77,8 @@ export interface PlatformOrganizationDetail {
   createdAt: string
   owner: PlatformOrgOwner | null
   modules: PlatformOrganizationModules
+  /** Безлимит событий (22.3.1): последний день по Минску; `null` — безлимита нет или он истёк. */
+  unlimited: { until: string } | null
   stats: {
     balance: number
     lowBalance: boolean

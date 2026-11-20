@@ -52,7 +52,7 @@ const CATEGORY_PREFIXES: Record<PlatformAuditCategory, string[]> = {
   balance: ['event_balance.', 'event_balance_package.', 'ledger.', 'collection.'],
   plans: ['plan.', 'subscription.'],
   organizations: ['organization.', 'ownership_transfer.', 'member.', 'invite.'],
-  settings: ['venue.', 'schedule_slot.', 'telegram_chat.'],
+  settings: ['venue.', 'schedule_slot.', 'telegram_chat.', 'platform_setting.'],
 }
 
 const startsWith = (prefixes: string[]): SQL =>

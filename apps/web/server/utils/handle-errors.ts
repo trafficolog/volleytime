@@ -48,6 +48,11 @@ const CODE_STATUS: Record<string, number> = {
   'purchase_request.not_found': 404,
   'purchase_request.not_pending': 409,
   'platform.purchase_org_deleted': 409,
+  // настройки платформы (22.3.1)
+  'platform_settings.stale': 409,
+  'platform_settings.unknown_key': 422,
+  // дневной лимит опубликованных событий группы (22.3.1)
+  'event.daily_limit_reached': 409,
   // логотип и короткая ссылка группы (21.2.16)
   'logo.not_found': 404,
   'logo.invalid': 422,
@@ -216,7 +221,13 @@ export function handleServiceError(e: unknown): never {
     e instanceof OrganizationLifecycleError
   ) {
     const status = CODE_STATUS[e.code] ?? 400
-    throw createError({ statusCode: status, statusMessage: e.message, data: { code: e.code } })
+    // доменная ошибка может нести безопасные детали ответа (например, `{ date, limit }` дневного лимита)
+    const details = (e as { details?: Record<string, unknown> }).details
+    throw createError({
+      statusCode: status,
+      statusMessage: e.message,
+      data: { code: e.code, ...(details ?? {}) },
+    })
   }
   if (e instanceof TenantError) {
     throw createError({

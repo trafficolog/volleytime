@@ -41,6 +41,7 @@ import { CurrencyMismatchError } from '../shared/currency'
 import { subscriptionService } from '../subscriptions/service'
 
 import { syncManualCloseMark } from './booking-close'
+import { enforceDailyLimit, groupDay, isDailyLimitCounted, readDailyLimit } from './daily-limit'
 import {
   EventError,
   EventBookingOpensAfterCloseError,
@@ -211,6 +212,8 @@ export async function insertEvent(
   data: ReturnType<typeof CreateEventInput.parse>,
   org: OrgEventDefaults,
   series: { id: number; date: string } | null = null,
+  /** Лимит дня, уже прочитанный вызывающим (серия): иначе читается из настроек. */
+  opts: { dailyLimit?: number | null } = {},
 ): Promise<Event> {
   const db = getDb(ctx)
   if (data.startsAt <= new Date()) throw new EventStartsInPastError() // 5.13.11
@@ -218,6 +221,16 @@ export async function insertEvent(
   const { pricing, joinMode } = resolveEventModes(data, org)
   const closeBeforeMinutes = data.closeBeforeMinutes ?? DEFAULT_CLOSE_BEFORE_MINUTES
   assertBookingOpensAt(data.bookingOpensAt, data.startsAt, closeBeforeMinutes)
+
+  // дневной лимит (22.3.1): блокировка дня группы и подсчёт — до вставки и до блокировки баланса
+  if (isDailyLimitCounted(data.status)) {
+    await enforceDailyLimit(ctx, {
+      orgId,
+      timezone: org.defaultTimezone,
+      startsAt: data.startsAt,
+      limit: opts.dailyLimit === undefined ? await readDailyLimit(ctx) : opts.dailyLimit,
+    })
+  }
 
   const [event] = await db
     .insert(events)
@@ -627,6 +640,33 @@ export const eventService = {
       if (data.capacity !== undefined) {
         const taken = await reservedSeats(db, eventId)
         if (data.capacity < taken) throw new EventCapacityBelowTakenError(taken)
+      }
+
+      // дневной лимит (22.3.1): событие впервые становится учитываемым или переезжает на другой день
+      // группы; переоткрытие closed → published в тот же день не перепроверяется. Порядок
+      // блокировок: событие → день группы → баланс
+      const nextStatus = data.status ?? existing.status
+      if (isDailyLimitCounted(nextStatus)) {
+        const limit = await readDailyLimit(ctx)
+        if (limit !== null) {
+          const [orgRow] = await db
+            .select({ timezone: organizations.defaultTimezone })
+            .from(organizations)
+            .where(eq(organizations.id, existing.organizationId))
+          const timezone = orgRow?.timezone ?? DEFAULT_TIMEZONE
+          if (
+            !isDailyLimitCounted(existing.status) ||
+            groupDay(startsAt, timezone) !== groupDay(existing.startsAt, timezone)
+          ) {
+            await enforceDailyLimit(ctx, {
+              orgId: existing.organizationId,
+              timezone,
+              startsAt,
+              limit,
+              excludeEventId: eventId,
+            })
+          }
+        }
       }
 
       const [updated] = await db
