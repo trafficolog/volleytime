@@ -69,7 +69,7 @@ tags: [tooling, graphify, supply-chain]
 
 1. Ставить строго с пином: `uv tool install "graphifyy==0.9.103"` (без `[all]`; extras — только `sql`, если нужен 28.1.6).
 2. Не запускать `graphify install --project`, `graphify claude install`, `graphify hook install` (см. «Что пишет `graphify install`»).
-3. При запуске CLI держать `GRAPHIFY_BACKEND=none`; в окружении нет `GEMINI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`, `MOONSHOT_API_KEY`, `AZURE_OPENAI_*`, `AWS_PROFILE`/`AWS_REGION`/`AWS_DEFAULT_REGION`, `OLLAMA_BASE_URL`/`OLLAMA_HOST`.
+3. При запуске CLI держать `GRAPHIFY_BACKEND=none`; в окружении нет `GEMINI_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`, `MOONSHOT_API_KEY`, `AZURE_OPENAI_API_KEY`/`AZURE_OPENAI_ENDPOINT`/`AZURE_OPENAI_DEPLOYMENT`, `AWS_PROFILE`/`AWS_REGION`/`AWS_DEFAULT_REGION`, `OLLAMA_BASE_URL`/`OLLAMA_HOST`, `GRAPHIFY_TRIAGE_BACKEND`. `GRAPHIFY_BACKEND=none` действует только на backend CLI (`llm.py`) и не мешает пути `/graphify` в сессии (subagents ассистента), которым идёт разрешённый проход 28.1.4.
 4. Перед `/graphify` проверять `graphify --version` = `0.9.103`: шаг установки в скилле при отсутствии пакета выполняет `uv tool install --upgrade graphifyy` без версии.
 5. Не использовать `graphify add <url>`, `graphify prs`, `graphify clone`, экспорт в Neo4j/FalkorDB и Graphify Cloud.
 
