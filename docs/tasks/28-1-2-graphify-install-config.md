@@ -2,11 +2,11 @@
 id: '28.1.2'
 phase: '28'
 epic: '28.1'
-status: todo
+status: in_progress
 release: ''
 sync_state: synced
 last_reviewed: 2026-11-20
-status_note: 'Запрос владельца 2026-11-20. Стартует после вывода 28.1.1 «можно».'
+status_note: 'Реализовано 2026-11-20: установка 0.9.103 с проверкой хеша wheel, .graphifyignore, пробный запуск AST, проверка graph.json пуста. Ожидает ревью claude-opus-5-5.'
 ref_id: ''
 review_ref: ''
 priority: P2
@@ -61,3 +61,13 @@ Graphify ставится одной воспроизводимой команд
 - ❌ Не запускать семантический проход — это 28.1.4
 - ❌ Не добавлять Graphify в `package.json`, CI и Docker-образы
 - ❌ Не указывать путь к ключам VPS и сами секреты в документах
+
+## Результат
+
+Выполнено 2026-11-20. Подробности, команды и таблицы — в [guides/graphify.md](../guides/graphify.md).
+
+- **Установка:** `graphifyy==0.9.103` (uv 0.13.9, Python 3.14.0). `uv tool install` не умеет проверять хеш, поэтому wheel скачан в новый пустой каталог вне репозитория, SHA-256 совпал с записанным в [28.1.1](28-1-1-graphify-evaluation.md) (`7948c030…c217bcfe34`) и с `digests.sha256` на PyPI; затем `uv tool install <wheel>`. Зависимости (30 пакетов) подтянуты без хешей: ограничение записано в guide. `graphify --version` = `0.9.103`.
+- **Файлы:** `.graphifyignore`, строка `graphify-out/` в `.gitignore`, `docs/guides/graphify.md`. `.graphifyrc` не нужен: `.vue` разбирается (2402 узла). `package.json`, lock-файл, хуки, CI не менялись.
+- **Пробный запуск:** `GRAPHIFY_BACKEND=none`, ключи провайдеров и `AWS_*` убраны из процесса; `graphify extract . --code-only --no-cluster`: 1381 файл кода, 8759 узлов, 21710 рёбер, 166 путей пропущено правилами игнора, `graphify-out/` не попадает в git (`git check-ignore`). `.sql` (73 файла) не разобраны без extra `sql`: 28.1.6.
+- **Проверка `graph.json`:** `BEGIN`, `PRIVATE KEY`, `TOKEN=`, IPv4, хосты, `docs/operations`, `.env` — 0; `PASSWORD` — 18 совпадений, все имена ключей YAML без значений; e-mail — 2 ложных (`пакет@версия`).
+- **Не выполнялось:** `graphify install` (скилл ассистента на уровне пользователя, D-22) — это шаг 28.1.4, не 28.1.2; запрещённые команды D-22 не запускались.

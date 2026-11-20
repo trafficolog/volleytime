@@ -16,3 +16,6 @@ output/visual/
 
 # Local Superpowers worktrees
 .worktrees/
+
+# Graphify output (D-22: not committed)
+graphify-out/

@@ -1,0 +1,51 @@
+# Graphify ignore rules (docs/guides/graphify.md, task 28.1.2, D-22).
+# Applied on top of .gitignore: this file can only exclude more, never re-include.
+# Syntax: gitignore.
+
+# Secrets and keys (also .env.example and .env.prod.example: no value to the graph)
+.env*
+*.pem
+*.key
+id_*
+*.p12
+**/secrets/**
+
+# Deploy and operations data (D-22: docs/operations never enters the graph)
+docs/operations/
+
+# Local and agent files
+.worktrees/
+.claude/worktrees/
+.claude/settings.local.json
+.claude/**/*.local.*
+.playwright-cli/
+.superpowers/
+
+# Dependencies, build output, noise
+node_modules/
+.pnpm-store/
+.turbo/
+.nuxt/
+.output/
+dist/
+coverage/
+output/
+graphify-out/
+pnpm-lock.yaml
+
+# Heavy binaries: design images, documents, video, fonts
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.pdf
+*.fig
+*.mp4
+*.mov
+*.webm
+*.woff
+*.woff2
+*.ttf
+*.otf
+*.ico
