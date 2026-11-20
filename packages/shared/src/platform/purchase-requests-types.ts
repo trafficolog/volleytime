@@ -66,6 +66,8 @@ export interface PlatformPurchaseSummary {
    */
   ledger: { approvedUnits: number; ledgerUnits: number; ledgerEntries: number; matches: boolean }
   byOrganization: PlatformPurchaseOrgRevenue[]
+  /** В периоде больше организаций, чем отдано в `byOrganization` (первые 100 по сумме). */
+  byOrganizationTruncated: boolean
 }
 
 export interface PlatformPurchaseDecisionResult {

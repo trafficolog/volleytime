@@ -260,7 +260,7 @@ const periodLabel = computed(() => PAYMENT_PERIODS.find((p) => p.key === period.
         </p>
       </article>
       <article class="vt-card vt-root-payments__tile">
-        <p class="vt-cap">Ждут решения</p>
+        <p class="vt-cap">Ждут решения (всего)</p>
         <p class="vt-mono vt-root-payments__value" data-testid="payments-pending">
           {{ summary?.pendingCount ?? 0 }}
         </p>
@@ -555,6 +555,13 @@ const periodLabel = computed(() => PAYMENT_PERIODS.find((p) => p.key === period.
           </tbody>
         </table>
       </div>
+      <p
+        v-if="summary?.byOrganizationTruncated"
+        class="vt-root-billing__hint"
+        data-testid="orgs-truncated"
+      >
+        Показаны первые 100 строк по выручке; остальные не вошли. Сузьте период.
+      </p>
     </section>
 
     <VtToast />
