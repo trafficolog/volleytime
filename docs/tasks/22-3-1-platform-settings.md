@@ -2,11 +2,11 @@
 id: '22.3.1'
 phase: '22'
 epic: '22.3'
-status: in_progress
+status: done
 release: 'v0.4.0'
 sync_state: synced
 last_reviewed: 2026-11-20
-status_note: 'Реализация по ADR-22-3-1 и D-20 в PR на ревью (`claude-opus-5-5`). Миграция 0042 (platform_settings, organizations.event_balance_unlimited_until) с guard отката и разделом runbook; реестр ключей в packages/shared; root API /api/platform/settings (GET, PATCH, history) и безлимит группы (PUT, POST cancel); внутренний GET /api/internal/bot/settings; дневной лимит под блокировкой дня группы; страница /root/settings, блок безлимита в карточке организации, кабинет (безлимит, контакт поддержки). Владелец разрешил правку lockfile 2026-11-20 только для 22.3.1: zod в packages/shared и @volley-time/shared (workspace:*) в apps/bot, иных изменений pnpm-lock.yaml нет. Визуальная сверка вручную (D-16) — в теле PR.'
+status_note: 'Закрыта: PR #309 смёржен в main (merge 3f88a65a), независимое ревью `claude-opus-5-5` — вердикт merge, CI зелёный на 2c6c321d. Follow-ups — в секции «Follow-ups» ниже. Реализация по ADR-22-3-1 и D-20 в PR на ревью (`claude-opus-5-5`). Миграция 0042 (platform_settings, organizations.event_balance_unlimited_until) с guard отката и разделом runbook; реестр ключей в packages/shared; root API /api/platform/settings (GET, PATCH, history) и безлимит группы (PUT, POST cancel); внутренний GET /api/internal/bot/settings; дневной лимит под блокировкой дня группы; страница /root/settings, блок безлимита в карточке организации, кабинет (безлимит, контакт поддержки). Владелец разрешил правку lockfile 2026-11-20 только для 22.3.1: zod в packages/shared и @volley-time/shared (workspace:*) в apps/bot, иных изменений pnpm-lock.yaml нет. Визуальная сверка вручную (D-16) — в теле PR.'
 ref_id: 'R-05'
 complexity: L
 impl_model: claude-sonnet-5-5
@@ -78,6 +78,13 @@ tags: [reference-v3]
 - Скриншоты: [4b-root-admin/12-screen.png](../design/reference-v3/screenshots/4b-root-admin/12-screen.png), [4b-root-admin/13-screen.png](../design/reference-v3/screenshots/4b-root-admin/13-screen.png), [4b-root-admin/14-screen.png](../design/reference-v3/screenshots/4b-root-admin/14-screen.png), [4b-root-admin/15-screen.png](../design/reference-v3/screenshots/4b-root-admin/15-screen.png), [4b-root-admin/16-screen.png](../design/reference-v3/screenshots/4b-root-admin/16-screen.png), [4b-root-admin/17-screen.png](../design/reference-v3/screenshots/4b-root-admin/17-screen.png), [4b-root-admin/18-screen.png](../design/reference-v3/screenshots/4b-root-admin/18-screen.png), [4b-root-admin/19-screen.png](../design/reference-v3/screenshots/4b-root-admin/19-screen.png) (окно 924×540 — ориентир; размеры и отступы брать из исходников).
 - Исходники макета: `docs/design/reference-v3/handoff/screens-admin.jsx`, `docs/design/reference-v3/handoff/screens-admin-forms.jsx`; токены — `handoff/styles.css`; доменные функции — `handoff/atoms.jsx`.
 - Handoff: [README](../design/reference-v3/handoff/README.md) — статусная модель, доменная логика, доступность.
+
+## Follow-ups
+
+Замечания ревью PR #309 уровня Minor. Не входят в критерии приёмки 22.3.1 и берутся отдельными задачами.
+
+- Бот при кратковременной ошибке чтения `GET /api/internal/bot/settings` переходит на значения по умолчанию, а не держит последний удачный снимок: изменённый root лимит нажатий на время сбоя сбрасывается к 8 за 10 с.
+- Планирование серий предполагает одну дату события в день: проверка дневного лимита и безлимита для серии с несколькими событиями в один календарный день не покрыта.
 
 ## Не делать
 
