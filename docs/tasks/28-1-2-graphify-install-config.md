@@ -35,15 +35,15 @@ Graphify ставится одной воспроизводимой команд
 
 - Версия и условия — результат [28.1.1](28-1-1-graphify-evaluation.md).
 - Корневой `.gitignore` уже исключает `node_modules`, `.env*` (кроме `.env.example`), `dist`, `.nuxt`, `.output`, `coverage`, `output/`; Graphify учитывает `.gitignore`.
-- Ключи VPS лежат вне репозитория (`D:\ai\freelance\keys-vps`); сканировать только корень репозитория.
+- Ключи VPS лежат вне репозитория; сканировать только корень репозитория.
 
 ## Что должно быть сделано
 
-1. Установка: `uv tool install "graphifyy==<версия из 28.1.1>"` с нужными extras; команда и проверка `graphify --version` — в [guides](../guides/) (новый `graphify.md`).
-2. `.graphifyignore` в корне репозитория (в git): `.env*`, `*.pem`, `*.key`, `id_*`, `*.p12`, `**/secrets/**`, `pnpm-lock.yaml`, `.pnpm-store`, `.turbo`, `.worktrees`, `.claude/worktrees`, `output/`, `graphify-out/`, `docs/operations/` (до решения 28.1.4), тяжёлые бинарные файлы дизайна (`*.png`, `*.jpg`, `*.webp`, `*.pdf`, `*.fig`, видео).
+1. Установка: `uv tool install "graphifyy==<версия из 28.1.1>"` с нужными extras и проверкой хеша из 28.1.1 (`--require-hashes` с файлом требований или эквивалент для `uv tool`; если `uv tool` этого не умеет — записать ограничение и сверить хеш скачанного wheel вручную до установки); команда и проверка `graphify --version` — в [guides](../guides/) (новый `graphify.md`).
+2. `.graphifyignore` в корне репозитория (в git): `.env*`, `*.pem`, `*.key`, `id_*`, `*.p12`, `**/secrets/**`, `pnpm-lock.yaml`, `.pnpm-store`, `.turbo`, `.worktrees`, `.claude/worktrees`, `.claude/settings.local.json` и прочие локальные файлы `.claude/` (`*.local.*`), `output/`, `graphify-out/`, `docs/operations/` ([D-22](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-22)), тяжёлые бинарные файлы дизайна (`*.png`, `*.jpg`, `*.webp`, `*.pdf`, `*.fig`, видео).
 3. `.graphifyrc` в корне при необходимости (например, `.vue` — проверить, что разбирается; если нет — записать ограничение).
-4. `graphify-out/` — в `.gitignore` (вопрос 2 эпика; иначе по решению владельца).
-5. Пробный запуск `graphify extract` без семантического прохода; отчёт о пропущенных путях сверить с ожидаемым.
+4. `graphify-out/` — в `.gitignore` (D-22).
+5. Пробный запуск `graphify extract` только AST: в окружении нет `ANTHROPIC_API_KEY` и других ключей backend, интеграция с ассистентом (`graphify install`) не установлена; отчёт о пропущенных путях сверить с ожидаемым.
 6. Проверка: поиск по `graph.json` строк `BEGIN`, `PRIVATE KEY`, `TOKEN=`, `PASSWORD`, IP-адресов VPS и путей `docs/operations` — ноль совпадений; результат в guide.
 
 ## Критерии приёмки
