@@ -62,7 +62,19 @@ export interface EventBalanceView {
     EventBalancePurchaseRequest,
     'id' | 'units' | 'amount' | 'currency' | 'createdAt'
   >[]
+  /**
+   * Решения платформы по заявкам за последние 30 дней (22.2.3), новые сверху, не больше 5:
+   * подтверждённые и отклонённые с причиной. Автор решения не раскрывается.
+   */
+  recentDecisions: (Pick<
+    EventBalancePurchaseRequest,
+    'id' | 'units' | 'amount' | 'currency' | 'createdAt' | 'decisionComment'
+  > & { status: 'approved' | 'rejected'; decidedAt: Date })[]
 }
+
+/** Окно и предел «Решений по заявкам» в кабинете. */
+const RECENT_DECISIONS_DAYS = 30
+const RECENT_DECISIONS_LIMIT = 5
 
 export interface EventBalanceHistoryRow {
   id: number
@@ -133,12 +145,39 @@ export const eventBalanceService = {
         ),
       )
       .orderBy(asc(eventBalancePurchaseRequests.createdAt), asc(eventBalancePurchaseRequests.id))
+    const decided = await db
+      .select({
+        id: eventBalancePurchaseRequests.id,
+        units: eventBalancePurchaseRequests.units,
+        amount: eventBalancePurchaseRequests.amount,
+        currency: eventBalancePurchaseRequests.currency,
+        createdAt: eventBalancePurchaseRequests.createdAt,
+        decisionComment: eventBalancePurchaseRequests.decisionComment,
+        status: eventBalancePurchaseRequests.status,
+        decidedAt: eventBalancePurchaseRequests.decidedAt,
+      })
+      .from(eventBalancePurchaseRequests)
+      .where(
+        and(
+          eq(eventBalancePurchaseRequests.organizationId, orgId),
+          sql`${eventBalancePurchaseRequests.status} IN ('approved', 'rejected')`,
+          sql`${eventBalancePurchaseRequests.decidedAt} > now() - make_interval(days => ${RECENT_DECISIONS_DAYS})`,
+        ),
+      )
+      .orderBy(desc(eventBalancePurchaseRequests.decidedAt), desc(eventBalancePurchaseRequests.id))
+      .limit(RECENT_DECISIONS_LIMIT)
+    const recentDecisions = decided.map((r) => ({
+      ...r,
+      status: r.status as 'approved' | 'rejected',
+      decidedAt: r.decidedAt!,
+    }))
     return {
       balance,
       lowThreshold: EVENT_BALANCE_LOW_THRESHOLD,
       low: balance <= EVENT_BALANCE_LOW_THRESHOLD,
       packages: catalog.map((p) => ({ ...p, popular: p.badge === 'popular' })),
       pendingRequests,
+      recentDecisions,
     }
   },
 

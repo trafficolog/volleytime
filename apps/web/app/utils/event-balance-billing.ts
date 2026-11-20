@@ -29,6 +29,17 @@ export type BalanceSummary = {
     currency: string
     createdAt: string
   }[]
+  /** Решения платформы по заявкам за 30 дней (22.2.3); старый ответ без поля — пусто. */
+  recentDecisions?: {
+    id: number
+    units: number
+    amount: number
+    currency: string
+    createdAt: string
+    status: 'approved' | 'rejected'
+    decidedAt: string
+    decisionComment: string | null
+  }[]
 }
 
 export type BalanceEntry = {

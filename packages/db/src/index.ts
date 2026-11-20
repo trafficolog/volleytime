@@ -2,6 +2,12 @@ export { db, closeDb, type DB, type Transaction, type DbOrTx } from './client'
 export { runMigrations } from './migrate'
 export * from './schema'
 export * from './event-balance'
+// решения root по заявкам на покупку баланса: одна логика у операторской команды и Root Admin (22.2.3)
+export {
+  approvePurchaseRequest,
+  rejectPurchaseRequest,
+  OperatorError,
+} from './event-balance-operations'
 
 // re-export часто используемых операторов (единая точка, без прямой зависимости потребителей от drizzle-orm)
 export {
