@@ -36,6 +36,7 @@ describe('rootNavItems', () => {
       'organizations',
       'users',
       'billing',
+      'payments',
       'audit',
     ])
     expect(items.find((i) => i.key === 'billing')!.to).toBe('/root/billing')
@@ -46,6 +47,7 @@ describe('rootNavItems', () => {
       'organizations',
       'users',
       'billing',
+      'payments',
       'audit',
       'settings',
     ])

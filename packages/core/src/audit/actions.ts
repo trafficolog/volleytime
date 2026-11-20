@@ -99,6 +99,9 @@ export const AUDIT_ACTIONS = {
   TELEGRAM_CHAT_TEST_SENT: 'telegram_chat.test_sent',
   // баланс событий (20.2.1); начисления и решения root пишет операторская команда (packages/db)
   EVENT_BALANCE_PURCHASE_REQUESTED: 'event_balance.purchase_requested',
+  // решение root по заявке (22.2.3): пишет общая логика packages/db (Root Admin и операторская команда)
+  EVENT_BALANCE_PURCHASE_APPROVED: 'event_balance.purchase_approved',
+  EVENT_BALANCE_PURCHASE_REJECTED: 'event_balance.purchase_rejected',
   // начисление баланса событий root вручную (22.2.2, R-03; то же действие пишет операторская команда)
   EVENT_BALANCE_GRANTED: 'event_balance.granted',
   // каталог пакетов баланса событий, Root Admin (22.2.1); запись платформенная, organization_id = NULL

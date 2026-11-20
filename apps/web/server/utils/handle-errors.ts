@@ -44,6 +44,10 @@ const CODE_STATUS: Record<string, number> = {
   'platform.user_not_blocked': 409,
   'platform.grant_org_deleted': 409,
   'platform.grant_idempotency_conflict': 409,
+  // решения root по заявкам на покупку баланса (22.2.3)
+  'purchase_request.not_found': 404,
+  'purchase_request.not_pending': 409,
+  'platform.purchase_org_deleted': 409,
   // логотип и короткая ссылка группы (21.2.16)
   'logo.not_found': 404,
   'logo.invalid': 422,

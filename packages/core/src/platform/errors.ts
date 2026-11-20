@@ -22,6 +22,20 @@ export class PlatformGrantError extends OrganizationError {
   }
 }
 
+/** Решение root по заявке на покупку баланса событий (22.2.3). */
+export class PlatformPurchaseRequestError extends OrganizationError {
+  constructor(
+    code:
+      | 'purchase_request.not_found'
+      | 'purchase_request.not_pending'
+      | 'platform.purchase_org_deleted',
+    message: string,
+  ) {
+    super(code, message)
+    this.name = 'PlatformPurchaseRequestError'
+  }
+}
+
 /** Блокировка и разблокировка пользователя платформы (22.1.4). */
 export class PlatformUserError extends OrganizationError {
   constructor(

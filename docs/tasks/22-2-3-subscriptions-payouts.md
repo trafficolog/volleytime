@@ -2,11 +2,11 @@
 id: '22.2.3'
 phase: '22'
 epic: '22.2'
-status: todo
+status: in_progress
 release: 'v0.4.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-11-20
+status_note: 'Реализация в PR (ветка trafficolog/feat/22.2.3-purchase-requests), ждёт независимого ревью и CI. Миграции нет: используются существующие поля заявки (status, decided_by_user_id, decided_at, decision_comment). Решения идут через ту же логику, что и операторская команда (packages/db approvePurchaseRequest / rejectPurchaseRequest): блокировка заявки FOR UPDATE, условный переход только из pending, запись журнала `purchase` на снимок заявки (количество, сумма и валюта на момент заявки, а не текущая цена пакета), audit_log `event_balance.purchase_approved` / `purchase_rejected` (актор root, source root-admin) — одна транзакция; decided_at = now() транзакции, как created_at записи журнала. Повтор и гонка — 409 purchase_request.not_pending без второго начисления (параллельные тесты сервиса и HTTP); удалённая организация (D-15) — 409 platform.purchase_org_deleted. API за requireRootAdmin (401/403 forbidden.root_only, no-store), сервис повторно проверяет root по базе: GET /api/platform/event-balance/purchase-requests (фильтры status, organizationId, период from/to по дате заявки, keyset), GET …/summary (подтверждено за период по дате решения по валютам, ожидающие, отклонённые, платящие организации, доходы по организациям, сверка с журналом `purchase`), GET …/export (CSV подтверждённых за период: № заявки, создана, подтверждена, id и название организации, событий, сумма «10,50» и в копейках, валюта, кто подтвердил, комментарий; без контактов, формулы нейтрализуются, BOM, `;`, CRLF, время Europe/Minsk, больше 5000 строк — 422), POST …/{id}/approve ({ comment? }) и POST …/{id}/reject ({ reason } 3–500). UI: /root/payments «Подписки и выплаты» (пункт навигации Root Admin): период по минским суткам, плитки (подтверждено, ждут решения, платящие организации, сверка с журналом), вкладки «Заявки» (фильтр статуса и организации, подтверждение и отклонение с панелью подтверждения, «Загрузить ещё») и «Доходы по организациям», кнопка «Экспорт CSV». Кабинет организатора: блок «Решения по заявкам» (подтверждённые и отклонённые за 30 дней, причина отклонения). Не делается по D-07: выплаты, возвраты, сверка с платёжным провайдером, онлайн-оплата. Визуальная сверка с 4b-root-admin/09 выполнена вручную (1440x900 и 375x812, D-16), отчёт в теле PR.'
 ref_id: 'R-04'
 complexity: XL
 impl_model: claude-opus-5-5

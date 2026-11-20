@@ -47,6 +47,7 @@ const views = computed(() => packageViews(summary.value?.packages ?? []))
 const warning = computed(() => lowBalanceWarning(summary.value))
 const rows = computed(() => entries.value.map(entryView))
 const pending = computed(() => summary.value?.pendingRequests ?? [])
+const decisions = computed(() => summary.value?.recentDecisions ?? [])
 const confirmingView = computed(() => views.value.find((v) => v.code === confirming.value) ?? null)
 
 async function load() {
@@ -201,6 +202,25 @@ onBeforeUnmount(() => {
           <p class="text-vt-mute-2 text-xs">
             Баланс пополнится после подтверждения заявки платформой.
           </p>
+        </section>
+
+        <section
+          v-if="decisions.length"
+          class="vt-card vt-desktop-billing__pending"
+          data-testid="billing-decisions"
+        >
+          <h2>Решения по заявкам</h2>
+          <ul>
+            <li v-for="d in decisions" :key="d.id" :data-status="d.status">
+              <span class="vt-mono">+{{ d.units }} {{ pluralEvents(d.units) }}</span>
+              <span class="text-vt-mute-2">{{ formatMoneyRu(d.amount, d.currency) }}</span>
+              <span>{{ d.status === 'approved' ? 'Подтверждена' : 'Отклонена' }}</span>
+              <span class="text-vt-mute-2">{{ entryDate(d.decidedAt, tz) }}</span>
+              <span v-if="d.status === 'rejected' && d.decisionComment" class="text-vt-mute-2">
+                Причина: {{ d.decisionComment }}
+              </span>
+            </li>
+          </ul>
         </section>
       </div>
 

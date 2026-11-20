@@ -136,6 +136,46 @@ describe('desktop balance and billing (W-12)', () => {
     expect(rows[1]!.text()).toContain('+1')
   })
 
+  it('shows platform decisions on requests: approved and rejected with the reason (22.2.3)', async () => {
+    balanceBody = summary({
+      recentDecisions: [
+        {
+          id: 9,
+          units: 50,
+          amount: 4500,
+          currency: 'BYN',
+          createdAt: '2026-11-18T09:00:00.000Z',
+          status: 'rejected',
+          decidedAt: '2026-11-19T09:00:00.000Z',
+          decisionComment: 'Оплата не поступила',
+        },
+        {
+          id: 8,
+          units: 30,
+          amount: 3000,
+          currency: 'BYN',
+          createdAt: '2026-11-17T09:00:00.000Z',
+          status: 'approved',
+          decidedAt: '2026-11-18T09:00:00.000Z',
+          decisionComment: 'внутренний комментарий',
+        },
+      ],
+    })
+    const w = await render()
+    const items = w.findAll('[data-testid="billing-decisions"] li')
+    expect(items).toHaveLength(2)
+    expect(items[0]!.text()).toContain('+50 событий')
+    expect(items[0]!.text()).toContain('Отклонена')
+    expect(items[0]!.text()).toContain('Причина: Оплата не поступила')
+    expect(items[1]!.text()).toContain('Подтверждена')
+    expect(items[1]!.text()).not.toContain('внутренний комментарий')
+  })
+
+  it('hides the decisions block when there are none', async () => {
+    const w = await render()
+    expect(w.find('[data-testid="billing-decisions"]').exists()).toBe(false)
+  })
+
   it('never shows the word credits to the organizer', async () => {
     const w = await render()
     expect(w.text().toLowerCase()).not.toContain('credit')

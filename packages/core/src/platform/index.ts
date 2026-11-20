@@ -8,4 +8,14 @@ export {
 export { platformEventBalancePackagesService } from './event-balance-packages'
 export { platformUsersService, type PlatformUsersParams } from './users'
 export { platformEventBalanceGrantsService, type PlatformGrantInput } from './event-balance-grants'
-export { PlatformGrantError, PlatformOwnerError, PlatformUserError } from './errors'
+export {
+  PURCHASE_REQUESTS_CSV_HEADER,
+  buildPurchaseRequestsCsv,
+  platformPurchaseRequestsService,
+} from './purchase-requests'
+export {
+  PlatformGrantError,
+  PlatformOwnerError,
+  PlatformPurchaseRequestError,
+  PlatformUserError,
+} from './errors'
