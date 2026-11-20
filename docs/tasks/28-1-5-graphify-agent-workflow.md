@@ -34,14 +34,14 @@ tags: [tooling, graphify, agents]
 ## Контекст
 
 - [AGENTS.md](../../AGENTS.md), [ORCHESTRATION](../ORCHESTRATION.md), агенты [`.claude/agents/`](../../.claude/agents/).
-- `graphify install` для Claude Code ставит хук перед Read/Glob/`grep`; `--project` пишет в репозиторий. Это меняет поведение всех агентов, включая ревьюера, которому нужно читать diff и файлы целиком.
+- По коду 0.9.103 ([28.1.1](28-1-1-graphify-evaluation.md#что-пишет-graphify-install-по-installpy)): `graphify install` без `--project` пишет только скилл в `~/.claude/skills/graphify/` и блок в `~/.claude/CLAUDE.md`, хуков не ставит. `graphify install --project` и `graphify claude install` ставят хук перед Read/Glob/Grep/Bash в `.claude/settings.json` и пишут в репозиторий. Хук меняет поведение всех агентов, включая ревьюера, которому нужно читать diff и файлы целиком.
 - Решение владельца [D-22](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-22): хук Claude Code не ставится; обновление вручную `graphify update .`, без git-хуков и CI. Правила семантического прохода — [28.1.4](28-1-4-graphify-docs-semantic.md).
 
 ## Что должно быть сделано
 
 1. Правило в ORCHESTRATION (AGENTS.md — одна строка маршрутизации): граф — для поиска и анализа влияния до чтения; ревью и приёмка — по файлам и diff, не по графу; при расхождении верен код.
 2. Обновление: команда `graphify update .` после `git pull` и перед анализом влияния; признак устаревания (версия и коммит в `graph.json`).
-3. Только ручные команды `graphify query|path|explain` в guide; `graphify install` и `graphify claude install` не запускаются.
+3. Только ручные команды `graphify query|path|explain` в guide. Скилл ставится `graphify install` на уровне пользователя (без `--project`); `graphify install --project`, `graphify claude install` и `graphify hook install` не запускаются (D-22, дополнение 2026-11-20).
 4. Если граф не установлен у агента — правило не блокирует работу.
 
 ## Критерии приёмки

@@ -36,6 +36,8 @@ Graphify ставится одной воспроизводимой команд
 - Версия и условия — результат [28.1.1](28-1-1-graphify-evaluation.md).
 - Корневой `.gitignore` уже исключает `node_modules`, `.env*` (кроме `.env.example`), `dist`, `.nuxt`, `.output`, `coverage`, `output/`; Graphify учитывает `.gitignore`.
 - Ключи VPS лежат вне репозитория; сканировать только корень репозитория.
+- `graphify install` (уровень пользователя, без `--project`) пишет вне репозитория, в профиль пользователя: `~/.claude/skills/graphify/` и блок в `~/.claude/CLAUDE.md`; хуков не ставит. `--project`, `graphify claude install` и `graphify hook install` запрещены ([D-22](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-22), дополнение 2026-11-20).
+- Каждый запуск CLI — с `GRAPHIFY_BACKEND=none`, без ключей провайдеров (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `GOOGLE_API_KEY` и др.) и `AWS_*` в окружении; перед запуском `graphify --version` = `0.9.103`. Сначала ставится закреплённая версия; давать скиллу самому ставить или обновлять пакет нельзя.
 
 ## Что должно быть сделано
 
