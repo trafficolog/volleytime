@@ -13,7 +13,7 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
-    "@sentry/node": "^10.75.0",
+    "@sentry/node": "^11.13.0",
     "@volley-time/auth": "workspace:*",
     "@volley-time/core": "workspace:*",
     "@volley-time/db": "workspace:*",
