@@ -82,7 +82,10 @@ export interface EventBalanceHistoryRow {
   reason: EventBalanceEntry['reason']
   balanceAfter: number
   actorKind: EventBalanceEntry['actorKind']
-  /** Автор-пользователь (без email/телефона, 5.13.2); у системных операций — null и `source`. */
+  /**
+   * Автор-пользователь (без email/телефона, 5.13.2); у системных операций — null и `source`;
+   * у `purchase` всегда null: root, подтвердивший заявку, организатору не раскрывается.
+   */
   author: { id: number; name: string | null } | null
   source: string | null
   comment: string | null
@@ -234,9 +237,14 @@ export const eventBalanceService = {
         reason: r.reason,
         balanceAfter: r.balanceAfter,
         actorKind: r.actorKind,
-        author: r.authorId === null ? null : { id: r.authorId, name: r.authorName },
+        // покупка: подтвердивший root и его внутренний комментарий организатору не отдаются
+        // (в журнале остаются для истории на стороне root); начисления `grant` — наоборот, 22.2.2
+        author:
+          r.authorId === null || r.reason === 'purchase'
+            ? null
+            : { id: r.authorId, name: r.authorName },
         source: r.source,
-        comment: r.comment,
+        comment: r.reason === 'purchase' ? null : r.comment,
         event:
           r.eventId === null
             ? null

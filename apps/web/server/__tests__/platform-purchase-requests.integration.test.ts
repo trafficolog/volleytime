@@ -127,6 +127,54 @@ describe('platform purchase requests (HTTP)', { timeout: 60_000 }, () => {
       expect((await request('GET', `${BASE}?${bad}`, { user: root })).status, bad).toBe(422)
   })
 
+  it("the organizer's history route hides root's approval note and name; grant entries keep author and reason (22.2.2)", async () => {
+    const req = await makeRequest(15, 1350)
+    const approved = await request('POST', `${BASE}/${req.id}/approve`, {
+      user: root,
+      body: { comment: 'внутренняя заметка root' },
+    })
+    expect(approved.status).toBe(200)
+    const grant = await request(
+      'POST',
+      `/api/platform/organizations/${orgId}/event-balance-grants`,
+      {
+        user: root,
+        body: {
+          units: 3,
+          category: 'promo',
+          comment: 'Промо за фидбек',
+          idempotencyKey: '00000000-0000-4000-8000-000000000001',
+        },
+      },
+    )
+    expect(grant.status).toBe(201)
+
+    const history = await request('GET', `/api/organizations/${orgId}/event-balance/entries`, {
+      user: plain,
+    })
+    expect(history.status).toBe(200)
+    const entries = (
+      history.body as {
+        entries: {
+          reason: string
+          comment: string | null
+          author: { id: number; name: string | null } | null
+        }[]
+      }
+    ).entries
+    expect(entries.find((e) => e.reason === 'purchase')).toMatchObject({
+      comment: null,
+      author: null,
+    })
+    expect(entries.find((e) => e.reason === 'grant')).toMatchObject({
+      comment: expect.stringContaining('Промо за фидбек'),
+      author: { id: root, name: 'Root' },
+    })
+    const purchaseOnly = JSON.stringify(entries.filter((e) => e.reason === 'purchase'))
+    expect(purchaseOnly).not.toContain('внутренняя заметка')
+    expect(purchaseOnly).not.toContain('Root')
+  })
+
   it('parallel approve requests over HTTP credit exactly once', async () => {
     const req = await makeRequest(9)
     const results = await Promise.all(

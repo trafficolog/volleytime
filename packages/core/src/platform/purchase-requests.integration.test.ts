@@ -310,6 +310,19 @@ describe('platformPurchaseRequestsService (integration)', { timeout: 60_000 }, (
     expect(JSON.stringify(view)).not.toContain('внутренняя заметка')
   })
 
+  it("the organizer history hides root's approval comment and identity on purchase entries", async () => {
+    const a = await makeRequest({ units: 10 })
+    await svc.approve(root(), { requestId: a.id, comment: 'внутренняя заметка root' })
+    // журнал по-прежнему хранит комментарий для истории на стороне root
+    expect((await purchaseEntries())[0]).toMatchObject({ comment: 'внутренняя заметка root' })
+
+    const history = await eventBalanceService.listEntries({ userId: plainId }, orgId, {})
+    const purchase = history.entries.find((e) => e.reason === 'purchase')!
+    expect(purchase).toMatchObject({ delta: 10, comment: null, author: null })
+    expect(JSON.stringify(history)).not.toContain('внутренняя заметка')
+    expect(JSON.stringify(history)).not.toContain('Root')
+  })
+
   it('summary flags a truncated per-organization list (more than 100 rows)', async () => {
     const small = await svc.summary(root(), {})
     expect(small.byOrganizationTruncated).toBe(false)
