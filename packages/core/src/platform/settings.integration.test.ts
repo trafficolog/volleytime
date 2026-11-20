@@ -85,8 +85,14 @@ describe('platform settings (integration)', { timeout: 60_000 }, () => {
   it('is root-only: 403 forbidden.root_only for everyone else', async () => {
     const plain = { userId: plainId }
     const body = { changes: [{ key: 'bot.callbackLimit', value: 9, version: 0 }] }
-    for (const call of [service.get(plain), service.update(plain, body), service.history(plain)]) {
-      const err = await call.catch((e: unknown) => e)
+    const calls = [
+      () => service.get(plain),
+      () => service.update(plain, body),
+      () => service.history(plain),
+    ]
+    // каждый вызов создаётся только перед ожиданием: иначе отклонение следующего остаётся необработанным
+    for (const call of calls) {
+      const err = await call().catch((e: unknown) => e)
       expect(err).toBeInstanceOf(ForbiddenError)
       expect((err as ForbiddenError).code).toBe('forbidden.root_only')
     }
