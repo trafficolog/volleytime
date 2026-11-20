@@ -64,7 +64,7 @@ export interface EventBalanceView {
   >[]
   /**
    * Решения платформы по заявкам за последние 30 дней (22.2.3), новые сверху, не больше 5:
-   * подтверждённые и отклонённые с причиной. Автор решения не раскрывается.
+   * подтверждённые и отклонённые; причина (`decisionComment`) только у отклонённых. Автор решения не раскрывается.
    */
   recentDecisions: (Pick<
     EventBalancePurchaseRequest,
@@ -152,7 +152,11 @@ export const eventBalanceService = {
         amount: eventBalancePurchaseRequests.amount,
         currency: eventBalancePurchaseRequests.currency,
         createdAt: eventBalancePurchaseRequests.createdAt,
-        decisionComment: eventBalancePurchaseRequests.decisionComment,
+        // приватность: внутренний комментарий root к подтверждению организатору не отдаётся —
+        // причина видна только у отклонённых заявок
+        decisionComment: sql<
+          string | null
+        >`CASE WHEN ${eventBalancePurchaseRequests.status} = 'rejected' THEN ${eventBalancePurchaseRequests.decisionComment} END`,
         status: eventBalancePurchaseRequests.status,
         decidedAt: eventBalancePurchaseRequests.decidedAt,
       })

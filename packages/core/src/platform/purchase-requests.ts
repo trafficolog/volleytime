@@ -41,6 +41,9 @@ const INT4_MAX = 2_147_483_647
 /** Источник решения в audit_log: отличает Root Admin от операторской команды (`operator-cli`). */
 const SOURCE = 'root-admin'
 
+/** Сколько строк «Доходов по организациям» отдаёт сводка; сверх этого — `byOrganizationTruncated`. */
+const BY_ORG_LIMIT = 100
+
 const Id = z.coerce.number().int().positive().max(INT4_MAX)
 const Instant = z.iso.datetime({ offset: true }).transform((s) => new Date(s))
 /** Период `[from, to)`; границы считает клиент (часовой пояс зрителя). */
@@ -241,13 +244,14 @@ export const platformPurchaseRequestsService = {
       .where(approvedIn)
       .groupBy(organizations.id, organizations.name, req.currency)
       .orderBy(sql`sum(${req.amount}) DESC`, asc(organizations.id))
-      .limit(100)
+      .limit(BY_ORG_LIMIT + 1)
     const approvedUnits = totals.reduce((n, t) => n + t.units, 0)
     const approvedCount = totals.reduce((n, t) => n + t.count, 0)
     return {
       from: p.from?.toISOString() ?? null,
       to: p.to?.toISOString() ?? null,
       approved: totals,
+      // pendingCount не зависит от периода: ожидающие за всё время (UI подписывает «всего»)
       pendingCount: counts!.pending,
       rejectedCount: counts!.rejected,
       payingOrganizations: counts!.paying,
@@ -257,7 +261,8 @@ export const platformPurchaseRequestsService = {
         ledgerEntries: ledger!.entries,
         matches: approvedUnits === ledger!.units && approvedCount === ledger!.entries,
       },
-      byOrganization: byOrg.map((r) => ({
+      byOrganizationTruncated: byOrg.length > BY_ORG_LIMIT,
+      byOrganization: byOrg.slice(0, BY_ORG_LIMIT).map((r) => ({
         organization: { id: r.orgId, name: r.orgName },
         currency: r.currency,
         amount: r.amount,

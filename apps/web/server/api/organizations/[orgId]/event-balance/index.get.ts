@@ -55,6 +55,25 @@ defineRouteMeta({
                         },
                       },
                     },
+                    recentDecisions: {
+                      type: 'array',
+                      description:
+                        'решения платформы за 30 дней, новые сверху, не больше 5; ' +
+                        'decisionComment только у отклонённых',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          id: { type: 'integer' },
+                          units: { type: 'integer' },
+                          amount: { type: 'integer' },
+                          currency: { type: 'string' },
+                          createdAt: { type: 'string', format: 'date-time' },
+                          status: { type: 'string', enum: ['approved', 'rejected'] },
+                          decidedAt: { type: 'string', format: 'date-time' },
+                          decisionComment: { type: 'string', nullable: true },
+                        },
+                      },
+                    },
                   },
                 },
               },

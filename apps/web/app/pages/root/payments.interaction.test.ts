@@ -48,6 +48,7 @@ const SUMMARY = {
   rejectedCount: 0,
   payingOrganizations: 2,
   ledger: { approvedUnits: 120, ledgerUnits: 120, ledgerEntries: 3, matches: true },
+  byOrganizationTruncated: false,
   byOrganization: [
     {
       organization: { id: 3, name: 'VolleyTime Минск' },
@@ -142,6 +143,19 @@ describe('Root Admin · Подписки и выплаты (R-04, D-07)', () => 
     expect(w.get('a[download]').attributes('href')).toMatch(
       /^\/api\/platform\/event-balance\/purchase-requests\/export\?from=.*&to=/,
     )
+  })
+
+  it('labels pending as all-time and shows no truncation note by default', async () => {
+    const w = await render()
+    expect(w.text()).toContain('Ждут решения (всего)')
+    expect(w.find('[data-testid="orgs-truncated"]').exists()).toBe(false)
+  })
+
+  it('notes a truncated organization list', async () => {
+    summaryBody = { ...SUMMARY, byOrganizationTruncated: true }
+    const w = await render()
+    await w.findAll('[role="tab"]')[1]!.trigger('click')
+    expect(w.get('[data-testid="orgs-truncated"]').text()).toContain('первые 100')
   })
 
   it('flags a mismatch between approved requests and the ledger', async () => {
