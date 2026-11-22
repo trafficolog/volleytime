@@ -4,6 +4,7 @@ import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { runMigrations } from './migrate'
+import { rollbackPlatformSettings } from './migration-test-helpers'
 import { rollbackLastMigration } from './rollback'
 
 const TAG = '0042_platform_settings'
@@ -63,7 +64,7 @@ describe('migration 0042 platform settings (integration)', { timeout: 90_000 }, 
     try {
       await runMigrations(url)
       expect(await objects(sql)).toBe(2)
-      expect(await rollbackLastMigration(url)).toBe(TAG)
+      expect(await rollbackPlatformSettings(url)).toBe(TAG)
       expect(await objects(sql)).toBe(0)
       await runMigrations(url)
       expect(await objects(sql)).toBe(2)
@@ -129,10 +130,10 @@ describe('migration 0042 platform settings (integration)', { timeout: 90_000 }, 
     try {
       await runMigrations(url)
       await sql`INSERT INTO platform_settings (key, value) VALUES ('bot.callbackLimit', '8')`
-      await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0042 refused/)
+      await expect(rollbackPlatformSettings(url)).rejects.toThrow(/rollback 0042 refused/)
       expect(await objects(sql)).toBe(2)
       await sql`DELETE FROM platform_settings`
-      expect(await rollbackLastMigration(url)).toBe(TAG)
+      expect(await rollbackPlatformSettings(url)).toBe(TAG)
       expect(await rollbackLastMigration(url)).toBe(PREVIOUS)
     } finally {
       await sql.end()
@@ -146,10 +147,10 @@ describe('migration 0042 platform settings (integration)', { timeout: 90_000 }, 
       const id = await org(sql, 'ps-guard')
       await sql`UPDATE organizations SET event_balance_unlimited_until = now() - interval '1 day'
         WHERE id = ${id}`
-      await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0042 refused/)
+      await expect(rollbackPlatformSettings(url)).rejects.toThrow(/rollback 0042 refused/)
       expect(await objects(sql)).toBe(2)
       await sql`UPDATE organizations SET event_balance_unlimited_until = NULL`
-      expect(await rollbackLastMigration(url)).toBe(TAG)
+      expect(await rollbackPlatformSettings(url)).toBe(TAG)
       expect(await sql`SELECT 1 FROM organizations WHERE id = ${id}`).toHaveLength(1)
     } finally {
       await sql.end()

@@ -1,10 +1,18 @@
+// Страница календаря — задача 23.2.2. До её появления вкладка «Календарь» не показывается, чтобы
+// не вести игрока на 404 (решение владельца 2026-11-22); 23.2.2 переключает на true.
+export const CALENDAR_PAGE_READY = false
+
 export function playerTabs(
   base: string,
   availability: { showMenu: boolean },
-  options: { collections?: boolean; collectionsDot?: boolean } = {},
+  options: { collections?: boolean; collectionsDot?: boolean; calendar?: boolean } = {},
 ): { to: string; label: string; icon: string; prefix?: boolean; dot?: boolean }[] {
   return [
     { to: base, label: 'Главная', icon: 'home' },
+    // «Календарь» (23.1.1): сразу после «Главной»; скрыт, когда игрок выключил флаг `cal`
+    ...(options.calendar === false
+      ? []
+      : [{ to: `${base}/calendar`, label: 'Календарь', icon: 'calendar', prefix: true }]),
     ...(availability.showMenu
       ? [{ to: `${base}/subscriptions`, label: 'Абонементы', icon: 'card', prefix: true }]
       : []),

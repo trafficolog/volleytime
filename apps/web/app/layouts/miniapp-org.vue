@@ -7,7 +7,7 @@ import {
   markTabSeen,
 } from '~/utils/new-tab-dot'
 import { organizerMenuLinks, organizerTabItems } from '~/utils/organizer-miniapp'
-import { playerTabs } from '~/utils/player-navigation'
+import { CALENDAR_PAGE_READY, playerTabs } from '~/utils/player-navigation'
 import { subscriptionUiState, type SubscriptionBalance } from '~/utils/subscription-availability'
 
 /** Layout экранов группы: контент + таб-бар по роли (Task 8.8.12). */
@@ -30,11 +30,19 @@ const { data: balanceData, refresh: refreshBalances } = await useFetch<{
 }>(() => `/api/organizations/${orgId.value}/subscriptions/my`, {
   key: () => `org-nav-balances-${orgId.value}`,
 })
+// Личные функции игрока (23.1.1): флаг `cal` скрывает вкладку «Календарь». Ключ общий, экран
+// «Что показывать» после сохранения обновляет его через refreshNuxtData('me-features'). Без ответа
+// функция считается включённой (по умолчанию включено всё).
+const { data: featuresData, refresh: refreshFeatures } = await useFetch<{
+  features: { cal: boolean }
+}>('/api/me/features', { key: 'me-features' })
+const calendarOn = computed(() => featuresData.value?.features?.cal !== false)
 watch(
   () => route.fullPath,
   () => {
     void refreshOrg()
     void refreshBalances()
+    void refreshFeatures()
   },
 )
 watch(orgId, () => {
@@ -117,6 +125,7 @@ const tabs = computed<TabItem[]>(() =>
           collectionsDot: collectionsUnseen.value,
         })
       : playerTabs(base.value, availability.value, {
+          calendar: CALENDAR_PAGE_READY && calendarOn.value,
           collections: showCollections.value,
           collectionsDot: collectionsUnseen.value,
         }),
