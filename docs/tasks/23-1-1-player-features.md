@@ -6,7 +6,7 @@ status: done
 release: 'v0.5.0'
 sync_state: synced
 last_reviewed: 2026-11-22
-status_note: 'Слито в main PR #322 (b7b184ad) 2026-11-22; ревью без Critical/Important, CI зелёный. Вкладка «Календарь» скрыта до 23.2.2 (CALENDAR_PAGE_READY). В production — с v0.5.0.'
+status_note: 'Слито в main PR #322 (b7b184ad) 2026-11-22; ревью без Critical/Important, CI зелёный. Вкладка «Календарь» скрыта до 23.2.2 (CALENDAR_PAGE_READY). Войдёт в production с v0.5.0.'
 ref_id: 'P-12'
 complexity: M
 impl_model: claude-sonnet-5-5
