@@ -90,6 +90,15 @@ describe('email-OTP sign-in (integration)', () => {
     expect(fourth.headers.getSetCookie().join(';')).not.toContain('session_token')
   })
 
+  /**
+   * better-auth атомарно забирает запись кода на время сравнения: параллельный запрос,
+   * пришедший в это окно, получает INVALID_OTP без сравнения и без списания попытки.
+   * Поэтому всплеск из 6 неверных кодов списывает от 1 до 3 попыток в зависимости от
+   * чередования (Deploy 44758244634: списана 1, верный код затем вошёл — это не лишняя
+   * попытка). Проверяем при любом чередовании: списано не больше 3, остаток бюджета ровно
+   * `3 - списано`, после него верный код отклоняется. Сравнения без списания тест не видит:
+   * их исключает атомарный consume записи в better-auth, а не этот тест.
+   */
   it('allowedAttempts 3: concurrent wrong codes do not grant extra guesses', async () => {
     const email = `otp-race-${Date.now()}@test.by`
     const otp = await sendAndGetOtp(email)
@@ -97,8 +106,23 @@ describe('email-OTP sign-in (integration)', () => {
       Array.from({ length: 6 }, () => call('/sign-in/email-otp', { email, otp: wrongOf(otp) })),
     )
     for (const res of results) expect(res.status).not.toBe(200)
+
+    // Значение хранится как `<hash>:<попыток>`; без суффикса — попыток 0, без записи — сгорел.
+    const rows = await db.select().from(verifications)
+    const stored = rows[0]?.value
+    const suffix = stored?.includes(':') ? stored.slice(stored.lastIndexOf(':') + 1) : '0'
+    const used = stored === undefined ? 3 : Number(suffix)
+    expect(used).toBeGreaterThanOrEqual(0)
+    expect(used).toBeLessThanOrEqual(3)
+
+    // Остаток бюджета расходуется неверными кодами по одному; после него верный код отклоняется.
+    for (let i = used; i < 3; i++) {
+      const res = await call('/sign-in/email-otp', { email, otp: wrongOf(otp) })
+      expect(res.status).not.toBe(200)
+    }
     const after = await call('/sign-in/email-otp', { email, otp })
     expect(after.status).not.toBe(200)
+    expect(after.headers.getSetCookie().join(';')).not.toContain('session_token')
   })
 
   it('session cookie attributes (27.2.6 cookie check)', async () => {
