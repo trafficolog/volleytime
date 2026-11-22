@@ -15,8 +15,7 @@ import { getDb, type ServiceContext } from '../shared/context'
 
 const DAY_MS = 86_400_000
 
-/** Запись — занятое место, как в обзоре платформы (22.1.1): очередь и отмены не считаются. */
-const COUNTED_BOOKING_STATUSES = sql.raw(`('pending_payment', 'confirmed', 'attended', 'no_show')`)
+/* Запись — занятое место, как в обзоре платформы (22.1.1): очередь и отмены не считаются. */
 
 const iso = (d: Date) => d.toISOString()
 const daysBefore = (now: Date, days: number) => new Date(now.getTime() - days * DAY_MS)
@@ -30,6 +29,16 @@ const PLAYERS_CTE = sql`players AS (
   JOIN organizations o ON o.id = m.organization_id
   WHERE m.status = 'active' AND o.status <> 'archived' AND o.deleted_at IS NULL
 )`
+
+/**
+ * Записи-места в живых группах за окно частоты, по игроку. Те же живые группы, что и у игроков:
+ * записи в архивных и удалённых группах не считаются ни в частоте, ни в удержании.
+ */
+const LIVE_BOOKING = sql.raw(`b.status IN ('pending_payment', 'confirmed', 'attended', 'no_show')
+  AND EXISTS (SELECT 1 FROM organizations bo WHERE bo.id = b.organization_id
+    AND bo.status <> 'archived' AND bo.deleted_at IS NULL)`)
+
+const HIDDEN = cohortMetric(0, null)
 
 type Row = Record<string, unknown>
 const num = (v: unknown) => Number(v ?? 0)
@@ -81,41 +90,46 @@ export const featureAnalyticsService = {
       // все игроки и их записи за окно частоты
       db.execute(sql`WITH ${PLAYERS_CTE},
         bk AS (
-          SELECT user_id, count(*)::int AS n FROM bookings
-          WHERE status IN ${COUNTED_BOOKING_STATUSES}
-            AND created_at >= ${frequencyFrom}::timestamptz AND created_at < ${until}::timestamptz
-          GROUP BY user_id
+          SELECT b.user_id, count(*)::int AS n FROM bookings b
+          WHERE ${LIVE_BOOKING}
+            AND b.created_at >= ${frequencyFrom}::timestamptz AND b.created_at < ${until}::timestamptz
+          GROUP BY b.user_id
         )
         SELECT count(*)::int AS players, coalesce(sum(bk.n), 0)::int AS bookings
         FROM players p LEFT JOIN bk ON bk.user_id = p.user_id`),
       // выключившие функцию игроки и их записи за окно частоты
       db.execute(sql`WITH ${PLAYERS_CTE},
         bk AS (
-          SELECT user_id, count(*)::int AS n FROM bookings
-          WHERE status IN ${COUNTED_BOOKING_STATUSES}
-            AND created_at >= ${frequencyFrom}::timestamptz AND created_at < ${until}::timestamptz
-          GROUP BY user_id
+          SELECT b.user_id, count(*)::int AS n FROM bookings b
+          WHERE ${LIVE_BOOKING}
+            AND b.created_at >= ${frequencyFrom}::timestamptz AND b.created_at < ${until}::timestamptz
+          GROUP BY b.user_id
         )
         SELECT uf.feature, count(*)::int AS players, coalesce(sum(bk.n), 0)::int AS bookings
         FROM players p
         JOIN user_features uf ON uf.user_id = p.user_id AND uf.enabled = false
         LEFT JOIN bk ON bk.user_id = p.user_id
         GROUP BY uf.feature`),
-      db.execute(sql`
-        SELECT feature, count(DISTINCT user_id)::int AS players FROM feature_events
-        WHERE created_at >= ${activeFrom}::timestamptz AND created_at < ${until}::timestamptz
-        GROUP BY feature`),
-      // когорта — первое открытие в окне; удержание — запись в следующие retentionDays суток
-      db.execute(sql`WITH first_open AS (
-          SELECT feature, user_id, min(created_at) AS at FROM feature_events
-          WHERE kind = 'open'
-            AND created_at >= ${cohortFrom}::timestamptz AND created_at < ${cohortTo}::timestamptz
-          GROUP BY feature, user_id
+      // активные — только игроки платформы (та же совокупность, что и `players`)
+      db.execute(sql`WITH ${PLAYERS_CTE}
+        SELECT e.feature, count(DISTINCT e.user_id)::int AS players FROM feature_events e
+        JOIN players p ON p.user_id = e.user_id
+        WHERE e.created_at >= ${activeFrom}::timestamptz AND e.created_at < ${until}::timestamptz
+        GROUP BY e.feature`),
+      // когорта — игроки платформы с первым открытием в окне [now−56d, now−28d) (более ранние
+      // открытия не учитываются); удержание — запись в живой группе в следующие retentionDays суток
+      db.execute(sql`WITH ${PLAYERS_CTE},
+        first_open AS (
+          SELECT e.feature, e.user_id, min(e.created_at) AS at FROM feature_events e
+          JOIN players p ON p.user_id = e.user_id
+          WHERE e.kind = 'open'
+            AND e.created_at >= ${cohortFrom}::timestamptz AND e.created_at < ${cohortTo}::timestamptz
+          GROUP BY e.feature, e.user_id
         )
         SELECT f.feature, count(*)::int AS players,
           count(*) FILTER (WHERE EXISTS (
             SELECT 1 FROM bookings b
-            WHERE b.user_id = f.user_id AND b.status IN ${COUNTED_BOOKING_STATUSES}
+            WHERE b.user_id = f.user_id AND ${LIVE_BOOKING}
               AND b.created_at > f.at AND b.created_at <= f.at + ${retentionWindow}
           ))::int AS retained
         FROM first_open f GROUP BY f.feature`),
@@ -135,15 +149,20 @@ export const featureAnalyticsService = {
       const activePlayers = num(activeBy.get(feature)?.players)
       const ret = retentionBy.get(feature)
       const cohort = num(ret?.players)
+      // Размер одной стороны выводится из другой (players − on = off, доля × players = off), поэтому
+      // если любая сторона меньше порога, скрываются доля и обе стороны частоты.
+      const split = Math.min(onPlayers, offPlayers) >= FEATURE_ANALYTICS_MIN_COHORT
       return {
         feature,
-        disabledShare: cohortMetric(allPlayers, ratio(offPlayers, allPlayers)),
+        disabledShare: split ? cohortMetric(allPlayers, ratio(offPlayers, allPlayers)) : HIDDEN,
         weeklyActive: cohortMetric(activePlayers, activePlayers),
         retention: cohortMetric(cohort, ratio(num(ret?.retained), cohort)),
-        bookingFrequency: {
-          on: cohortMetric(onPlayers, ratio(allBookings - offBookings, onPlayers)),
-          off: cohortMetric(offPlayers, ratio(offBookings, offPlayers)),
-        },
+        bookingFrequency: split
+          ? {
+              on: cohortMetric(onPlayers, ratio(allBookings - offBookings, onPlayers)),
+              off: cohortMetric(offPlayers, ratio(offBookings, offPlayers)),
+            }
+          : { on: HIDDEN, off: HIDDEN },
       }
     })
 
@@ -159,15 +178,26 @@ export const featureAnalyticsService = {
 }
 
 /**
- * Удалить события старше 180 дней (D-25). Шаг планировщика раз в час, порциями, как очистка
+ * Удалить события старше 180 дней (D-25). Шаг планировщика раз в час, порциями по `limit` до
+ * неполной порции (не больше `maxBatches` за тик), как очистка
  * журнала уведомлений; индекс `feature_events_created_idx`.
  */
-export async function purgeExpiredFeatureEvents(now: Date, limit = 5000): Promise<number> {
+export async function purgeExpiredFeatureEvents(
+  now: Date,
+  limit = 5000,
+  maxBatches = 20,
+): Promise<number> {
   const before = iso(daysBefore(now, FEATURE_EVENTS_RETENTION_DAYS))
-  const rows = await defaultDb.execute(sql`
-    DELETE FROM ${featureEvents} WHERE id IN (
-      SELECT id FROM ${featureEvents} WHERE created_at < ${before}::timestamptz LIMIT ${limit}
-    )
-    RETURNING id`)
-  return rows.length
+  let total = 0
+  // порциями до неполной порции; не больше maxBatches за тик, остаток — на следующем тике
+  for (let i = 0; i < maxBatches; i++) {
+    const rows = await defaultDb.execute(sql`
+      DELETE FROM ${featureEvents} WHERE id IN (
+        SELECT id FROM ${featureEvents} WHERE created_at < ${before}::timestamptz LIMIT ${limit}
+      )
+      RETURNING id`)
+    total += rows.length
+    if (rows.length < limit) break
+  }
+  return total
 }

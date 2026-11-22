@@ -42,17 +42,24 @@ export interface FeatureCohortMetric {
 
 export interface FeatureAnalyticsRow {
   feature: PlayerFeature
-  /** Доля игроков платформы, выключивших функцию (0…1); когорта — все игроки платформы. */
+  /**
+   * Доля игроков платформы, выключивших функцию (0…1); когорта — все игроки платформы. Скрыта, если
+   * выключивших или включённых меньше `FEATURE_ANALYTICS_MIN_COHORT`.
+   */
   disabledShare: FeatureCohortMetric
-  /** Игроки с событием функции за последние `activeDays` суток; `value` = `players`. */
+  /** Игроки платформы с событием функции за последние `activeDays` суток; `value` = `players`. */
   weeklyActive: FeatureCohortMetric
   /**
-   * Удержание (0…1): когорта — игроки с событием `open` в окне
-   * [now − 2·retentionDays, now − retentionDays); доля тех, кто записался на игру в следующие
-   * `retentionDays` суток после первого такого открытия.
+   * Удержание (0…1): когорта — игроки платформы с первым открытием (`open`) в окне
+   * [now−56d, now−28d) (= [now − 2·retentionDays, now − retentionDays)); открытия до окна не
+   * учитываются. Доля тех, кто записался на игру в живой группе в следующие `retentionDays` суток
+   * после первого открытия в окне.
    */
   retention: FeatureCohortMetric
-  /** Записей на игрока за последние `frequencyDays` суток: функция включена / выключена. */
+  /**
+   * Записей в живых группах на игрока за последние `frequencyDays` суток: функция включена /
+   * выключена. Обе стороны скрыты, если любая из них меньше `FEATURE_ANALYTICS_MIN_COHORT`.
+   */
   bookingFrequency: { on: FeatureCohortMetric; off: FeatureCohortMetric }
 }
 

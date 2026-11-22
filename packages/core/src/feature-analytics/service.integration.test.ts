@@ -137,6 +137,17 @@ describe('featureAnalyticsService (integration)', { timeout: 90_000 }, () => {
       expect(left).toHaveLength(2)
       expect(await purgeExpiredFeatureEvents(now)).toBe(0)
     })
+
+    it('loops batches until a short batch, capped per tick', async () => {
+      const ids = await newPlayers(7)
+      for (const id of ids) await emit(id, 'cal', 'open', ago(200))
+      // limit 2: порции 2, 2, 2 — третья ещё полная, при cap 3 остаётся 1
+      expect(await purgeExpiredFeatureEvents(now, 2, 3)).toBe(6)
+      expect(await db.select().from(featureEvents)).toHaveLength(1)
+      // без упора в cap — до неполной порции
+      expect(await purgeExpiredFeatureEvents(now, 2, 20)).toBe(1)
+      expect(await db.select().from(featureEvents)).toHaveLength(0)
+    })
   })
 
   describe('report', () => {
@@ -223,12 +234,121 @@ describe('featureAnalyticsService (integration)', { timeout: 90_000 }, () => {
       expect(cal.weeklyActive).toEqual({ players: 11, value: 11, suppressed: false })
       expect(cal.bookingFrequency.off).toEqual({ players: 10, value: 1, suppressed: false })
       expect(cal.bookingFrequency.on).toEqual({ players: 10, value: 3, suppressed: false })
-      // у функции без выключивших: доля 0, группа «выключено» скрыта
+      // у функции без выключивших сторона «выключено» < 10: скрыты доля и обе стороны частоты,
+      // иначе размер выключивших выводится вычитанием или умножением
       const mvp = r.features.find((f) => f.feature === 'mvp')!
-      expect(mvp.disabledShare).toEqual({ players: 20, value: 0, suppressed: false })
-      expect(mvp.bookingFrequency.on).toEqual({ players: 20, value: 2, suppressed: false })
-      expect(mvp.bookingFrequency.off.suppressed).toBe(true)
+      const hidden = { players: null, value: null, suppressed: true }
+      expect(mvp.disabledShare).toEqual(hidden)
+      expect(mvp.bookingFrequency).toEqual({ on: hidden, off: hidden })
       expect(mvp.weeklyActive.suppressed).toBe(true)
+      // игрок вне живых групп не входит в активных
+      for (const id of ids.slice(0, 9)) await emit(id, 'mvp', 'open', ago(1))
+      await emit(outsider, 'mvp', 'open', ago(1))
+      expect((await row('mvp')).weeklyActive.suppressed).toBe(true)
+    })
+
+    it('hides the split when the disabled side is under 10 though the total is not', async () => {
+      const ids = await newPlayers(15)
+      for (const id of ids.slice(0, 9))
+        await db.insert(userFeatures).values({ userId: id, feature: 'cal', enabled: false })
+      const r = await report()
+      expect(r.players).toBe(15)
+      const hidden = { players: null, value: null, suppressed: true }
+      const cal = r.features.find((f) => f.feature === 'cal')!
+      expect(cal.disabledShare).toEqual(hidden)
+      expect(cal.bookingFrequency).toEqual({ on: hidden, off: hidden })
+    })
+
+    it('hides the split when the enabled side is under 10', async () => {
+      const ids = await newPlayers(15)
+      for (const id of ids.slice(0, 10))
+        await db.insert(userFeatures).values({ userId: id, feature: 'cal', enabled: false })
+      const r = await report()
+      const hidden = { players: null, value: null, suppressed: true }
+      const cal = r.features.find((f) => f.feature === 'cal')!
+      expect(cal.disabledShare).toEqual(hidden)
+      expect(cal.bookingFrequency).toEqual({ on: hidden, off: hidden })
+    })
+
+    it('counts bookings only in live groups', async () => {
+      const ids = await newPlayers(20)
+      for (const id of ids.slice(0, 10))
+        await db.insert(userFeatures).values({ userId: id, feature: 'cal', enabled: false })
+      const owner = await newUser('owner2')
+      const dead = (
+        await db
+          .insert(organizations)
+          .values({ name: 'Dead', slug: `fa-${++seq}`, ownerUserId: owner, status: 'archived' })
+          .returning()
+      )[0]!.id
+      const deadEvent = (
+        await db
+          .insert(events)
+          .values({
+            organizationId: dead,
+            createdByUserId: owner,
+            title: 'E',
+            startsAt: ago(-1),
+            endsAt: ago(-1, -2),
+            capacity: 500,
+            status: 'published',
+          })
+          .returning()
+      )[0]!.id
+      for (const id of ids) {
+        await book(id, ago(1))
+        await db.insert(bookings).values({
+          eventId: deadEvent,
+          userId: id,
+          organizationId: dead,
+          status: 'confirmed',
+          method: 'free',
+          createdAt: ago(1),
+        })
+      }
+      const cal = await row('cal')
+      expect(cal.bookingFrequency.on).toEqual({ players: 10, value: 1, suppressed: false })
+      expect(cal.bookingFrequency.off).toEqual({ players: 10, value: 1, suppressed: false })
+    })
+
+    it('retention: first open within the window; earlier opens before it are ignored', async () => {
+      const ids = await newPlayers(10)
+      // открытие до окна (60 суток) и первое открытие в окне (40 суток)
+      for (const id of ids) {
+        await emit(id, 'coach', 'open', ago(60))
+        await emit(id, 'coach', 'open', ago(40))
+      }
+      // запись после открытия до окна, но до открытия в окне — не удержание
+      for (const id of ids.slice(0, 4)) await book(id, ago(50))
+      // запись в 28 суток после первого открытия в окне — удержание
+      const ev = (
+        await db
+          .insert(events)
+          .values({
+            organizationId: orgId,
+            createdByUserId: rootId,
+            title: 'E2',
+            startsAt: ago(-1),
+            endsAt: ago(-1, -2),
+            capacity: 500,
+            status: 'published',
+          })
+          .returning()
+      )[0]!.id
+      for (const id of ids.slice(0, 2))
+        await db.insert(bookings).values({
+          eventId: ev,
+          userId: id,
+          organizationId: orgId,
+          status: 'confirmed',
+          method: 'free',
+          createdAt: ago(30),
+        })
+      expect((await row('coach')).retention).toEqual({
+        players: 10,
+        value: 2 / 10,
+        suppressed: false,
+      })
     })
 
     it('retention: share of openers in the cohort window who booked within 28 days', async () => {

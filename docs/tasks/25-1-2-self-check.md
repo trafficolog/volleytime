@@ -48,6 +48,7 @@ tags: [reference-v3]
 2. Входящие неотвеченные
 3. Напоминание
 4. Сверить экраны с референсом через харнесс [19.0.2](19-0-2-visual-reference-harness.md) и приложить отчёт к PR.
+5. Функция шлёт события `trackFeatureEvent('self', 'open' | 'use')` по [D-25](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-25) ([23.1.2](23-1-2-feature-analytics.md)).
 
 ## Критерии приёмки
 
