@@ -1992,6 +1992,222 @@ ol.vt-desktop-event-detail__rows > li {
   }
 }
 
+/* Страница группы: конструктор и предпросмотр (24.1.1, W-13) */
+.vt-gp {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+.vt-gp__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 26rem);
+  gap: 1rem;
+  align-items: start;
+}
+.vt-gp__form,
+.vt-gp-sections {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.vt-gp__aside {
+  position: sticky;
+  top: 1rem;
+  min-width: 0;
+}
+.vt-gp__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.vt-gp__actions {
+  align-items: center;
+}
+.vt-gp-section[data-enabled='false'] .vt-settings-card__title {
+  color: var(--vt-mute-2);
+}
+.vt-gp-section__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+.vt-gp-cover {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.vt-gp-venues {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.vt-gp-venue {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  padding: 10px 12px;
+  border-radius: var(--r-chip);
+  background: var(--vt-bone-2);
+}
+.vt-gp-venue small {
+  display: block;
+}
+.vt-gp-readonly-list {
+  margin: 0;
+  padding-inline-start: 1.25rem;
+  color: var(--vt-ink-3);
+  font-size: var(--fs-sm);
+}
+.vt-gp-faq-list,
+.vt-gp-warnings {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.vt-gp-faq-item {
+  display: grid;
+  gap: 0.75rem;
+  padding: 12px;
+  border-radius: var(--r-chip);
+  background: var(--vt-bone-2);
+}
+.vt-gp-device {
+  display: flex;
+  gap: 0.375rem;
+}
+
+/* Предпросмотр: на нём строится публичный рендер 24.1.2 */
+.vt-gp-preview {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.vt-gp-snippet {
+  display: grid;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: var(--r-chip);
+  background: var(--vt-bone-2);
+}
+.vt-gp-snippet p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.vt-gp-snippet__url {
+  color: var(--vt-mute-2);
+  font-size: var(--fs-xs);
+}
+.vt-gp-snippet__title {
+  color: var(--vt-link);
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+.vt-gp-snippet__text {
+  color: var(--vt-ink-3);
+  font-size: var(--fs-sm);
+}
+.vt-gp-frame {
+  margin-inline: auto;
+  width: 100%;
+  max-height: 36rem;
+  overflow: auto;
+  border: 1px solid var(--vt-hairline);
+  border-radius: var(--r-tile);
+  background: var(--vt-paper);
+}
+.vt-gp-frame--phone {
+  max-width: 20rem;
+  border-width: 6px;
+  border-color: var(--vt-ink);
+  border-radius: 28px;
+}
+.vt-gp-page {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  font-size: var(--fs-sm);
+}
+.vt-gp-block {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.vt-gp-block h4 {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: 700;
+}
+.vt-gp-block p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+.vt-gp-block--cover {
+  justify-items: start;
+  padding: 1rem;
+  border-radius: var(--r-tile);
+  background: var(--vt-bone);
+}
+.vt-gp-block__headline {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+.vt-gp-block__lead,
+.vt-gp-block__meta {
+  color: var(--vt-mute-2);
+}
+.vt-gp-list,
+.vt-gp-faq {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.vt-gp-list li {
+  display: grid;
+  gap: 2px;
+}
+.vt-gp-list span {
+  color: var(--vt-mute-2);
+}
+.vt-gp-faq dt {
+  font-weight: 600;
+}
+.vt-gp-faq dd {
+  margin: 0 0 0.5rem;
+  color: var(--vt-ink-3);
+  overflow-wrap: anywhere;
+}
+.vt-gp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+@media (max-width: 70rem) {
+  .vt-gp__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .vt-gp__aside {
+    position: static;
+  }
+}
+
 /* Сборы кабинета (21.2.5, W-08) */
 .vt-desktop-collections__stats {
   display: grid;

@@ -32,6 +32,7 @@ const NAV_ICONS: Record<string, string> = {
   cashbox: 'wallet',
   collections: 'gift',
   reports: 'chart',
+  'group-page': 'globe',
   billing: 'card',
   settings: 'settings',
 }

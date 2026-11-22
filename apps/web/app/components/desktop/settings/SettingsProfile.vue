@@ -2,7 +2,6 @@
 import { computed, reactive, ref, watch } from 'vue'
 
 import SettingsField from './SettingsField.vue'
-import SettingsRow from './SettingsRow.vue'
 
 import {
   SETTING_IMPACT,
@@ -18,6 +17,8 @@ const props = defineProps<{
   org: OrgProfile
   settings: GroupSettings
   canEdit: boolean
+  /** Корень кабинета группы (`/app/orgs/<id>`): ссылка на раздел «Страница группы». */
+  base: string
   controller: SettingsController
 }>()
 
@@ -175,15 +176,16 @@ async function submit() {
       </div>
     </form>
     <section class="vt-card vt-settings-card">
-      <h2 class="vt-settings-card__title">Видимость</h2>
-      <SettingsRow
-        label="Показывать страницу группы в поиске"
-        :hint="SETTING_IMPACT.seoIndex"
-        :model-value="settings.seoIndex"
-        :disabled="controller.isPending('seoIndex')"
-        :readonly="!canEdit"
-        @update:model-value="controller.toggle('seoIndex', $event)"
-      />
+      <h2 class="vt-settings-card__title">Страница группы и поиск</h2>
+      <p class="vt-settings-hint">
+        Показ страницы группы в поиске, её содержимое и заголовок для поисковиков настраиваются в
+        разделе «Страница группы».
+      </p>
+      <div class="vt-settings-actions vt-settings-actions--start">
+        <NuxtLink :to="`${base}/group-page`" class="vt-btn vt-btn--ghost vt-btn--sm">
+          Открыть «Страницу группы»
+        </NuxtLink>
+      </div>
     </section>
   </div>
 </template>

@@ -12,6 +12,7 @@ function mountProfile(canEdit = true, request = vi.fn()) {
       org: ctx.org.value,
       settings: ctx.settings.value,
       canEdit,
+      base: '/app/orgs/7',
       controller: ctx.controller,
     },
     global: { stubs },
@@ -40,7 +41,6 @@ describe('SettingsProfile', () => {
     const { wrapper } = mountProfile()
     const text = wrapper.text()
     expect(text).toContain('Показывается игрокам в Mini App')
-    expect(text).toContain('Разрешает поисковикам')
   })
 
   it('shows a validation error, marks the field and sends nothing', async () => {
@@ -105,35 +105,24 @@ describe('SettingsProfile', () => {
     ).toBe('Минск')
   })
 
-  it('toggles search visibility optimistically and reverts on a server error', async () => {
-    let reject!: (e: Error) => void
-    const request = vi.fn(() => new Promise((_, r) => (reject = r)))
-    const { wrapper, settings, toast } = mountProfile(true, request)
-    const toggle = () => wrapper.find('[role="switch"]')
-    expect(toggle().attributes('aria-checked')).toBe('false')
-    await toggle().trigger('click')
-    expect(settings.value.seoIndex).toBe(true)
-    reject(new Error('Нет прав'))
-    await flushPromises()
-    expect(settings.value.seoIndex).toBe(false)
-    await wrapper.setProps({ settings: settings.value })
-    expect(toggle().attributes('aria-checked')).toBe('false')
-    expect(toast).toHaveBeenCalledWith('Нет прав', 'danger')
+  it('has no search switch any more: a link leads to the group page section', () => {
+    const { wrapper } = mountProfile()
+    expect(wrapper.find('[role="switch"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Показывать страницу группы в поиске')
+    const link = wrapper.find('a[href="/app/orgs/7/group-page"]')
+    expect(link.exists()).toBe(true)
+    expect(link.text()).toContain('Страницу группы')
   })
 
-  it('is read-only for a non-owner: focusable readonly fields, inert switch, no save buttons', async () => {
+  it('is read-only for a non-owner: focusable readonly fields, no save buttons, link stays', () => {
     const { wrapper, request } = mountProfile(false)
     for (const input of wrapper.findAll('input, textarea')) {
       expect(input.attributes('readonly')).toBeDefined()
       expect(input.attributes('disabled')).toBeUndefined()
     }
-    const toggle = wrapper.find('[role="switch"]')
-    expect(toggle.attributes('aria-disabled')).toBe('true')
-    expect(toggle.attributes('disabled')).toBeUndefined()
-    await toggle.trigger('click')
-    expect(toggle.attributes('aria-checked')).toBe('false')
     expect(request).not.toHaveBeenCalled()
     expect(wrapper.find('button[type="submit"]').exists()).toBe(false)
+    expect(wrapper.find('a[href="/app/orgs/7/group-page"]').exists()).toBe(true)
   })
 
   it('limits the description and shows a counter', () => {

@@ -14,6 +14,7 @@ describe('cabinet sidebar sections (20.5.3)', () => {
       'cashbox',
       'collections',
       'reports',
+      'group-page',
     ])
     expect(sections[1]!.items.map((i) => i.key)).toEqual(['billing', 'settings'])
     expect(sections[1]!.items[0]!.to).toBe('/app/orgs/7/billing')
