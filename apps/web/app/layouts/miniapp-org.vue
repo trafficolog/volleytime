@@ -7,7 +7,7 @@ import {
   markTabSeen,
 } from '~/utils/new-tab-dot'
 import { organizerMenuLinks, organizerTabItems } from '~/utils/organizer-miniapp'
-import { playerTabs } from '~/utils/player-navigation'
+import { CALENDAR_PAGE_READY, playerTabs } from '~/utils/player-navigation'
 import { subscriptionUiState, type SubscriptionBalance } from '~/utils/subscription-availability'
 
 /** Layout экранов группы: контент + таб-бар по роли (Task 8.8.12). */
@@ -125,7 +125,7 @@ const tabs = computed<TabItem[]>(() =>
           collectionsDot: collectionsUnseen.value,
         })
       : playerTabs(base.value, availability.value, {
-          calendar: calendarOn.value,
+          calendar: CALENDAR_PAGE_READY && calendarOn.value,
           collections: showCollections.value,
           collectionsDot: collectionsUnseen.value,
         }),

@@ -18,8 +18,20 @@ import { createMemoryHistory, createRouter, RouterLink } from 'vue-router'
 
 import Sheet from '../components/vt/Sheet.vue'
 import TabBar from '../components/vt/TabBar.vue'
+import type * as PlayerNavigation from '../utils/player-navigation'
 
 import MiniappOrg from './miniapp-org.vue'
+
+const calendarPage = vi.hoisted(() => ({ ready: true }))
+vi.mock('../utils/player-navigation', async (importOriginal) => {
+  const actual = await importOriginal<typeof PlayerNavigation>()
+  return {
+    ...actual,
+    get CALENDAR_PAGE_READY() {
+      return calendarPage.ready
+    },
+  }
+})
 
 const route = reactive({
   params: { orgId: '7' },
@@ -265,6 +277,18 @@ describe('Mini App layout navigation interaction', () => {
     await nextTick()
     expect(wrapper.find('a[href="/m/orgs/7/calendar"]').exists()).toBe(true)
     wrapper.unmount()
+  })
+
+  it('hides Календарь until the calendar page (23.2.2) exists, even with the cal flag on', async () => {
+    calendarPage.ready = false
+    try {
+      const { wrapper } = await renderLayout('player', true)
+      expect(wrapper.find('a[href="/m/orgs/7/calendar"]').exists()).toBe(false)
+      expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(4)
+      wrapper.unmount()
+    } finally {
+      calendarPage.ready = true
+    }
   })
 
   it('never adds Календарь to the organizer tab bar, whatever the flag says', async () => {

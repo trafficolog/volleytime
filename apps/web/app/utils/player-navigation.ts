@@ -1,3 +1,7 @@
+// Страница календаря — задача 23.2.2. До её появления вкладка «Календарь» не показывается, чтобы
+// не вести игрока на 404 (решение владельца 2026-11-22); 23.2.2 переключает на true.
+export const CALENDAR_PAGE_READY = false
+
 export function playerTabs(
   base: string,
   availability: { showMenu: boolean },
