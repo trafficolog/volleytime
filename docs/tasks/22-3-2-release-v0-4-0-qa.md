@@ -2,11 +2,11 @@
 id: '22.3.2'
 phase: '22'
 epic: '22.3'
-status: in_progress
+status: done
 release: 'v0.4.0'
 sync_state: synced
 last_reviewed: 2026-11-22
-status_note: 'Выложен 2026-11-20: prod 2b4ba8ee, Promote 44758218391, Deploy 44758244634 attempt 2 success (attempt 1 — нестабильный тест OTP, PR #311), миграции 0041 и 0042, smoke-passed, health release=2b4ba8ee. Тег v0.4.0 на 2b4ba8ee поставлен 2026-11-22 по указанию владельца. Открыто: QA владельца по экранам Root Admin (отчёт не приложен) и заполнение чеклиста после Promote в отчёте 2026-11-20.'
+status_note: 'Закрыта 2026-11-22: v0.4.0 выложен 2026-11-20 (prod 2b4ba8ee, Promote 44758218391, Deploy 44758244634 attempt 2 success, миграции 0041 и 0042, smoke-passed, health release=2b4ba8ee) и принят владельцем 2026-11-22 в чате; тег v0.4.0 на 2b4ba8ee. Отчёта о проверках на устройствах нет. Запись выкладки — PR #317.'
 ref_id: ''
 complexity: M
 impl_model: claude-opus-5-5
