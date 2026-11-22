@@ -2,11 +2,11 @@
 id: '23.2.4'
 phase: '23'
 epic: '23.2'
-status: todo
+status: done
 release: 'v0.5.0'
 sync_state: synced
 last_reviewed: 2026-11-22
-status_note: 'Решение владельца 2026-11-22 (ревью PR #327): отменённая игра, на которую игрок был записан, остаётся в общем календаре приглушённой, как в расписании группы (21.1.4).'
+status_note: 'Слито в main PR #330 (58a4ebca) 2026-11-22; ревью claude-opus-5-5 без Critical/Important, CI зелёный. Minor: приглушённая точка — свой класс .mycal-dot--muted (opacity 0.4), не общий с расписанием группы. Войдёт в production с v0.5.0.'
 ref_id: 'M-10'
 complexity: S
 impl_model: claude-sonnet-5-5
