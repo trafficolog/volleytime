@@ -2,11 +2,11 @@
 id: '24.1.1'
 phase: '24'
 epic: '24.1'
-status: in_progress
+status: done
 release: 'v0.5.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-11-22
+status_note: 'Контракт — PR #324 (5e5bb9d4), UI — PR #325 (fcb698ea), 2026-11-22; ревью claude-opus-5-5 без Critical/Important, CI зелёный. Войдёт в production с v0.5.0.'
 ref_id: 'W-13'
 complexity: L
 impl_model: claude-sonnet-5-5
