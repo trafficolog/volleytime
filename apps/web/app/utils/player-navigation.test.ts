@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest'
 
-import { playerGroupOptions, playerProfileFields, playerTabs } from './player-navigation'
+import {
+  CALENDAR_PAGE_READY,
+  playerGroupOptions,
+  playerProfileFields,
+  playerTabs,
+} from './player-navigation'
 
 describe('player Mini App navigation', () => {
+  it('has the calendar page (23.2.2), so the tab is switched on', () => {
+    expect(CALENDAR_PAGE_READY).toBe(true)
+  })
+
   it('shows Главная, Сборы and Профиль when subscriptions are unavailable', () => {
     expect(playerTabs('/m/orgs/2', { showMenu: false }).map((tab) => tab.label)).toEqual([
       'Главная',

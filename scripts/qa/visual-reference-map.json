@@ -43,6 +43,30 @@
       "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
     },
     {
+      "id": "player-my-calendar",
+      "title": "Игрок: мой календарь, список (23.2.2)",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "path": "/m/orgs/{org}/calendar",
+      "references": ["9-ideas-overview/04-future.png"],
+      "referenceCrop": { "x": 490, "y": 12, "width": 392, "height": 528 }
+    },
+    {
+      "id": "player-my-calendar-month",
+      "title": "Игрок: мой календарь, месяц и игры с местами (23.2.2)",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "path": "/m/orgs/{org}/calendar",
+      "steps": [
+        { "click": "[aria-label='Вид календаря'] button:nth-of-type(2)" },
+        { "click": "[aria-label='Какие игры показывать'] button:nth-of-type(2)" }
+      ],
+      "references": ["9-ideas-overview/04-future.png"],
+      "referenceCrop": { "x": 490, "y": 12, "width": 392, "height": 528 }
+    },
+    {
       "id": "organizer-schedule",
       "title": "Организатор: расписание группы",
       "viewport": "miniapp",
