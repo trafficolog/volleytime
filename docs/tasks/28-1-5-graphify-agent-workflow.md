@@ -2,11 +2,11 @@
 id: '28.1.5'
 phase: '28'
 epic: '28.1'
-status: in_progress
+status: done
 release: ''
 sync_state: synced
 last_reviewed: 2026-11-22
-status_note: 'Решение владельца D-22 (2026-11-20): без хука Claude Code, без CI. Дополнение 2026-11-22: обновление графа — шаг процесса по факту закрытия задачи и эпика; правило вводится до закрытия 28.1.4 по указанию владельца. Правило в ORCHESTRATION и AGENTS.md — PR этой задачи; ждёт ревью.'
+status_note: 'Закрыта 2026-11-22: правило в ORCHESTRATION, строка в AGENTS.md, раздел «Обновление графа» в guide, дополнение D-22 (обновление по факту закрытия задачи и эпика, без хуков и CI). PR #316 (merge dcbe3bd8), ревью claude-opus-5-5 — merge, CI success. Введена до закрытия 28.1.4 по указанию владельца.'
 ref_id: ''
 review_ref: ''
 priority: P3
