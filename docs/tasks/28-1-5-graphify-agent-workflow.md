@@ -2,11 +2,11 @@
 id: '28.1.5'
 phase: '28'
 epic: '28.1'
-status: todo
+status: in_progress
 release: ''
 sync_state: synced
-last_reviewed: 2026-11-20
-status_note: 'Решение владельца D-22 (2026-11-20): без хука Claude Code, ручное обновление, без CI.'
+last_reviewed: 2026-11-22
+status_note: 'Решение владельца D-22 (2026-11-20): без хука Claude Code, без CI. Дополнение 2026-11-22: обновление графа — шаг процесса по факту закрытия задачи и эпика; правило вводится до закрытия 28.1.4 по указанию владельца. Правило в ORCHESTRATION и AGENTS.md — PR этой задачи; ждёт ревью.'
 ref_id: ''
 review_ref: ''
 priority: P3
@@ -40,7 +40,7 @@ tags: [tooling, graphify, agents]
 ## Что должно быть сделано
 
 1. Правило в ORCHESTRATION (AGENTS.md — одна строка маршрутизации): граф — для поиска и анализа влияния до чтения; ревью и приёмка — по файлам и diff, не по графу; при расхождении верен код.
-2. Обновление: команда `graphify update .` после `git pull` и перед анализом влияния; признак устаревания (версия и коммит в `graph.json`).
+2. Обновление по факту закрытия (дополнение D-22 от 2026-11-22): после merge и `status: done` задачи — `graphify update .`; после закрытия эпика — полный пересчёт AST и кластеризация; перед анализом влияния — если граф отстаёт от `main`. Признак устаревания — `graphify-out/.built-sha` (пишет агент: `graph.json` 0.9.103 коммит не хранит, проверено 2026-11-22) не равен `origin/main`.
 3. Только ручные команды `graphify query|path|explain` в guide. Скилл ставится `graphify install` на уровне пользователя (без `--project`); `graphify install --project`, `graphify claude install` и `graphify hook install` не запускаются (D-22, дополнение 2026-11-20).
 4. Если граф не установлен у агента — правило не блокирует работу.
 
@@ -49,6 +49,7 @@ tags: [tooling, graphify, agents]
 - ✅ Хуки Claude Code и git не установлены, CI не изменён
 - ✅ Правило в ORCHESTRATION и строка в AGENTS.md
 - ✅ Агенты работают без установленного Graphify
+- ✅ Обновление графа при закрытии задачи и эпика — шаг жизненного цикла в ORCHESTRATION
 - ✅ Prettier и проверка управляющих символов для изменённых документов; ревью `claude-opus-5-5` без Critical/Important
 
 ## Не делать
