@@ -59,6 +59,23 @@ graphify cluster-only . --no-label --no-viz
 
 Вопросы к графу: `graphify query|path|explain|affected "<имя>"` (граф по умолчанию — `graphify-out/graph.json`). Они читают только локальный `graph.json`.
 
+## Обновление графа
+
+Когда обновлять, где и кто — правило [ORCHESTRATION](../ORCHESTRATION.md#граф-знаний-graphify) (дополнение D-22 от 2026-11-22). Команды, из корня checkout на `origin/main`, с теми же условиями окружения, что и выше:
+
+```powershell
+git fetch origin
+git switch --detach origin/main
+if ((git rev-parse HEAD) -ne (git rev-parse origin/main)) { throw "HEAD != origin/main" }
+graphify update .                      # закрыта задача
+# закрыт эпик — вместо update:
+# graphify extract . --code-only --no-cluster
+# graphify cluster-only . --no-label --no-viz
+git rev-parse origin/main | Out-File -Encoding ascii graphify-out/.built-sha
+```
+
+Проверено 2026-11-22 на 0.9.103 (`GRAPHIFY_BACKEND=none`): `update` занял 14 с и переписал `graph.json`, `GRAPH_REPORT.md` и `graph.html`. `graph.html` от `update` принимается: каталог в `.gitignore`, файл не коммитится и не открывается; запрет `cluster-only` без `--no-viz` остаётся. `graph.json` и `manifest.json` коммит сборки не хранят, отсюда метка `.built-sha`.
+
 ## Правила игнора
 
 Файл [`.graphifyignore`](../../.graphifyignore) (синтаксис gitignore) складывается с `.gitignore` и может только добавлять исключения. Исключены: `.env*`, ключи (`*.pem`, `*.key`, `id_*`, `*.p12`, `**/secrets/**`), `docs/operations/`, локальные файлы ассистента и worktrees, `node_modules`, сборка и `output/`, `pnpm-lock.yaml`, изображения, PDF, `*.fig`, видео, шрифты (`*.woff`, `*.woff2`, `*.ttf`, `*.otf`), `*.ico`. Ключи VPS лежат вне репозитория и в область сканирования не попадают. `.graphifyrc` не нужен: `.vue` разбирается штатно.
