@@ -2,11 +2,11 @@
 id: '23.2.2'
 phase: '23'
 epic: '23.2'
-status: in_progress
+status: done
 release: 'v0.5.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: 'PR в работе: GET /api/me/calendar (одним запросом), страница /m/orgs/:orgId/calendar, CALENDAR_PAGE_READY = true; ревью claude-opus-5-5 впереди.'
+last_reviewed: 2026-11-22
+status_note: 'Слито в main PR #327 (b9ed7878) 2026-11-22; ревью claude-opus-5-5 без Critical/Important, CI зелёный. Вкладка «Календарь» включена (CALENDAR_PAGE_READY = true). Открытые вопросы владельцу: постоянный цвет группы (нужна схема), показ отменённых игр приглушёнными. Войдёт в production с v0.5.0.'
 ref_id: 'M-10'
 complexity: L
 impl_model: claude-sonnet-5-5
