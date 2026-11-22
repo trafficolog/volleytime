@@ -2,11 +2,11 @@
 id: '28.1.7'
 phase: '28'
 epic: '28.1'
-status: in_progress
+status: done
 release: ''
 sync_state: synced
 last_reviewed: 2026-11-22
-status_note: 'Указание владельца 2026-11-22 (дополнение D-22): граф максимально полезен в агентной разработке, правила по ролям. Правила — PR этой задачи.'
+status_note: 'Закрыта 2026-11-22: правила по ролям в ORCHESTRATION, шаблоны промптов, .claude/agents (vt-implementer, vt-reviewer), раздел guide «Запросы из worktree задачи», дополнение D-22. Запрос влияния — --depth 2 с фильтром тестов (26 строк против ~300). PR #320 (merge 5f09fe02), ревью claude-opus-5-5 — merge после одного раунда правок, CI success.'
 ref_id: ''
 review_ref: ''
 priority: P3
