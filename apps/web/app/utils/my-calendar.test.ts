@@ -53,7 +53,7 @@ describe('group colours', () => {
   })
 
   it('uses design tokens only and wraps around when there are more groups than tokens', () => {
-    expect(GROUP_COLOR_TOKENS.every((c) => /^var\(--vt-[a-z-]+\)$/.test(c))).toBe(true)
+    expect(GROUP_COLOR_TOKENS.every((c) => /^var\((--vt-[a-z0-9-]+)\)$/.test(c))).toBe(true)
     const many = Array.from({ length: GROUP_COLOR_TOKENS.length + 1 }, (_, i) => ({
       ...minsk,
       id: i + 1,
