@@ -22,6 +22,8 @@ const askConfirm = vi.fn()
 const fetchMock = vi.fn()
 const authUser = ref<Record<string, unknown>>({ name: 'Синтетический Игрок', image: null })
 
+let features: Record<string, boolean> | null = null
+
 function stubPage(level: string | null, position: string | null = null, stats: unknown = ownStats) {
   logout.mockReset()
   askConfirm.mockReset()
@@ -45,6 +47,8 @@ function stubPage(level: string | null, position: string | null = null, stats: u
   vi.stubGlobal('reactive', reactive)
   vi.stubGlobal('useFetch', async (url: string | (() => string)) => {
     const path = typeof url === 'function' ? url() : url
+    if (path === '/api/me/features')
+      return { data: ref(features ? { features } : null), error: ref(null) }
     if (path === '/api/levels') return { data: ref({ levels }), error: ref(null) }
     if (path === '/api/organizations/30/members/me/stats') {
       return stats === null
@@ -234,5 +238,44 @@ describe('Mini App player profile tails (21.4.8, M-13)', () => {
     await page.get('[data-testid="profile-name-cancel"]').trigger('click')
     expect(page.find('[data-testid="profile-name-input"]').exists()).toBe(false)
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+const flags = (on: string[]) =>
+  Object.fromEntries(
+    ['cal', 'coach', 'warmup', 'self', 'mvp', 'teams', 'streak', 'wrapped'].map((f) => [
+      f,
+      on.includes(f),
+    ]),
+  )
+
+describe('Mini App profile «Мои функции» (23.2.3, M-12)', () => {
+  afterEach(() => {
+    features = null
+  })
+
+  it('lists only enabled features and links to «Что показывать»', async () => {
+    features = flags(['cal', 'mvp'])
+    stubPage('v1')
+    const page = await renderProfile()
+    expect(page.findAll('[data-testid="profile-feature"]').map((li) => li.text())).toEqual([
+      'Календарь',
+      'MVP игры',
+    ])
+    expect(page.findAll('a').map((a) => a.attributes('href'))).toContain('/m/orgs/30/features')
+  })
+
+  it('shows all eight when flags are on by default', async () => {
+    stubPage('v1')
+    const page = await renderProfile()
+    expect(page.findAll('[data-testid="profile-feature"]')).toHaveLength(8)
+  })
+
+  it('says «Только игры» when nothing is enabled', async () => {
+    features = flags([])
+    stubPage('v1')
+    const page = await renderProfile()
+    expect(page.find('[data-testid="profile-feature"]').exists()).toBe(false)
+    expect(page.get('[data-testid="profile-features-empty"]').text()).toContain('Только игры')
   })
 })

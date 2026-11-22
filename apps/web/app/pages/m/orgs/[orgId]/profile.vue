@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Organization, OrganizationMember } from '@volley-time/db'
+import { defaultPlayerFeatures, type PlayerFeatures } from '@volley-time/shared'
 
 import GroupLogo from '~/components/GroupLogo.vue'
 import { playerHomeAccess } from '~/utils/player-home'
@@ -11,6 +12,7 @@ import {
   STATS_WINDOW_NOTE,
   type OwnAttendance,
 } from '~/utils/player-profile-stats'
+import { enabledFeatureRows } from '~/utils/profile-features'
 
 definePageMeta({ layout: 'miniapp-org', middleware: ['auth'] })
 
@@ -107,6 +109,13 @@ const { data: statsData } = await useFetch<{ attendance: OwnAttendance }>(
 const statTiles = computed(() =>
   statsData.value?.attendance ? profileStatTiles(statsData.value.attendance) : [],
 )
+// «Мои функции» (23.2.3, M-12): только включённые флаги; ключ общий с экраном «Что показывать»
+const { data: featuresData } = await useFetch<{ features?: PlayerFeatures }>('/api/me/features', {
+  key: 'me-features',
+})
+const myFeatures = computed(() =>
+  enabledFeatureRows(featuresData.value?.features ?? defaultPlayerFeatures()),
+)
 const activityRows = computed(() => [
   {
     to: `${base.value}/bookings`,
@@ -119,6 +128,12 @@ const activityRows = computed(() => [
     icon: 'bell',
     title: 'Уведомления',
     sub: 'лента группы',
+  },
+  {
+    to: `${base.value}/features`,
+    icon: 'settings',
+    title: 'Что показывать',
+    sub: 'функции игрока и пресеты',
   },
 ])
 const levelCode = computed(() => data.value?.myMember?.level ?? null)
@@ -349,6 +364,27 @@ const access = computed(() =>
           >
             <VtIcon name="plus" :size="16" /> Создать группу
           </NuxtLink>
+        </section>
+
+        <section aria-labelledby="profile-features-title" data-testid="profile-features">
+          <h2 id="profile-features-title" class="vt-cap mb-2 px-1 text-vt-mute-2">Мои функции</h2>
+          <div class="vt-card p-4">
+            <ul v-if="myFeatures.length" class="flex flex-wrap gap-2">
+              <li v-for="row in myFeatures" :key="row.feature" data-testid="profile-feature">
+                <VtChip tone="solid">{{ row.label }}</VtChip>
+              </li>
+            </ul>
+            <p v-else class="text-sm text-vt-mute-2" data-testid="profile-features-empty">
+              Только игры: дополнительные функции выключены.
+            </p>
+            <NuxtLink
+              :to="`${base}/features`"
+              class="vt-btn vt-btn--ghost vt-btn--sm vt-hit-44 mt-3"
+              data-testid="profile-features-edit"
+            >
+              Что показывать
+            </NuxtLink>
+          </div>
         </section>
 
         <section aria-labelledby="profile-settings-title">
