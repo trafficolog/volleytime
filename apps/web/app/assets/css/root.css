@@ -445,7 +445,86 @@
   color: var(--vt-rose);
 }
 
+/* Аналитика функций (23.1.2): таблица метрик, подсказки */
+.vt-root-features {
+  display: grid;
+  gap: 1rem;
+  max-width: 76rem;
+}
+
+.vt-root-features__table-wrap {
+  padding: 0;
+  overflow-x: auto;
+}
+
+.vt-root-features__table {
+  width: 100%;
+  min-width: 48rem;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.vt-root-features__table th,
+.vt-root-features__table td {
+  padding: 0.625rem 1rem;
+  text-align: start;
+  vertical-align: middle;
+  border-block-end: 1px solid var(--vt-bone-2);
+}
+
+.vt-root-features__table tbody tr:last-child > * {
+  border-block-end: 0;
+}
+
+.vt-root-features__table thead th {
+  color: var(--vt-mute-2);
+  font-weight: 600;
+}
+
+.vt-root-features__table [data-suppressed='true'] .vt-root-features__value {
+  color: var(--vt-mute-2);
+  font-style: italic;
+}
+
+.vt-root-features__cohort {
+  display: block;
+  color: var(--vt-mute-2);
+  font-size: 0.6875rem;
+}
+
+.vt-root-features__hints {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1.5rem;
+  margin: 0;
+  color: var(--vt-mute-2);
+  font-size: 0.75rem;
+}
+
+.vt-root-features__hints dd {
+  margin: 0.125rem 0 0;
+}
+
+.vt-root-features__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: var(--vt-mute-2);
+  font-size: 0.75rem;
+}
+
+.vt-root-features__error {
+  margin: 0;
+  color: var(--vt-rose);
+}
+
 @media (max-width: 53rem) {
+  .vt-root-features__hints {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .vt-root {
     display: block;
   }

@@ -6,7 +6,7 @@ status: in_progress
 release: 'v0.5.0'
 sync_state: synced
 last_reviewed: 2026-11-22
-status_note: 'Решение D-25 принято 2026-11-22; шаг контракта — в работе, затем шаг UI.'
+status_note: 'Решение D-25 принято 2026-11-22; шаг контракта влит (#332), шаг UI — страница /root/features, на ревью.'
 ref_id: 'P-14'
 complexity: M
 impl_model: claude-sonnet-5-5
