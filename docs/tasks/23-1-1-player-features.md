@@ -2,7 +2,7 @@
 id: '23.1.1'
 phase: '23'
 epic: '23.1'
-status: todo
+status: in_progress
 release: 'v0.5.0'
 sync_state: synced
 last_reviewed: 2026-10-12
@@ -15,7 +15,7 @@ review_gate: standard
 roles: [BACK]
 depends_on: ['19.3.1']
 supersedes: []
-decisions: []
+decisions: ['D-23 (журнал решений, 2026-11-22)']
 estimated_hours: '4-8'
 reference:
   spec: 'docs/design/reference-v3/specs/01-platform/P-12-player-features.md'
@@ -48,12 +48,13 @@ tags: [reference-v3]
 4. Расписание, запись и оплата не выключаются
 5. Данные и API: GET/PATCH /me/features.
 6. Вкладка «Календарь» в таб-баре Mini App игрока (решение владельца 2026-10-14, см. [20.4.2](20-4-2-tab-bar.md)): скрыта при выключенном флаге `cal`. Флаг `cal` включён по умолчанию для всех (решение владельца 2026-10-15, согласовано с пунктом 2).
+7. Уведомления бота гейтятся флагами (решение владельца 2026-11-22, [D-23](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-23)): отдельной настройки игрока по типам нет, API только GET/PATCH /me/features. Соответствие: `cal` -> `reminder_24h`, `reminder_2h`; `teams` -> `lineup_ready`; `mvp` -> `mvp_vote`; у остальных флагов типов уведомлений пока нет. Критичные типы (`isCriticalNotification`) не гейтятся. Лента Mini App не меняется: пропускается только доставка в бот (`deliveryGate` журнала, по получателю).
 
 ## Критерии приёмки
 
 - ✅ Флаги сохраняются между сессиями и устройствами
 - ✅ Вкладка «Календарь» скрывается и появляется при переключении флага `cal`
-- ✅ Критерий, перенесённый из [20.3.2](20-3-2-bot-notifications.md) (решение владельца 2026-10-19): отключённые игроком типы уведомлений не приходят в бот; критичные (`isCriticalNotification`) нельзя отключить; лента Mini App не меняется
+- ✅ Критерий, перенесённый из [20.3.2](20-3-2-bot-notifications.md) (решение владельца 2026-10-19): отключённые игроком типы уведомлений не приходят в бот; критичные (`isCriticalNotification`) нельзя отключить; лента Mini App не меняется; отключение выполняется флагами `cal`/`teams`/`mvp` по соответствию из п. 7 (D-23)
 - ✅ Пять gates CODING_STANDARDS на tested revision; ревью `claude-sonnet-5-5` без Critical/Important
 
 ## Подсказки
