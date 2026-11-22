@@ -37,6 +37,7 @@ describe('rootNavItems', () => {
       'users',
       'billing',
       'payments',
+      'features',
       'audit',
       'settings',
     ])
@@ -49,6 +50,7 @@ describe('rootNavItems', () => {
       'users',
       'billing',
       'payments',
+      'features',
       'audit',
       'settings',
     ])
