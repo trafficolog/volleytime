@@ -61,9 +61,11 @@ graphify cluster-only . --no-label --no-viz
 
 ## Обновление графа
 
-Когда обновлять, где и кто — правило [ORCHESTRATION](../ORCHESTRATION.md#граф-знаний-graphify) (дополнение D-22 от 2026-11-22). Команды, из корня checkout на `origin/main`, с теми же условиями окружения, что и выше:
+Когда обновлять, где и кто — правило [ORCHESTRATION](../ORCHESTRATION.md#граф-знаний-graphify) (дополнение D-22 от 2026-11-22). Команды — в worktree `.claude/worktrees/graphify` (первый раз: `git worktree add --detach .claude/worktrees/graphify origin/main`), с теми же условиями окружения, что и выше:
 
 ```powershell
+graphify --version                     # graphify 0.9.103
+if ($env:GRAPHIFY_BACKEND -ne "none") { throw "GRAPHIFY_BACKEND must be none" }
 git fetch origin
 git switch --detach origin/main
 if ((git rev-parse HEAD) -ne (git rev-parse origin/main)) { throw "HEAD != origin/main" }

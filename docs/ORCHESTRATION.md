@@ -105,7 +105,7 @@ UI: отчёт визуальной сверки (харнесс 19.0.2) при�
 2. **Закрытие эпика** — на том же шаге 7 оркестратор проверяет, все ли карточки с этим `epic:` в `done` или `superseded`. Если да — вместо обновления задачи выполняется полный пересчёт с кластеризацией.
 3. **Перед анализом влияния** — если коммит графа отстаёт от `main`.
 
-**Где запускать.** Действующая копия графа — `graphify-out/` в корне основного checkout репозитория (не в worktree задач; в worktree агент при необходимости строит свою копию, она не действующая). Порядок: `git fetch origin`, затем `git switch --detach origin/main` в этом checkout (или отдельный detached worktree на `origin/main`), проверка `git rev-parse HEAD` = `git rev-parse origin/main`, запуск, запись метки.
+**Где запускать.** Действующая копия графа — `graphify-out/` в отдельном постоянном worktree `.claude/worktrees/graphify` в detached HEAD на `origin/main` (основной checkout владельца не переключается; копии в worktree задач не действующие). Первый раз: `git worktree add --detach .claude/worktrees/graphify origin/main`. Каждый раз: `git fetch origin`, в этом worktree `git switch --detach origin/main`, проверка `git rev-parse HEAD` = `git rev-parse origin/main`, запуск, запись метки. Локальных правок в нём не бывает.
 
 **Команды** ([guide](./guides/graphify.md#обновление-графа); перед запуском `graphify --version` = `0.9.103`, `GRAPHIFY_BACKEND=none`, ключей провайдеров в окружении нет — [guide](./guides/graphify.md#запуск-только-ast-без-llm)):
 
