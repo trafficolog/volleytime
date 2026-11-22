@@ -45,6 +45,7 @@ import {
   venues,
   waitlistOffers,
 } from '@volley-time/db'
+import { defaultGroupPageContent } from '@volley-time/shared'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { createTestApi } from './harness'
@@ -265,6 +266,16 @@ const ROUTES: OrgRouteTable = {
   'PATCH /api/organizations/:orgId/settings': {
     access: 'owner',
     body: () => ({ maxSeatsPerBooking: 2 }),
+  },
+  // 24.1.1 (D-24): страница группы — читает manager, сохраняет только владелец
+  'GET /api/organizations/:orgId/group-page': { access: 'manager' },
+  'PUT /api/organizations/:orgId/group-page': {
+    access: 'owner',
+    body: () => ({
+      sections: defaultGroupPageContent().sections,
+      metaTitle: 'x',
+      metaDescription: null,
+    }),
   },
   'POST /api/organizations/:orgId/subscriptions': {
     access: 'member',

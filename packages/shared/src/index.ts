@@ -1,5 +1,24 @@
 export { allocateSplitAmount, previewSplitAmount } from './events/pricing'
 export {
+  checkGroupPageMeta,
+  defaultGroupPageContent,
+  defaultJoinText,
+  defaultMetaDescription,
+  defaultMetaTitle,
+  GROUP_PAGE_LIMITS,
+  GROUP_PAGE_META_RECOMMENDED,
+  GROUP_PAGE_SCHEDULE_EVENTS,
+  GROUP_PAGE_SECTION_KINDS,
+  GroupPageContent,
+  GroupPageSection,
+  type GroupPageContentInput,
+  type GroupPageEvent,
+  type GroupPageMetaWarning,
+  type GroupPageSectionKind,
+  type GroupPageVenue,
+  type GroupPageView,
+} from './group-page/contract'
+export {
   quoteEventPrice,
   type EventPriceQuote,
   type EventPriceQuoteInput,
