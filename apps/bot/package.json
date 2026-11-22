@@ -11,7 +11,7 @@
     "test": "vitest run --root ../.. apps/bot"
   },
   "dependencies": {
-    "@sentry/node": "^10.75.0",
+    "@sentry/node": "^11.13.0",
     "@volley-time/shared": "workspace:*",
     "grammy": "^1.40.1"
   },
