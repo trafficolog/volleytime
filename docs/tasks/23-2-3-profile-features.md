@@ -2,11 +2,11 @@
 id: '23.2.3'
 phase: '23'
 epic: '23.2'
-status: todo
+status: done
 release: 'v0.5.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-11-23
+status_note: 'Слито в main PR #335 (4757267c) 2026-11-23; ревью claude-sonnet-5-5 без Critical/Important, CI зелёный. Сверка харнессом профиля описана в PR текстом (файл отчёта не приложен; расхождения — только новые разделы). Minor: переключатели блокируются на время сохранения (теряется фокус, второй тап молча пропадает); ошибка refresh после успешного PATCH откатывает UI; «Своё» не сохраняется; ссылка «Что показывать» дважды. Войдёт в production с v0.5.0.'
 ref_id: 'M-12'
 complexity: M
 impl_model: claude-sonnet-5-5
