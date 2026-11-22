@@ -316,6 +316,13 @@
       "when": 1795355596576,
       "tag": "0044_group_pages",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1795375575238,
+      "tag": "0045_feature_events",
+      "breakpoints": true
     }
   ]
 }

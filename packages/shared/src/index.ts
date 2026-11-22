@@ -237,3 +237,15 @@ export {
   type PlayerFeature,
   type PlayerFeatures,
 } from './players/features'
+export {
+  cohortMetric,
+  FEATURE_ANALYTICS_MIN_COHORT,
+  FEATURE_ANALYTICS_WINDOWS,
+  FEATURE_EVENT_KINDS,
+  FEATURE_EVENTS_RETENTION_DAYS,
+  FeatureEventInput,
+  type FeatureAnalyticsReport,
+  type FeatureAnalyticsRow,
+  type FeatureCohortMetric,
+  type FeatureEventKind,
+} from './players/feature-analytics'

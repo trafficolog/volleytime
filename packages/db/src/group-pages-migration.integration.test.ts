@@ -4,6 +4,7 @@ import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { runMigrations } from './migrate'
+import { rollbackGroupPages } from './migration-test-helpers'
 import { rollbackLastMigration } from './rollback'
 
 const TAG = '0044_group_pages'
@@ -57,7 +58,7 @@ describe('migration 0044 group pages (integration)', { timeout: 90_000 }, () => 
     try {
       await runMigrations(url)
       expect(await tableExists(sql)).toBe(true)
-      expect(await rollbackLastMigration(url)).toBe(TAG)
+      expect(await rollbackGroupPages(url)).toBe(TAG)
       expect(await tableExists(sql)).toBe(false)
       await runMigrations(url)
       expect(await tableExists(sql)).toBe(true)
@@ -107,10 +108,10 @@ describe('migration 0044 group pages (integration)', { timeout: 90_000 }, () => 
       const id = await org(sql, 'gp-guard')
       await sql`INSERT INTO organization_group_pages (organization_id, sections)
         VALUES (${id}, '[]'::jsonb)`
-      await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0044 refused/)
+      await expect(rollbackGroupPages(url)).rejects.toThrow(/rollback 0044 refused/)
       expect(await tableExists(sql)).toBe(true)
       await sql`DELETE FROM organization_group_pages`
-      expect(await rollbackLastMigration(url)).toBe(TAG)
+      expect(await rollbackGroupPages(url)).toBe(TAG)
       expect(await rollbackLastMigration(url)).toBe(PREVIOUS)
       expect(await sql`SELECT 1 FROM organizations WHERE id = ${id}`).toHaveLength(1)
     } finally {

@@ -7,6 +7,9 @@ import MyCalendarRow from '../../../../components/MyCalendarRow.vue'
 
 import Calendar from './calendar.vue'
 
+const trackFeatureEvent = vi.hoisted(() => vi.fn())
+vi.mock('~/utils/feature-events', () => ({ trackFeatureEvent }))
+
 const group = (id: number, name: string, timezone = 'Europe/Minsk') => ({
   id,
   name,
@@ -124,6 +127,7 @@ beforeEach(() => {
   features.value = { features: { cal: true } }
   payload = { groups: GROUPS, events: JUNE }
   navigateTo.mockReset()
+  trackFeatureEvent.mockReset()
   apiFetch.mockReset().mockImplementation(async () => payload)
 })
 afterEach(() => {
@@ -132,6 +136,12 @@ afterEach(() => {
 })
 
 describe('my calendar (23.2.2)', () => {
+  it('reports one «cal» open for feature analytics (23.1.2)', async () => {
+    await renderCalendar()
+    expect(trackFeatureEvent).toHaveBeenCalledTimes(1)
+    expect(trackFeatureEvent).toHaveBeenCalledWith('cal', 'open')
+  })
+
   it('loads all groups of the player with ONE request for the month', async () => {
     await renderCalendar()
     expect(apiFetch).toHaveBeenCalledTimes(1)
@@ -295,6 +305,7 @@ describe('my calendar (23.2.2)', () => {
     const wrapper = await renderCalendar()
     expect(navigateTo).toHaveBeenCalledWith('/m/orgs/30', { replace: true })
     expect(wrapper.find('.mycal-row').exists()).toBe(false)
+    expect(trackFeatureEvent).not.toHaveBeenCalled()
   })
 
   it('treats a missing features answer as «cal» on', async () => {
