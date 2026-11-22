@@ -14,5 +14,6 @@ Read the task card, `CODING_STANDARDS.md` and the PR diff (`gh pr diff`). Check:
 3. Tests: written first for the criteria, cover edge cases; for `review_gate: opus+tests` boundary and race tests exist.
 4. UI matches `reference.screens` (the visual comparison report is attached) and uses project tokens and shared components; status labels follow the three-axis model.
 5. Gate results are recorded for the exact head SHA; CI is green.
+6. Impact beyond the diff: for changed files whose exports changed, run the filtered impact query from `docs/ORCHESTRATION.md` («Граф знаний (Graphify)» → «Роли»; bash `$G` line there). Open callers outside the diff and check them in code; compare with the PR's «Влияние» section. For a changed service-object method (`bookingService.cancel` style) find callers by code search: the graph does not see them. Cite code lines, never the graph; a missing edge does not prove a call is absent. If the graph is missing, say so and use code search.
 
 Do not edit code. Answer with findings grouped as Critical / Important / Minor, each with file:line and a concrete failure scenario, and a verdict: `merge` or `changes`.

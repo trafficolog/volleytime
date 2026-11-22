@@ -78,6 +78,31 @@ git rev-parse origin/main | Out-File -Encoding ascii graphify-out/.built-sha
 
 Проверено 2026-11-22 на 0.9.103 (`GRAPHIFY_BACKEND=none`): `update` занял 14 с и переписал `graph.json`, `GRAPH_REPORT.md` и `graph.html`. `graph.html` от `update` принимается: каталог в `.gitignore`, файл не коммитится и не открывается; запрет `cluster-only` без `--no-viz` остаётся. `graph.json` и `manifest.json` коммит сборки не хранят, отсюда метка `.built-sha`.
 
+## Запросы из worktree задачи
+
+Действующий граф один, в `.claude/worktrees/graphify`; из любого worktree к нему обращаются через `--graph` (проверено 2026-11-22). Bash (так запускают команды агенты):
+
+```bash
+G="$(git rev-parse --path-format=absolute --git-common-dir)/../.claude/worktrees/graphify/graphify-out/graph.json"
+cat "$(dirname "$G")/.built-sha"
+graphify affected "packages/core/src/ledger/service.ts" --depth 2 --graph "$G" | grep '^- ' | grep -v -E '\.test\.|__tests__|/e2e/|\[references\] docs/'
+graphify explain "ledger/service.ts" --graph "$G"
+graphify path "bookings.post.ts" "bookings" --graph "$G"
+```
+
+PowerShell:
+
+```powershell
+$G = Join-Path (git rev-parse --path-format=absolute --git-common-dir) "../.claude/worktrees/graphify/graphify-out/graph.json"
+Get-Content (Join-Path (Split-Path $G) ".built-sha")
+graphify affected "packages/core/src/ledger/service.ts" --depth 2 --graph $G | Select-String '^- ' | Select-String -NotMatch '\.test\.|__tests__|/e2e/|\[references\] docs/'
+```
+
+- Узел файла ищется по полному пути от корня или по уникальному хвосту (`ledger/service.ts`); короткое имя вроде `service.ts` неоднозначно.
+- Глубина: `--depth 1` у файла за barrel `index.ts` показывает только `re_exports` и тесты; `--depth 2` с фильтром — прямые вызывающие и через barrel (`ledger/service.ts` — 26 строк); `--depth 3` — около 300 строк, в основном тесты и транзитивные связи.
+- Граф строится по `origin/main`: изменений ветки задачи в нём нет. Годность для своих файлов: `git diff --name-only <built-sha> origin/main -- <файлы>` пуст.
+- Правила по ролям — [ORCHESTRATION](../ORCHESTRATION.md#граф-знаний-graphify).
+
 ## Правила игнора
 
 Файл [`.graphifyignore`](../../.graphifyignore) (синтаксис gitignore) складывается с `.gitignore` и может только добавлять исключения. Исключены: `.env*`, ключи (`*.pem`, `*.key`, `id_*`, `*.p12`, `**/secrets/**`), `docs/operations/`, локальные файлы ассистента и worktrees, `node_modules`, сборка и `output/`, `pnpm-lock.yaml`, изображения, PDF, `*.fig`, видео, шрифты (`*.woff`, `*.woff2`, `*.ttf`, `*.otf`), `*.ico`. Ключи VPS лежат вне репозитория и в область сканирования не попадают. `.graphifyrc` не нужен: `.vue` разбирается штатно.

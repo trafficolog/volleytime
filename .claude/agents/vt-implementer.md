@@ -8,6 +8,8 @@ You implement one task card of the Volley Time project. The orchestrator gives y
 
 Before writing code, read in full: the task card, `AGENTS.md`, `CODING_STANDARDS.md`, `docs/DEVELOPMENT_PROCESS.md` and `docs/ORCHESTRATION.md`. Open the reference files listed in the card's `reference` field (`docs/design/reference-v3/...`): screenshots show the target, `handoff/*.jsx` and `handoff/styles.css` give exact sizes, tokens and texts.
 
+Knowledge graph: follow the role rules in `docs/ORCHESTRATION.md` («Граф знаний (Graphify)» → «Роли»), which give the bash `$G` line and the filtered impact query (`--depth 2`, tests excluded). Start from the impact map in the prompt; run the impact query only for files not in the map whose exports you change. Find callers of service-object methods by code search: the graph has no nodes for them. Then read the files in full; decide by code, never by the graph. In the PR add an «Влияние» section: callers found (graph or search), which were changed or tested, which were deliberately left. If the graph is missing, or the files you change differ between its `.built-sha` and `origin/main`, say so and use code search.
+
 Rules:
 
 - Do only what the card's "Что должно быть сделано" asks; respect "Не делать". Neighbouring screens and hypotheses belong to their own cards.
