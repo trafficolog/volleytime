@@ -6,28 +6,43 @@ describe('player Mini App navigation', () => {
   it('shows Главная, Сборы and Профиль when subscriptions are unavailable', () => {
     expect(playerTabs('/m/orgs/2', { showMenu: false }).map((tab) => tab.label)).toEqual([
       'Главная',
+      'Календарь',
       'Сборы',
       'Профиль',
     ])
     expect(playerTabs('/m/orgs/2', { showMenu: false }).map((tab) => tab.to)).toEqual([
       '/m/orgs/2',
+      '/m/orgs/2/calendar',
       '/m/orgs/2/collections',
       '/m/orgs/2/profile',
     ])
   })
 
+  it('hides Календарь when the cal flag is off and keeps the other tabs (23.1.1)', () => {
+    const tabs = playerTabs('/m/orgs/2', { showMenu: true }, { calendar: false })
+    expect(tabs.map((tab) => tab.label)).toEqual(['Главная', 'Абонементы', 'Сборы', 'Профиль'])
+    expect(playerTabs('/m/orgs/2', { showMenu: true }, { calendar: true })).toHaveLength(5)
+  })
+
   it('adds Абонементы and Сборы between Главная and Профиль, without a bookings tab', () => {
     const tabs = playerTabs('/m/orgs/2', { showMenu: true })
-    expect(tabs.map((tab) => tab.label)).toEqual(['Главная', 'Абонементы', 'Сборы', 'Профиль'])
-    expect(tabs[1]?.to).toBe('/m/orgs/2/subscriptions')
+    expect(tabs.map((tab) => tab.label)).toEqual([
+      'Главная',
+      'Календарь',
+      'Абонементы',
+      'Сборы',
+      'Профиль',
+    ])
+    const subscriptions = tabs.find((tab) => tab.label === 'Абонементы')
+    expect(subscriptions?.to).toBe('/m/orgs/2/subscriptions')
     // вкладка остаётся активной на экране покупки `/subscriptions/buy`
-    expect(tabs[1]).toMatchObject({ prefix: true })
+    expect(subscriptions).toMatchObject({ prefix: true })
     expect(tabs.some((tab) => tab.to.endsWith('/bookings'))).toBe(false)
   })
 
   it('omits Сборы when the layout says collections are not available', () => {
     const tabs = playerTabs('/m/orgs/2', { showMenu: true }, { collections: false })
-    expect(tabs.map((tab) => tab.label)).toEqual(['Главная', 'Абонементы', 'Профиль'])
+    expect(tabs.map((tab) => tab.label)).toEqual(['Главная', 'Календарь', 'Абонементы', 'Профиль'])
   })
 
   it('keeps Сборы active on its detail and pledge screens and marks it new until first open', () => {

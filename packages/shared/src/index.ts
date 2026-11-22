@@ -208,3 +208,13 @@ export {
   type PlatformSettingView,
   type PlatformUnlimitedResult,
 } from './platform/settings'
+
+export {
+  defaultPlayerFeatures,
+  featureForNotificationKind,
+  isPlayerFeature,
+  PLAYER_FEATURES,
+  resolvePlayerFeatures,
+  type PlayerFeature,
+  type PlayerFeatures,
+} from './players/features'

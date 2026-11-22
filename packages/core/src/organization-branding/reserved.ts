@@ -20,6 +20,8 @@ export const RESERVED_SHORT_LINKS: readonly string[] = [
   'health',
   'internal',
   'levels',
+  // личные функции игрока (23.1.1): `/api/me/features`
+  'me',
   'notifications',
   // принятие передачи владения (21.2.17): `/api/ownership-transfers/*`, `/app/transfer`, `/m/transfer`
   'ownership-transfers',

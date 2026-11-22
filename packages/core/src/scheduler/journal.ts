@@ -20,6 +20,7 @@ import { FEED_TYPE, feedKeyOf, isCriticalNotification } from '../notifier/feed-t
 import { quietHoursEnd } from '../notifier/quiet-hours'
 import { notifierService } from '../notifier/service'
 import type { NotificationType, TemplateParams } from '../notifier/templates'
+import { isPlayerFeatureOffForNotification } from '../player-features/service'
 
 /**
  * Проверка актуальности перед отправкой: состояние могло измениться между постановкой задачи и
@@ -305,6 +306,10 @@ async function deliveryGate(db: DbOrTx, job: ClaimedJob, now: Date): Promise<Gat
     !(await isGroupNotificationEnabled(db, job.organizationId, job.kind as NotificationType))
   )
     return { action: 'skip', reason: 'group_disabled' }
+  // игрок выключил функцию, которой принадлежит тип (23.1.1, D-23); критичные проходят всегда
+  // (проверка внутри), лента Mini App остаётся с итогом skipped
+  if (!critical && (await isPlayerFeatureOffForNotification(db, job.payload.userId, job.kind)))
+    return { action: 'skip', reason: 'player_feature_off' }
   // критичные всегда пробуют отправиться: отметка могла устареть (пользователь вернулся), а потеря
   // места из очереди или сообщения об оплате дороже одной лишней попытки
   if (

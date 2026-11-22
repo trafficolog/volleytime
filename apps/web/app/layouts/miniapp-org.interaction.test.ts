@@ -33,6 +33,7 @@ let organizationStatus = 'active'
 let subscriptionBalances: unknown[] = []
 let collectionsFlag = true
 let groupCollections: unknown[] = []
+const features = ref<{ features: { cal: boolean } }>({ features: { cal: true } })
 const collectionsFetch = vi.fn(async (_url: string) => ({ collections: groupCollections }))
 vi.stubGlobal('$fetch', collectionsFetch)
 
@@ -52,8 +53,9 @@ vi.stubGlobal(
     disconnect() {}
   },
 )
-vi.stubGlobal('useFetch', (url: () => string) => {
-  const path = url()
+vi.stubGlobal('useFetch', (url: string | (() => string)) => {
+  const path = typeof url === 'function' ? url() : url
+  if (path === '/api/me/features') return { data: features, error: ref(null), refresh: vi.fn() }
   return {
     data: ref(
       path.endsWith('/subscriptions/my')
@@ -81,6 +83,7 @@ async function renderLayout(role: 'owner' | 'player', enabled = true) {
     routes: [
       { path: '/m/orgs/7', component: { template: '<div />' } },
       { path: '/m/orgs/7/events', component: { template: '<div />' } },
+      { path: '/m/orgs/7/calendar', component: { template: '<div />' } },
       { path: '/m/orgs/7/bookings', component: { template: '<div />' } },
       { path: '/m/orgs/7/subscriptions', component: { template: '<div />' } },
       { path: '/m/orgs/7/collections', component: { template: '<div />' } },
@@ -113,7 +116,7 @@ async function renderLayout(role: 'owner' | 'player', enabled = true) {
       stubs: { NuxtLink: RouterLink },
     },
   })
-  await nextTick()
+  await flushPromises()
   await nextTick()
   return { wrapper, router }
 }
@@ -137,6 +140,7 @@ afterEach(() => {
   subscriptionBalances = []
   collectionsFlag = true
   groupCollections = []
+  features.value = { features: { cal: true } }
   collectionsFetch.mockClear()
 })
 
@@ -157,7 +161,7 @@ describe('Mini App layout navigation interaction', () => {
   it('keeps player tabs as navigable links without a menu button', async () => {
     const { wrapper, router } = await renderLayout('player')
     expect(wrapper.find('button[aria-controls="organizer-menu-dialog"]').exists()).toBe(false)
-    expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(4)
+    expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(5)
     expect(wrapper.find('a[href="/m/orgs/7/bookings"]').exists()).toBe(false)
     expect(wrapper.find('a[href="/m/orgs/7/profile"]').exists()).toBe(true)
     expect(wrapper.find('a[href="/m/orgs/7/events"]').exists()).toBe(false)
@@ -178,7 +182,7 @@ describe('Mini App layout navigation interaction', () => {
       },
     ]
     const { wrapper } = await renderLayout('player', false)
-    expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(4)
+    expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(5)
     expect(wrapper.find('a[href="/m/orgs/7/subscriptions"]').exists()).toBe(true)
     wrapper.unmount()
   })
@@ -195,7 +199,7 @@ describe('Mini App layout navigation interaction', () => {
     ]
     const { wrapper } = await renderLayout('player', false)
     expect(wrapper.find('a[href="/m/orgs/7/subscriptions"]').exists()).toBe(false)
-    expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(3)
+    expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(4)
     wrapper.unmount()
   })
 
@@ -211,7 +215,7 @@ describe('Mini App layout navigation interaction', () => {
     try {
       const { wrapper } = await renderLayout('player', false)
       expect(wrapper.findAll('[aria-current="page"]')).toHaveLength(0)
-      expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(3)
+      expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(4)
       wrapper.unmount()
     } finally {
       route.path = '/m/orgs/7'
@@ -236,11 +240,36 @@ describe('Mini App layout navigation interaction', () => {
     wrapper.unmount()
   })
 
-  it('puts Сборы between Абонементы and Профиль for players', async () => {
+  it('puts Сборы between Абонементы and Профиль for players, Календарь right after Главная', async () => {
     const { wrapper } = await renderLayout('player', true)
     expect(wrapper.findAll('nav[aria-label="Разделы"] a').map((a) => a.attributes('href'))).toEqual(
-      ['/m/orgs/7', '/m/orgs/7/subscriptions', '/m/orgs/7/collections', '/m/orgs/7/profile'],
+      [
+        '/m/orgs/7',
+        '/m/orgs/7/calendar',
+        '/m/orgs/7/subscriptions',
+        '/m/orgs/7/collections',
+        '/m/orgs/7/profile',
+      ],
     )
+    wrapper.unmount()
+  })
+
+  it('hides and shows the player Календарь tab when the cal flag is toggled (23.1.1)', async () => {
+    const { wrapper } = await renderLayout('player', true)
+    expect(wrapper.find('a[href="/m/orgs/7/calendar"]').exists()).toBe(true)
+    features.value = { features: { cal: false } }
+    await nextTick()
+    expect(wrapper.find('a[href="/m/orgs/7/calendar"]').exists()).toBe(false)
+    expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(4)
+    features.value = { features: { cal: true } }
+    await nextTick()
+    expect(wrapper.find('a[href="/m/orgs/7/calendar"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('never adds Календарь to the organizer tab bar, whatever the flag says', async () => {
+    const { wrapper } = await renderLayout('owner')
+    expect(wrapper.find('a[href="/m/orgs/7/calendar"]').exists()).toBe(false)
     wrapper.unmount()
   })
 
@@ -352,7 +381,7 @@ describe('Mini App layout navigation interaction', () => {
     await flushPromises()
     expect(collectionsFetch).toHaveBeenCalledWith('/api/organizations/7/collections?limit=1')
     expect(wrapper.find('a[href="/m/orgs/7/collections"]').exists()).toBe(false)
-    expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(3)
+    expect(wrapper.findAll('nav[aria-label="Разделы"] a')).toHaveLength(4)
     wrapper.unmount()
   })
 

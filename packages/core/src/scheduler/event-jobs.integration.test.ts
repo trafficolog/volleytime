@@ -5,6 +5,7 @@ import {
   eq,
   eventBalanceEntries,
   events,
+  notifications,
   organizationNotificationSettings,
   organizations,
   payments,
@@ -13,6 +14,7 @@ import {
   users,
   waitlistOffers,
 } from '@volley-time/db'
+import { PLAYER_FEATURES } from '@volley-time/shared'
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { behindEventLock } from '../__tests__/event-lock-barrier'
@@ -24,6 +26,7 @@ import { memberService } from '../members/service'
 import { setNotifierTransport } from '../notifier/service'
 import type { NotifyPayload } from '../notifier/types'
 import { organizationService } from '../organizations/service'
+import { playerFeaturesService } from '../player-features/service'
 import { seriesService } from '../series/service'
 
 import { enqueueNotification, processDueJobs, purgeCompletedJobs } from './journal'
@@ -1006,6 +1009,80 @@ describe('event jobs (20.3.1, PostgreSQL)', { timeout: 60_000 }, () => {
           userId: a!,
           params: { organizationId: orgId },
           dedupKey: `payment_confirmed:test:${a}`,
+          organizationId: orgId,
+        })
+        await processDueJobs({ now: new Date(), paceMs: 0 })
+        expect(await sentTo(a!)).toHaveLength(1)
+      })
+    })
+
+    describe('player features (23.1.1, D-23)', () => {
+      it('skips reminders for a player with the calendar flag off, keeps the feed entry, other players unaffected', async () => {
+        const ev = await makeEvent({ capacity: 5, price: 0 })
+        const [a, b] = await players(2)
+        await bookingService.book({ userId: a! }, orgId, ev.id, { method: 'free' })
+        await bookingService.book({ userId: b! }, orgId, ev.id, { method: 'free' })
+        await playerFeaturesService.update({ userId: a! }, { cal: false })
+
+        at(24 * H)
+        await tick()
+        await tick()
+        expect(await sentTo(a!)).toHaveLength(0)
+        expect(await sentTo(b!)).toHaveLength(1)
+        const jobs = await db.select().from(scheduledJobs).where(eq(scheduledJobs.eventId, ev.id))
+        expect(jobs.find((j) => (j.payload as { userId: number }).userId === a)).toMatchObject({
+          status: 'skipped',
+          lastError: 'player_feature_off',
+        })
+        // лента Mini App не меняется: запись есть, в ней итог доставки «пропущено»
+        const [entry] = await db
+          .select()
+          .from(notifications)
+          .where(eq(notifications.recipientUserId, a!))
+        expect(entry).toMatchObject({ type: 'reminder_24h', deliveryStatus: 'skipped' })
+
+        // напоминание за 2 часа гейтится тем же флагом
+        at(46 * H)
+        await tick()
+        await tick()
+        expect(await sentTo(a!)).toHaveLength(0)
+        expect(await sentTo(b!)).toHaveLength(2)
+      })
+
+      it('delivers again after the flag is switched back on', async () => {
+        const ev = await makeEvent({ capacity: 5, price: 0 })
+        const [a] = await players(1)
+        await bookingService.book({ userId: a! }, orgId, ev.id, { method: 'free' })
+        await playerFeaturesService.update({ userId: a! }, { cal: false })
+        await playerFeaturesService.update({ userId: a! }, { cal: true })
+        at(24 * H)
+        await tick()
+        await tick()
+        expect(await sentTo(a!)).toHaveLength(1)
+      })
+
+      it('does not gate by flags the type does not map to', async () => {
+        const ev = await makeEvent({ capacity: 5, price: 0 })
+        const [a] = await players(1)
+        await bookingService.book({ userId: a! }, orgId, ev.id, { method: 'free' })
+        await playerFeaturesService.update({ userId: a! }, { mvp: false, teams: false })
+        at(24 * H)
+        await tick()
+        await tick()
+        expect(await sentTo(a!)).toHaveLength(1)
+      })
+
+      it('always delivers critical notifications with every flag off', async () => {
+        const [a] = await players(1)
+        await playerFeaturesService.update(
+          { userId: a! },
+          Object.fromEntries(PLAYER_FEATURES.map((f) => [f, false])),
+        )
+        await enqueueNotification(db, {
+          type: 'payment_confirmed',
+          userId: a!,
+          params: { organizationId: orgId },
+          dedupKey: `payment_confirmed:pf:${a}`,
           organizationId: orgId,
         })
         await processDueJobs({ now: new Date(), paceMs: 0 })
