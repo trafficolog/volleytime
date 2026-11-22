@@ -83,6 +83,29 @@ describe('me calendar API (HTTP integration)', () => {
     expect(body.events[1]!.myBooking).toBeNull()
   })
 
+  it('returns a cancelled game only when I have a booking row on it, with its status (23.2.4)', async () => {
+    const booked = await game(ownerA, orgA, 'Отменена, была запись', 10)
+    const unbooked = await game(ownerA, orgA, 'Отменена, записи нет', 11)
+    await bookingService.book({ userId: me }, orgA, booked.id, { method: 'free' })
+    await eventService.cancel({ userId: ownerA }, booked.id)
+    await eventService.cancel({ userId: ownerA }, unbooked.id)
+    const res = await request('GET', `/api/me/calendar${q}`, { user: me })
+    expect(res.status).toBe(200)
+    const body = res.body as {
+      events: { id: number; status: string; myBooking: { status: string } | null }[]
+    }
+    expect(body.events).toHaveLength(1)
+    expect(body.events[0]).toMatchObject({
+      id: booked.id,
+      status: 'cancelled',
+      myBooking: { status: 'cancelled' },
+    })
+    // чужой игрок без записи не видит ни одну из отменённых
+    await memberService.add({ userId: ownerA }, { organizationId: orgA, userId: stranger })
+    const other = await request('GET', `/api/me/calendar${q}`, { user: stranger })
+    expect((other.body as { events: unknown[] }).events).toEqual([])
+  })
+
   it("does not show another player's data: a stranger sees only their own groups", async () => {
     await game(ownerA, orgA, 'Игра группы А', 10)
     const res = await request('GET', `/api/me/calendar${q}`, { user: stranger })

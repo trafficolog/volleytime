@@ -1,6 +1,7 @@
 import {
   and,
   asc,
+  bookings,
   eq,
   events,
   gte,
@@ -67,7 +68,9 @@ export interface PlayerCalendarEvent {
  * Общий календарь игрока (23.2.2, M-10): игры всех его групп одним ответом. Группа попадает в
  * ответ, только если участие игрока `active`, а сама группа действует (не приостановлена, не
  * архивна и не удалена): те же условия, что у `resolveTenant` для маршрутов группы. События — те же,
- * что видит игрок в списке группы: без черновиков; отменённые в общий календарь не входят.
+ * что видит игрок в списке группы: без черновиков. Отменённое событие входит, только если у игрока
+ * есть запись на него в любом статусе (23.2.4): запись отменяется вместе с событием, а различить «отменил сам» без схемы нельзя;
+ * статус события в ответе (`status: 'cancelled'`) — клиент показывает такую игру приглушённой.
  */
 export const playerCalendarService = {
   async list(
@@ -127,7 +130,23 @@ export const playerCalendarService = {
         locationText: events.locationText,
       })
       .from(events)
-      .where(and(or(...perGroup), ne(events.status, 'draft'), ne(events.status, 'cancelled')))
+      .where(
+        and(
+          or(...perGroup),
+          ne(events.status, 'draft'),
+          // отменённое событие остаётся, только если у игрока есть запись на него в любом статусе (23.2.4)
+          or(
+            ne(events.status, 'cancelled'),
+            inArray(
+              events.id,
+              db
+                .select({ id: bookings.eventId })
+                .from(bookings)
+                .where(eq(bookings.userId, ctx.userId)),
+            ),
+          ),
+        ),
+      )
       .orderBy(asc(events.startsAt), asc(events.id))
       .limit(MAX_PLAYER_CALENDAR_EVENTS)
     const stats = await eventService.statsFor(

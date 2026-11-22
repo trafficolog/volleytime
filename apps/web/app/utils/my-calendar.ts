@@ -45,7 +45,7 @@ export function groupColors(groups: readonly MyCalendarGroup[]): Map<number, str
   return new Map(groups.map((g, i) => [g.id, GROUP_COLOR_TOKENS[i % GROUP_COLOR_TOKENS.length]!]))
 }
 
-/** «Только мои» — игры, где я иду или стою в очереди; «С местами» — мои и ещё те, куда можно записаться. */
+/** «Только мои» — игры, где я иду или стою в очереди (и мои отменённые); «С местами» — мои и ещё те, куда можно записаться. */
 export type MyCalendarFilter = 'mine' | 'seats'
 
 export interface MyCalendarItem {
@@ -61,6 +61,11 @@ export interface MyCalendarItem {
   /** Я иду в эту игру и в другую по времени (в любой группе). */
   clash: boolean
   past: boolean
+  /**
+   * Игра отменена (23.2.4). Сервер отдаёт такие события, только если у игрока есть запись на них в
+   * любом статусе; в списке они приглушены с подписью «Отменена», в месяце точка приглушена.
+   */
+  cancelled: boolean
 }
 
 function dayInZone(instant: string, timeZone: string): string {
@@ -102,10 +107,14 @@ export function buildMyCalendar(
         freeSeats: Math.max(0, event.capacity - event.taken),
         clash: clashing.has(event.id),
         past: new Date(event.endsAt).getTime() <= now,
+        cancelled: event.status === 'cancelled',
       }
     })
     .filter((item) => {
       if (options.groupId !== null && item.group.id !== options.groupId) return false
+      // отменённое событие сервер отдаёт только при записи игрока; запись у него `cancelled`, поэтому
+      // участия нет, а показать игру нужно при любом фильтре (23.2.4)
+      if (item.cancelled) return item.event.myBooking !== null
       if (item.participation === 'going' || item.participation === 'waitlist') return true
       return (
         options.filter === 'seats' &&
