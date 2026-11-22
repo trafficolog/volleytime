@@ -5,8 +5,8 @@ epic: '22.3'
 status: in_progress
 release: 'v0.4.0'
 sync_state: synced
-last_reviewed: 2026-11-20
-status_note: 'Подготовка выпуска (только документы, без действий в production): кандидат origin/main 3f88a65a (PR #309), диапазон от prod 807f6857 (v0.3.2) — PR #297–#309, миграции 0041 и 0042 (ожидается 43 записи), lockfile только в #309 (разрешение владельца), образ бота меняется бандлом, workflows не менялись (Promote без PROMOTE_TOKEN), env и флаги не менялись. Чеклисты до и после Promote, release gate 22.1.4, QA владельца по всем экранам Root Admin, откат и guard схем — в отчёте docs/operations/qa/2026-11-20-22-3-2-release-v0-4-0.md. Ждёт: success main CI на кандидате, read-only release gate на VPS и подтверждение владельца на Promote.'
+last_reviewed: 2026-11-22
+status_note: 'Выложен 2026-11-20: prod 2b4ba8ee, Promote 44758218391, Deploy 44758244634 attempt 2 success (attempt 1 — нестабильный тест OTP, PR #311), миграции 0041 и 0042, smoke-passed, health release=2b4ba8ee. Тег v0.4.0 на 2b4ba8ee поставлен 2026-11-22 по указанию владельца. Открыто: QA владельца по экранам Root Admin (отчёт не приложен) и заполнение чеклиста после Promote в отчёте 2026-11-20.'
 ref_id: ''
 complexity: M
 impl_model: claude-opus-5-5
