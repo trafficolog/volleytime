@@ -252,7 +252,10 @@ watch(month, load)
                     v-for="item in cell.items"
                     :key="item.event.id"
                     class="mycal-dot"
-                    :class="{ 'mycal-dot--ring': item.participation !== 'going' }"
+                    :class="{
+                      'mycal-dot--ring': !item.cancelled && item.participation !== 'going',
+                      'mycal-dot--muted': item.cancelled,
+                    }"
                     :style="{ '--dot': item.color }"
                   />
                 </span>
@@ -341,6 +344,9 @@ watch(month, load)
 .mycal-dot--ring {
   background: transparent;
   box-shadow: inset 0 0 0 1.5px var(--dot);
+}
+.mycal-dot--muted {
+  opacity: 0.4;
 }
 .mycal-clash {
   display: flex;

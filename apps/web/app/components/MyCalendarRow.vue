@@ -3,7 +3,7 @@ import { plural } from '~/utils/group-schedule'
 import type { MyCalendarItem } from '~/utils/my-calendar'
 import { OVERLAP_LABEL } from '~/utils/status-model'
 
-/** Строка игры в общем календаре игрока (23.2.2, M-10): время, название, точка и имя группы, чип. */
+/** Строка игры в общем календаре игрока (23.2.2, M-10): время, название, точка и имя группы, чип; отменённая игра (23.2.4) приглушена и помечена «Отменена». */
 const props = defineProps<{ item: MyCalendarItem }>()
 const to = computed(
   () => `/m/orgs/${props.item.event.organizationId}/events/${props.item.event.id}`,
@@ -15,7 +15,7 @@ const seats = computed(
 </script>
 
 <template>
-  <NuxtLink :to="to" class="mycal-row" :class="{ 'mycal-row--dim': item.past }">
+  <NuxtLink :to="to" class="mycal-row" :class="{ 'mycal-row--dim': item.past || item.cancelled }">
     <div class="mycal-row__time">
       <div class="vt-mono text-[15px] font-bold leading-none">{{ item.timeFrom }}</div>
       <div class="vt-mono mt-1 text-[10px] text-vt-mute-2">{{ item.timeTo }}</div>
@@ -31,7 +31,10 @@ const seats = computed(
       </div>
     </div>
     <span class="shrink-0">
-      <span v-if="item.clash" class="vt-chip vt-chip--amber" data-state="overlap">{{
+      <span v-if="item.cancelled" class="vt-chip vt-chip--state" data-state="cancelled"
+        >Отменена</span
+      >
+      <span v-else-if="item.clash" class="vt-chip vt-chip--amber" data-state="overlap">{{
         OVERLAP_LABEL.toLowerCase()
       }}</span>
       <VtMyChip v-else-if="item.participation" :booking="item.event.myBooking" />

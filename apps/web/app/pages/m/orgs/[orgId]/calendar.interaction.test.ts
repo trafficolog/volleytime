@@ -226,6 +226,34 @@ describe('my calendar (23.2.2)', () => {
     expect(rows(wrapper)[0]!.text()).toContain('Пляж 4×4')
   })
 
+  it('shows a cancelled game I had a booking on dimmed with «Отменена», and a muted dot in the month (23.2.4)', async () => {
+    payload = {
+      groups: GROUPS,
+      events: [
+        ...JUNE,
+        ev(6, 3, 'Отменённая игра', '2026-06-22T17:00:00Z', {
+          status: 'cancelled',
+          myBooking: { id: 9, status: 'cancelled', waitPos: null, waitlistSeats: 0 },
+        }),
+      ],
+    }
+    const wrapper = await renderCalendar()
+    const row = rows(wrapper).find((r) => r.attributes('href') === '/m/orgs/3/events/6')!
+    expect(row.classes()).toContain('mycal-row--dim')
+    expect(row.get('[data-state="cancelled"]').text()).toBe('Отменена')
+    expect(row.find('[data-state="seats"]').exists()).toBe(false)
+    // «С местами» не меняет вид и не добавляет лишнего
+    await radio(wrapper, 'С местами').trigger('click')
+    expect(rows(wrapper).filter((r) => r.find('[data-state="cancelled"]').exists())).toHaveLength(1)
+    await radio(wrapper, 'Месяц').trigger('click')
+    const day22 = wrapper
+      .findAll('.mycal-day')
+      .find((b) => b.find('.mycal-day__n').text() === '22')!
+    expect(day22.find('.mycal-dot--muted').exists()).toBe(true)
+    expect(day22.find('.mycal-dot--ring').exists()).toBe(false)
+    expect(wrapper.find('.mycal-clash').exists()).toBe(true) // баннер от 17 июня, отменённая его не вызывает
+  })
+
   it('switches the month with one new request per month', async () => {
     const wrapper = await renderCalendar()
     await wrapper.get('[aria-label="Следующий месяц"]').trigger('click')

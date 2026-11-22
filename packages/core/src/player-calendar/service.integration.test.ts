@@ -144,13 +144,33 @@ describe('player calendar (23.2.2, PostgreSQL)', { timeout: 60_000 }, () => {
     expect(res.groups.map((g) => g.id)).toEqual([orgA])
   })
 
-  it('hides drafts and cancelled events', async () => {
+  it('hides drafts and cancelled events the player never booked', async () => {
     const live = await game(ownerA, orgA, 'Живая', '2035-03-12T17:00:00Z')
     await game(ownerA, orgA, 'Черновик', '2035-03-13T17:00:00Z', { status: 'draft' })
     const gone = await game(ownerA, orgA, 'Отменена', '2035-03-14T17:00:00Z')
     await eventService.cancel(ctx(ownerA), gone.id)
     const res = await playerCalendarService.list(ctx(me), MARCH)
     expect(res.events.map((e) => e.id)).toEqual([live.id])
+  })
+
+  it('keeps a cancelled event the player has a booking row on, in any status (23.2.4)', async () => {
+    const withBooking = await game(ownerA, orgA, 'Была запись', '2035-03-14T17:00:00Z')
+    await book(me, orgA, withBooking.id)
+    const selfCancelled = await game(ownerB, orgB, 'Сам отменил', '2035-03-15T17:00:00Z')
+    const mine = await book(me, orgB, selfCancelled.id)
+    await bookingService.cancel(ctx(me), mine.id)
+    const notMine = await game(ownerA, orgA, 'Чужая отмена', '2035-03-16T17:00:00Z')
+    await book(other, orgA, notMine.id)
+    const neverBooked = await game(ownerA, orgA, 'Без записи', '2035-03-17T17:00:00Z')
+    for (const id of [withBooking.id, selfCancelled.id, notMine.id, neverBooked.id])
+      await eventService.cancel(ctx(id === selfCancelled.id ? ownerB : ownerA), id)
+
+    const res = await playerCalendarService.list(ctx(me), MARCH)
+    expect(res.events.map((e) => e.id)).toEqual([withBooking.id, selfCancelled.id])
+    for (const e of res.events) {
+      expect(e.status).toBe('cancelled')
+      expect(e.myBooking?.status).toBe('cancelled')
+    }
   })
 
   it('cuts the range in each group time zone, boundaries inclusive', async () => {

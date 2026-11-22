@@ -217,3 +217,48 @@ describe('days', () => {
     expect(defaultCalendarDay(mk([]), '2026-06-02')).toBeNull()
   })
 })
+
+describe('buildMyCalendar: cancelled games (23.2.4)', () => {
+  const cancelledBooking = { id: 7, status: 'cancelled', waitPos: null, waitlistSeats: 0 }
+  const cancelled = game(3, '2026-06-18T17:00:00Z', 2, {
+    status: 'cancelled',
+    myBooking: cancelledBooking,
+  })
+
+  it('keeps a cancelled game with my booking row under both filters and flags it', () => {
+    for (const filter of ['mine', 'seats'] as const) {
+      const items = buildMyCalendar([cancelled], groups, { filter, groupId: null, now: NOW })
+      expect(items).toHaveLength(1)
+      expect(items[0]).toMatchObject({ cancelled: true, participation: null, clash: false })
+    }
+  })
+
+  it('respects the group filter and leaves ordinary games unflagged', () => {
+    const live = game(3, '2026-06-19T17:00:00Z', 2, { myBooking: going })
+    const hidden = buildMyCalendar([cancelled, live], groups, {
+      filter: 'mine',
+      groupId: 5,
+      now: NOW,
+    })
+    expect(hidden).toEqual([])
+    const all = buildMyCalendar([cancelled, live], groups, {
+      filter: 'mine',
+      groupId: null,
+      now: NOW,
+    })
+    expect(all.map((i) => i.cancelled)).toEqual([true, false])
+  })
+
+  it('does not count a cancelled game as an overlap, nor as a game with free seats', () => {
+    const other = game(5, '2026-06-18T18:00:00Z', 2, { myBooking: going })
+    const noBooking = game(9, '2026-06-20T12:00:00Z', 2, { status: 'cancelled', taken: 0 })
+    const items = buildMyCalendar([cancelled, other, noBooking], groups, {
+      filter: 'seats',
+      groupId: null,
+      now: NOW,
+    })
+    expect(items.map((i) => i.event.id)).toEqual([cancelled.id, other.id])
+    expect(items.every((i) => !i.clash)).toBe(true)
+    expect(calendarClashDays(items)).toEqual([])
+  })
+})
