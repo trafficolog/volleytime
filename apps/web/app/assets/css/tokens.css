@@ -54,6 +54,11 @@
   --vt-dock-idle: #8a8c96;
   --vt-night: #15161a;
   --vt-orange-ink: #a33c08;
+  /* Цвета групп в общем календаре игрока (23.2.2): порядок групп игрока -> токен */
+  --vt-group-1: var(--vt-blue-ink);
+  --vt-group-2: var(--vt-orange);
+  --vt-group-3: var(--vt-grass);
+  --vt-group-4: var(--vt-rose);
   --vt-inverse-bg: #15161a;
   --vt-inverse-fg: #ffffff;
 
@@ -166,6 +171,7 @@
   --vt-dock: #24252c;
   --vt-dock-idle: #8c8d96;
   --vt-orange-ink: #ffb38a;
+  --vt-group-1: var(--vt-link);
   --vt-inverse-bg: #f2f2f5;
   --vt-inverse-fg: #15161a;
   --vt-ctl: var(--vt-bone);
