@@ -4,6 +4,7 @@ import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { runMigrations } from './migrate'
+import { rollbackUserFeatures } from './migration-test-helpers'
 import { rollbackLastMigration } from './rollback'
 
 const TAG = '0043_user_features'
@@ -54,7 +55,7 @@ describe('migration 0043 user features (integration)', { timeout: 90_000 }, () =
     try {
       await runMigrations(url)
       expect(await tableExists(sql)).toBe(true)
-      expect(await rollbackLastMigration(url)).toBe(TAG)
+      expect(await rollbackUserFeatures(url)).toBe(TAG)
       expect(await tableExists(sql)).toBe(false)
       await runMigrations(url)
       expect(await tableExists(sql)).toBe(true)
@@ -111,10 +112,10 @@ describe('migration 0043 user features (integration)', { timeout: 90_000 }, () =
       await runMigrations(url)
       const id = await user(sql, 'uf-guard')
       await sql`INSERT INTO user_features (user_id, feature, enabled) VALUES (${id}, 'mvp', false)`
-      await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0043 refused/)
+      await expect(rollbackUserFeatures(url)).rejects.toThrow(/rollback 0043 refused/)
       expect(await tableExists(sql)).toBe(true)
       await sql`UPDATE user_features SET enabled = true`
-      expect(await rollbackLastMigration(url)).toBe(TAG)
+      expect(await rollbackUserFeatures(url)).toBe(TAG)
       expect(await rollbackLastMigration(url)).toBe(PREVIOUS)
       expect(await sql`SELECT 1 FROM users WHERE id = ${id}`).toHaveLength(1)
     } finally {

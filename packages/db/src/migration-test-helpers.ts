@@ -3,11 +3,33 @@ import postgres from 'postgres'
 import { rollbackLastMigration } from './rollback'
 
 /**
+ * Откат 0044 (24.1.1) отказывает, пока у групп есть сохранённые страницы; тесты старых миграций
+ * работают на базах без них. Помощник откатывает 0044 и возвращает тег; следующая миграция
+ * добавляет свой шаг сюда.
+ */
+export async function rollbackGroupPages(url: string): Promise<string> {
+  const tag = await rollbackLastMigration(url)
+  if (tag !== '0044_group_pages') throw new Error(`expected 0044 to roll back first, got ${tag}`)
+  return tag
+}
+
+/**
  * Откат 0043 (23.1.1) отказывает, пока игроки выключали функции; тесты старых миграций работают на
  * базах без таких выборов. Помощник откатывает 0043 и возвращает тег; следующая миграция добавляет
  * свой шаг сюда.
  */
 export async function rollbackUserFeatures(url: string): Promise<string> {
+  // 24.1.1: новая миграция откатывается первой; повторный вызов после отказа 0043 её уже не найдёт
+  const sql = postgres(url, { max: 1 })
+  let groupPagesApplied: boolean
+  try {
+    const [row] = await sql<{ applied: boolean }[]>`
+      SELECT to_regclass('public.organization_group_pages') IS NOT NULL AS applied`
+    groupPagesApplied = row!.applied
+  } finally {
+    await sql.end()
+  }
+  if (groupPagesApplied) await rollbackGroupPages(url)
   const tag = await rollbackLastMigration(url)
   if (tag !== '0043_user_features') throw new Error(`expected 0043 to roll back first, got ${tag}`)
   return tag

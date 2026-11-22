@@ -20,6 +20,7 @@ import {
   ScheduleSlotError,
   NotificationSettingsError,
   OrganizationLifecycleError,
+  GroupPageError,
 } from '@volley-time/core'
 
 /** HTTP-статусы для доменных error-кодов. */
@@ -27,6 +28,7 @@ const CODE_STATUS: Record<string, number> = {
   // organization
   'organization.not_found': 404,
   'organization.archived': 410,
+  'group_page.venue_invalid': 422,
   'organization.suspended': 403,
   'organization.slug_taken': 409,
   'organization.subscriptions_disabled': 409,
@@ -218,7 +220,8 @@ export function handleServiceError(e: unknown): never {
     e instanceof BrandingError ||
     e instanceof ScheduleSlotError ||
     e instanceof NotificationSettingsError ||
-    e instanceof OrganizationLifecycleError
+    e instanceof OrganizationLifecycleError ||
+    e instanceof GroupPageError
   ) {
     const status = CODE_STATUS[e.code] ?? 400
     // доменная ошибка может нести безопасные детали ответа (например, `{ date, limit }` дневного лимита)

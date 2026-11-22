@@ -309,6 +309,13 @@
       "when": 1795350324404,
       "tag": "0043_user_features",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1795355596576,
+      "tag": "0044_group_pages",
+      "breakpoints": true
     }
   ]
 }
