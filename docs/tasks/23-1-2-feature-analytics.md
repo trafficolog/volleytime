@@ -2,11 +2,11 @@
 id: '23.1.2'
 phase: '23'
 epic: '23.1'
-status: in_progress
+status: done
 release: 'v0.5.0'
 sync_state: synced
-last_reviewed: 2026-11-22
-status_note: 'Решение D-25 принято 2026-11-22; шаг контракта влит (#332), шаг UI — страница /root/features, на ревью.'
+last_reviewed: 2026-11-23
+status_note: 'Слито в main: контракт PR #332 (1449ea23) и страница /root/features PR #333 (1d26060b), 2026-11-23; ревью claude-opus-5-5 без Critical/Important, CI зелёный. Ручная проверка экрана Root (D-16, 1440×900 и 375×812) не проводилась. Minor: в P-14 заголовок «Аналитика гипотез», в продукте «Аналитика функций». События остальных функций — в карточках 25.1.x и 26.1.x. Войдёт в production с v0.5.0.'
 ref_id: 'P-14'
 complexity: M
 impl_model: claude-sonnet-5-5
