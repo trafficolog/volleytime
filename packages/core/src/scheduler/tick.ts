@@ -1,5 +1,6 @@
 import { expireDueOffers, offerFreeSeatsSweep } from '../bookings/offers'
 import { closeDueEvents, type CloseSummary } from '../events/auto-close'
+import { purgeExpiredFeatureEvents } from '../feature-analytics/service'
 import { ownershipTransferService } from '../organization-lifecycle/service'
 
 import { enqueueBookingOpened, enqueueReminders } from './event-notifications'
@@ -70,6 +71,10 @@ export async function runSchedulerTick(
     lastPurgeAt = now.getTime()
     await step('journal.purge', async () => {
       await purgeCompletedJobs(now)
+    })
+    // события функций игрока старше 180 дней (23.1.2, D-25)
+    await step('feature_events.purge', async () => {
+      await purgeExpiredFeatureEvents(now)
     })
   }
   return summary

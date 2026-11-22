@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { DEFAULT_TIMEZONE } from '@volley-time/shared'
+import { onMounted } from 'vue'
 
 import { monthOfInstant, shiftMonth } from '~/utils/desktop-calendar'
+import { trackFeatureEvent } from '~/utils/feature-events'
 import { scheduleMonthRange, scheduleMonthTitle } from '~/utils/group-schedule'
 import {
   buildMyCalendar,
@@ -130,6 +132,10 @@ function openClash() {
 
 await load()
 watch(month, load)
+// аналитика функций (23.1.2, D-25): открытие календаря, только в браузере
+onMounted(() => {
+  if (calendarOn.value) trackFeatureEvent('cal', 'open')
+})
 </script>
 
 <template>
