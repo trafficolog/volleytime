@@ -226,6 +226,7 @@ async function archive() {
             :org="profile"
             :settings="settings"
             :can-edit="isOwner"
+            :base="base"
             :controller="controller"
           />
         </div>

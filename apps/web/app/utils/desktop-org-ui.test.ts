@@ -65,6 +65,7 @@ describe('desktop navigation', () => {
       'cashbox',
       'collections',
       'reports',
+      'group-page',
       'billing',
       'settings',
     ])
@@ -75,10 +76,16 @@ describe('desktop navigation', () => {
       'cashbox',
       'collections',
       'reports',
+      'group-page',
       'billing',
       'settings',
     ])
     expect(desktopNavItems(7, false)[0]?.to).toBe('/app/orgs/7')
+    expect(desktopNavItems(7, false).find((item) => item.key === 'group-page')).toEqual({
+      key: 'group-page',
+      label: 'Страница группы',
+      to: '/app/orgs/7/group-page',
+    })
     for (const enabled of [true, false]) {
       expect(desktopNavItems(8, enabled).some((item) => item.key === 'payments')).toBe(false)
       expect(desktopNavItems(8, enabled).find((item) => item.key === 'cashbox')?.to).toBe(
