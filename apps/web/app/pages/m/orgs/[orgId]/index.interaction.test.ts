@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { quoteEventPrice } from '@volley-time/shared'
+import { defaultPlayerFeatures, quoteEventPrice, type PlayerFeatures } from '@volley-time/shared'
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -51,6 +51,8 @@ const dashData = ref({
   subscription: null,
   upcoming: [],
 })
+const featuresData = ref<{ features: PlayerFeatures } | null>(null)
+const featuresKeys: string[] = []
 const refreshDash = vi.fn()
 const fetchDashboard = vi.fn<() => Promise<unknown>>(async () => dashData.value)
 const orgError = ref<{ statusCode: number; data?: { code: string } } | null>(null)
@@ -70,11 +72,15 @@ vi.stubGlobal('useRoute', () => route)
 const authUser = ref<{ name: string | null } | null>({ name: 'Артём Иванов' })
 vi.stubGlobal('useAuth', () => ({ user: authUser }))
 vi.stubGlobal('useOrgTimezone', () => ({ tz: ref('Europe/Minsk') }))
-vi.stubGlobal('useFetch', (url: () => string) =>
-  url().endsWith('/dashboard')
+vi.stubGlobal('useFetch', (url: string | (() => string), opts?: { key?: string }) => {
+  if (url === '/api/me/features') {
+    featuresKeys.push(opts?.key ?? '')
+    return { data: featuresData, error: ref(null), status: ref('success'), refresh: vi.fn() }
+  }
+  return (url as () => string)().endsWith('/dashboard')
     ? { data: dashData, error: ref(null), status: ref('success'), refresh: refreshDash }
-    : { data: orgData, error: orgError, status: ref('success'), refresh: vi.fn() },
-)
+    : { data: orgData, error: orgError, status: ref('success'), refresh: vi.fn() }
+})
 vi.stubGlobal('computed', computed)
 vi.stubGlobal('ref', ref)
 vi.stubGlobal('shallowRef', shallowRef)
@@ -96,6 +102,8 @@ afterEach(() => {
   refreshDash.mockClear()
   fetchDashboard.mockClear()
   orgError.value = null
+  featuresData.value = null
+  featuresKeys.length = 0
   orgData.value.myMember.role = 'owner'
   groupList.value = []
   selectGroup.mockClear()
@@ -671,6 +679,93 @@ describe('player Home bento v3 (20.4.4)', () => {
     const w = await mountPlayer({ upcoming: [game(1, 28)] })
     expect(w.text()).not.toContain('Привет')
     authUser.value = { name: 'Артём Иванов' }
+    w.unmount()
+  })
+})
+
+describe('player Home feature gating (23.2.1)', () => {
+  const none = (): PlayerFeatures =>
+    Object.fromEntries(Object.keys(defaultPlayerFeatures()).map((k) => [k, false])) as never
+  async function mountPlayer(upcoming: unknown[] = [], role: 'player' | 'owner' = 'player') {
+    orgData.value.myMember.role = role
+    fetchDashboard.mockImplementationOnce(async () => ({
+      isManager: role === 'owner',
+      manager:
+        role === 'owner'
+          ? {
+              pendingCount: 0,
+              pendingAmount: 0,
+              balance: { currency: 'BYN', income: 0, expense: 0, balance: 0, byCurrency: {} },
+            }
+          : null,
+      myBookings: [],
+      bookingsCount: 0,
+      bookingsAwaitingPayment: 0,
+      subscription: null,
+      upcoming,
+    }))
+    const wrapper = mount(HomeHost, {
+      global: {
+        stubs: {
+          NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
+          VtMiniHeader: true,
+          VtSheet: { template: '<div />' },
+          VtIcon: true,
+          VtChip: { template: '<span><slot /></span>' },
+          NotificationBell: true,
+          EmptyState: { props: ['title'], template: '<p>{{ title }}</p>' },
+        },
+      },
+    })
+    await flushPromises()
+    return wrapper
+  }
+
+  it('reads the shared me-features key and links to «Что показывать»', async () => {
+    const w = await mountPlayer()
+    expect(featuresKeys).toEqual(['me-features'])
+    const link = w.get('[data-testid="home-features-link"]')
+    expect(link.attributes('href')).toBe('/m/orgs/30/features')
+    expect(link.text()).toBe('Лишнее на главной? Выключите в профиле')
+    w.unmount()
+  })
+
+  it('has no «Сегодня» header while no block has data, with everything on or off', async () => {
+    featuresData.value = { features: defaultPlayerFeatures() }
+    const all = await mountPlayer()
+    expect(all.find('[data-testid="home-today"]').exists()).toBe(false)
+    expect(all.text()).not.toContain('Сегодня')
+    expect(all.find('[data-testid="home-features-link"]').exists()).toBe(true)
+    all.unmount()
+    featuresData.value = { features: none() }
+    const games = await mountPlayer()
+    expect(games.find('[data-testid="home-today"]').exists()).toBe(false)
+    expect(games.text()).not.toContain('Сегодня')
+    games.unmount()
+  })
+
+  it('hides the link in «Только игры» and shows it again when a flag turns on, without reload', async () => {
+    featuresData.value = { features: none() }
+    const w = await mountPlayer()
+    expect(w.find('[data-testid="home-features-link"]').exists()).toBe(false)
+    featuresData.value = { features: { ...none(), mvp: true } }
+    await flushPromises()
+    expect(w.find('[data-testid="home-features-link"]').exists()).toBe(true)
+    w.unmount()
+  })
+
+  it('keeps the no-game and no-subscription states without home blocks', async () => {
+    orgData.value.organization.subscriptionsEnabled = true
+    featuresData.value = { features: none() }
+    const w = await mountPlayer([])
+    expect(w.text()).toContain('Тренировок пока нет')
+    expect(w.find('a[href="/m/orgs/30/bookings"]').exists()).toBe(true)
+    w.unmount()
+  })
+
+  it('does not show the player link on the organizer home', async () => {
+    const w = await mountPlayer([], 'owner')
+    expect(w.find('[data-testid="home-features-link"]').exists()).toBe(false)
     w.unmount()
   })
 })
