@@ -21,10 +21,11 @@ import { rootOverviewFailure } from '~/utils/root-overview'
 definePageMeta({ layout: 'root', middleware: ['root'] })
 useHead({ title: 'Жалобы на страницы — Root Admin' })
 
-type Status = 'new' | 'closed'
+type Status = 'new' | 'closed' | 'all'
 const STATUSES: readonly { key: Status; label: string }[] = [
   { key: 'new', label: 'Новые' },
   { key: 'closed', label: 'Решённые' },
+  { key: 'all', label: 'Все' },
 ]
 
 const API = '/api/platform/group-page-complaints'
@@ -144,7 +145,13 @@ function onResolved() {
 
       <div class="vt-card vt-mod-table" :aria-busy="pending">
         <p v-if="!items.length" class="vt-mod-empty" data-testid="complaints-empty">
-          {{ status === 'new' ? 'Новых жалоб нет.' : 'Решённых жалоб пока нет.' }}
+          {{
+            status === 'new'
+              ? 'Новых жалоб нет.'
+              : status === 'closed'
+                ? 'Решённых жалоб пока нет.'
+                : 'Жалоб пока нет.'
+          }}
         </p>
         <ul v-else class="vt-mod-rows" aria-label="Жалобы на страницы групп">
           <li

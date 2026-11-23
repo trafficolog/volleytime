@@ -248,6 +248,14 @@ describe('root «Жалобы на страницы» (24.1.3, R-06)', () => {
     expect(w.findAll('[data-action]')).toHaveLength(0)
   })
 
+  it('the all tab requests every complaint', async () => {
+    const w = await render()
+    await w.get('[data-testid="status-all"]').trigger('click')
+    await flushPromises()
+    expect(apiFetch).toHaveBeenLastCalledWith(API, { query: { status: 'all' } })
+    expect(w.get('[data-testid="status-all"]').attributes('aria-pressed')).toBe('true')
+  })
+
   it('empty, error and retry states', async () => {
     handlers[API] = () => ({ items: [], stats: { ...STATS, open: 0, oldestOpenAt: null } })
     const w = await render()
