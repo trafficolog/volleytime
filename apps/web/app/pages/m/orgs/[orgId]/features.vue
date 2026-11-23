@@ -74,6 +74,7 @@ async function drain() {
         })
         confirmed = result.features
         showFlags(confirmed)
+        saveError.value = ''
         needsRefresh = true
         haptic('success')
       } catch (cause) {
