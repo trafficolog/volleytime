@@ -2,11 +2,11 @@
 id: '24.1.4'
 phase: '24'
 epic: '24.1'
-status: todo
+status: done
 release: 'v0.5.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-11-23
+status_note: 'Слито в main PR #339 (61cbf185) 2026-11-23; ревью claude-opus-5-5 без Critical/Important, CI зелёный. Тарифы из каталога баланса событий с ценами, подтверждёнными владельцем 2026-10-14 (D-11; публичный GET /api/public/event-balance-packages), блок скрыт при пустом каталоге. «5 событий при регистрации» не возвращено (D-20: стартовый баланс настраивается). Minor: блок тарифов грузится на клиенте (нет в SSR); перед выпуском v0.5.0 проверить, что списание баланса включено (фраза о возврате). Войдёт в production с v0.5.0.'
 ref_id: ''
 complexity: M
 impl_model: claude-sonnet-5-5
@@ -15,7 +15,7 @@ review_gate: opus
 roles: [FE]
 depends_on: ['19.1.1', '21.2.8']
 supersedes: []
-decisions: ['D-10', 'D-11']
+decisions: ['D-10', 'D-11', 'D-18', 'D-19', 'D-20']
 estimated_hours: '4-8'
 reference:
   spec: ''
