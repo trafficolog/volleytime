@@ -4,6 +4,7 @@ import {
   eq,
   events,
   gt,
+  groupPageModeration,
   inArray,
   isNull,
   organizationGroupPages,
@@ -26,13 +27,16 @@ import { getDb, systemContext, type ServiceContext } from '../shared/context'
 export const GROUP_SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/
 
 /**
- * Группа видна публично: активна, не удалена (21.2.17) и владелец включил публичную страницу
- * (`publicPageEnabled`, 24.1.2). Индексируемость — отдельно, по `seoIndex`.
+ * Группа видна публично: активна, не удалена (21.2.17), владелец включил публичную страницу
+ * (`publicPageEnabled`, 24.1.2) и root её не скрыл (24.1.3: скрытая неотличима от
+ * неопубликованной). Индексируемость — отдельно, по `seoIndex` и решению root.
  */
 const publicGroup = and(
   eq(organizations.status, 'active'),
   isNull(organizations.deletedAt),
   eq(organizations.publicPageEnabled, true),
+  sql`NOT EXISTS (SELECT 1 FROM ${groupPageModeration} gpm
+    WHERE gpm.organization_id = ${organizations.id} AND gpm.state = 'hidden')`,
 )
 
 async function levelTitles(db: ReturnType<typeof getDb>, codes: string[]): Promise<string[]> {
@@ -64,11 +68,15 @@ export async function readPublicGroupPage(
     .where(and(eq(organizations.slug, slug), publicGroup))
     .limit(1)
   if (!org) return null
-  const [[page], venueRows, eventRows, levels] = await Promise.all([
+  const [[page], [moderated], venueRows, eventRows, levels] = await Promise.all([
     db
       .select()
       .from(organizationGroupPages)
       .where(eq(organizationGroupPages.organizationId, org.id)),
+    db
+      .select({ state: groupPageModeration.state })
+      .from(groupPageModeration)
+      .where(eq(groupPageModeration.organizationId, org.id)),
     db
       .select({ id: venues.id, name: venues.name, address: venues.address })
       .from(venues)
@@ -126,7 +134,8 @@ export async function readPublicGroupPage(
   const updatedAt = page && page.updatedAt > org.updatedAt ? page.updatedAt : org.updatedAt
   return {
     slug: org.slug,
-    indexable: org.seoIndex,
+    // решение root `noindex` перекрывает `seoIndex` владельца (24.1.3)
+    indexable: org.seoIndex && !moderated,
     updatedAt: updatedAt.toISOString(),
     meta: built.meta,
     group: {
@@ -143,8 +152,16 @@ export async function readPublicGroupPage(
   }
 }
 
-/** Индексируемые публичные группы: страница включена и `seoIndex` — для sitemap и каталога. */
-const indexableGroup = and(publicGroup, eq(organizations.seoIndex, true))
+/**
+ * Индексируемые публичные группы: страница включена, `seoIndex` и нет решения root (ни `noindex`,
+ * ни `hidden`, 24.1.3) — для sitemap и каталога.
+ */
+const indexableGroup = and(
+  publicGroup,
+  eq(organizations.seoIndex, true),
+  sql`NOT EXISTS (SELECT 1 FROM ${groupPageModeration} gpx
+    WHERE gpx.organization_id = ${organizations.id})`,
+)
 
 /** Каталог «Волейбол в городе {город}»: только индексируемые группы; нет групп — `null`. */
 export async function readPublicCatalog(

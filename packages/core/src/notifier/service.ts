@@ -48,7 +48,9 @@ export async function enrichParams(params: TemplateParams): Promise<TemplatePara
     }
     const base = webUrl()
     if (base && !out.miniAppUrl) {
-      if (params.target === 'payments') {
+      if (params.target === 'group_page') {
+        out.miniAppUrl = `${base}/app/orgs/${params.organizationId}/group-page`
+      } else if (params.target === 'payments') {
         out.miniAppUrl = `${base}/m/orgs/${params.organizationId}/payments`
       } else if (params.target === 'collection' && params.collectionId) {
         out.miniAppUrl = `${base}/m/orgs/${params.organizationId}/collections/${params.collectionId}`

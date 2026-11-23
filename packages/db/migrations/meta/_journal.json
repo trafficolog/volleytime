@@ -323,6 +323,13 @@
       "when": 1795375575238,
       "tag": "0045_feature_events",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1795435740962,
+      "tag": "0046_group_page_moderation",
+      "breakpoints": true
     }
   ]
 }

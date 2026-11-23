@@ -287,4 +287,23 @@ describe('ownership transfer templates (21.4.7)', () => {
     }
     expect(renderMessage('ownership_transfer_accepted', { toName: 'Анна' }).text).toContain('Анна')
   })
+
+  it('group page moderation (24.1.3): reason, escaped note and a cabinet link button', () => {
+    const p = {
+      organizationName: 'Волей <на> Немиге',
+      reasonTitle: 'Цены не совпадают с записью',
+      note: 'Цена <10> BYN',
+      miniAppUrl: 'https://volleytime.by/app/orgs/7/group-page',
+    }
+    const hidden = renderMessage('group_page_hidden', p)
+    expect(hidden.text).toContain('⛔ <b>Страница группы скрыта</b>')
+    expect(hidden.text).toContain('«Волей &lt;на&gt; Немиге» · по ссылке теперь не открывается')
+    expect(hidden.text).toContain('Причина: Цены не совпадают с записью')
+    expect(hidden.text).toContain('Цена &lt;10&gt; BYN')
+    expect(hidden.keyboard).toEqual([[{ text: 'Открыть кабинет', url: p.miniAppUrl }]])
+    const noindex = renderMessage('group_page_noindex', { ...p, note: undefined })
+    expect(noindex.text).toContain('🔍 <b>Страница закрыта от поиска</b>')
+    expect(noindex.text).toContain('по ссылке открывается, в поиске её нет')
+    expect(renderMessage('group_page_restored', p).text).toContain('Решение администрации снято')
+  })
 })

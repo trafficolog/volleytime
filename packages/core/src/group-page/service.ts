@@ -30,6 +30,7 @@ import { OrganizationArchivedError, OrganizationNotFoundError } from '../organiz
 import { actorUserId, getDb, inTransaction, type ServiceContext } from '../shared/context'
 
 import { GroupPageVenueInvalidError } from './errors'
+import { moderationView, readModeration } from './moderation'
 
 type Db = ReturnType<typeof getDb>
 
@@ -53,7 +54,7 @@ async function buildView(
   now: Date,
 ): Promise<GroupPageView> {
   const content = contentOf(row)
-  const [venueRows, eventRows] = await Promise.all([
+  const [venueRows, eventRows, moderation] = await Promise.all([
     db
       .select({ id: venues.id, name: venues.name, address: venues.address })
       .from(venues)
@@ -80,6 +81,7 @@ async function buildView(
       )
       .orderBy(asc(events.startsAt), asc(events.id))
       .limit(GROUP_PAGE_SCHEDULE_EVENTS),
+    readModeration(db, org.id),
   ])
   const join = content.sections.find((s) => s.kind === 'join')
   const resolved = {
@@ -93,6 +95,7 @@ async function buildView(
     updatedAt: row?.updatedAt.toISOString() ?? null,
     seoIndex: org.seoIndex,
     publicPageEnabled: org.publicPageEnabled,
+    moderation: moderationView(moderation),
     group: {
       id: org.id,
       name: org.name,

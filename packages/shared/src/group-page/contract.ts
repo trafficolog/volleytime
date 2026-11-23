@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import type { GroupPageModerationView } from './moderation'
+
 /**
  * Контракт страницы группы (24.1.1, W-13, решение D-24). Один источник формы данных для
  * конструктора кабинета (24.1.1), API и публичного рендера (24.1.2).
@@ -242,6 +244,11 @@ export interface GroupPageView {
   seoIndex: boolean
   /** `organizations.publicPageEnabled` (24.1.2): страница `/g/<slug>` открыта; меняется через `PATCH …/settings`. */
   publicPageEnabled: boolean
+  /**
+   * Действующее решение root (24.1.3): причина, заметка и время, без автора. Пока оно есть,
+   * `seoIndex` владельца не меняется (`PATCH …/settings` → 409 `group_page.moderation_locked`).
+   */
+  moderation: GroupPageModerationView | null
   group: {
     id: number
     name: string

@@ -58,7 +58,18 @@ interface Params {
   /** Игрок отозвал запрос: запись ленты уже не требует действия (20.4.7). */
   inviteRequestWithdrawn?: boolean
   /** Вид записи ленты организатора (21.4.5): тип в БД один, вид — здесь. */
-  kind?: 'payments_pending' | 'booking_created' | 'booking_cancelled' | 'event_balance_low'
+  kind?:
+    | 'payments_pending'
+    | 'booking_created'
+    | 'booking_cancelled'
+    | 'event_balance_low'
+    // решение root по странице группы (24.1.3): вид — тип шаблона бота
+    | 'group_page_hidden'
+    | 'group_page_noindex'
+    | 'group_page_restored'
+  /** Решение root по странице группы (24.1.3): причина и «Что исправить». */
+  reasonTitle?: string
+  note?: string
   /** Сбор обещания взноса: диплинк на конкретный сбор (21.4.5). */
   collectionId?: number
   count?: number
@@ -299,6 +310,33 @@ export function notificationView(
             to: opts.balanceTo ?? base,
             action: 'Пополнить',
           }
+        case 'group_page_hidden':
+        case 'group_page_noindex':
+        case 'group_page_restored': {
+          // раздел кабинета «Страница группы» (24.1.1); в Mini App его нет
+          const page = n.organizationId ? `/app/orgs/${n.organizationId}/group-page` : base
+          if (p.kind === 'group_page_restored')
+            return {
+              title: 'Решение администрации снято',
+              body: 'Страница группы снова открывается по ссылке; индексацию решает ваша настройка.',
+              icon: 'check',
+              tone: 'grass',
+              to: page,
+            }
+          const hidden = p.kind === 'group_page_hidden'
+          return {
+            title: hidden ? 'Страница группы скрыта' : 'Страница закрыта от поиска',
+            body: joinText(
+              hidden ? 'По ссылке не открывается.' : 'По ссылке открывается, в поиске её нет.',
+              p.reasonTitle && `Причина: ${p.reasonTitle}.`,
+              p.note,
+            ),
+            icon: 'alert',
+            tone: hidden ? 'rose' : 'amber',
+            to: page,
+            action: 'Открыть',
+          }
+        }
       }
       if (p.inviteRequest) {
         return {

@@ -8,6 +8,7 @@ export function makeView(over: Partial<GroupPageView> = {}): GroupPageView {
     updatedAt: null,
     seoIndex: false,
     publicPageEnabled: false,
+    moderation: null,
     group: {
       id: 7,
       name: 'VolleyTime Минск',

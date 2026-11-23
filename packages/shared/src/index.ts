@@ -31,6 +31,7 @@ export {
   type PublicGroupPageVenue,
   type PublicGroupPageView,
 } from './group-page/public'
+export * from './group-page/moderation'
 export {
   quoteEventPrice,
   type EventPriceQuote,

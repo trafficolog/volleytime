@@ -29,7 +29,12 @@ defineRouteMeta({
                 nullable: true,
                 description: 'null: отмена до начала события',
               },
-              seoIndex: { type: 'boolean' },
+              seoIndex: {
+                type: 'boolean',
+                description:
+                  'индексация страницы группы; пока действует решение root (24.1.3) — 409 ' +
+                  'group_page.moderation_locked',
+              },
               publicPageEnabled: {
                 type: 'boolean',
                 description: 'публичная страница группы /g/<slug> (24.1.2)',
@@ -51,6 +56,10 @@ defineRouteMeta({
       401: { description: 'Нет сессии' },
       403: { description: 'Не участник группы или не владелец (forbidden.owner_only)' },
       404: { description: 'Группа не найдена (organization.not_found)' },
+      409: {
+        description:
+          'seoIndex меняется, пока действует решение root по странице (group_page.moderation_locked)',
+      },
       410: { description: 'Группа в архиве (organization.archived)' },
       422: {
         description:
