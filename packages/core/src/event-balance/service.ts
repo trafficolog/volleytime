@@ -11,7 +11,6 @@ import {
   eventBalancePurchaseRequests,
   events,
   hasEventBalanceEntryForEvent,
-  isNull,
   lockEventBalance,
   ne,
   organizationEventBalances,
@@ -24,7 +23,6 @@ import {
   type EventBalancePackageBadge,
   type EventBalancePurchaseRequest,
 } from '@volley-time/db'
-
 import { unlimitedLastDay, type EventBalanceUnlimited } from '@volley-time/shared'
 
 import { AUDIT_ACTIONS } from '../audit/actions'
@@ -33,6 +31,7 @@ import { writeOrganizerFeed } from '../notifier/organizer-feed'
 import { getPlatformSettings } from '../platform/settings'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
 
+import { readEventBalanceCatalog } from './catalog'
 import { EVENT_BALANCE_LOW_THRESHOLD, isEventBalanceEnforced } from './config'
 import { EventBalancePackageUnavailableError, InsufficientEventBalanceError } from './errors'
 import {
@@ -141,21 +140,7 @@ export const eventBalanceService = {
       .where(eq(organizationEventBalances.organizationId, orgId))
     const balance = row?.balance ?? 0
     const unlimitedUntil = await readActiveUnlimitedUntil(ctx, orgId)
-    const catalog = await db
-      .select({
-        code: eventBalancePackages.code,
-        units: eventBalancePackages.units,
-        amount: eventBalancePackages.amount,
-        currency: eventBalancePackages.currency,
-        badge: eventBalancePackages.badge,
-      })
-      .from(eventBalancePackages)
-      .where(and(eq(eventBalancePackages.visible, true), isNull(eventBalancePackages.archivedAt)))
-      .orderBy(
-        asc(eventBalancePackages.sortOrder),
-        asc(eventBalancePackages.units),
-        asc(eventBalancePackages.id),
-      )
+    const catalog = await readEventBalanceCatalog(db)
     const pendingRequests = await db
       .select({
         id: eventBalancePurchaseRequests.id,

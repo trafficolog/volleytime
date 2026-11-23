@@ -61,7 +61,7 @@
   margin-inline: auto;
   padding-inline: 28px;
 }
-.landing :is(#features, #how-it-works, #faq) {
+.landing :is(#features, #how-it-works, #pricing, #faq) {
   scroll-margin-top: 90px;
 }
 .landing :is(a, summary):focus-visible {
@@ -1039,6 +1039,107 @@
   font-size: 15.5px;
   max-width: 620px;
 }
+.landing__pricing {
+  padding-block: 24px 96px;
+}
+.landing__price-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  align-items: stretch;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.landing__price {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-radius: 28px;
+  padding: 32px;
+  background: var(--vt-bone);
+}
+.landing__price--hot {
+  background: var(--vt-blue-ink);
+  color: #fff;
+  box-shadow: var(--vt-shadow-accent);
+}
+.landing__price-badge {
+  align-self: flex-start;
+  margin-bottom: 14px;
+  padding: 6px 12px;
+  border-radius: 99px;
+  background: var(--vt-orange-soft);
+  color: var(--vt-orange-ink);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  line-height: 1.5;
+}
+.landing__price--hot .landing__price-badge {
+  background: var(--vt-amber);
+  color: var(--vt-ink);
+}
+.landing__price-units {
+  font-family: var(--f-num);
+  font-weight: 700;
+  font-size: 88px;
+  line-height: 1;
+}
+.landing__price-unit,
+.landing__price-per {
+  font-size: 15px;
+  color: var(--vt-mute-2);
+}
+.landing__price-per {
+  margin-top: 6px;
+}
+.landing__price--hot :is(.landing__price-unit, .landing__price-per) {
+  color: rgba(255, 255, 255, 0.78);
+}
+.landing__price hr {
+  width: 100%;
+  height: 1px;
+  margin: 24px 0;
+  border: 0;
+  background: rgba(21, 22, 26, 0.08);
+}
+.landing__price--hot hr {
+  background: rgba(255, 255, 255, 0.18);
+}
+.landing__price-amount {
+  font-family: var(--f-num);
+  font-weight: 700;
+  font-size: 40px;
+  line-height: 1.1;
+}
+.landing__price-notes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px 28px;
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--vt-mute-2);
+  font-size: 15px;
+}
+.landing__price-notes li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.landing__price-notes svg {
+  color: var(--vt-grass);
+}
+.landing__price-actions {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.landing__price-actions p {
+  color: var(--vt-mute-2);
+  font-size: 15px;
+}
 .landing__final {
   max-width: 1184px;
   margin: 0 auto 0;
@@ -1197,6 +1298,7 @@
   .landing__story-grid,
   .landing__roles-grid,
   .landing__faq,
+  .landing__price-list,
   .landing__step-list {
     grid-template-columns: 1fr;
   }
@@ -1206,6 +1308,9 @@
   .landing__faq,
   .landing__steps {
     padding-block: 72px;
+  }
+  .landing__pricing {
+    padding-block: 24px 72px;
   }
   .landing__final-inner {
     padding: 48px 28px;
@@ -1260,6 +1365,7 @@
   .landing__story-card,
   .landing__role,
   .landing__feature,
+  .landing__price,
   .landing__step-list li {
     padding: 26px;
   }

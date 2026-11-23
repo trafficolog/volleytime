@@ -139,7 +139,9 @@ function updateScroll() {
   if (!root) return
   const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight)
   root.style.setProperty('--landing-scroll-progress', String(Math.min(1, window.scrollY / max)))
-  const sections = [...root.querySelectorAll<HTMLElement>('#features, #how-it-works, #faq')]
+  const sections = [
+    ...root.querySelectorAll<HTMLElement>('#features, #how-it-works, #pricing, #faq'),
+  ]
   const current = sections
     .filter((section) => section.getBoundingClientRect().top <= 190)
     .at(-1)?.id

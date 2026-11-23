@@ -60,4 +60,17 @@ describe('landing contrast contract', () => {
     const background = color(declaration('.landing__role--organizer', 'background') ?? '')
     expect(contrastRatio(outline, background)).toBeGreaterThanOrEqual(3)
   })
+
+  it('keeps the pricing badges and secondary text at AA contrast (24.1.4)', () => {
+    const badge = ['.landing__price-badge', '.landing__price--hot .landing__price-badge'] as const
+    for (const selector of badge) {
+      const fg = color(declaration(selector, 'color') ?? '')
+      const bg = color(declaration(selector, 'background') ?? '')
+      expect(contrastRatio(fg, bg), selector).toBeGreaterThanOrEqual(4.5)
+    }
+    const bone = color('var(--vt-bone)')
+    expect(contrastRatio(color('var(--vt-mute-2)'), bone)).toBeGreaterThanOrEqual(4.5)
+    const hot = color(declaration('.landing__price--hot', 'background') ?? '')
+    expect(contrastRatio('#ffffff', hot)).toBeGreaterThanOrEqual(7)
+  })
 })

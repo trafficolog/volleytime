@@ -2,7 +2,7 @@
 import type { User } from '@volley-time/db'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { computed, defineComponent, h, onMounted, ref } from 'vue'
+import { computed, defineComponent, h, nextTick, onMounted, ref } from 'vue'
 
 import { useAuth } from '../composables/useAuth'
 
@@ -28,16 +28,28 @@ const storedUser: User = {
 const loginHref = '/auth/login?redirect=%2Fm%2Forgs%2Fcreate'
 const mounted: VueWrapper[] = []
 
-function setup(response: () => Promise<{ user: User | null }>, initialUser: User | null = null) {
+const catalog = [
+  { code: 'events_10', units: 10, amount: 5000, currency: 'BYN', badge: null },
+  { code: 'events_30', units: 30, amount: 12000, currency: 'BYN', badge: 'popular' },
+  { code: 'events_100', units: 100, amount: 35000, currency: 'BYN', badge: 'discount' },
+]
+
+function setup(
+  response: () => Promise<{ user: User | null }>,
+  initialUser: User | null = null,
+  packages: () => Promise<{ packages: unknown[] }> = async () => ({ packages: [] }),
+) {
   const states = new Map<string, ReturnType<typeof ref>>()
   vi.stubGlobal('ref', ref)
   vi.stubGlobal('computed', computed)
   vi.stubGlobal('onMounted', onMounted)
+  vi.stubGlobal('nextTick', nextTick)
   vi.stubGlobal('useState', (key: string, init: () => unknown) => {
     if (!states.has(key)) states.set(key, ref(init()))
     return states.get(key)
   })
   vi.stubGlobal('$fetch', async (url: string) => {
+    if (url === '/api/public/event-balance-packages') return packages()
     if (url !== '/api/auth/get-session') throw new Error(`Unexpected request: ${url}`)
     return response()
   })
@@ -128,5 +140,43 @@ describe('landing session fallback', () => {
     expect(wrapper.get('.landing__header-cta').attributes('href')).toBe(loginHref)
     expect(auth.user.value).toBeNull()
     expect(errors).toEqual([])
+  })
+})
+
+describe('landing pricing block (24.1.4)', () => {
+  const session = async () => ({ user: null })
+
+  it('renders the catalog prices with the catalog badge, a nav link and a footer link', async () => {
+    const { wrapper, errors } = setup(session, null, async () => ({ packages: catalog }))
+    await flushPromises()
+
+    const section = wrapper.get('#pricing')
+    expect(section.get('h2').text()).toBe('Платите за игры,а не за подписку')
+    const cards = section.findAll('.landing__price')
+    expect(cards.map((c) => c.text())).toEqual([
+      '10событий50 Br5,00 Br за событие',
+      'Популярный30событий120 Br4,00 Br за событие',
+      'Скидка100событий350 Br3,50 Br за событие',
+    ])
+    expect(section.find('.landing__price--hot').text()).toContain('30')
+    expect(section.text()).not.toMatch(/credit|%/i)
+    expect(wrapper.findAll('a[href="#pricing"]')).toHaveLength(2)
+    expect(section.get('a').attributes('href')).toBe(loginHref)
+    expect(errors).toEqual([])
+  })
+
+  it('hides the block and its links when the catalog is empty or unavailable', async () => {
+    for (const packages of [
+      async () => ({ packages: [] }),
+      async () => {
+        throw new Error('catalog unavailable')
+      },
+    ]) {
+      const { wrapper, errors } = setup(session, null, packages)
+      await flushPromises()
+      expect(wrapper.find('#pricing').exists()).toBe(false)
+      expect(wrapper.findAll('a[href="#pricing"]')).toHaveLength(0)
+      expect(errors).toEqual([])
+    }
   })
 })

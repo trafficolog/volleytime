@@ -2,3 +2,4 @@ export { eventBalanceService, type EventBalanceView, type EventBalanceHistoryRow
 export * from './config'
 export * from './errors'
 export * from './schemas'
+export { readEventBalanceCatalog, type EventBalanceCatalogPackage } from './catalog'
