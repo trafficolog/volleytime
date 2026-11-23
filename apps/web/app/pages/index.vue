@@ -4,8 +4,12 @@ import {
   groupCreateHref,
   landingFaq,
   landingFeatures,
+  landingPricing,
+  landingPricingNotes,
+  landingPricingSection,
   landingSections,
   telegramBotHref,
+  type LandingPackage,
 } from '~/utils/landing'
 
 const { user, fetchSession } = useAuth()
@@ -13,7 +17,31 @@ const sessionKnown = ref(false)
 const createHref = computed(() => groupCreateHref(sessionKnown.value ? user.value !== null : null))
 const botHref = computed(() => telegramBotHref(useRuntimeConfig().public.telegramBotUsername))
 
+// Тарифы (D-11): цены читаются из каталога Root Admin; без ответа блок и ссылки на него скрыты.
+const pricing = ref<ReturnType<typeof landingPricing>>([])
+const sections = computed(() => {
+  if (pricing.value.length === 0) return landingSections
+  const [features, howItWorks, faq] = landingSections
+  return [features, howItWorks, landingPricingSection, faq]
+})
+
+async function loadPricing() {
+  try {
+    const { packages } = await $fetch<{ packages: LandingPackage[] }>(
+      '/api/public/event-balance-packages',
+    )
+    pricing.value = landingPricing(packages)
+    if (pricing.value.length > 0 && window.location.hash === '#pricing') {
+      await nextTick()
+      document.getElementById('pricing')?.scrollIntoView()
+    }
+  } catch {
+    pricing.value = []
+  }
+}
+
 onMounted(async () => {
+  void loadPricing()
   try {
     await fetchSession()
     sessionKnown.value = true
@@ -47,7 +75,7 @@ useHead({
         </a>
         <nav class="landing__nav" aria-label="Основная навигация">
           <a
-            v-for="section in landingSections"
+            v-for="section in sections"
             :key="section.id"
             class="landing__nav-section"
             :href="`#${section.id}`"
@@ -280,6 +308,48 @@ useHead({
         </div>
       </section>
 
+      <section
+        v-if="pricing.length > 0"
+        id="pricing"
+        class="landing__pricing landing__container"
+        aria-labelledby="pricing-title"
+      >
+        <div class="landing__section-intro">
+          <p class="landing__kicker">Тарифы</p>
+          <h2 id="pricing-title">Платите за игры,<br />а не за подписку</h2>
+          <p>
+            1 событие баланса — одно опубликованное событие. Если событие отменено до того, как на
+            него кто-то записался, или до открытия записи, событие возвращается на баланс.
+          </p>
+        </div>
+        <ul class="landing__price-list">
+          <li
+            v-for="pkg in pricing"
+            :key="pkg.code"
+            class="landing__price"
+            :class="{ 'landing__price--hot': pkg.popular }"
+          >
+            <span v-if="pkg.badge" class="landing__price-badge">{{ pkg.badge }}</span>
+            <strong class="landing__price-units">{{ pkg.units }}</strong>
+            <span class="landing__price-unit">{{ pkg.unitsWord }}</span>
+            <hr />
+            <strong class="landing__price-amount">{{ pkg.price }}</strong>
+            <span class="landing__price-per">{{ pkg.perEvent }}</span>
+          </li>
+        </ul>
+        <ul class="landing__price-notes">
+          <li v-for="note in landingPricingNotes" :key="note">
+            <VtIcon name="check" :size="17" /> {{ note }}
+          </li>
+        </ul>
+        <div class="landing__actions landing__price-actions">
+          <NuxtLink class="landing__button landing__button--orange" :to="createHref"
+            >Создать группу <span aria-hidden="true">↗</span></NuxtLink
+          >
+          <p>Баланс пополняется в кабинете организатора после создания группы.</p>
+        </div>
+      </section>
+
       <section id="faq" class="landing__faq landing__container" aria-labelledby="faq-title">
         <div class="landing__section-intro">
           <p class="landing__kicker">Коротко о главном</p>
@@ -323,7 +393,7 @@ useHead({
           </p>
         </div>
         <nav aria-label="Навигация в подвале">
-          <a v-for="section in landingSections" :key="section.id" :href="`#${section.id}`">{{
+          <a v-for="section in sections" :key="section.id" :href="`#${section.id}`">{{
             section.label
           }}</a>
           <a href="#main-content">Наверх ↑</a>

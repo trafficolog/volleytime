@@ -817,6 +817,33 @@
       "path": "/dev/atoms",
       "steps": [{ "click": ".vt-select__button" }],
       "references": ["1-brand/08-section.png"]
+    },
+    {
+      "id": "landing-desktop",
+      "title": "Лендинг v3: десктоп, вся страница (референс — секции 01–08 по порядку)",
+      "viewport": "cabinet",
+      "role": "anonymous",
+      "path": "/",
+      "fullPage": true,
+      "references": [
+        "0-landing/01-section.png",
+        "0-landing/02-section.png",
+        "0-landing/03-section.png",
+        "0-landing/04-section.png",
+        "0-landing/05-section.png",
+        "0-landing/06-section.png",
+        "0-landing/07-section.png",
+        "0-landing/08-section.png"
+      ]
+    },
+    {
+      "id": "landing-mobile",
+      "title": "Лендинг v3: мобильная ширина, вся страница (референс мобильного вида в макете нет, показана секция 01)",
+      "viewport": "miniapp",
+      "role": "anonymous",
+      "path": "/",
+      "fullPage": true,
+      "references": ["0-landing/01-section.png"]
     }
   ]
 }
