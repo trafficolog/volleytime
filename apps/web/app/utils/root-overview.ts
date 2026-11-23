@@ -25,6 +25,8 @@ export interface RootNavItem {
   icon: string
   /** `null` — экран ещё не реализован (соседние карточки 22.x): пункт неактивен. */
   to: string | null
+  /** Другие пути, на которых пункт остаётся текущим (например, соседняя вкладка раздела). */
+  alsoCurrent?: string[]
 }
 
 /** Разделы Root Admin по референсу 4b; ссылку получает пункт, когда его экран появился. */
@@ -35,6 +37,13 @@ export function rootNavItems(): RootNavItem[] {
     { key: 'users', label: 'Пользователи', icon: 'users', to: '/root/users' },
     { key: 'billing', label: 'Баланс и тарифы', icon: 'card', to: '/root/billing' },
     { key: 'payments', label: 'Подписки и выплаты', icon: 'card', to: '/root/payments' },
+    {
+      key: 'pages',
+      label: 'Страницы групп',
+      icon: 'globe',
+      to: '/root/pages',
+      alsoCurrent: ['/root/page-complaints'],
+    },
     { key: 'features', label: 'Аналитика функций', icon: 'chart', to: '/root/features' },
     { key: 'audit', label: 'Аудит', icon: 'clock', to: '/root/audit' },
     { key: 'settings', label: 'Настройки', icon: 'settings', to: '/root/settings' },

@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 import { defaultGroupPageContent, type GroupPageView } from '@volley-time/shared'
 import { flushPromises, mount } from '@vue/test-utils'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { computed } from 'vue'
 
 import GroupPageBuilder from './GroupPageBuilder.vue'
 import { levelTitles, makeView, stubs } from './group-page-fixtures'
@@ -438,5 +439,108 @@ describe('GroupPageBuilder read-only (organizer)', () => {
     // предпросмотр доступен и организатору
     await wrapper.find('[data-gp-device="phone"]').trigger('click')
     expect(wrapper.find('.vt-gp-preview').attributes('data-device')).toBe('phone')
+  })
+})
+
+describe('GroupPageBuilder moderation (24.1.3)', () => {
+  const MODERATION = {
+    state: 'noindex' as const,
+    reasonCode: 'price' as const,
+    reasonTitle: 'Цены не совпадают с записью',
+    note: 'Цена на странице 10 BYN, в записи 15 BYN.',
+    decidedAt: '2026-05-20T15:40:00.000Z',
+  }
+  const toggle = (wrapper: ReturnType<typeof mountBuilder>['wrapper']) =>
+    wrapper.find('[aria-labelledby$="-label"][role="switch"]')
+
+  beforeEach(() => {
+    // Icon.vue опирается на автоимпорт `computed`
+    vi.stubGlobal('computed', computed)
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('shows no banner without a decision', () => {
+    const { wrapper } = mountBuilder()
+    expect(wrapper.find('[data-gp-moderation]').exists()).toBe(false)
+    expect(toggle(wrapper).attributes('aria-disabled')).toBeUndefined()
+  })
+
+  it('shows the banner with the reason, the note and the time for a noindex decision', () => {
+    const { wrapper } = mountBuilder({
+      view: makeView({ seoIndex: true, moderation: MODERATION }),
+    })
+    const banner = wrapper.get('[data-gp-moderation]')
+    expect(banner.attributes('data-state')).toBe('noindex')
+    expect(banner.text()).toContain('Администрация VolleyTime закрыла страницу от поиска')
+    expect(banner.text()).toContain('noindex')
+    expect(banner.get('[data-gp-moderation-reason]').text()).toContain(
+      'Причина: Цены не совпадают с записью',
+    )
+    expect(banner.get('[data-gp-moderation-note]').text()).toBe(MODERATION.note)
+    expect(banner.get('time').text()).toBe('20 мая, 18:40')
+    expect(banner.text()).toContain('Открывается по ссылке')
+    expect(banner.text()).toContain('Индексация у вас включена, но сейчас её перекрывает решение')
+  })
+
+  it('shows the hidden variant with the 404 facts and no author or reply buttons', () => {
+    const { wrapper } = mountBuilder({
+      view: makeView({
+        moderation: {
+          ...MODERATION,
+          state: 'hidden',
+          note: null,
+          reasonTitle: 'Группа не проводит игры',
+        },
+      }),
+    })
+    const banner = wrapper.get('[data-gp-moderation]')
+    expect(banner.attributes('data-state')).toBe('hidden')
+    expect(banner.text()).toContain('Администрация VolleyTime скрыла страницу')
+    expect(banner.text()).toContain('404 по ссылке')
+    expect(banner.text()).toContain('Открывается по ссылке · 404')
+    expect(banner.find('[data-gp-moderation-note]').exists()).toBe(false)
+    expect(banner.find('[data-gp-moderation-override]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Ответить модератору')
+    expect(wrapper.text()).not.toContain('запросить проверку')
+    expect(banner.findAll('button')).toHaveLength(0)
+  })
+
+  it('locks the indexing switch with the explanation and sends nothing on click', async () => {
+    const request = vi.fn()
+    const { wrapper } = mountBuilder({
+      request,
+      view: makeView({ seoIndex: true, moderation: MODERATION }),
+    })
+    const sw = toggle(wrapper)
+    expect(sw.attributes('aria-disabled')).toBe('true')
+    expect(sw.attributes('aria-checked')).toBe('true')
+    const row = wrapper.get('#gp-seo-title').element.parentElement!
+    expect(row.textContent).toContain(
+      'Пока действует решение администрации, переключатель не работает',
+    )
+    await sw.trigger('click')
+    await flushPromises()
+    expect(document.body.querySelector('[role="alertdialog"]')).toBeNull()
+    expect(request).not.toHaveBeenCalled()
+  })
+
+  it('on 409 moderation_locked tells the owner and asks the page to reload', async () => {
+    const request = vi.fn().mockRejectedValue(
+      Object.assign(new Error('x'), {
+        statusCode: 409,
+        data: { data: { code: 'group_page.moderation_locked' } },
+      }),
+    )
+    const { wrapper, toast } = mountBuilder({ request })
+    await toggle(wrapper).trigger('click')
+    ;[...document.body.querySelectorAll<HTMLButtonElement>('[role="alertdialog"] button')]
+      .find((b) => b.textContent?.trim() === 'Показывать в поиске')!
+      .click()
+    await flushPromises()
+    expect(toast).toHaveBeenCalledWith(
+      'Пока действует решение администрации, переключатель не работает',
+      'danger',
+    )
+    expect(wrapper.emitted('stale')).toHaveLength(1)
   })
 })

@@ -8,6 +8,7 @@ import PublicGroupPage from './PublicGroupPage.vue'
 const stubs = {
   NuxtLink: { props: ['to'], template: '<a :href="String(to)"><slot /></a>' },
   GroupLogo: { template: '<span data-logo />' },
+  VtIcon: true,
 }
 
 function data(over: Partial<PublicGroupPageView> = {}): PublicGroupPageView {
@@ -89,5 +90,14 @@ describe('PublicGroupPage', () => {
     const d = data()
     d.sections = d.sections.filter((s) => s.kind !== 'cover')
     expect(mountPage(d).find('h1').text()).toBe('Пятница')
+  })
+
+  it('has the complaint button for the page slug, also when the page is not indexable (24.1.3)', () => {
+    for (const indexable of [true, false]) {
+      const w = mountPage(data({ indexable }))
+      const button = w.get('[data-testid="complaint-open"]')
+      expect(button.element.tagName).toBe('BUTTON')
+      expect(button.text()).toBe('Пожаловаться на страницу')
+    }
   })
 })

@@ -11,12 +11,13 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import SettingsField from '../settings/SettingsField.vue'
 import SettingsRow from '../settings/SettingsRow.vue'
 
+import GroupPageModerationBanner from './GroupPageModerationBanner.vue'
 import GroupPagePreview from './GroupPagePreview.vue'
 
 import GroupLogo from '~/components/GroupLogo.vue'
 import VtAlert from '~/components/vt/Alert.vue'
 import VtToggle from '~/components/vt/Toggle.vue'
-import { apiErrorMessage } from '~/utils/api-error'
+import { apiErrorCode, apiErrorMessage } from '~/utils/api-error'
 import {
   contentToForm,
   formToPayload,
@@ -44,7 +45,12 @@ const props = defineProps<{
   request: <T>(url: string, init: { method: 'PUT' | 'PATCH'; body: unknown }) => Promise<T>
   toast: (message: string, tone: 'ok' | 'danger') => void
 }>()
-const emit = defineEmits<{ dirty: [value: boolean]; saved: [view: GroupPageView] }>()
+const emit = defineEmits<{
+  dirty: [value: boolean]
+  saved: [view: GroupPageView]
+  /** Решение администрации появилось или снялось: страницу нужно перечитать. */
+  stale: []
+}>()
 
 const current = ref<GroupPageView>(props.view)
 const ctx = computed(() => ({
@@ -221,12 +227,16 @@ watch(
   () => props.view.seoIndex,
   (value) => (seoIndex.value = value),
 )
+// решение администрации (24.1.3): пока оно действует, переключатель индексации не меняется
+const moderation = computed(() => props.view.moderation)
+const seoLocked = computed(() => moderation.value !== null)
+const SEO_LOCK_HINT = 'Пока действует решение администрации, переключатель не работает'
 const seoTarget = ref(false)
 const seoConfirm = ref(false)
 const seoPending = ref(false)
 
 function askSeo(value: boolean) {
-  if (readOnly.value || seoPending.value) return
+  if (readOnly.value || seoLocked.value || seoPending.value) return
   seoTarget.value = value
   seoConfirm.value = true
 }
@@ -245,6 +255,8 @@ async function applySeo() {
     )
   } catch (cause) {
     props.toast(apiErrorMessage(cause, 'Не удалось изменить индексацию'), 'danger')
+    // 409: решение появилось, пока страница была открыта — перечитываем, чтобы показать причину
+    if (apiErrorCode(cause) === 'group_page.moderation_locked') emit('stale')
   } finally {
     seoPending.value = false
   }
@@ -257,14 +269,25 @@ async function applySeo() {
       Страницу группы редактирует только владелец группы. Вы видите текущие значения и предпросмотр.
     </p>
 
+    <GroupPageModerationBanner
+      v-if="moderation"
+      :moderation="moderation"
+      :seo-index="seoIndex"
+      :city="group.city"
+    />
+
     <section class="vt-card vt-settings-card" aria-labelledby="gp-seo-title">
       <h2 id="gp-seo-title" class="vt-settings-card__title">Публикация и поиск</h2>
       <SettingsRow
         label="Показывать страницу группы в поиске"
-        :hint="`${SETTING_IMPACT.seoIndex} Режим записи в группу от этого не меняется.`"
+        :hint="
+          seoLocked
+            ? SEO_LOCK_HINT
+            : `${SETTING_IMPACT.seoIndex} Режим записи в группу от этого не меняется.`
+        "
         :model-value="seoIndex"
         :disabled="seoPending"
-        :readonly="readOnly"
+        :readonly="readOnly || seoLocked"
         @update:model-value="askSeo"
       />
       <div data-gp-public>

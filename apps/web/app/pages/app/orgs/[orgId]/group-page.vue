@@ -78,6 +78,7 @@ onBeforeRouteLeave(
       :toast="toast.show"
       @dirty="dirty = $event"
       @saved="pageData = { page: $event }"
+      @stale="refresh()"
     />
     <VtToast />
   </section>

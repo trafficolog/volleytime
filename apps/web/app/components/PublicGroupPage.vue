@@ -3,6 +3,7 @@ import { formatEventDate, type PublicGroupPageView } from '@volley-time/shared'
 import { computed } from 'vue'
 
 import GroupLogo from '~/components/GroupLogo.vue'
+import PublicGroupComplaint from '~/components/PublicGroupComplaint.vue'
 import { SECTION_TITLES } from '~/utils/group-page-builder'
 import { catalogPath, groupGeoText } from '~/utils/public-group-page'
 
@@ -164,6 +165,8 @@ const address = computed(() =>
       <p class="mt-8 text-[length:var(--fs-sm)] text-vt-mute-2" data-testid="geo-text">
         {{ geo }}
       </p>
+
+      <PublicGroupComplaint :slug="data.slug" />
     </main>
   </div>
 </template>
