@@ -57,7 +57,7 @@ tags: [reference-v3]
 ## Критерии приёмки
 
 - ✅ noindex-страница отсутствует в sitemap и каталоге
-- ✅ Lighthouse SEO ≥ 95
+- ⏳ Lighthouse SEO ≥ 95 — не запускался в 24.1.2 (нет разрешения на инструмент); перенесён в приёмку релиза [24.1.5](24-1-5-release-v0-5-0-qa.md), решение владельца 2026-11-23
 - ✅ Пять gates CODING_STANDARDS на tested revision; ревью `claude-opus-5-5` без Critical/Important
 - ✅ RED→GREEN тесты на граничные случаи, деньги/доступ и конкурентность приложены к PR
 
