@@ -92,6 +92,7 @@ async function buildView(
     isDefault: !row,
     updatedAt: row?.updatedAt.toISOString() ?? null,
     seoIndex: org.seoIndex,
+    publicPageEnabled: org.publicPageEnabled,
     group: {
       id: org.id,
       name: org.name,

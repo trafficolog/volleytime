@@ -20,6 +20,9 @@ export const RESERVED_SHORT_LINKS: readonly string[] = [
   'health',
   'internal',
   'levels',
+  // публичная страница группы и каталог городов (24.1.2): `/g/<slug>`, `/volleyball/<город>`
+  'g',
+  'volleyball',
   // личные функции игрока (23.1.1): `/api/me/features`
   'me',
   'notifications',

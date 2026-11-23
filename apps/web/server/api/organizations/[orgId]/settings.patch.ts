@@ -30,6 +30,10 @@ defineRouteMeta({
                 description: 'null: отмена до начала события',
               },
               seoIndex: { type: 'boolean' },
+              publicPageEnabled: {
+                type: 'boolean',
+                description: 'публичная страница группы /g/<slug> (24.1.2)',
+              },
               city: { type: 'string', nullable: true, description: 'до 100 символов' },
               district: { type: 'string', nullable: true, description: 'до 100 символов' },
               levels: {

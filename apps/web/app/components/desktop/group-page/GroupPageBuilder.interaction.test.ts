@@ -376,6 +376,44 @@ describe('GroupPageBuilder indexing', () => {
   })
 })
 
+describe('GroupPageBuilder publishing (24.1.2)', () => {
+  const sw = (wrapper: ReturnType<typeof mountBuilder>['wrapper']) =>
+    wrapper.find('[data-gp-public] [role="switch"]')
+
+  it('publishes the page through PATCH settings without a dialog and shows its address', async () => {
+    const request = vi.fn().mockResolvedValue({ settings: { publicPageEnabled: true } })
+    const { wrapper, toast } = mountBuilder({ request })
+    expect(wrapper.find('[data-gp-public-link]').exists()).toBe(false)
+    await sw(wrapper).trigger('click')
+    await flushPromises()
+    expect(request).toHaveBeenCalledWith('/api/organizations/7/settings', {
+      method: 'PATCH',
+      body: { publicPageEnabled: true },
+    })
+    expect(sw(wrapper).attributes('aria-checked')).toBe('true')
+    expect(wrapper.find('[data-gp-public-link] a').attributes('href')).toBe('/g/volleytime-minsk')
+    expect(toast).toHaveBeenCalledWith('Страница группы опубликована', 'ok')
+  })
+
+  it('keeps the value on a server error', async () => {
+    const request = vi.fn().mockRejectedValue(new Error('x'))
+    const { wrapper, toast } = mountBuilder({
+      request,
+      view: makeView({ publicPageEnabled: true }),
+    })
+    await sw(wrapper).trigger('click')
+    await flushPromises()
+    expect(sw(wrapper).attributes('aria-checked')).toBe('true')
+    expect(toast).toHaveBeenCalledWith('Не удалось изменить публикацию', 'danger')
+  })
+
+  it('an organizer cannot publish', async () => {
+    const { wrapper, request } = mountBuilder({ canEdit: false })
+    await sw(wrapper).trigger('click')
+    expect(request).not.toHaveBeenCalled()
+  })
+})
+
 describe('GroupPageBuilder read-only (organizer)', () => {
   it('explains that only the owner edits and disables every editing control', async () => {
     const { wrapper, request } = mountBuilder({ canEdit: false })

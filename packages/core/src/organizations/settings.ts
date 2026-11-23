@@ -42,6 +42,8 @@ export const UpdateOrganizationSettingsInput = z
       .max(MAX_CANCELLATION_DEADLINE_HOURS)
       .nullable(),
     seoIndex: z.boolean(),
+    /** Публичная страница группы `/g/<slug>` (24.1.2): выключена — 404. */
+    publicPageEnabled: z.boolean(),
     city: optionalText,
     district: optionalText,
     levels: GroupLevelsInput,
@@ -59,6 +61,7 @@ export interface OrganizationSettings {
   /** NULL = отмена до начала события. */
   cancellationDeadlineHours: number | null
   seoIndex: boolean
+  publicPageEnabled: boolean
   city: string | null
   district: string | null
   /** Уровни группы (19.2.3) в порядке шкалы В1–В4+; пустой список — не указаны. */
@@ -73,6 +76,7 @@ const SETTING_KEYS = [
   'cancellationAllowed',
   'cancellationDeadlineHours',
   'seoIndex',
+  'publicPageEnabled',
   'city',
   'district',
   'levels',
@@ -89,6 +93,7 @@ export function pickSettings(org: Organization): OrganizationSettings {
     cancellationAllowed: org.cancellationAllowed,
     cancellationDeadlineHours: org.cancellationDeadlineHours,
     seoIndex: org.seoIndex,
+    publicPageEnabled: org.publicPageEnabled,
     city: org.city,
     district: org.district,
     levels: org.levels,

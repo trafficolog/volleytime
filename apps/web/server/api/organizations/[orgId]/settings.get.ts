@@ -32,6 +32,10 @@ defineRouteMeta({
                       nullable: true,
                     },
                     seoIndex: { type: 'boolean' },
+                    publicPageEnabled: {
+                      type: 'boolean',
+                      description: 'публичная страница группы /g/<slug> (24.1.2)',
+                    },
                     city: { type: 'string', nullable: true },
                     district: { type: 'string', nullable: true },
                     levels: {

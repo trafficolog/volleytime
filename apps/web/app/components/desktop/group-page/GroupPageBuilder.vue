@@ -190,6 +190,31 @@ async function save() {
   }
 }
 
+// публикация (24.1.2): страница `/g/<slug>` открыта, только когда владелец её включил --------
+const publicPage = ref(current.value.publicPageEnabled)
+watch(
+  () => props.view.publicPageEnabled,
+  (value) => (publicPage.value = value),
+)
+const publicPending = ref(false)
+const publicPath = computed(() => `/g/${group.value.slug}`)
+async function setPublicPage(value: boolean) {
+  if (readOnly.value || publicPending.value) return
+  publicPending.value = true
+  try {
+    const response = await props.request<{ settings: { publicPageEnabled: boolean } }>(
+      `/api/organizations/${group.value.id}/settings`,
+      { method: 'PATCH', body: { publicPageEnabled: value } },
+    )
+    publicPage.value = response.settings.publicPageEnabled
+    props.toast(publicPage.value ? 'Страница группы опубликована' : 'Страница группы скрыта', 'ok')
+  } catch (cause) {
+    props.toast(apiErrorMessage(cause, 'Не удалось изменить публикацию'), 'danger')
+  } finally {
+    publicPending.value = false
+  }
+}
+
 // индексация --------------------------------------------------------------------------------
 const seoIndex = ref(current.value.seoIndex)
 watch(
@@ -233,7 +258,7 @@ async function applySeo() {
     </p>
 
     <section class="vt-card vt-settings-card" aria-labelledby="gp-seo-title">
-      <h2 id="gp-seo-title" class="vt-settings-card__title">Поиск</h2>
+      <h2 id="gp-seo-title" class="vt-settings-card__title">Публикация и поиск</h2>
       <SettingsRow
         label="Показывать страницу группы в поиске"
         :hint="`${SETTING_IMPACT.seoIndex} Режим записи в группу от этого не меняется.`"
@@ -242,6 +267,22 @@ async function applySeo() {
         :readonly="readOnly"
         @update:model-value="askSeo"
       />
+      <div data-gp-public>
+        <SettingsRow
+          label="Опубликовать страницу группы"
+          hint="Выключено: страница по адресу группы не открывается. Сохранённое содержимое не теряется."
+          :model-value="publicPage"
+          :disabled="publicPending"
+          :readonly="readOnly"
+          @update:model-value="setPublicPage"
+        />
+      </div>
+      <p v-if="publicPage" class="vt-settings-hint" data-gp-public-link>
+        Страница открыта:
+        <NuxtLink :to="publicPath" target="_blank" class="vt-settings-link">{{
+          publicPath
+        }}</NuxtLink>
+      </p>
     </section>
 
     <div class="vt-gp__layout">

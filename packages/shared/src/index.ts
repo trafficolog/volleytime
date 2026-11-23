@@ -19,6 +19,19 @@ export {
   type GroupPageView,
 } from './group-page/contract'
 export {
+  buildPublicGroupPage,
+  cityKey,
+  groupGeoSummary,
+  sanitizeGroupPageContent,
+  type PublicCatalogGroup,
+  type PublicCatalogView,
+  type PublicGroupPageEvent,
+  type PublicGroupPageInput,
+  type PublicGroupPageSection,
+  type PublicGroupPageVenue,
+  type PublicGroupPageView,
+} from './group-page/public'
+export {
   quoteEventPrice,
   type EventPriceQuote,
   type EventPriceQuoteInput,
