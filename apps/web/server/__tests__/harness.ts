@@ -72,6 +72,7 @@ export async function createTestApi() {
     setResponseStatus: h3.setResponseStatus,
     setResponseHeader: h3.setResponseHeader,
     setResponseHeaders: h3.setResponseHeaders,
+    sendRedirect: h3.sendRedirect,
     readMultipartFormData: h3.readMultipartFormData,
     useRuntimeConfig: () => ({ public: {} }),
     // макрос Nitro (OpenAPI): в сборке вырезается, в харнессе — no-op
@@ -100,6 +101,11 @@ export async function createTestApi() {
   }
 
   const app = h3.createApp()
+  // короткая ссылка группы `/<имя>` → `/g/<slug>` (24.1.2)
+  const shortLink = await import(
+    pathToFileURL(path.join(serverDir, 'middleware/short-link.ts')).href
+  )
+  app.use(shortLink.default)
   const tenant = await import(pathToFileURL(path.join(serverDir, 'middleware/tenant.ts')).href)
   app.use(tenant.default)
   const router = h3.createRouter()
@@ -108,6 +114,12 @@ export async function createTestApi() {
     const { method, route } = toRoute(file)
     const handler = (await import(pathToFileURL(file).href)).default
     router[method](route, handler)
+  }
+  // server/routes: sitemap.xml и robots.txt (24.1.2)
+  for (const e of await readdir(path.join(serverDir, 'routes'))) {
+    if (!e.endsWith('.ts') || e.includes('.test.')) continue
+    const handler = (await import(pathToFileURL(path.join(serverDir, 'routes', e)).href)).default
+    router.get(`/${e.replace(/\.ts$/, '')}`, handler)
   }
   app.use(router)
   const web = h3.toWebHandler(app)

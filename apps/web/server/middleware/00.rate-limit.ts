@@ -1,4 +1,5 @@
 import { clientKeyFromRequest, RateLimiter } from '../utils/rate-limit'
+import { shortLinkCandidate } from '../utils/short-link-path'
 
 /**
  * Ограничение частоты для эндпоинтов входа (Task 9.9.11): защита от брутфорса кода и initData.
@@ -30,8 +31,11 @@ const logoLimiter = new RateLimiter({
 })
 const PUBLIC_LOGO = /^\/api\/organizations\/[^/]+\/logo\/?$/
 
-/** Публичная страница события: `/e/<slug>` — HTML, `/api/public/**` — JSON (20.6.1). */
-const PUBLIC_HTML = /^\/e\/[^/]+\/?$/
+/**
+ * Публичные HTML без входа, которые читают БД: событие `/e/<slug>` (20.6.1), страница группы
+ * `/g/<slug>`, каталог `/volleyball/<город>` и sitemap.xml (24.1.2); JSON — `/api/public/**`.
+ */
+const PUBLIC_HTML = /^\/(?:e|g|volleyball)\/[^/]+\/?$|^\/sitemap\.xml$/
 
 export default defineEventHandler((event) => {
   const path = getRequestURL(event).pathname
@@ -54,7 +58,9 @@ export default defineEventHandler((event) => {
   }
   const isAuth = path.startsWith('/api/auth/') && event.method !== 'GET' // get-session дергается на каждой навигации
   const isPublicApi = path.startsWith('/api/public/')
-  const isPublic = isPublicApi || PUBLIC_HTML.test(path)
+  // короткая ссылка группы `/<имя>` (21.2.16) ищется в БД — тот же публичный лимит
+  const isPublic =
+    isPublicApi || PUBLIC_HTML.test(path) || (event.method === 'GET' && !!shortLinkCandidate(path))
   if (!isAuth && !isPublic) return
 
   const remoteAddress = event.node.req.socket.remoteAddress

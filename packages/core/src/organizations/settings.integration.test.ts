@@ -66,6 +66,7 @@ describe('organizationSettingsService (integration)', () => {
         cancellationAllowed: true,
         cancellationDeadlineHours: 6,
         seoIndex: false,
+        publicPageEnabled: false,
         city: 'Минск',
         district: null,
         levels: [],

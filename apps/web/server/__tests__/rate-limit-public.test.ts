@@ -97,4 +97,17 @@ describe('rate limit middleware: public routes (20.6.1)', () => {
       expect(await call('/api/organizations', proxy('10.0.4.1'))).toBe(200)
     expect(await call('/events/0123456789ab', proxy('10.0.4.1'))).toBe(200)
   })
+
+  it('24.1.2: group page, catalog, sitemap and short links share the public bucket', async () => {
+    const who = proxy('10.0.5.1')
+    expect(await call('/g/volley-minsk', who)).toBe(200)
+    expect(await call('/volleyball/%D0%9C%D0%B8%D0%BD%D1%81%D0%BA', who)).toBe(200)
+    expect(await call('/sitemap.xml', who)).toBe(200)
+    expect(await call('/vt-minsk', who)).toBe(429)
+    // зарезервированные верхнеуровневые маршруты и корень не считаются короткой ссылкой
+    for (let i = 0; i < 4; i++) {
+      expect(await call('/levels', proxy('10.0.6.1'))).toBe(200)
+      expect(await call('/', proxy('10.0.6.1'))).toBe(200)
+    }
+  })
 })
