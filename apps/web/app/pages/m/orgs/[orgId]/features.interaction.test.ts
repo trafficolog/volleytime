@@ -14,6 +14,7 @@ import VtToggle from '~/components/vt/Toggle.vue'
 let wrapper: VueWrapper | undefined
 const fetchMock = vi.fn()
 const refreshData = vi.fn(async () => undefined)
+let server: PlayerFeatures = defaultPlayerFeatures()
 
 function stubPage(initial: PlayerFeatures = defaultPlayerFeatures(), loadFails = false) {
   fetchMock.mockReset()
@@ -33,9 +34,11 @@ function stubPage(initial: PlayerFeatures = defaultPlayerFeatures(), loadFails =
     refresh: vi.fn(),
   }))
   // PATCH возвращает применённые флаги
-  fetchMock.mockImplementation(async (_url: string, opts: { body: Partial<PlayerFeatures> }) => ({
-    features: { ...initial, ...opts.body },
-  }))
+  server = { ...initial }
+  fetchMock.mockImplementation(async (_url: string, opts: { body: Partial<PlayerFeatures> }) => {
+    server = { ...server, ...opts.body }
+    return { features: server }
+  })
 }
 
 async function render() {
@@ -128,6 +131,85 @@ describe('Mini App «Что показывать» (23.2.3, M-12)', () => {
     await flushPromises()
     expect(page.get('[data-testid="feature-toggle-cal"]').attributes('aria-checked')).toBe('true')
     expect(page.get('[role="alert"]').text()).toContain('Не удалось сохранить')
+  })
+
+  it('keeps switches enabled during a save and applies a second tap after the first', async () => {
+    stubPage()
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    fetchMock.mockImplementationOnce(
+      async (_u: string, opts: { body: Partial<PlayerFeatures> }) => {
+        await gate
+        server = { ...server, ...opts.body }
+        return { features: server }
+      },
+    )
+    const page = await render()
+    await page.get('[data-testid="feature-toggle-cal"]').trigger('click')
+    // PATCH ещё в полёте: переключатель не заблокирован и остаётся доступным
+    expect(page.get('[data-testid="feature-toggle-coach"]').attributes('disabled')).toBeUndefined()
+    await page.get('[data-testid="feature-toggle-coach"]').trigger('click')
+    await page.get('[data-testid="feature-toggle-mvp"]').trigger('click')
+    await page.get('[data-testid="feature-toggle-mvp"]').trigger('click')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    release()
+    await flushPromises()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls[0]![1].body).toEqual({ cal: false })
+    // следующий PATCH объединяет нажатия: последнее значение флага побеждает
+    expect(fetchMock.mock.calls[1]![1].body).toEqual({ coach: false, mvp: true })
+    const state = (f: string) =>
+      page.get(`[data-testid="feature-toggle-${f}"]`).attributes('aria-checked')
+    expect([state('cal'), state('coach'), state('mvp')]).toEqual(['false', 'false', 'true'])
+  })
+
+  it('applies a preset tapped while a save is in flight', async () => {
+    stubPage()
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    fetchMock.mockImplementationOnce(
+      async (_u: string, opts: { body: Partial<PlayerFeatures> }) => {
+        await gate
+        server = { ...server, ...opts.body }
+        return { features: server }
+      },
+    )
+    const page = await render()
+    await page.get('[data-testid="feature-toggle-cal"]').trigger('click')
+    await page.findAll('[role="radio"]')[0]!.trigger('click')
+    release()
+    await flushPromises()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(Object.keys(fetchMock.mock.calls[1]![1].body)).toHaveLength(8)
+    expect(
+      page.findAll('[role="switch"]').every((s) => s.attributes('aria-checked') === 'false'),
+    ).toBe(true)
+  })
+
+  it('rolls a failed preset (bulk PATCH of 8 flags) back to the previous flags', async () => {
+    stubPage()
+    fetchMock.mockRejectedValue(new Error('offline'))
+    const page = await render()
+    await page.findAll('[role="radio"]')[0]!.trigger('click')
+    await flushPromises()
+    expect(Object.keys(fetchMock.mock.calls[0]![1].body)).toHaveLength(8)
+    expect(
+      page.findAll('[role="switch"]').every((s) => s.attributes('aria-checked') === 'true'),
+    ).toBe(true)
+    expect(page.findAll('[role="radio"]')[1]!.attributes('aria-checked')).toBe('true')
+    expect(page.get('[role="alert"]').text()).toContain('Не удалось сохранить')
+  })
+
+  it('keeps the saved value and shows no error when refreshing shared data fails', async () => {
+    stubPage()
+    refreshData.mockRejectedValueOnce(new Error('refresh failed'))
+    const page = await render()
+    await page.get('[data-testid="feature-toggle-mvp"]').trigger('click')
+    await flushPromises()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(refreshData).toHaveBeenCalledWith('me-features')
+    expect(page.get('[data-testid="feature-toggle-mvp"]').attributes('aria-checked')).toBe('false')
+    expect(page.find('[role="alert"]').exists()).toBe(false)
   })
 
   it('shows an error state when features cannot be loaded', async () => {

@@ -34,31 +34,66 @@ const forcedCustom = ref(false)
 const preset = computed<FeaturePreset>(() =>
   forcedCustom.value ? 'custom' : presetOf(features.value),
 )
-const saving = ref(false)
 const saveError = ref('')
 
-async function save(patch: Partial<PlayerFeatures>) {
-  if (saving.value) return
-  const previous = data.value
-  saveError.value = ''
-  saving.value = true
-  // применяется сразу; при ошибке возвращаем прежние значения
-  data.value = { features: { ...features.value, ...patch } }
+// Сохранения идут строго по очереди: нажатия во время PATCH не блокируются и не теряются,
+// а копятся и уходят одним следующим PATCH (последнее значение флага побеждает).
+const queue: Partial<PlayerFeatures>[] = []
+let draining = false
+let confirmed: PlayerFeatures | null = null
+
+const pendingPatch = (): Partial<PlayerFeatures> => Object.assign({}, ...queue)
+const showFlags = (base: PlayerFeatures) => {
+  data.value = { features: { ...base, ...pendingPatch() } }
+}
+
+async function drain() {
+  if (draining) return
+  draining = true
+  let needsRefresh = false
   try {
-    const result = await $fetch<{ features: PlayerFeatures }>('/api/me/features', {
-      method: 'PATCH',
-      body: patch,
-    })
-    data.value = result
-    await refreshNuxtData('me-features')
-    haptic('success')
-  } catch (cause) {
-    data.value = previous
-    saveError.value = apiErrorMessage(cause, 'Не удалось сохранить. Попробуйте ещё раз.')
-    haptic('error')
+    for (;;) {
+      if (!queue.length) {
+        if (!needsRefresh) break
+        needsRefresh = false
+        // обновление общего кэша не должно отменять уже сохранённое: своя ошибка, свой try
+        try {
+          await refreshNuxtData('me-features')
+          confirmed = data.value?.features ?? confirmed
+        } catch {
+          // данные на экране уже верны; кэш обновится при следующей загрузке
+        }
+        if (confirmed) showFlags(confirmed)
+        continue
+      }
+      const patch = Object.assign({}, ...queue.splice(0)) as Partial<PlayerFeatures>
+      try {
+        const result = await $fetch<{ features: PlayerFeatures }>('/api/me/features', {
+          method: 'PATCH',
+          body: patch,
+        })
+        confirmed = result.features
+        showFlags(confirmed)
+        needsRefresh = true
+        haptic('success')
+      } catch (cause) {
+        // откатываем только неудавшийся PATCH; поздние нажатия остаются в очереди
+        if (confirmed) showFlags(confirmed)
+        saveError.value = apiErrorMessage(cause, 'Не удалось сохранить. Попробуйте ещё раз.')
+        haptic('error')
+      }
+    }
   } finally {
-    saving.value = false
+    draining = false
   }
+}
+
+function save(patch: Partial<PlayerFeatures>) {
+  saveError.value = ''
+  confirmed ??= data.value?.features ?? defaultPlayerFeatures()
+  queue.push(patch)
+  showFlags(data.value?.features ?? defaultPlayerFeatures())
+  return drain()
 }
 
 function toggle(feature: PlayerFeature, enabled: boolean) {
@@ -114,7 +149,6 @@ function choosePreset(value: string) {
               <VtToggle
                 :model-value="row.enabled"
                 :labelledby="`feature-${row.feature}`"
-                :disabled="saving"
                 :data-testid="`feature-toggle-${row.feature}`"
                 @update:model-value="toggle(row.feature, $event)"
               />

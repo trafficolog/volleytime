@@ -262,7 +262,10 @@ describe('Mini App profile «Мои функции» (23.2.3, M-12)', () => {
       'Календарь',
       'MVP игры',
     ])
-    expect(page.findAll('a').map((a) => a.attributes('href'))).toContain('/m/orgs/30/features')
+    const links = page.findAll('a').filter((a) => a.attributes('href') === '/m/orgs/30/features')
+    // единственная ссылка — строка в «Настройках»
+    expect(links).toHaveLength(1)
+    expect(page.find('[data-testid="profile-features-edit"]').exists()).toBe(false)
   })
 
   it('shows all eight when flags are on by default', async () => {

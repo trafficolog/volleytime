@@ -2,11 +2,11 @@
 id: '23.2.3'
 phase: '23'
 epic: '23.2'
-status: todo
+status: done
 release: 'v0.5.0'
 sync_state: synced
-last_reviewed: 2026-10-12
-status_note: ''
+last_reviewed: 2026-11-23
+status_note: 'Слито в main: реализация PR #335 (4757267c) и доработка по ревью #335 в этом PR (this PR): сохранения идут по очереди (нажатия во время PATCH не блокируются и не теряются, пресет применяется), ошибка обновления общего кэша me-features не откатывает сохранённое, дубль ссылки «Что показывать» в профиле убран (остаётся строка в «Настройках»). Харнесс 19.0.2 (player-profile, player-profile-settings, новый player-profile-features; светлая и тёмная): pixel-diff 17,8 / 20,9 / 18,7 %, отчёт docs/operations/qa/2026-11-23-23-2-3-profile-features-visual.md, открытых Critical/Important нет. Известное поведение: пресет «Своё» не сохраняется на сервере (это только выбор на экране: после перезагрузки пресет определяется по флагам); отдельного хранения не вводилось. Войдёт в production с v0.5.0.'
 ref_id: 'M-12'
 complexity: M
 impl_model: claude-sonnet-5-5

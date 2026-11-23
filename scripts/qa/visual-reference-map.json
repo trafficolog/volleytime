@@ -307,6 +307,16 @@
       "steps": [{ "scroll": "bottom" }]
     },
     {
+      "id": "player-profile-features",
+      "title": "Игрок: «Что показывать» (23.2.3; макета экрана нет, референс — профиль)",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "path": "/m/orgs/{org}/features",
+      "references": ["3-miniapp-player/06-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
       "id": "organizer-members",
       "title": "Организатор: игроки (уровни и фильтр)",
       "viewport": "miniapp",
