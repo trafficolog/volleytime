@@ -634,6 +634,9 @@ export const groupPageModerationService = {
     return inTransaction(ctx, async (tx) => {
       const db = getDb(tx)
       const c = await lockComplaint(db, id)
+      // блокировка группы до чтения решения: параллельное «Скрыть» по другой жалобе на ту же
+      // страницу не даёт ложного moderation_same_state, а закрывает жалобу действующим решением
+      await lockOrg(db, c.organizationId)
       const current = await readModeration(db, c.organizationId)
       if (current?.state !== data.state) await applyDecision(tx, c.organizationId, data)
       await closeComplaint(tx, c.id, 'resolved', data.state)

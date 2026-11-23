@@ -29,5 +29,8 @@ export async function complaintReporter(
     (u) => u.id,
     () => null,
   )
-  return { userId, hash: complaintDeviceHash(client, process.env.BETTER_AUTH_SECRET ?? '') }
+  const secret = process.env.BETTER_AUTH_SECRET
+  // без ключа HMAC хеш адреса подбирается перебором — отказ, а не пустой ключ
+  if (!secret) throw new Error('BETTER_AUTH_SECRET is required for complaint reporter hash')
+  return { userId, hash: complaintDeviceHash(client, secret) }
 }
