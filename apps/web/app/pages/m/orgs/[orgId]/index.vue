@@ -1,14 +1,21 @@
 <script setup lang="ts">
 import type { Organization, OrganizationMember } from '@volley-time/db'
-import { formatShortDate } from '@volley-time/shared'
+import { defaultPlayerFeatures, formatShortDate, type PlayerFeatures } from '@volley-time/shared'
 
 import type { EventListItem } from '~/components/EventCard.vue'
 import GroupLogo from '~/components/GroupLogo.vue'
 import GroupSwitcher from '~/components/GroupSwitcher.vue'
+import HomeTodayBlocks from '~/components/HomeTodayBlocks.vue'
 import PlayerHomeBento from '~/components/PlayerHomeBento.vue'
 import PlayerHomeTiles from '~/components/PlayerHomeTiles.vue'
 import { eventBalanceCard } from '~/utils/cabinet-shell'
 import { groupEntryState, visibleGroup } from '~/utils/group-entry-state'
+import {
+  homeFeaturesLink,
+  showHomeFeaturesLink,
+  visibleHomeBlocks,
+  type HomeBlockData,
+} from '~/utils/home-blocks'
 import { formatMoneyRu } from '~/utils/labels'
 import {
   organizerHomeSubtitle,
@@ -100,6 +107,17 @@ const dash = computed(() =>
 const playerHome = computed(() =>
   projectPlayerHome(dash.value?.upcoming ?? [], new Date(), dash.value?.hero ?? null),
 )
+// Личные функции игрока (23.1.1): общий ключ с layout, профилем и «Что показывать»; сохранение флага
+// обновляет его через refreshNuxtData('me-features'), блок исчезает без перезагрузки. Без ответа
+// считается включённым всё (как в layout).
+const { data: featuresData } = await useFetch<{ features?: PlayerFeatures }>('/api/me/features', {
+  key: 'me-features',
+})
+const features = computed(() => featuresData.value?.features ?? defaultPlayerFeatures())
+// Данные блоков «Сегодня» (контракт `~/utils/home-blocks`). Источников пока нет: блоки подключают
+// карточки 25.1.1, 25.1.2, 26.1.1, 26.1.2, 26.1.4, 26.1.5; до этого блоки скрыты.
+const homeBlockData = computed<HomeBlockData>(() => ({}))
+const todayBlocks = computed(() => visibleHomeBlocks(features.value, homeBlockData.value))
 const { user } = useAuth()
 const greeting = computed(() => playerGreeting(user.value?.name))
 const sessions = computed(() =>
@@ -441,6 +459,8 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
             </template>
           </section>
 
+          <HomeTodayBlocks v-if="!roleMismatch && !dash.isManager" :blocks="todayBlocks" />
+
           <NuxtLink
             v-if="!roleMismatch && activeManager && dash.subscription"
             :to="`${base}/subscriptions`"
@@ -524,6 +544,18 @@ const base = computed(() => `/m/orgs/${orgId.value}`)
               </li>
             </ul>
           </section>
+
+          <p
+            v-if="!roleMismatch && !dash.isManager && showHomeFeaturesLink(features)"
+            class="text-center text-sm text-vt-mute-2"
+          >
+            <NuxtLink
+              :to="homeFeaturesLink(orgId)"
+              class="vt-hit-44 inline-flex items-center font-semibold text-vt-link"
+              data-testid="home-features-link"
+              >Лишнее на главной? Выключите в профиле</NuxtLink
+            >
+          </p>
         </template>
         <ErrorState v-else message="Не удалось загрузить данные группы" @retry="refreshDash()" />
       </template>
