@@ -94,6 +94,15 @@ const CODE_MESSAGES: Record<string, string> = {
   'collection.not_active': 'Сбор уже закрыт',
   'collection.not_found': 'Сбор не найден',
   'event.booking_already_open': 'Запись уже открыта: время открытия больше не меняется',
+  'group_page.moderation_locked': 'Пока действует решение администрации, переключатель не работает',
+  'group_page.moderation_same_state': 'Такое решение уже действует. Список обновлён',
+  'group_page.owner_noindex': 'Владелец уже закрыл страницу от поиска: noindex от root не нужен',
+  'group_page.not_moderated': 'Решения по странице уже нет. Список обновлён',
+  'group_page.complaint_closed': 'Жалоба уже закрыта. Список обновлён',
+  'group_page.complaint_not_found': 'Жалоба не найдена',
+  'group_page.complaint_limited': 'Не больше 3 жалоб в сутки',
+  'group_page.not_found': 'Страница группы не найдена',
+  'organization.not_found': 'Группа не найдена',
   'payment.not_pending': 'Обещание уже обработано или заменено игроком новым. Список обновлён',
 }
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { PlatformSettingsResponse } from '@volley-time/shared'
 
-import { rootNavItems } from '~/utils/root-overview'
+import { rootNavItems, type RootNavItem } from '~/utils/root-overview'
 
 const route = useRoute()
 const { user } = useAuth()
@@ -9,8 +9,10 @@ const items = rootNavItems()
 
 const account = computed(() => user.value?.email ?? user.value?.name ?? 'root')
 
-function isCurrent(to: string) {
-  return to === '/root' ? route.path === to : route.path.startsWith(to)
+function isCurrent(item: RootNavItem) {
+  const to = item.to ?? ''
+  if (to === '/root') return route.path === to
+  return [to, ...(item.alsoCurrent ?? [])].some((path) => route.path.startsWith(path))
 }
 
 // название платформы (22.3.1, `general.platformName`): шапка и `<title>` страниц /root; без ответа — "Volley Time"
@@ -54,7 +56,7 @@ useHead({
           <NuxtLink
             v-if="item.to"
             :to="item.to"
-            :aria-current="isCurrent(item.to) ? 'page' : undefined"
+            :aria-current="isCurrent(item) ? 'page' : undefined"
           >
             <VtIcon :name="item.icon" :size="16" />
             {{ item.label }}
