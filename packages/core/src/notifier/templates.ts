@@ -30,6 +30,10 @@ export type NotificationType =
   // получателю — что ожидающая передача отменена или истекла (21.4.20); без ссылки и токена
   | 'ownership_transfer_cancelled_recipient'
   | 'ownership_transfer_expired_recipient'
+  // решение root по странице группы (24.1.3): владельцу и организаторам
+  | 'group_page_hidden'
+  | 'group_page_noindex'
+  | 'group_page_restored'
 
 export interface KeyboardButton {
   text: string
@@ -72,7 +76,7 @@ export interface TemplateParams {
   /** Конкретный сбор: диплинк уведомления об обещании взноса (21.4.5). */
   collectionId?: number
   /** Куда ведёт кнопка: экран события, платежей организатора, абонементов, сбора. */
-  target?: 'event' | 'payments' | 'subscriptions' | 'org' | 'collection'
+  target?: 'event' | 'payments' | 'subscriptions' | 'org' | 'collection' | 'group_page'
   amount?: number
   targetAmount?: number
   participantCount?: number
@@ -103,6 +107,11 @@ export interface TemplateParams {
   /** Имя прежнего owner (кто передаёт) и получателя (21.4.7). */
   fromName?: string
   toName?: string
+  /** Вид записи ленты организатора (`organizer_action_required`); для модерации — тип шаблона. */
+  kind?: string
+  /** Решение root по странице группы (24.1.3): причина и «Что исправить»; автор не передаётся. */
+  reasonTitle?: string
+  note?: string
 }
 
 /** « · мест: N» для операций над несколькими местами; одно место — текст R0.7 без изменений. */
@@ -123,6 +132,10 @@ export function renderMessage(type: NotificationType, p: TemplateParams): Render
           ],
         ]
       : undefined
+
+  // кабинет — веб-страница, не Mini App: обычная ссылка
+  const cabinetBtn = (): KeyboardButton[][] | undefined =>
+    p.miniAppUrl ? [[{ text: 'Открыть кабинет', url: p.miniAppUrl }]] : undefined
 
   // кнопка действия под ссылкой «Открыть»; id события — не секрет, права проверяет web по Telegram id
   const withAction = (text: string, prefix: 'cx' | 'oa'): KeyboardButton[][] | undefined => {
@@ -352,6 +365,34 @@ export function renderMessage(type: NotificationType, p: TemplateParams): Render
           `⌛ Срок ссылки на передачу вам группы ` +
           `<b>${p.organizationName ? esc(p.organizationName) : 'группа'}</b> истёк, ` +
           `передача не состоялась. Ссылка из прежнего сообщения больше не работает.`,
+      }
+    // решение root по странице группы (24.1.3); «Открыть кабинет» — раздел «Страница группы»
+    case 'group_page_hidden':
+    case 'group_page_noindex': {
+      const hidden = type === 'group_page_hidden'
+      const group = p.organizationName ? esc(p.organizationName) : 'группа'
+      return {
+        text:
+          `${hidden ? '⛔ <b>Страница группы скрыта</b>' : '🔍 <b>Страница закрыта от поиска</b>'}
+` +
+          `«${group}» · ${hidden ? 'по ссылке теперь не открывается' : 'по ссылке открывается, в поиске её нет'}
+` +
+          `Причина: ${p.reasonTitle ? esc(p.reasonTitle) : '—'}` +
+          (p.note
+            ? `
+${esc(p.note)}`
+            : ''),
+        keyboard: cabinetBtn(),
+      }
+    }
+    case 'group_page_restored':
+      return {
+        text:
+          `✅ <b>Решение администрации снято</b>
+` +
+          `«${p.organizationName ? esc(p.organizationName) : 'группа'}» · страница снова открывается ` +
+          `по ссылке; индексацию решает ваша настройка.`,
+        keyboard: cabinetBtn(),
       }
     case 'waitlist_offer_expired':
       return {

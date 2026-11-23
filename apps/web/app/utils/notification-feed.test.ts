@@ -21,6 +21,37 @@ const item = (
 })
 
 describe('notificationView', () => {
+  it('решение root по странице группы (24.1.3): причина, заметка, переход в «Страницу группы»', () => {
+    const hidden = notificationView(
+      item(
+        { type: 'organizer_action_required', eventId: null },
+        {
+          kind: 'group_page_hidden',
+          reasonTitle: 'Группа не проводит игры',
+          note: 'Создайте событие',
+        },
+      ),
+      '/m/orgs/7',
+    )
+    expect(hidden).toMatchObject({
+      title: 'Страница группы скрыта',
+      body: 'По ссылке не открывается. Причина: Группа не проводит игры. Создайте событие',
+      tone: 'rose',
+      to: '/app/orgs/7/group-page',
+    })
+    const noindex = notificationView(
+      item({ type: 'organizer_action_required', eventId: null }, { kind: 'group_page_noindex' }),
+      '/app/orgs/7',
+    )
+    expect(noindex.title).toBe('Страница закрыта от поиска')
+    expect(noindex.body).not.toContain('undefined')
+    const restored = notificationView(
+      item({ type: 'organizer_action_required', eventId: null }, { kind: 'group_page_restored' }),
+      '/app/orgs/7',
+    )
+    expect(restored).toMatchObject({ title: 'Решение администрации снято', tone: 'grass' })
+  })
+
   it('reminder_2h: заголовок с названием, текст с датой, ссылка на событие', () => {
     const v = notificationView(
       item({ type: 'reminder_2h' }, { eventTitle: 'Основа', eventDate: '19 октября, 20:00' }),

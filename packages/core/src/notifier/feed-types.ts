@@ -24,6 +24,10 @@ export const FEED_TYPE: Partial<Record<NotificationType, FeedType>> = {
   // запрос приглашения — действие организатора; ответ игроку в ленту не пишется (прямая отправка)
   invite_request_organizer: 'organizer_action_required',
   event_cancelled: 'event_cancelled',
+  // решение root по странице группы (24.1.3): лента организатора и бот через журнал; вид — `params.kind`
+  group_page_hidden: 'organizer_action_required',
+  group_page_noindex: 'organizer_action_required',
+  group_page_restored: 'organizer_action_required',
 }
 
 /**

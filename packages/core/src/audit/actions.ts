@@ -126,6 +126,12 @@ export const AUDIT_ACTIONS = {
   COLLECTION_CONTRIBUTION_REJECTED: 'collection.contribution_rejected',
   // повторный взнос до подтверждения: прежний pending-платёж отменён, создан новый (2026-10-28)
   COLLECTION_CONTRIBUTION_REPLACED: 'collection.contribution_replaced',
+  // модерация страниц групп, Root Admin (24.1.3); запись платформенная (organization_id = NULL,
+  // entity — организация): журнал группы автора решения не показывает
+  GROUP_PAGE_HIDDEN: 'group_page.moderation_hidden',
+  GROUP_PAGE_NOINDEXED: 'group_page.moderation_noindex',
+  GROUP_PAGE_RESTORED: 'group_page.moderation_restored',
+  GROUP_PAGE_COMPLAINT_REJECTED: 'group_page.complaint_rejected',
 } as const
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS]
@@ -152,3 +158,4 @@ export type AuditEntityType =
   | 'collection'
   | 'ownership_transfer'
   | 'user'
+  | 'group_page_complaint'

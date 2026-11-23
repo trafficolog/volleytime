@@ -8,3 +8,11 @@ export {
   resolvePublicShortLink,
   type SitemapEntry,
 } from './public'
+export {
+  groupPageModerationService,
+  moderationView,
+  readModeration,
+  submitGroupPageComplaint,
+  type GroupPageComplaintInput,
+  type GroupPageModerationInput,
+} from './moderation'

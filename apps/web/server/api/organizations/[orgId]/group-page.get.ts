@@ -13,8 +13,10 @@ defineRouteMeta({
     responses: {
       200: {
         description:
-          '{ page: GroupPageView } — content, isDefault, updatedAt, seoIndex, group, venues, ' +
-          'upcomingEvents, resolved, warnings (тип в @volley-time/shared)',
+          '{ page: GroupPageView } — content, isDefault, updatedAt, seoIndex, publicPageEnabled, ' +
+          'moderation (решение root 24.1.3: state hidden|noindex, reasonCode, reasonTitle, note, ' +
+          'decidedAt; без автора; null — решения нет), group, venues, upcomingEvents, resolved, ' +
+          'warnings (тип в @volley-time/shared)',
       },
       401: { description: 'Нет сессии' },
       403: { description: 'Не участник группы или недостаточно прав (forbidden.*)' },

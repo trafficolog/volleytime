@@ -14,11 +14,24 @@ async function tableApplied(url: string, table: string): Promise<boolean> {
 }
 
 /**
+ * Откат 0046 (24.1.3) отказывает, пока есть решения root или жалобы; тесты старых миграций
+ * работают на базах без них. Помощник откатывает 0046 и возвращает тег; следующая миграция
+ * добавляет свой шаг сюда.
+ */
+export async function rollbackGroupPageModeration(url: string): Promise<string> {
+  const tag = await rollbackLastMigration(url)
+  if (tag !== '0046_group_page_moderation')
+    throw new Error(`expected 0046 to roll back first, got ${tag}`)
+  return tag
+}
+
+/**
  * Откат 0045 (23.1.2) отказывает, пока есть события функций; тесты старых миграций работают на
- * базах без них. Помощник откатывает 0045 и возвращает тег; следующая миграция добавляет свой шаг
- * сюда.
+ * базах без них. Помощник откатывает 0045 и возвращает тег.
  */
 export async function rollbackFeatureEvents(url: string): Promise<string> {
+  // 24.1.3: новая миграция откатывается первой; повторный вызов после отказа 0045 её уже не найдёт
+  if (await tableApplied(url, 'group_page_moderation')) await rollbackGroupPageModeration(url)
   const tag = await rollbackLastMigration(url)
   if (tag !== '0045_feature_events') throw new Error(`expected 0045 to roll back first, got ${tag}`)
   return tag

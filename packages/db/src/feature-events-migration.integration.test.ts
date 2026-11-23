@@ -99,10 +99,10 @@ describe('migration 0045 feature events (integration)', { timeout: 90_000 }, () 
       const id = await user(sql, 'fe-guard')
       await sql`INSERT INTO feature_events (user_id, feature, kind, day)
         VALUES (${id}, 'cal', 'open', '2026-11-22')`
-      await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0045 refused/)
+      await expect(rollbackFeatureEvents(url)).rejects.toThrow(/rollback 0045 refused/)
       expect(await tableExists(sql)).toBe(true)
       await sql`DELETE FROM feature_events`
-      expect(await rollbackLastMigration(url)).toBe(TAG)
+      expect(await rollbackFeatureEvents(url)).toBe(TAG)
       expect(await rollbackLastMigration(url)).toBe(PREVIOUS)
       expect(await sql`SELECT 1 FROM users WHERE id = ${id}`).toHaveLength(1)
     } finally {

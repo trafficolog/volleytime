@@ -5,6 +5,8 @@ import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
 import { isInviteModeEnabled } from '../events/join-mode-capability'
 import { isSplitPricingEnabled } from '../events/pricing-capability'
+import { GroupPageModerationLockedError } from '../group-page/errors'
+import { readModeration } from '../group-page/moderation'
 import { GroupLevelsInput } from '../levels/schemas'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
 
@@ -152,6 +154,11 @@ export const organizationSettingsService = {
         (key) => data[key] !== undefined && !sameValue(data[key], before[key]),
       )
       if (changed.length === 0) return before
+
+      // решение root по странице группы (24.1.3) блокирует переключатель индексации владельца
+      if (changed.includes('seoIndex') && (await readModeration(getDb(tx), orgId))) {
+        throw new GroupPageModerationLockedError()
+      }
 
       const patch = Object.fromEntries(changed.map((key) => [key, data[key]]))
       const [updated] = await getDb(tx)
