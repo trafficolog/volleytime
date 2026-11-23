@@ -377,13 +377,6 @@ const access = computed(() =>
             <p v-else class="text-sm text-vt-mute-2" data-testid="profile-features-empty">
               Только игры: дополнительные функции выключены.
             </p>
-            <NuxtLink
-              :to="`${base}/features`"
-              class="vt-btn vt-btn--ghost vt-btn--sm vt-hit-44 mt-3"
-              data-testid="profile-features-edit"
-            >
-              Что показывать
-            </NuxtLink>
           </div>
         </section>
 
