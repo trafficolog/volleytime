@@ -232,6 +232,23 @@ describe('platform roles: every /api/platform route follows the R-15 matrix (29.
     expect(grants.text).toContain(ROOT_EMAIL)
   })
 
+  it('Analyst cannot find an organization by the owner email or Telegram; others can', async () => {
+    const found = async (role: PlatformRole, q: string) => {
+      const res = await request('GET', `/api/platform/organizations?q=${encodeURIComponent(q)}`, {
+        user: staff[role],
+      })
+      expect(res.status).toBe(200)
+      return (res.body as { items: { id: number }[] }).items.map((o) => o.id)
+    }
+    for (const q of [PII_EMAIL, PII_TG, 'pii-owner']) {
+      expect(await found('analyst', q), `analyst q=${q}`).toEqual([])
+      for (const role of ['owner', 'admin'] as const)
+        expect(await found(role, q), `${role} q=${q}`).toEqual([orgId])
+    }
+    // поиск по названию Analyst сохраняет
+    expect(await found('analyst', 'PII Org')).toEqual([orgId])
+  })
+
   it('Owner manages the team over HTTP; a role change applies on the next request', async () => {
     const invited = await request('POST', '/api/platform/staff', {
       user: staff.owner,

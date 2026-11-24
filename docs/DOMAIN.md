@@ -123,7 +123,7 @@ user {
   phone: text nullable
   rating: integer default 1000       // глобальный рейтинг для balanced team gen
   is_active: boolean default true    // глобальная блокировка (только root)
-  is_root_admin: boolean default false  // супер-админ платформы
+  is_root_admin: boolean default false  // устарел с 29.3.1: роли команды — в platform_staff
   created_at: timestamptz default now()
   updated_at: timestamptz default now()
 }
@@ -136,7 +136,7 @@ index: user_email_idx on (email) where not null
 
 - `email` И `telegram_user_id` могут оба присутствовать (один аккаунт через два канала).
 - Минимум одно из двух должно быть — это валидируется на уровне сервиса.
-- `is_root_admin = true` только для основателей платформы. Управляется через переменную окружения / seed, не через UI.
+- Источник истины доступа к платформе — таблица `platform_staff` (роли Owner, Admin, Finance, Moderator, Support, Analyst; 29.3.1). Флаг `is_root_admin` перенесён туда миграцией 0048 как Owner и больше не проверяется; командой управляет Owner в разделе «Команда».
 
 ### AppSetting
 

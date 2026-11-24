@@ -20,8 +20,8 @@ const Query = z.object({
 })
 
 /**
- * Организации платформы Root Admin (22.1.3): список с фильтрами, только `users.is_root_admin`
- * (401 без сессии, 403 `forbidden.root_only` иначе).
+ * Организации платформы Root Admin (22.1.3): список с фильтрами, доступ —
+ * роль команды платформы по `PLATFORM_POLICIES` (`platform_staff`, 29.3.1). Analyst не ищет по email и Telegram владельца.
  */
 export default defineApiHandler(async (event) => {
   const user = await requirePlatformRole(event, ...PLATFORM_POLICIES.organizations)

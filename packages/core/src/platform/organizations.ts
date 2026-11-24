@@ -196,7 +196,10 @@ export const platformOrganizationsService = {
     params: PlatformOrganizationsParams = {},
     now: Date = new Date(),
   ): Promise<PlatformOrganizationsPage> {
-    await assertRootAdmin(ctx, 'organizations')
+    const role = await assertRootAdmin(ctx, 'organizations')
+    // Analyst не ищет по контактам владельца: иначе поиск — оракул существования email/Telegram
+    // (решение владельца 2026-11-25, 29.3.1).
+    const searchContacts = role !== 'analyst'
     const db = getDb(ctx)
 
     const rows = await db
@@ -274,8 +277,8 @@ export const platformOrganizationsService = {
           row.slug,
           row.city,
           row.owner?.name,
-          row.owner?.email,
-          row.owner?.telegramUsername,
+          searchContacts ? row.owner?.email : undefined,
+          searchContacts ? row.owner?.telegramUsername : undefined,
         ]
           .filter(Boolean)
           .join('\n')

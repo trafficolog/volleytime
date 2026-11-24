@@ -1,6 +1,7 @@
 import { eventService, memberService, organizationService } from '@volley-time/core'
 import {
   and,
+  asc,
   auditLog,
   closeDb,
   db,
@@ -72,6 +73,7 @@ describe('membership roles API (HTTP integration, 30.1.1)', () => {
       .select()
       .from(auditLog)
       .where(and(eq(auditLog.entityType, 'member'), eq(auditLog.entityId, memberId)))
+      .orderBy(asc(auditLog.id))
       .then((rows) => rows.filter((r) => r.action === 'member.role_changed'))
 
   beforeAll(async () => {
