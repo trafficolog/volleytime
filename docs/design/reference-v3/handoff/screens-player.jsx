@@ -33,6 +33,7 @@ const PlayerHome = () => {
             <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', marginTop:2}}>14 игроков</div>
           </div>
         </button>
+        {typeof PlayerStreakChip !== 'undefined' && <PlayerStreakChip/>}
         <button onClick={() => nav.push('notifications')} className="vt-btn vt-btn--ghost" style={{width:44, height:44, padding:0, flexShrink:0, position:'relative'}}>
           <Icon name="bell" size={18}/>
           {hasUnread(ds) && <span style={{position:'absolute', top:11, right:12, width:8, height:8, borderRadius:'var(--r-pill)', background:'var(--vt-orange)', boxShadow:'0 0 0 2px var(--vt-bone)'}}/>}
@@ -98,10 +99,12 @@ const PlayerHome = () => {
           </button>
         </div>
 
+        {typeof PlayerFeed !== 'undefined' && <PlayerFeed/>}
+
         {/* Schedule — rows without surfaces */}
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', marginTop:28}}>
           <h2 style={{fontSize:'var(--fs-xl)'}}>Расписание</h2>
-          <button onClick={() => nav.push('schedule')} className="vt-btn vt-btn--ghost vt-btn--sm" style={{gap:4}}>Смотреть все <Icon name="chevron-r" size={14}/></button>
+          <button onClick={() => (typeof usePlayerFeat !== 'undefined' && getSetting('feat') && getSetting('feat').cal && window.VT_AUTO_BACK) ? nav.reset('my-calendar') : nav.push('schedule')} className="vt-btn vt-btn--ghost vt-btn--sm" style={{gap:4}}>Смотреть все <Icon name="chevron-r" size={14}/></button>
         </div>
         <div style={{marginTop:4}}>
           {rest.map((e, i) => {
@@ -134,6 +137,7 @@ const PlayerHome = () => {
             );
           })}
         </div>
+        {typeof PlayerFeedFoot !== 'undefined' && <PlayerFeedFoot/>}
       </div>
 
       )}
@@ -170,6 +174,13 @@ const PlayerEvent = () => {
     { icon:'send', label:'Поделиться в Telegram', onClick: () => nav.toast('Ссылка скопирована') },
     { icon:'calendar', label:'Добавить в календарь', onClick: () => nav.toast('Скачан .ics файл') },
     { icon:'pin', label:'Открыть на карте', onClick: () => nav.toast('Открываем maps.google.com') },
+    ...(isJoined ? [
+      { icon:'qr', label:'Отметиться на входе', onClick: () => nav.push('checkin') },
+      { icon:'users', label:'Передать место', onClick: () => nav.push('seat-transfer') },
+    ] : [
+      { icon:'users', label:'Записаться с напарником', onClick: () => nav.push('partner') },
+    ]),
+    { icon:'calendar', label:'Автозапись на серию', onClick: () => nav.push('auto-series') },
     '---',
     { icon:'close', tone:'danger',
       label: isJoined ? 'Отменить запись' : e.inWaitlist ? 'Выйти из листа ожидания' : 'Скрыть событие',
@@ -208,12 +219,12 @@ const PlayerEvent = () => {
               <div>
                 <div className="vt-cap" style={{color:'var(--vt-mute-2)'}}>{isSplit ? (isClosed ? 'За место' : 'Прогноз') : 'Цена'}</div>
                 <div className="vt-mono" style={{fontWeight:600, fontSize:'var(--fs-md)', marginTop:4}}>
-                  {isSplit ? (isClosed ? byn(perHead) : `≈ ${byn(perHead)}`) : '15,00 Br'}
+                  {isSplit ? (isClosed ? byn(perHead) : `≈ ${byn(perHead)}`) : '15,00 BYN'}
                 </div>
               </div>
               <div>
                 <div className="vt-cap" style={{color:'var(--vt-mute-2)'}}>Уровень</div>
-                <div style={{fontWeight:600, fontSize:'var(--fs-base)', marginTop:4}}>B / A</div>
+                <div style={{fontWeight:600, fontSize:'var(--fs-base)', marginTop:4}}>В2–В3</div>
               </div>
               <div>
                 <div className="vt-cap" style={{color:'var(--vt-mute-2)'}}>Длительность</div>
@@ -222,6 +233,9 @@ const PlayerEvent = () => {
             </div>
           </div>
         </div>
+
+        <EventHosts/>
+        {isJoined && !isSplit && e.pay !== 'paid' && e.pay !== 'subs' && <PlayerPayCard amount={15 * mySeats}/>}
 
         {isSplit && (
           <div style={{padding:'12px 16px 0'}}>
@@ -354,7 +368,7 @@ const PlayerEvent = () => {
             <button onClick={() => online && nav.push('book', { event: e })} disabled={!online} className="vt-btn vt-btn--primary vt-btn--full vt-btn--lg" style={{justifyContent:'space-between'}}>
               <span>{e.status === 'full' ? 'Встать в лист ожидания' : 'Записаться'}</span>
               <span className="vt-mono" style={{opacity:.85}}>
-                {e.status === 'full' ? 'без оплаты' : isSplit ? `≈ ${byn(perHead)}` : '15,00 Br'}
+                {e.status === 'full' ? 'без оплаты' : isSplit ? `≈ ${byn(perHead)}` : '15,00 BYN'}
               </span>
             </button>
           )}
@@ -392,7 +406,7 @@ const PlayerBook = () => {
       ? [{ id:'sub', label:'С абонемента', sub:'«8 сессий», осталось 5. До 12 июня.', tag:`−${seats} сесс.` }]
       : []),
     { id:'cash', label:'Наличными организатору', sub:'Подтверждение от организатора после оплаты', tag:byn(perSeat*seats) },
-    { id:'transfer', label:'Переводом на карту', sub:'Belarusbank · *3214 · покажу реквизиты', tag:byn(perSeat*seats) },
+    { id:'transfer', label:'Переводом на карту', sub:'Belarusbank · *3214 · реквизиты ниже', tag:byn(perSeat*seats) },
   ];
 
   React.useEffect(() => {
@@ -406,6 +420,7 @@ const PlayerBook = () => {
       isWaitlist ? `В листе ожидания${seatTxt} · уведомим, когда освободится место`
       : method === 'sub' ? `Записаны${seatTxt} · −${seats} сесс.`
       : priceMode === 'split' ? `Записаны${seatTxt} · сумма после закрытия записи`
+      : method === 'transfer' ? `Записаны${seatTxt} · после перевода нажмите «Я оплатил» в событии`
       : `Записаны${seatTxt} · ожидает подтверждения оплаты`
     ), 80);
   };
@@ -499,6 +514,8 @@ const PlayerBook = () => {
             </button>
           );
         })}
+
+        {method === 'transfer' && <PayDetails purpose={`${e.title} ${e.date} · Артём К.`}/>}
 
         <div style={{marginTop:14, padding:'10px 12px', background:'var(--vt-bone)', borderRadius:'var(--r-chip)', fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', display:'flex', gap:8}}>
           <Icon name="bell" size={14} stroke="var(--vt-mute-2)"/>
@@ -623,7 +640,7 @@ const PlayerBuy = () => {
 
   const buy = () => {
     nav.back();
-    setTimeout(() => nav.toast(`Куплен абонемент «${plan} сессий» · ${selected.price} Br`), 80);
+    setTimeout(() => nav.toast(`Куплен абонемент «${plan} сессий» · ${selected.price} BYN`), 80);
   };
 
   return (
@@ -655,9 +672,9 @@ const PlayerBuy = () => {
                     <span style={{fontFamily:'var(--f-display)', fontWeight:700, fontSize:'var(--fs-xl)'}}>{p.sessions}</span>
                     <span style={{fontSize:'var(--fs-sm)', color:'var(--vt-mute-2)'}}>{p.sessions === 4 ? 'сессии' : 'сессий'}</span>
                   </div>
-                  <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', marginTop:2}}>{p.valid} · {p.perSess.toFixed(2).replace('.', ',')} Br за сессию</div>
+                  <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', marginTop:2}}>{p.valid} · {p.perSess.toFixed(2).replace('.', ',')} BYN за сессию</div>
                 </div>
-                <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-lg)'}}>{p.price} Br</div>
+                <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-lg)'}}>{p.price} BYN</div>
               </button>
             );
           })}
@@ -695,7 +712,7 @@ const PlayerBuy = () => {
       <div style={{padding:'12px 16px', borderTop:'1px solid var(--vt-stroke)', background:'var(--vt-paper)'}}>
         <button onClick={buy} className="vt-btn vt-btn--primary vt-btn--lg vt-btn--full" style={{justifyContent:'space-between'}}>
           <span>Купить «{plan} сессий»</span>
-          <span className="vt-mono">{selected.price} Br</span>
+          <span className="vt-mono">{selected.price} BYN</span>
         </button>
       </div>
     </>
@@ -711,6 +728,7 @@ const PlayerProfile = () => {
     items:[
       { icon:'globe', label:'Открыть страницу группы', onClick: () => nav.toast('Открыта страница группы') },
       { icon:'bell', label:'Уведомления', sub:'24 ч и 2 ч', onClick: () => nav.toast('Настройки уведомлений') },
+      { icon:'chat', label:'Пожаловаться на организатора', onClick: () => reportSheet(nav, orgName) },
       '---',
       { icon:'logout', tone:'danger', label:'Покинуть группу', onClick: () => nav.toast('Покинули группу') },
     ]
@@ -720,7 +738,7 @@ const PlayerProfile = () => {
     title:'Профиль',
     items:[
       { icon:'edit', label:'Изменить имя', onClick: () => nav.toast('Редактирование имени') },
-      { icon:'star', label:'Уровень и амплуа', onClick: () => nav.toast('B · доигровщик') },
+      { icon:'star', label:'Уровень и амплуа', onClick: () => nav.toast('В2 · доигровщик') },
       { icon:'tg', label:'Привязать email', onClick: () => nav.toast('Отправлен код на email') },
     ]
   });
@@ -734,7 +752,7 @@ const PlayerProfile = () => {
           <div style={{flex:1}}>
             <div style={{fontFamily:'var(--f-display)', fontWeight:700, fontSize:'var(--fs-lg)', lineHeight:1.1}}>Артём Кравцов</div>
             <div style={{fontSize:'var(--fs-sm)', color:'var(--vt-mute-2)', marginTop:4, display:'flex', alignItems:'center', gap:4}}>
-              <Icon name="tg" size={12}/> @artyomk · уровень B
+              <Icon name="tg" size={12}/> @artyomk · В2
             </div>
           </div>
           <button onClick={profileEdit} className="vt-btn vt-btn--ghost vt-btn--sm"><Icon name="edit" size={14}/></button>
@@ -780,18 +798,23 @@ const PlayerProfile = () => {
           </button>
         </div>
 
+        {typeof PlayerProfileFeatures !== 'undefined' && <PlayerProfileFeatures/>}
+
         <div className="vt-cap" style={{color:'var(--vt-mute-2)', margin:'22px 4px 8px'}}>Настройки</div>
         <div className="vt-card" style={{padding:0, overflow:'hidden'}}>
           {[
+            ['Помощь и поддержка', 'база знаний и мои обращения', 'chat', () => nav.push('support')],
             ['Мои записи', 'предстоящие и прошедшие', 'calendar', () => nav.push('bookings')],
+            ['Открытые игры рядом', 'публичные события других групп', 'globe', () => nav.push('nearby')],
+            ['Место из листа ожидания', 'пример предложения с таймером', 'clock', () => nav.push('seat-offer')],
             ['Напоминания', '24 ч и 2 ч до тренировки', 'bell', () => nav.toast('Настройки уведомлений')],
-            ['Уровень и амплуа', 'B · доигровщик', 'star', () => nav.toast('Уровень и амплуа')],
+            ['Уровень и амплуа', 'В2 · доигровщик', 'star', () => nav.toast('Уровень и амплуа')],
             ['Язык', 'Русский', 'globe', () => nav.sheet({ title:'Язык', items:[
               { check:true, label:'Русский' }, { label:'English' }, { label:'Беларуская' },
             ]})],
-            ['Выйти из аккаунта', '', 'logout', () => nav.alert({
-              title:'Выйти из аккаунта?', body:'Можно войти заново через тот же Telegram-аккаунт.',
-              confirm:'Выйти', danger:true, onConfirm: () => nav.toast('Сессия закрыта')
+            ['Удалить мои данные', 'записи и история во всех группах', 'trash', () => nav.alert({
+              title:'Удалить данные?', body:'Записи, абонементы и история удалятся через 30 дней. Оплаченные записи на будущие события сначала нужно отменить.',
+              confirm:'Удалить', danger:true, onConfirm: () => nav.toast('Запрос на удаление принят')
             })],
           ].map(([t,s,ic, action], i, a) => (
             <button key={i} onClick={action} style={{display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderBottom:i<a.length-1?'1px solid var(--vt-stroke)':'none', width:'100%', textAlign:'left', cursor:'pointer'}}>

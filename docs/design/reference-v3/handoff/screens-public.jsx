@@ -5,15 +5,15 @@ const PublicEvent = ({ mode = 'fixed' }) => {
   const isSplit = mode !== 'fixed';
   const isClosed = mode === 'split-closed';
   const cap = 14, unit = 15;
-  const total = cap * unit;                    // 210 Br — сумма к сбору при делении
+  const total = cap * unit;                    // 210 BYN — сумма к сбору при делении
   const taken = isClosed ? 12 : 9;
   const pct = Math.round(taken / cap * 100);
   const perHead = total / taken;
-  const money = (n) => `${n.toFixed(2).replace('.', ',')} Br`;
+  const money = (n) => `${n.toFixed(2).replace('.', ',')} BYN`;
   const priceTile = !isSplit
-    ? { label:'Цена', value:'15 Br', sub:'за одно место' }
+    ? { label:'Цена', value:'15 BYN', sub:'за одно место' }
     : isClosed
-      ? { label:'Итог с человека', value: money(perHead), sub:`${total} Br ÷ ${taken} игроков` }
+      ? { label:'Итог с человека', value: money(perHead), sub:`${total} BYN ÷ ${taken} игроков` }
       : { label:'Цена · делим сумму', value:`≈ ${money(perHead)}`, sub:`при полном составе — ${money(unit)}` };
   const D = { fontFamily:'var(--f-display)', textTransform:'uppercase', fontWeight:700, lineHeight:0.95, letterSpacing:0 };
   const N = { fontFamily:'var(--f-num)', fontWeight:700, lineHeight:1, letterSpacing:0 };
@@ -64,11 +64,11 @@ const PublicEvent = ({ mode = 'fixed' }) => {
           <div style={{position:'relative'}}>
             <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
               <span className="vt-chip" style={{background:'var(--vt-on-hero-fill)', color:'var(--vt-on-hero)', borderColor:'transparent'}}>{isClosed ? 'Запись закрыта' : 'Открытая запись'}</span>
-              {isSplit && <span className="vt-chip" style={{background:'var(--vt-on-hero-fill)', color:'var(--vt-on-hero)', borderColor:'transparent'}}>Делим сумму {total} Br</span>}
+              {isSplit && <span className="vt-chip" style={{background:'var(--vt-on-hero-fill)', color:'var(--vt-on-hero)', borderColor:'transparent'}}>Делим сумму {total} BYN</span>}
             </div>
             <h1 style={{...D, fontSize:'var(--fs-7xl)', lineHeight:1, marginTop:22, color:'var(--vt-on-hero)'}}>Открытая<br/>игра</h1>
             <div style={{fontSize:'var(--fs-md)', color:'var(--vt-on-hero-2)', marginTop:18, lineHeight:1.5, maxWidth:460}}>
-              Микс из играющих регулярно и новых ребят. Уровень B/A, 2 часа без перерыва.
+              Микс из играющих регулярно и новых ребят. Уровень В2–В3, 2 часа без перерыва.
             </div>
           </div>
           <div style={{marginTop:'auto', paddingTop:28, display:'flex', gap:10, flexWrap:'wrap', position:'relative'}}>
@@ -151,7 +151,7 @@ const PublicEvent = ({ mode = 'fixed' }) => {
         <div className="vt-card" style={{padding:'20px 22px', border:0, background:'var(--vt-bone)'}}>
           <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}>
             <div className="vt-cap" style={{color:'var(--vt-mute-2)'}}>{isClosed ? 'Как посчитана цена' : 'Как считается цена'}</div>
-            <span style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)'}}>{total} Br ÷ число игроков</span>
+            <span style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)'}}>{total} BYN ÷ число игроков</span>
           </div>
           <div style={{display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:8, marginTop:14}}>
             {[9, 11, 12, 14].map(n => {

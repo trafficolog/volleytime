@@ -24,7 +24,9 @@
 
 <script type="text/babel" src="atoms.jsx?v=surf1"></script>
 <script type="text/babel" src="prototype-shell.jsx?v=surf1"></script>
-<script type="text/babel" src="screens-public.jsx?v=surf1"></script>
+<script type="text/babel" src="screens-public.jsx?v=lvl1"></script>
+<script type="text/babel" src="screens-seo-page.jsx?v=4"></script>
+<script type="text/babel" src="screens-moderation.jsx?v=3"></script>
 </head>
 <body>
 <div id="root"></div>
@@ -39,11 +41,12 @@ function App() {
       { value:'fixed', label:'Фиксированная цена' },
       { value:'split', label:'Делим сумму' },
       { value:'split-closed', label:'Сумма распределена' },
+      { value:'group', label:'Страница группы · жалоба' },
     ]}/>
   );
   return (
     <DesktopPrototype width={1280} height={820} frameCls="vt-frame" sceneLeft={sceneLeft}>
-      <PublicEvent key={mode} mode={mode}/>
+      {mode === 'group' ? <ModGroupPublic key={mode}/> : <PublicEvent key={mode} mode={mode}/>}
     </DesktopPrototype>
   );
 }

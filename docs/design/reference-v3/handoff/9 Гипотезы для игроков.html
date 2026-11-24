@@ -77,11 +77,11 @@ html,body{overflow-x:clip}
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
-<script type="text/babel" src="app-nav.jsx?v=ideas2"></script>
-<script type="text/babel" src="atoms.jsx?v=ideas2"></script>
-<script type="text/babel" src="screens-ideas-1.jsx?v=wu5"></script>
-<script type="text/babel" src="screens-ideas-2.jsx?v=br1"></script>
-<script type="text/babel" src="screens-ideas-future.jsx?v=br1"></script>
+<script type="text/babel" src="app-nav.jsx?v=nov16"></script>
+<script type="text/babel" src="atoms.jsx?v=nov16"></script>
+<script type="text/babel" src="screens-ideas-1.jsx?v=nov16"></script>
+<script type="text/babel" src="screens-ideas-2.jsx?v=nov16"></script>
+<script type="text/babel" src="screens-ideas-future.jsx?v=nov16"></script>
 </head>
 <body class="vt-frame">
 <div class="page">
@@ -272,11 +272,12 @@ const Vars = () => VARS.map(v => (
   <div key={v.k} className="var">
     <IdeaPhone>{v.C()}</IdeaPhone>
     <div className="vtxt">
-      <div className="kick">Вариант {v.k}</div>
+      <div className="kick">Вариант {v.k}{v.k === 'A' && <span style={{marginLeft:8, padding:'2px 8px', borderRadius:99, background:'var(--vt-ink)', color:'var(--vt-paper)', letterSpacing:0, textTransform:'none'}}>выбран</span>}</div>
       <h3 className="D">{v.t}</h3>
       <div className="tabs-cmp"><div className="k">Таб-бар</div><s>{v.was}</s><br/>{v.now}</div>
       <p>{v.d}</p>
       <p><b style={{color:'var(--vt-ink)'}}>Компромисс.</b> {v.fit}</p>
+      {v.k === 'A' && <p><b style={{color:'var(--vt-ink)'}}>Личная настройка.</b> В «Профиль → Что показывать» игрок выключает любую из восьми функций или оставляет «Только игры». Расписание, запись и оплата не выключаются. Главная и таб-бар перестраиваются сразу — попробуйте на макете: вкладка «Профиль» или строка внизу главной.</p>}
     </div>
   </div>
 ));

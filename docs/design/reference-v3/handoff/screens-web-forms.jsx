@@ -13,12 +13,15 @@ const WebEventCreate = () => {
   const [price, setPrice] = React.useState(15);
   const [total, setTotal] = React.useState(180);
   const subsEnabled = true; // из настроек группы
+  const [gs] = useGroupSettings();
+  const [joinOwn, setJoinOwn] = React.useState(null); // null = как в настройках группы
+  const join = joinOwn || gs.joinMode;
 
   const [count, setCount] = React.useState(1);
-  const create = () => { nav.reset('events'); setTimeout(() => nav.toast(count > 1 ? `Создана серия · ${trainings(count)} · −${count} credits` : 'Тренировка создана · −1 credit'), 80); };
+  const create = () => { nav.reset('events'); setTimeout(() => nav.toast((count > 1 ? `Создана серия · ${trainings(count)} · −${count} с баланса` : 'Тренировка создана · −1 с баланса') + (join === 'invite' ? ' · по приглашению' : '')), 80); };
 
   return (
-  <WebShell activeNav="events" title={count > 1 ? 'Новая серия' : 'Новая тренировка'} sub={count > 1 ? `${trainings(count)} · по 1 credit за каждую` : 'Создание события · спишется 1 credit (останется 31)'}
+  <WebShell activeNav="events" title={count > 1 ? 'Новая серия' : 'Новая тренировка'} sub={count > 1 ? `${trainings(count)} · по 1 с баланса за каждую` : 'Создание события · спишется 1 с баланса (останется 31)'}
     topRight={<>
       <button onClick={() => nav.reset('events')} className="vt-btn vt-btn--ghost vt-btn--sm">Отмена</button>
       <button onClick={create} className="vt-btn vt-btn--primary vt-btn--sm" style={{gap:6}}><Icon name="check" size={14}/> {count > 1 ? `Создать ${trainings(count)}` : 'Создать'}</button>
@@ -60,6 +63,9 @@ const WebEventCreate = () => {
               <Icon name="chevron-d" size={14} style={{marginLeft:'auto'}}/>
             </div>
           </div>
+          <div style={{gridColumn:'1/-1'}}>
+            <EventStaffBlock wide/>
+          </div>
           <div style={{gridColumn:'1/-1', paddingTop:6}}>
             <RecurrenceBlock onCount={setCount} wide/>
           </div>
@@ -77,6 +83,25 @@ const WebEventCreate = () => {
               <span className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-xl)', width:40, textAlign:'center'}}>{cap}</span>
               <button onClick={() => setCap(c => c+1)} className="vt-btn vt-btn--ghost vt-btn--sm" style={{padding:'6px 12px'}}>+</button>
               <span style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', marginLeft:4}}>сверх лимита — лист ожидания</span>
+            </div>
+          </div>
+          <div style={{marginTop:14}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:8}}>
+              <label className="vt-label">Запись на событие</label>
+              {joinOwn && joinOwn !== gs.joinMode
+                ? <button onClick={() => setJoinOwn(null)} style={{fontSize:'var(--fs-2xs)', color:'var(--vt-flame-ink)', fontWeight:600, background:'transparent', border:0, cursor:'pointer', padding:0}}>вернуть как в группе</button>
+                : <span style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)'}}>как в настройках группы</span>}
+            </div>
+            <div style={{display:'flex', gap:6}}>
+              {[['open','Свободная'],['invite','По приглашению']].map(([v,l]) => (
+                <button key={v} onClick={() => setJoinOwn(v)} className="vt-btn vt-btn--sm" style={{
+                  flex:1, gap:6, background:join===v?'var(--vt-ink)':'var(--vt-ctl)', color:join===v?'var(--vt-paper)':'var(--vt-ink)', fontWeight:600
+                }}>{v === 'invite' && <Icon name="lock" size={12}/>}{l}</button>
+              ))}
+            </div>
+            <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', marginTop:6, lineHeight:1.45}}>
+              {join === 'invite' ? 'Записаться смогут только по ссылке-приглашению — её можно отправить из события.' : 'Записаться может любой участник группы.'}
+              {joinOwn && joinOwn !== gs.joinMode && <b style={{color:'var(--vt-ink)'}}> Только для этого события.</b>}
             </div>
           </div>
           <div className="vt-divider" style={{margin:'16px 0'}}/>
@@ -97,7 +122,7 @@ const WebEventCreate = () => {
                 <div className="vt-field" style={{width:80, display:'flex', alignItems:'center', justifyContent:'center'}}>BYN</div>
               </div>
               <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', marginTop:6}}>
-                При полном составе соберётся <b className="vt-mono" style={{color:'var(--vt-ink)'}}>{price*cap} Br</b>. Списание абонемента = 1 сессия.
+                При полном составе соберётся <b className="vt-mono" style={{color:'var(--vt-ink)'}}>{price*cap} BYN</b>. Списание абонемента = 1 сессия.
               </div>
             </div>
           ) : (
@@ -110,7 +135,7 @@ const WebEventCreate = () => {
               <div style={{marginTop:10, padding:'12px 14px', borderRadius:'var(--r-chip)', background:'var(--vt-amber-soft)'}}>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', fontSize:'var(--fs-sm)'}}>
                   <span style={{color:'var(--vt-ink-3)'}}>Прогноз за место при полном составе</span>
-                  <span className="vt-mono" style={{fontWeight:700}}>{(total/cap).toFixed(2).replace('.', ',')} Br</span>
+                  <span className="vt-mono" style={{fontWeight:700}}>{(total/cap).toFixed(2).replace('.', ',')} BYN</span>
                 </div>
                 <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', marginTop:6, lineHeight:1.45}}>
                   Точная сумма за место определится <b style={{color:'var(--vt-ink)'}}>после закрытия записи</b> — чем меньше людей, тем дороже каждому.
@@ -138,7 +163,7 @@ const WebEventCreate = () => {
         <div className="vt-card" style={{padding:16, background:'var(--vt-bone-2)'}}>
           <div style={{display:'flex', alignItems:'center', gap:8, fontSize:'var(--fs-sm)'}}>
             <Icon name="ticket" size={15}/>
-            <span>Будет списан <b>1 credit</b>. Останется <b className="vt-mono">31</b>.</span>
+            <span>С баланса спишется <b>1 событие</b>. Останется <b className="vt-mono">31</b>.</span>
           </div>
         </div>
       </div>
@@ -238,7 +263,7 @@ const WebLedgerEntry = () => {
 
       <div className="vt-card" style={{padding:'14px 18px', marginTop:14, background:'var(--vt-bone-2)', display:'flex', alignItems:'center', justifyContent:'space-between'}}>
         <span style={{fontSize:'var(--fs-sm)', color:'var(--vt-mute-2)'}}>Баланс кассы после записи</span>
-        <span className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-md)'}}>{isIncome ? '+263,50 Br' : '+206,50 Br'}</span>
+        <span className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-md)'}}>{isIncome ? '+263,50 BYN' : '+206,50 BYN'}</span>
       </div>
     </div>
   </WebShell>
@@ -352,12 +377,14 @@ const WebReports = () => {
       ))}
     </div>
 
+    <WebReportsBreakdown/>
+
     {/* KPI row */}
     <div style={{display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:14, marginBottom:18}}>
       {[
-        ['Чистая касса','+248,50 Br','+82,50 неделя','grass'],
-        ['Поступления','+318,50 Br','12 событий'],
-        ['Расходы','−70,00 Br','3 категории','rose'],
+        ['Чистая касса','+248,50 BYN','+82,50 неделя','grass'],
+        ['Поступления','+318,50 BYN','12 событий'],
+        ['Расходы','−70,00 BYN','3 категории','rose'],
         ['Заполняемость','87%','+5% к апрелю'],
       ].map(([l,v,d,c],i) => (
         <div key={i} className="vt-card" style={{padding:16}}>
@@ -373,7 +400,7 @@ const WebReports = () => {
       <div className="vt-card" style={{padding:20}}>
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}>
           <h3 style={{fontSize:'var(--fs-md)'}}>Касса по неделям</h3>
-          <span className="vt-mono" style={{fontSize:'var(--fs-xs)', color:'var(--vt-grass)', fontWeight:600}}>+248,50 Br нетто</span>
+          <span className="vt-mono" style={{fontSize:'var(--fs-xs)', color:'var(--vt-grass)', fontWeight:600}}>+248,50 BYN нетто</span>
         </div>
         <div style={{display:'flex', gap:10, alignItems:'flex-end', height:160, marginTop:20}}>
           {[[68,18],[84,26],[72,12],[92,14]].map(([inc,exp],i) => (
@@ -400,7 +427,7 @@ const WebReports = () => {
             {[['Аренда залов',42,60],['Мячи / инвентарь',18,26],['Прочее',10,14]].map(([l,v,pct],i) => (
               <div key={i} style={{marginBottom:i<2?12:0}}>
                 <div style={{display:'flex', justifyContent:'space-between', fontSize:'var(--fs-sm)', marginBottom:6}}>
-                  <span>{l}</span><span className="vt-mono" style={{fontWeight:600}}>−{v},00 Br</span>
+                  <span>{l}</span><span className="vt-mono" style={{fontWeight:600}}>−{v},00 BYN</span>
                 </div>
                 <div className="vt-meter"><i style={{width:`${pct}%`, background:'var(--vt-rose)'}}/></div>
               </div>
@@ -548,8 +575,8 @@ const WebPlanCreate = () => {
             <div style={{fontFamily:'var(--f-display)', fontWeight:700, fontSize:'var(--fs-3xl)', lineHeight:1}}>{kind==='sessions' ? sessions : '∞'}</div>
             <div style={{fontSize:'var(--fs-sm)', color:'var(--vt-mute-2)', marginTop:4}}>{kind==='sessions' ? `${sessions} сессий` : 'Безлимит / месяц'}</div>
             <div className="vt-divider" style={{margin:'14px 0'}}/>
-            <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-xl)'}}>{price} Br</div>
-            <div style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)', marginTop:2}}>{per>0 ? `${per.toFixed(2).replace('.', ',')} Br/сессия · ` : ''}{valid} дней</div>
+            <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-xl)'}}>{price} BYN</div>
+            <div style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)', marginTop:2}}>{per>0 ? `${per.toFixed(2).replace('.', ',')} BYN/сессия · ` : ''}{valid} дней</div>
             <div style={{display:'flex', gap:6, marginTop:14}}>
               {visible
                 ? <span className="vt-chip vt-chip--grass vt-chip--dot" style={{fontSize:'var(--fs-2xs)'}}>в продаже</span>

@@ -16,7 +16,9 @@
 
 - Проверка подписи Telegram initData, срок жизни
 - Вход в веб: Telegram Login или код из бота
-- Роли: игрок, организатор, админ группы, root
+- Роли в группе — из P-18: владелец, организатор, тренер, игрок; гость без членства
+- Роли команды платформы: Owner, Admin, Support (4b Root Admin → Настройки → Команда & роли)
+- Вход root в организацию — отдельная сессия с ограничениями (R-09)
 - Проверка доступа на каждом эндпоинте
 
 ## Данные и API
@@ -28,13 +30,19 @@
 
 - [ ] Подделанный initData отклоняется
 - [ ] Организатор не видит данные чужой группы (тесты на IDOR)
+- [ ] Тренер без флага оплаты не получает денежных полей (тесты вместе с P-18)
+
+## Правки после ревью
+
+- «Админ группы» заменён ролями на членстве (P-18): owner, organizer, coach, player. Права проверяются по роли в конкретной группе, а не по пользователю.
 
 ## Зависимости
 
 **Нужно до начала:** [P-01](../01-platform/P-01-domain-model.md) Доменная модель
 
-**Ждут эту задачу:** [P-12](../01-platform/P-12-player-features.md) Личные функции игрока, [M-01](../02-mini-app/M-01-telegram-shell.md) Оболочка Telegram, [M-21](../02-mini-app/M-21-mvp-vote.md) MVP игры, [W-16](../03-organizer-web/W-16-auth.md) Авторизация, [R-05](../04-root-admin/R-05-platform-settings.md) Настройки платформы, [R-07](../04-root-admin/R-07-audit-log.md) Журнал действий
+**Ждут эту задачу:** [P-12](../01-platform/P-12-player-features.md) Личные функции игрока, [M-01](../02-mini-app/M-01-telegram-shell.md) Оболочка Telegram, [M-21](../02-mini-app/M-21-mvp-vote.md) MVP игры, [W-16](../03-organizer-web/W-16-auth.md) Авторизация, [R-05](../04-root-admin/R-05-platform-settings.md) Настройки платформы, [R-07](../04-root-admin/R-07-audit-log.md) Журнал действий, [P-18](../01-platform/P-18-membership-roles.md) Членства и матрица ролей
 
 ## Общий функционал
 
 - **Доступ и аудит** — Права и журнал для всех интерфейсов. С этим связаны: [W-16](../03-organizer-web/W-16-auth.md), [M-01](../02-mini-app/M-01-telegram-shell.md), [R-05](../04-root-admin/R-05-platform-settings.md), [R-07](../04-root-admin/R-07-audit-log.md), [R-03](../04-root-admin/R-03-grant-balance.md). [Подробнее](../links.md#auth)
+- **Роли и режимы** — Роль на членстве задаёт режимы Mini App, права в кабинете и доступ к деньгам. С этим связаны: [P-18](../01-platform/P-18-membership-roles.md), [M-25](../02-mini-app/M-25-mode-switch.md), [M-26](../02-mini-app/M-26-roster-today.md), [W-17](../03-organizer-web/W-17-team.md), [P-19](../01-platform/P-19-attendance.md), [P-20](../01-platform/P-20-payment-claim.md). [Подробнее](../links.md#roles)

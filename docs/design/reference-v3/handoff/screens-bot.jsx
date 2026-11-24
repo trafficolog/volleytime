@@ -182,7 +182,7 @@ const BotDeeplink = () => (
 
     <BotMsg time="19:24" keyboard={[['Записаться'], [{ label:'Открыть тренировку', app:true }]]}>
       <Line bold>Ср · 28 мая · 20:00</Line>
-      <Line>Основа · Школа №24 · 15 Br</Line>
+      <Line>Основа · Школа №24 · 15 BYN</Line>
       <Line dim>Свободно 5 из 14 мест.</Line>
     </BotMsg>
   </TgShell>
@@ -209,14 +209,14 @@ const BotNotifications = () => (
 
     <BotMsg time="19:14" keyboard={[[{ label:'Подтвердить оплату', app:true }]]}>
       <Line bold>💸 Никита отметил оплату наличными</Line>
-      <Line>+15,00 Br · Основа · 28 мая</Line>
-      <Line dim>Касса после подтверждения: 248,50 Br</Line>
+      <Line>+15,00 BYN · Основа · 28 мая</Line>
+      <Line dim>Касса после подтверждения: 248,50 BYN</Line>
     </BotMsg>
 
     <BotMsg time="22:05">
       <Line bold>📊 Тренировка завершена</Line>
       <Line>Основа · 28 мая · пришли 12 из 12.</Line>
-      <Line dim>Списано с абонементов: 2 · касса +30 Br.</Line>
+      <Line dim>Списано с абонементов: 2 · касса +30 BYN.</Line>
     </BotMsg>
 
     <SysLine>30 мая</SysLine>
@@ -261,12 +261,13 @@ const BotMenu = () => (
 
     <UserMsg time="14:02">Помощь</UserMsg>
 
-    <BotMsg time="14:02">
+    <BotMsg time="14:02" keyboard={[[{ label:'📖 База знаний' }, { label:'Написать в поддержку', app:true }]]}>
       <Line bold>Команды</Line>
       <Line mono dim>/menu — главное меню</Line>
       <Line mono dim>/app — открыть приложение</Line>
       <Line mono dim>/upcoming — ближайшие</Line>
       <Line mono dim>/subscription — абонемент</Line>
+      <Line mono dim>/support — написать в поддержку</Line>
       <Line dim>Полный список — по кнопке Menu слева от поля ввода.</Line>
     </BotMsg>
   </TgShell>

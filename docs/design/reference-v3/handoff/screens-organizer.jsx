@@ -20,7 +20,7 @@ const OrgHome = () => {
       { org:true, radio:true, logo:LOGO_URL, label:'VolleyTime Минск', sub:'владелец · 14 игроков' },
       { org:true, radio:false, label:'СпайкКлуб', sub:'организатор · 22 игрока', onClick: () => nav.toast('Переключено на «СпайкКлуб»') },
       '---',
-      { icon:'card', label:'Пополнить credits', sub:'в веб-кабинете', onClick: () => nav.toast('Открываем app.volleytime.by/billing') },
+      { icon:'card', label:'Пополнить баланс событий', sub:'в веб-кабинете', onClick: () => nav.toast('Открываем app.volleytime.by/billing') },
       { icon:'settings', label:'Настройки группы', sub:'в веб-кабинете', onClick: () => nav.toast('Открываем app.volleytime.by/settings') },
       '---',
       { icon:'plus', label:'Создать группу', onClick: () => nav.push('org-new') },
@@ -40,11 +40,7 @@ const OrgHome = () => {
   const quick = [
     ['plus', 'Тренировка', () => nav.push('create')],
     ['users', 'Пригласить', () => nav.toast('Ссылка-приглашение скопирована')],
-    ['arrow-u', 'Расход', () => nav.sheet({ title:'Расход', items:[
-      { icon:'pin', label:'Аренда зала', onClick: () => nav.toast('Расход добавлен') },
-      { icon:'ball', label:'Мячи / инвентарь', onClick: () => nav.toast('Расход добавлен') },
-      { icon:'wallet', label:'Прочее', onClick: () => nav.toast('Расход добавлен') },
-    ]})],
+    ['arrow-u', 'Расход', () => nav.push('expense')],
     ['chart', 'Отчёт', () => nav.push('reports')],
   ];
 
@@ -73,6 +69,16 @@ const OrgHome = () => {
         <div style={{fontSize:'var(--fs-sm)', color:'var(--vt-mute-2)'}}>Май · 12 событий</div>
         <h2 style={{fontSize:'var(--fs-4xl)', marginTop:4}}>Обзор группы</h2>
 
+        {/* Today: attendance */}
+        <button onClick={() => nav.push('roster-today')} className="vt-card" style={{marginTop:16, padding:'14px 16px', display:'flex', alignItems:'center', gap:12, width:'100%', textAlign:'left', cursor:'pointer'}}>
+          <span style={{width:40, height:40, borderRadius:'var(--r-field)', background:'var(--vt-grass-soft)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0}}><Icon name="check" size={18} stroke="var(--vt-grass-ink)" sw={2.2}/></span>
+          <div style={{flex:1, minWidth:0}}>
+            <div style={{fontSize:'var(--fs-base)', fontWeight:700}}>Сегодня · Основа в 20:00</div>
+            <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', marginTop:2}}>Отметить пришедших и принять оплату на зале</div>
+          </div>
+          <Icon name="chevron-r" size={16} stroke="var(--vt-icon-idle)"/>
+        </button>
+
         {/* Bento */}
         <div style={{display:'grid', gridTemplateColumns:'1.3fr 1fr', gridTemplateRows:'1fr 1fr', gap:12, marginTop:16}}>
           <button onClick={() => nav.reset('ledger')} className="vt-card vt-card--hero" style={{gridRow:'span 2', padding:18, display:'flex', flexDirection:'column', textAlign:'left', cursor:'pointer', color:'var(--vt-on-hero)'}}>
@@ -91,11 +97,11 @@ const OrgHome = () => {
               <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-ink-3)', marginTop:4}}>ждут подтверждения</div>
             </div>
           </button>
-          <button onClick={() => nav.toast('Покупка credits — в веб-кабинете')} className="vt-card" style={{padding:16, textAlign:'left', cursor:'pointer', display:'flex', flexDirection:'column', justifyContent:'space-between'}}>
+          <button onClick={() => nav.toast('Покупка событий — в веб-кабинете')} className="vt-card" style={{padding:16, textAlign:'left', cursor:'pointer', display:'flex', flexDirection:'column', justifyContent:'space-between'}}>
             <Icon name="card" size={18} stroke="var(--vt-ink-3)"/>
             <div>
               <div className="vt-mono" style={{fontSize:'var(--fs-4xl)', fontWeight:700, lineHeight:1}}>32</div>
-              <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-ink-3)', marginTop:4}}>credits ≈ 2,5 мес.</div>
+              <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-ink-3)', marginTop:4}}>на балансе · ≈ 2,5 мес.</div>
             </div>
           </button>
         </div>
@@ -186,15 +192,17 @@ const OrgEvent = () => {
   });
 
   const eventMore = [
-    { icon:'edit', label:'Редактировать событие', onClick: () => nav.toast('Редактирование') },
+    { icon:'check', label:'Отметить пришедших', onClick: () => nav.push('roster-today') },
+    { icon:'edit', label:'Редактировать событие', onClick: () => nav.push('create') },
+    { icon:'send', label:'Написать всем записавшимся', onClick: () => nav.toast('Сообщение уйдёт 12 игрокам в бот') },
     { icon:'copy', label:'Дублировать в следующую неделю', onClick: () => nav.toast('Дублировано · 4 июня 20:00') },
     { icon:'send', label:'Отправить в чат группы', onClick: () => nav.toast('Опубликовано в чате') },
     { icon:'qr', label:'QR-код события', onClick: () => nav.toast('Открыт QR-код') },
     '---',
     { icon:'close', tone:'danger', label:'Отменить событие', onClick: () => nav.alert({
-      title:'Отменить событие?', body:'Все записи будут отменены. Если запись ещё не открывалась, credit вернётся.',
+      title:'Отменить событие?', body:'Все записи будут отменены. Если запись ещё не открывалась, событие вернётся на баланс.',
       confirm:'Отменить событие', danger:true,
-      onConfirm: () => { nav.back(); setTimeout(() => nav.toast('Событие отменено · +1 credit'), 80); }
+      onConfirm: () => { nav.back(); setTimeout(() => nav.toast('Событие отменено · +1 событие'), 80); }
     })},
   ];
 
@@ -405,7 +413,7 @@ const OrgPayments = () => {
         sub={`${items.length} платежа · сумма ${byn(total)}`}
         onBack
         right={<ActionMore items={[
-          { icon:'check', label:'Подтвердить все', onClick: () => { setItems([]); nav.toast(`Подтверждено · +${total} Br в кассу`); } },
+          { icon:'check', label:'Подтвердить все', onClick: () => { setItems([]); nav.toast(`Подтверждено · +${total} BYN в кассу`); } },
           { icon:'filter', label:'Фильтр по методу', onClick: () => nav.toast('Фильтры') },
         ]} title="Действия"/>}
       />
@@ -492,8 +500,8 @@ const OrgLedger = () => {
   const expense = () => nav.sheet({
     title:'Расход', sub:'категория',
     items:[
-      { icon:'pin', label:'Аренда зала', onClick: () => nav.toast('Расход добавлен · −42 Br') },
-      { icon:'gift', label:'Мячи / инвентарь', onClick: () => nav.toast('Расход добавлен · −18 Br') },
+      { icon:'pin', label:'Аренда зала', onClick: () => nav.toast('Расход добавлен · −42 BYN') },
+      { icon:'gift', label:'Мячи / инвентарь', onClick: () => nav.toast('Расход добавлен · −18 BYN') },
       { icon:'users', label:'Судья / организатор', onClick: () => nav.toast('Расход добавлен') },
       { icon:'wallet', label:'Прочее', onClick: () => nav.toast('Расход добавлен') },
     ]
@@ -515,15 +523,15 @@ const OrgLedger = () => {
       <div className="vt-phone__body" style={{padding:'4px 16px 16px'}}>
         <div className="vt-card vt-card--hero" style={{padding:18}}>
           <div className="vt-cap" style={{opacity:0.65}}>Баланс кассы</div>
-          <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-4xl)', marginTop:6}}>+248,50 Br</div>
+          <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-4xl)', marginTop:6}}>+248,50 BYN</div>
           <div style={{display:'flex', gap:18, marginTop:14}}>
             <div>
               <div className="vt-cap" style={{opacity:0.6}}>поступило</div>
-              <div className="vt-mono" style={{fontWeight:600, fontSize:'var(--fs-base)', marginTop:4, color:'var(--vt-amber)'}}>+318,50 Br</div>
+              <div className="vt-mono" style={{fontWeight:600, fontSize:'var(--fs-base)', marginTop:4, color:'var(--vt-amber)'}}>+318,50 BYN</div>
             </div>
             <div>
               <div className="vt-cap" style={{opacity:0.6}}>списано</div>
-              <div className="vt-mono" style={{fontWeight:600, fontSize:'var(--fs-base)', marginTop:4, color:'var(--vt-paper)', opacity:0.85}}>−70,00 Br</div>
+              <div className="vt-mono" style={{fontWeight:600, fontSize:'var(--fs-base)', marginTop:4, color:'var(--vt-paper)', opacity:0.85}}>−70,00 BYN</div>
             </div>
           </div>
         </div>
@@ -564,7 +572,7 @@ const OrgLedger = () => {
                     <div style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)', marginTop:2, fontFamily:'var(--f-mono)'}}>{e.t}{e.cat ? ` · ${catLabel(e.cat)}` : ''}</div>
                   </div>
                   <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-base)', color: e.type==='in'?'var(--vt-grass)':'var(--vt-rose)'}}>
-                    {e.type === 'in' ? '+' : '−'}{e.amount} Br
+                    {e.type === 'in' ? '+' : '−'}{e.amount} BYN
                   </div>
                 </button>
               ))}
@@ -601,8 +609,8 @@ const OrgCreate = () => {
   const create = () => {
     nav.back();
     setTimeout(() => nav.toast(count > 1
-      ? `Создана серия · ${trainings(count)} · −${count} credits`
-      : `Создано · «${name}» · −1 credit`), 80);
+      ? `Создана серия · ${trainings(count)} · −${count} ${plural(count, 'событие', 'события', 'событий')}`
+      : `Создано · «${name}» · −1 событие`), 80);
   };
 
   return (
@@ -614,7 +622,7 @@ const OrgCreate = () => {
       <div className="vt-phone__body" style={{padding:'8px 16px 20px'}}>
         <div style={{padding:'4px 4px 14px'}}>
           <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', display:'flex', gap:6, alignItems:'center'}}>
-            <Icon name="ticket" size={12}/> <span>{count > 32 ? <>Нужно <b style={{color:'var(--vt-ink)'}}>{count} credits</b>, на балансе 32</> : <>Будет списано <b style={{color:'var(--vt-ink)'}}>{count} {plural(count, 'credit', 'credits', 'credits')}</b>. Останется {32 - count}.</>}</span>
+            <Icon name="ticket" size={12}/> <span>{count > 32 ? <>Нужно <b style={{color:'var(--vt-ink)'}}>{count} {plural(count, 'событие', 'события', 'событий')}</b>, на балансе 32</> : <>Будет списано <b style={{color:'var(--vt-ink)'}}>{count} {plural(count, 'событие', 'события', 'событий')}</b>. Останется {32 - count}.</>}</span>
           </div>
         </div>
 
@@ -656,8 +664,8 @@ const OrgCreate = () => {
 
           <button onClick={() => nav.sheet({
             title:'Зал', items:[
-              { check:true, icon:'pin', label:'Школа №24, малый зал', sub:'15 Br за час' },
-              { icon:'pin', label:'СК «Заслонова»', sub:'20 Br за час' },
+              { check:true, icon:'pin', label:'Школа №24, малый зал', sub:'15 BYN за час' },
+              { icon:'pin', label:'СК «Заслонова»', sub:'20 BYN за час' },
               '---',
               { icon:'plus', label:'Добавить зал', onClick: () => nav.toast('Новый зал — в веб-кабинете, раздел «Залы»') },
             ]
@@ -668,6 +676,8 @@ const OrgCreate = () => {
               <Icon name="chevron-d" size={14} style={{marginLeft:'auto'}}/>
             </div>
           </button>
+
+          <EventStaffBlock/>
 
           <div>
             <label className="vt-label">Основной состав</label>
@@ -705,7 +715,7 @@ const OrgCreate = () => {
                 <input className="vt-field" value={price} onChange={e=>setPrice(+e.target.value||0)} style={{fontFamily:'var(--f-mono)', fontWeight:600}}/>
                 <div className="vt-field" style={{width:80, display:'flex', alignItems:'center', justifyContent:'center'}}>BYN</div>
               </div>
-              <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', marginTop:6}}>При полном составе — {price*main} Br. Списание абонемента = 1 сессия.</div>
+              <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', marginTop:6}}>При полном составе — {price*main} BYN. Списание абонемента = 1 сессия.</div>
             </div>
           ) : (
             <div>
@@ -717,7 +727,7 @@ const OrgCreate = () => {
               <div style={{marginTop:10, padding:'12px 12px', borderRadius:'var(--r-chip)', background:'var(--vt-amber-soft)'}}>
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', fontSize:'var(--fs-sm)'}}>
                   <span style={{color:'var(--vt-ink-3)'}}>Прогноз за место</span>
-                  <span className="vt-mono" style={{fontWeight:700}}>{(total/main).toFixed(2).replace('.', ',')} Br</span>
+                  <span className="vt-mono" style={{fontWeight:700}}>{(total/main).toFixed(2).replace('.', ',')} BYN</span>
                 </div>
                 <div style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)', marginTop:6, lineHeight:1.45}}>
                   Точная сумма распределится после закрытия записи. Абонементы в этом режиме не работают.

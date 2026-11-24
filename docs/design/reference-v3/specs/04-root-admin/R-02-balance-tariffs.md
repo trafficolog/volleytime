@@ -10,7 +10,7 @@
 
 ## Макет
 
-- 7 Root Admin → Credits & тарифы
+- 4b Root Admin → Баланс и тарифы
 
 ## Объём
 

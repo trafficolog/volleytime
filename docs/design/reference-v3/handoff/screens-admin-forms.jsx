@@ -52,7 +52,7 @@ const AdminOrgCreate = () => {
               <button key={v} onClick={() => setPlan(v)} className="vt-btn vt-btn--sm" style={{flex:1, background:plan===v?'var(--vt-ink)':'var(--vt-ctl)', color:plan===v?'var(--vt-paper)':'var(--vt-ink)', fontWeight:600}}>{l}</button>
             ))}
           </div>
-          <label className="vt-label" style={{marginTop:16}}>Стартовые credits</label>
+          <label className="vt-label" style={{marginTop:16}}>Стартовый баланс событий</label>
           <div style={{display:'flex', alignItems:'center', gap:10}}>
             <button onClick={() => setDemo(d => Math.max(0, d-1))} className="vt-btn vt-btn--ghost vt-btn--sm" style={{padding:'6px 12px'}}>−</button>
             <span className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-lg)', width:34, textAlign:'center'}}>{demo}</span>
@@ -81,9 +81,9 @@ const AdminPackCreate = () => {
   const [price, setPrice] = React.useState(120);
   const [visible, setVisible] = React.useState(true);
   const per = credits>0 ? price/credits : 0;
-  const save = () => { nav.reset('credits'); setTimeout(() => nav.toast('Пакет credits создан'), 80); };
+  const save = () => { nav.reset('credits'); setTimeout(() => nav.toast('Пакет создан'), 80); };
   return (
-  <AdminShell activeNav="credits" title="Новый пакет credits" sub="Тариф покупки credits для организаций"
+  <AdminShell activeNav="credits" title="Новый пакет событий" sub="Тариф покупки событий для организаций"
     topRight={<>
       <button onClick={() => nav.reset('credits')} className="vt-btn vt-btn--ghost vt-btn--sm">Отмена</button>
       <button onClick={save} className="vt-btn vt-btn--primary vt-btn--sm" style={{gap:6}}><Icon name="check" size={14}/> Создать пакет</button>
@@ -93,7 +93,7 @@ const AdminPackCreate = () => {
         <h3 style={{fontSize:'var(--fs-md)'}}>Параметры пакета</h3>
         <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginTop:16}}>
           <div>
-            <label className="vt-label">Количество credits</label>
+            <label className="vt-label">Количество событий</label>
             <input className="vt-field" value={credits} onChange={e=>setCredits(+e.target.value||0)} style={{fontFamily:'var(--f-mono)', fontWeight:600}}/>
           </div>
           <div>
@@ -116,7 +116,7 @@ const AdminPackCreate = () => {
         <button onClick={() => setVisible(v=>!v)} style={{display:'flex', alignItems:'center', gap:12, padding:'10px 12px', borderRadius:'var(--r-chip)', cursor:'pointer', textAlign:'left', width:'100%', background:'var(--vt-paper)'}}>
           <div style={{flex:1}}>
             <div style={{fontSize:'var(--fs-sm)', fontWeight:600}}>Показывать в витрине</div>
-            <div style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)', marginTop:2}}>Организации увидят пакет при покупке credits.</div>
+            <div style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)', marginTop:2}}>Организации увидят пакет при покупке событий.</div>
           </div>
           <div style={{width:36, height:20, borderRadius:'var(--r-pill)', background:visible?'var(--vt-ink)':'var(--vt-stroke-2)', position:'relative', flexShrink:0}}>
             <span style={{position:'absolute', top:2, left: visible?18:2, width:16, height:16, borderRadius:'var(--r-pill)', background:'var(--vt-paper)', transition:'left .15s'}}/>
@@ -128,10 +128,10 @@ const AdminPackCreate = () => {
         <label className="vt-label">Превью</label>
         <div className="vt-card" style={{padding:18}}>
           <div style={{fontFamily:'var(--f-display)', fontWeight:700, fontSize:'var(--fs-4xl)', lineHeight:1}}>{credits}</div>
-          <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', marginTop:4}}>credits</div>
+          <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', marginTop:4}}>событий</div>
           <div className="vt-divider" style={{margin:'14px 0'}}/>
-          <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-xl)'}}>{price} Br</div>
-          <div style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)', marginTop:2}}>{per.toFixed(2).replace('.', ',')} Br / credit</div>
+          <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-xl)'}}>{price} BYN</div>
+          <div style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)', marginTop:2}}>{per.toFixed(2).replace('.', ',')} BYN / событие</div>
         </div>
       </div>
     </div>
@@ -148,9 +148,9 @@ const AdminGrantCredits = () => {
   const [amount, setAmount] = React.useState(10);
   const [reason, setReason] = React.useState('promo');
   const presets = [1, 5, 10, 30];
-  const grant = () => { nav.reset('credits'); setTimeout(() => nav.toast(`+${amount} credits выдано · ${org}`), 80); };
+  const grant = () => { nav.reset('credits'); setTimeout(() => nav.toast(`+${amount} к балансу событий · ${org}`), 80); };
   return (
-  <AdminShell activeNav="credits" title="Выдать credits" sub={`Организация: ${org}`}
+  <AdminShell activeNav="credits" title="Выдать события" sub={`Организация: ${org}`}
     topRight={<>
       <button onClick={() => nav.reset('credits')} className="vt-btn vt-btn--ghost vt-btn--sm">Отмена</button>
       <button onClick={grant} className="vt-btn vt-btn--primary vt-btn--sm" style={{gap:6}}><Icon name="gift" size={14}/> Выдать</button>
@@ -161,7 +161,7 @@ const AdminGrantCredits = () => {
           <span className="vt-avi vt-avi--sm" style={{background:'linear-gradient(135deg, var(--vt-flame), var(--vt-night))', color:'var(--vt-on-hero)', fontSize:'var(--fs-2xs)', fontWeight:700}}>{org.slice(0,2).toUpperCase()}</span>
           <div>
             <div style={{fontSize:'var(--fs-base)', fontWeight:600}}>{org}</div>
-            <div className="vt-mono" style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)'}}>текущий баланс: 32 credits</div>
+            <div className="vt-mono" style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)'}}>текущий баланс: 32 события</div>
           </div>
         </div>
 
@@ -178,7 +178,7 @@ const AdminGrantCredits = () => {
 
         <label className="vt-label" style={{marginTop:18}}>Причина</label>
         <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
-          {[['promo','Промо'],['compensation','Компенсация'],['bugfix','Багфикс'],['manual','Вручную']].map(([v,l]) => (
+          {[['promo','Промо'],['компенсация','Компенсация'],['bugfix','Багфикс'],['manual','Вручную']].map(([v,l]) => (
             <button key={v} onClick={() => setReason(v)} className="vt-chip" style={{cursor:'pointer', background:reason===v?'var(--vt-ink)':'var(--vt-ctl-track)', color:reason===v?'var(--vt-paper)':'var(--vt-ink)', borderColor:'transparent'}}>{l}</button>
           ))}
         </div>
@@ -188,7 +188,7 @@ const AdminGrantCredits = () => {
 
         <div className="vt-card" style={{padding:'12px 14px', marginTop:16, background:'var(--vt-bone-2)', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
           <span style={{fontSize:'var(--fs-sm)', color:'var(--vt-mute-2)'}}>Баланс после выдачи</span>
-          <span className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-md)', color:'var(--vt-grass)'}}>{32 + amount} credits</span>
+          <span className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-md)', color:'var(--vt-grass)'}}>{32 + amount} событий</span>
         </div>
       </div>
     </div>
@@ -214,12 +214,12 @@ const AdminCreditsHistory = () => {
         {['Дата','Тип','Изменение','Кто'].map((h,i)=><div key={i} className="vt-cap" style={{color:'var(--vt-mute-2)'}}>{h}</div>)}
       </div>
       {[
-        ['Сегодня 09:02','grant','СОК Витебск +10 credits · причина: промо','root@volleytime','grass'],
-        ['22 мая 16:10','grant','VolleyTime Минск +5 credits · bugfix #142','root@volleytime','grass'],
-        ['18 мая 11:00','pricing','Пакет «30 credits»: 130 → 120 Br','root@volleytime','flame'],
-        ['12 мая 14:30','demo_quota','Demo-квота новой org: 3 → 5 credits','root@volleytime','amber'],
-        ['5 мая 10:15','pricing','Добавлен пакет «100 credits» · 350 Br','root@volleytime','flame'],
-        ['1 мая 09:00','grant','Все пилоты +5 credits · старт Private Beta','system','grass'],
+        ['Сегодня 09:02','grant','СОК Витебск +10 событий · причина: промо','root@volleytime','grass'],
+        ['22 мая 16:10','grant','VolleyTime Минск +5 событий · bugfix #142','root@volleytime','grass'],
+        ['18 мая 11:00','pricing','Пакет «30 событий»: 130 → 120 BYN','root@volleytime','flame'],
+        ['12 мая 14:30','demo_quota','Demo-квота новой org: 3 → 5 событий','root@volleytime','amber'],
+        ['5 мая 10:15','pricing','Добавлен пакет «100 событий» · 350 BYN','root@volleytime','flame'],
+        ['1 мая 09:00','grant','Все пилоты +5 событий · старт Private Beta','system','grass'],
       ].map(([d,t,c,w,tone],i,a) => (
         <div key={i} style={{display:'grid', gridTemplateColumns:'130px 150px 1fr 130px', padding:'12px 18px', borderBottom:i<a.length-1?'1px solid var(--vt-bone-2)':'none', alignItems:'center', fontSize:'var(--fs-sm)'}}>
           <span className="vt-mono" style={{color:'var(--vt-mute-2)', fontSize:'var(--fs-2xs)'}}>{d}</span>
@@ -250,13 +250,13 @@ const AdminPayouts = () => {
         <div style={{position:'absolute', right:-30, bottom:-30, width:160, height:160, borderRadius:'50%', background:'var(--vt-orange)', opacity:0.28}}/>
         <div style={{position:'relative'}}>
           <div className="vt-cap" style={{opacity:0.55}}>MRR (проекция)</div>
-          <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-4xl)', marginTop:8}}>52 Br</div>
-          <div style={{fontSize:'var(--fs-xs)', opacity:0.7, marginTop:6, display:'inline-flex', alignItems:'center', gap:4}}><Icon name="arrow-u" size={12}/> +12 Br за месяц</div>
+          <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-4xl)', marginTop:8}}>52 BYN</div>
+          <div style={{fontSize:'var(--fs-xs)', opacity:0.7, marginTop:6, display:'inline-flex', alignItems:'center', gap:4}}><Icon name="arrow-u" size={12}/> +12 BYN за месяц</div>
         </div>
       </div>
       {[
-        ['Выручка за месяц','+610 Br','5 покупок credits','grass'],
-        ['К выплате','0 Br','выплат пока нет'],
+        ['Выручка за месяц','+610 BYN','5 покупок','grass'],
+        ['К выплате','0 BYN','выплат пока нет'],
         ['Платящих орг.','3','из 5 · 60%'],
       ].map(([l,v,d,c],i) => (
         <div key={i} className="vt-card" style={{padding:16}}>
@@ -277,14 +277,14 @@ const AdminPayouts = () => {
     {seg === 'revenue' && (
       <div className="vt-card" style={{padding:0, overflow:'hidden'}}>
         <div style={{display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr', padding:'10px 18px', borderBottom:'1px solid var(--vt-bone-2)'}}>
-          {['Организация','План','Куплено credits','Потрачено','Выручка'].map((h,i)=><div key={i} className="vt-cap" style={{color:'var(--vt-mute-2)'}}>{h}</div>)}
+          {['Организация','План','Куплено событий','Потрачено','Выручка'].map((h,i)=><div key={i} className="vt-cap" style={{color:'var(--vt-mute-2)'}}>{h}</div>)}
         </div>
         {[
-          ['VolleyTime Минск','beta',35,'−12','+240 Br'],
-          ['СпайкКлуб','beta',30,'−18','+120 Br'],
-          ['СОК Витебск','beta',20,'−12','+250 Br'],
-          ['MinskVolley.PRO','beta',0,'−2','0 Br'],
-          ['Тестовая','demo',0,'0','0 Br'],
+          ['VolleyTime Минск','beta',35,'−12','+240 BYN'],
+          ['СпайкКлуб','beta',30,'−18','+120 BYN'],
+          ['СОК Витебск','beta',20,'−12','+250 BYN'],
+          ['MinskVolley.PRO','beta',0,'−2','0 BYN'],
+          ['Тестовая','demo',0,'0','0 BYN'],
         ].map((r,i,a) => (
           <div key={i} style={{display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr', padding:'12px 18px', borderBottom:i<a.length-1?'1px solid var(--vt-bone-2)':'none', alignItems:'center', fontSize:'var(--fs-sm)'}}>
             <div style={{display:'flex', alignItems:'center', gap:10}}>
@@ -294,7 +294,7 @@ const AdminPayouts = () => {
             <div><span className="vt-chip" style={{fontSize:'var(--fs-2xs)'}}>{r[1]}</span></div>
             <div className="vt-mono">{r[2]}</div>
             <div className="vt-mono" style={{color:'var(--vt-mute-2)'}}>{r[3]}</div>
-            <div className="vt-mono" style={{fontWeight:700, color: r[4]==='0 Br'?'var(--vt-mute-2)':'var(--vt-grass)'}}>{r[4]}</div>
+            <div className="vt-mono" style={{fontWeight:700, color: r[4]==='0 BYN'?'var(--vt-mute-2)':'var(--vt-grass)'}}>{r[4]}</div>
           </div>
         ))}
       </div>
@@ -306,10 +306,10 @@ const AdminPayouts = () => {
           {['Инвойс','Организация','Сумма','Дата','Статус',''].map((h,i)=><div key={i} className="vt-cap" style={{color:'var(--vt-mute-2)'}}>{h}</div>)}
         </div>
         {[
-          ['INV-0007','СпайкКлуб','120 Br','22 мая','оплачен','grass'],
-          ['INV-0006','СОК Витебск','120 Br','18 мая','оплачен','grass'],
-          ['INV-0005','VolleyTime Минск','120 Br','22 апр','оплачен','grass'],
-          ['INV-0008','MinskVolley.PRO','50 Br','сегодня','ожидает','amber'],
+          ['INV-0007','СпайкКлуб','120 BYN','22 мая','оплачен','grass'],
+          ['INV-0006','СОК Витебск','120 BYN','18 мая','оплачен','grass'],
+          ['INV-0005','VolleyTime Минск','120 BYN','22 апр','оплачен','grass'],
+          ['INV-0008','MinskVolley.PRO','50 BYN','сегодня','ожидает','amber'],
         ].map((r,i,a) => (
           <div key={i} style={{display:'grid', gridTemplateColumns:'140px 2fr 1fr 1fr 120px 40px', padding:'12px 18px', borderBottom:i<a.length-1?'1px solid var(--vt-bone-2)':'none', alignItems:'center', fontSize:'var(--fs-sm)'}}>
             <span className="vt-mono" style={{fontWeight:600, color:'var(--vt-flame-ink)'}}>{r[0]}</span>
@@ -331,7 +331,7 @@ const AdminPayouts = () => {
       <div className="vt-card" style={{padding:'48px 24px', textAlign:'center'}}>
         <div style={{width:48, height:48, borderRadius:'var(--r-field)', background:'var(--vt-bone-2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto'}}><Icon name="wallet" size={24} stroke="var(--vt-mute-2)"/></div>
         <div style={{fontFamily:'var(--f-display)', fontWeight:600, fontSize:'var(--fs-md)', marginTop:14}}>Выплат пока нет</div>
-        <div style={{fontSize:'var(--fs-sm)', color:'var(--vt-mute-2)', marginTop:6, maxWidth:420, marginInline:'auto', lineHeight:1.5}}>Платформа продаёт credits организациям и не удерживает деньги игроков. Выплаты появятся при подключении эквайринга (Phase 12+).</div>
+        <div style={{fontSize:'var(--fs-sm)', color:'var(--vt-mute-2)', marginTop:6, maxWidth:420, marginInline:'auto', lineHeight:1.5}}>Платформа продаёт события организациям и не удерживает деньги игроков. Выплаты появятся при подключении эквайринга (Phase 12+).</div>
         <button onClick={() => nav.toast('Документация по эквайрингу')} className="vt-btn vt-btn--ghost vt-btn--sm" style={{marginTop:16}}>Про эквайринг</button>
       </div>
     )}
@@ -344,9 +344,13 @@ const AdminPayouts = () => {
 // ============================================================
 const AdminSettings = () => {
   const nav = useNav();
-  const [tab, setTab] = React.useState('Платформа');
+  const [tab, setTab] = React.useState((nav.data && nav.data.tab) || 'Платформа');
+  React.useEffect(() => { if (nav.data && nav.data.tab) setTab(nav.data.tab); }, [nav.data && nav.data.tab]);
   const [flags, setFlags] = React.useState({ contributions:true, subscriptions:true, online_payments:false, tournaments:false, crm_pro:false });
-  const tabs = ['Платформа','Команда & роли','Feature flags','Лимиты & квоты','Уведомления','Биллинг','Безопасность','API & вебхуки'];
+  // R-15: команда, безопасность и API — только Owner
+  const ownerOnly = ['Команда & роли','Безопасность','API & вебхуки'];
+  const tabs = ['Платформа','Команда & роли','Feature flags','Лимиты & квоты','Уведомления','Биллинг','Безопасность','API & вебхуки']
+    .filter(t => (window.rootRole ? window.rootRole().k : 'owner') === 'owner' || !ownerOnly.includes(t));
 
   const Toggle = ({ on, onClick, label, sub, phase }) => (
     <button onClick={onClick} style={{display:'flex', alignItems:'center', gap:14, padding:'12px 14px', borderRadius:'var(--r-chip)', background:'var(--vt-ctl-track)', width:'100%', textAlign:'left', cursor:'pointer'}}>
@@ -385,38 +389,56 @@ const AdminSettings = () => {
           </div>
         )}
 
-        {tab === 'Команда & роли' && (
+        {tab === 'Команда & роли' && (() => {
+          const R = window.PLATFORM_ROLES;
+          const team = [['Иван П.','root@volleytime','owner'],['Анна К.','anna@volleytime','admin'],['Марина Л.','finance@volleytime','finance'],['Олег Д.','oleg@volleytime','moderator'],['Катя С.','support@volleytime','support'],['Дмитрий В.','dmitry@volleytime','analyst']];
+          const byK = (k) => R.find(r => r.k === k);
+          const cols = 'minmax(0,3fr) repeat(6, minmax(0,1fr))';
+          const cell = (v) => v === 'f' ? <Icon name="check" size={14} stroke="var(--vt-grass)" sw={2.4}/>
+            : v === 'v' ? <span style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute)'}}>просмотр</span>
+            : v === 'x' ? <span style={{color:'var(--vt-stroke-2)'}}>—</span>
+            : <span style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute)'}}>{v}</span>;
+          return (
           <div className="vt-card" style={{padding:22}}>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}>
-              <h3 style={{fontSize:'var(--fs-md)'}}>Команда платформы</h3>
+              <div>
+                <h3 style={{fontSize:'var(--fs-md)'}}>Команда платформы</h3>
+                <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', marginTop:4}}>Одна роль на человека · 2FA обязательна для всех · каждое действие — в аудит</div>
+              </div>
               <button onClick={() => nav.toast('Приглашение отправлено')} className="vt-btn vt-btn--ghost vt-btn--sm" style={{gap:6}}><Icon name="plus" size={13}/> Пригласить</button>
             </div>
-            <div style={{display:'flex', flexDirection:'column', gap:8, marginTop:14}}>
-              {[['Иван П.','root@volleytime','Owner','ink'],['Анна К.','anna@volleytime','Admin','flame'],['Поддержка','support@volleytime','Support','grass']].map((m,i) => (
-                <div key={i} style={{display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderRadius:'var(--r-chip)'}}>
-                  <Avi name={m[0]} init={m[0].slice(0,2)} tag={m[3]} size="sm"/>
-                  <div style={{flex:1}}><div style={{fontSize:'var(--fs-base)', fontWeight:600}}>{m[0]}</div><div className="vt-mono" style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)'}}>{m[1]}</div></div>
-                  <span className="vt-chip vt-chip--solid" style={{fontSize:'var(--fs-2xs)'}}>{m[2]}</span>
-                  <ActionMore mode="popover" align="right" items={[{icon:'star',label:'Изменить роль',onClick:()=>nav.toast('Роль изменена')},'---',{icon:'logout',tone:'danger',label:'Удалить из команды',onClick:()=>nav.toast('Удалён')}]}/>
-                </div>
-              ))}
+            <div style={{display:'grid', gridTemplateColumns:'repeat(3, minmax(0,1fr))', gap:6, marginTop:14}}>
+              {team.map(([n, mail, k], i) => {
+                const r = byK(k);
+                return (
+                <div key={i} style={{display:'flex', alignItems:'center', gap:12, padding:'10px 12px', borderRadius:'var(--r-chip)', background:'var(--vt-paper)'}}>
+                  <Avi name={n} init={n.slice(0,2)} tag={r.tag} size="sm"/>
+                  <div style={{flex:1, minWidth:0}}><div style={{fontSize:'var(--fs-sm)', fontWeight:600}}>{n}</div><div className="vt-mono" style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)'}}>{mail}</div></div>
+                  <span className="vt-chip vt-chip--solid" style={{fontSize:'var(--fs-2xs)'}}>{r.label}</span>
+                  <ActionMore mode="popover" align="right" items={[{icon:'star',label:'Изменить роль',onClick:()=>nav.sheet({ title:`Роль · ${n}`, sub:'Права меняются сразу, запись в аудит', items: R.filter(x => x.k !== 'owner' || k === 'owner').map(x => ({ icon: x.k === k ? 'check' : 'users', label:`${x.label} · ${x.ru}`, sub:x.desc, onClick:()=>nav.toast(`${n}: ${x.label}`) })) })},'---',{icon:'logout',tone:'danger',label:'Удалить из команды',onClick:()=>nav.toast('Удалён')}]}/>
+                </div>);
+              })}
             </div>
-            <div style={{marginTop:16}}>
-              <div className="vt-cap" style={{color:'var(--vt-mute-2)', marginBottom:10}}>Матрица ролей</div>
+            <div style={{marginTop:14}}>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:8}}>
+                <div className="vt-cap" style={{color:'var(--vt-mute-2)'}}>Матрица ролей</div>
+                <div style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)'}}>Разделы без доступа скрыты из меню</div>
+              </div>
               <div style={{background:'var(--vt-paper)', borderRadius:'var(--r-tile)', overflow:'hidden'}}>
-                <div style={{display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', padding:'8px 14px', background:'var(--vt-bone-2)'}}>
-                  {['Право','Owner','Admin','Support'].map((h,i)=><div key={i} className="vt-cap" style={{color:'var(--vt-mute-2)'}}>{h}</div>)}
+                <div style={{display:'grid', gridTemplateColumns:cols, padding:'8px 14px', background:'var(--vt-bone-2)', gap:8}}>
+                  {['Право', ...R.map(r => r.label)].map((h,i)=><div key={i} className="vt-cap" style={{color:'var(--vt-mute-2)'}}>{h}</div>)}
                 </div>
-                {[['Организации',1,1,0],['Выдача credits',1,1,0],['Тарифы',1,0,0],['Аудит',1,1,1],['Команда',1,0,0]].map((r,i,a)=>(
-                  <div key={i} style={{display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', padding:'10px 14px', borderTop:'1px solid var(--vt-bone-2)', alignItems:'center', fontSize:'var(--fs-sm)'}}>
+                {window.PLATFORM_MATRIX.map((r,i)=>(
+                  <div key={i} style={{display:'grid', gridTemplateColumns:cols, gap:8, padding:'6px 14px', borderTop:'1px solid var(--vt-bone-2)', alignItems:'center', fontSize:'var(--fs-xs)'}}>
                     <span>{r[0]}</span>
-                    {[r[1],r[2],r[3]].map((v,j)=><span key={j}>{v?<Icon name="check" size={14} stroke="var(--vt-grass)" sw={2.4}/>:<span style={{color:'var(--vt-stroke-2)'}}>—</span>}</span>)}
+                    {r.slice(1).map((v,j)=><span key={j}>{cell(v)}</span>)}
                   </div>
                 ))}
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {tab === 'Feature flags' && (
           <div className="vt-card" style={{padding:22}}>
@@ -436,7 +458,7 @@ const AdminSettings = () => {
           <div className="vt-card" style={{padding:22}}>
             <h3 style={{fontSize:'var(--fs-md)'}}>Лимиты и квоты</h3>
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginTop:16}}>
-              <div><label className="vt-label">Demo-квота новой org (credits)</label><input className="vt-field" defaultValue="5" style={{fontFamily:'var(--f-mono)', fontWeight:600}}/></div>
+              <div><label className="vt-label">Demo-квота новой org (событий)</label><input className="vt-field" defaultValue="5" style={{fontFamily:'var(--f-mono)', fontWeight:600}}/></div>
               <div><label className="vt-label">Макс. игроков в org (beta)</label><input className="vt-field" defaultValue="50" style={{fontFamily:'var(--f-mono)', fontWeight:600}}/></div>
               <div><label className="vt-label">Макс. событий / день</label><input className="vt-field" defaultValue="10" style={{fontFamily:'var(--f-mono)', fontWeight:600}}/></div>
               <div><label className="vt-label">Бронь до подтверждения (мин)</label><input className="vt-field" defaultValue="15" style={{fontFamily:'var(--f-mono)', fontWeight:600}}/></div>
@@ -454,7 +476,7 @@ const AdminSettings = () => {
               <Toggle on={true} onClick={()=>nav.toast('переключено')} label="Алерт при ошибках бота" sub="В Telegram-канал команды"/>
               <Toggle on={true} onClick={()=>nav.toast('переключено')} label="Новая регистрация организации" sub="Письмо + канал"/>
               <Toggle on={false} onClick={()=>nav.toast('переключено')} label="Еженедельный дайджест метрик" sub="Понедельник 09:00"/>
-              <Toggle on={true} onClick={()=>nav.toast('переключено')} label="Низкий баланс credits у org" sub="Когда осталось < 5"/>
+              <Toggle on={true} onClick={()=>nav.toast('переключено')} label="Низкий баланс событий у организации" sub="Когда осталось < 5"/>
             </div>
           </div>
         )}
@@ -463,7 +485,7 @@ const AdminSettings = () => {
           <div className="vt-card" style={{padding:22}}>
             <h3 style={{fontSize:'var(--fs-md)'}}>Биллинг платформы</h3>
             <div style={{display:'grid', gridTemplateColumns:'auto 1fr', columnGap:14, rowGap:12, marginTop:16, fontSize:'var(--fs-sm)', alignItems:'center'}}>
-              <span style={{color:'var(--vt-mute-2)'}}>Модель</span><span>Pay-as-you-go · продажа credits организациям</span>
+              <span style={{color:'var(--vt-mute-2)'}}>Модель</span><span>Pay-as-you-go · продажа событий организациям</span>
               <span style={{color:'var(--vt-mute-2)'}}>Эквайринг</span><span style={{display:'flex',alignItems:'center',gap:6}}><span style={{width:8,height:8,borderRadius:'var(--r-pill)',background:'var(--vt-amber)'}}/> bePaid — не подключён (Phase 12)</span>
               <span style={{color:'var(--vt-mute-2)'}}>Реквизиты</span><span className="vt-mono" style={{fontSize:'var(--fs-xs)'}}>Belarusbank · УНП 191234567</span>
               <span style={{color:'var(--vt-mute-2)'}}>Инвойсы</span><span>Авто-генерация при покупке пакета</span>

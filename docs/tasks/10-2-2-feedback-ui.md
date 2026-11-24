@@ -4,8 +4,8 @@ phase: '10'
 epic: '10.2'
 status: todo
 sync_state: drifted
-last_reviewed: 2026-05-29
-status_note: ''
+last_reviewed: 2026-11-24
+status_note: 'Решение владельца 2026-11-24 (D-29): поглощается фазой 29; не стартует.'
 roles:
   - FE
 depends_on:

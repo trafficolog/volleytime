@@ -88,15 +88,15 @@ const BrandType = () => (
         </div>
         <div style={{display:'flex', gap:24, marginTop:18}}>
           <div>
-            <div className="vt-mono" style={{fontSize:'var(--fs-2xl)', fontWeight:600}}>15,00 Br</div>
+            <div className="vt-mono" style={{fontSize:'var(--fs-2xl)', fontWeight:600}}>15,00 BYN</div>
             <div className="vt-cap" style={{color:'var(--vt-mute-2)', marginTop:4}}>Цена сессии</div>
           </div>
           <div>
-            <div className="vt-mono" style={{fontSize:'var(--fs-2xl)', fontWeight:600, color:'var(--vt-grass)'}}>+82 Br</div>
+            <div className="vt-mono" style={{fontSize:'var(--fs-2xl)', fontWeight:600, color:'var(--vt-grass)'}}>+82 BYN</div>
             <div className="vt-cap" style={{color:'var(--vt-mute-2)', marginTop:4}}>Касса +</div>
           </div>
           <div>
-            <div className="vt-mono" style={{fontSize:'var(--fs-2xl)', fontWeight:600, color:'var(--vt-rose)'}}>−42 Br</div>
+            <div className="vt-mono" style={{fontSize:'var(--fs-2xl)', fontWeight:600, color:'var(--vt-rose)'}}>−42 BYN</div>
             <div className="vt-cap" style={{color:'var(--vt-mute-2)', marginTop:4}}>Касса −</div>
           </div>
         </div>
@@ -130,7 +130,7 @@ const BrandComponents = () => (
           <button className="vt-btn vt-btn--primary">Записаться</button>
           <button className="vt-btn vt-btn--ink">Подтвердить</button>
           <button className="vt-btn vt-btn--ghost">Отмена</button>
-          <button className="vt-btn vt-btn--primary vt-btn--lg">Записаться · 15 Br</button>
+          <button className="vt-btn vt-btn--primary vt-btn--lg">Записаться · 15 BYN</button>
         </div>
       </div>
 
@@ -168,7 +168,7 @@ const BrandComponents = () => (
           </div>
           <div>
             <div style={{display:'flex', justifyContent:'space-between', fontSize:'var(--fs-xs)', marginBottom:4}}>
-              <span>Кампания «Новый мяч»</span><span className="vt-mono">175 / 250 Br</span>
+              <span>Кампания «Новый мяч»</span><span className="vt-mono">175 / 250 BYN</span>
             </div>
             <div className="vt-meter vt-meter--grass"><i style={{width:'70%'}}/></div>
           </div>
@@ -331,9 +331,9 @@ const BrandControls = () => {
           <div>
             <label className="vt-label">Зал</label>
             <VtSelect value={venue} icon="pin" onChange={setVenue} options={[
-              { value:'v1', label:'Школа №24, малый зал', sub:'15 Br/ч' },
-              { value:'v2', label:'СК «Заслонова»', sub:'20 Br/ч' },
-              { value:'v3', label:'Школа №3, большой зал', sub:'25 Br/ч' },
+              { value:'v1', label:'Школа №24, малый зал', sub:'15 BYN/ч' },
+              { value:'v2', label:'СК «Заслонова»', sub:'20 BYN/ч' },
+              { value:'v3', label:'Школа №3, большой зал', sub:'25 BYN/ч' },
             ]}/>
           </div>
           <div>
@@ -376,7 +376,7 @@ const BrandControls = () => {
 
 // Domain patterns — paid-model, seats and statuses introduced across app screens
 const BrandPatterns = () => {
-  const money = (n) => `${n.toFixed(2).replace('.', ',')} Br`;
+  const money = (n) => `${n.toFixed(2).replace('.', ',')} BYN`;
   return (
   <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:24, height:'100%'}}>
     <div style={{display:'flex', flexDirection:'column', gap:18}}>
@@ -395,7 +395,7 @@ const BrandPatterns = () => {
               <span style={{fontSize:'var(--fs-sm)', fontWeight:600}}>Делим общую сумму</span>
               <span className="vt-mono" style={{fontWeight:700}}>≈ {money(30)}</span>
             </div>
-            <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', marginTop:4}}>240,00 Br ÷ 8 мест · точная сумма после закрытия записи</div>
+            <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', marginTop:4}}>240,00 BYN ÷ 8 мест · точная сумма после закрытия записи</div>
             <div style={{display:'flex', gap:6, marginTop:8}}>
               <span className="vt-chip vt-chip--flame" style={{fontSize:'var(--fs-2xs)'}}>делёж суммы</span>
               <span className="vt-chip vt-chip--amber" style={{fontSize:'var(--fs-2xs)'}}>уточнится</span>

@@ -116,7 +116,7 @@ const Progress = () => {
           })}
         </div>
         <div className="vt-card vt-card--cool" style={{padding:16, marginTop:12}}>
-          <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}><span style={{fontSize:'var(--fs-sm)', fontWeight:700}}>До уровня A</span><span className="vt-mono" style={{fontWeight:700}}>68%</span></div>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}><span style={{fontSize:'var(--fs-sm)', fontWeight:700}}>До уровня В3</span><span className="vt-mono" style={{fontWeight:700}}>68%</span></div>
           <div style={{height:8, borderRadius:'var(--r-pill)', background:'var(--vt-paper)', marginTop:10, overflow:'hidden'}}><div style={{width:'68%', height:'100%', background:'var(--vt-flame)', borderRadius:'var(--r-pill)'}}/></div>
           <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-ink-3)', marginTop:8, lineHeight:1.45}}>Самооценки + оценка организатора. Слабое место — блок и подача.</div>
         </div>

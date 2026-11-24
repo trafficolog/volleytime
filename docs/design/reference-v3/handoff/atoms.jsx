@@ -45,6 +45,10 @@ const Icon = ({ name, size = 18, stroke = 'currentColor', sw = 1.6 }) => {
     case 'star': return <svg viewBox="0 0 24 24" {...c}><path d="m12 4 2.6 5.4 6 .9-4.3 4.2 1 6L12 17.6l-5.3 2.9 1-6L3.4 10.3l6-.9Z"/></svg>;
     case 'qr': return <svg viewBox="0 0 24 24" {...c}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3M20 14v3M14 20h3M20 17v4"/></svg>;
     case 'logout': return <svg viewBox="0 0 24 24" {...c}><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4"/><path d="M10 8l-4 4 4 4M6 12h10"/></svg>;
+    case 'chat': return <svg viewBox="0 0 24 24" {...c}><path d="M4 5h16v11H9l-5 4Z"/><path d="M8 9h8M8 12h5"/></svg>;
+    case 'lock': return <svg viewBox="0 0 24 24" {...c}><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>;
+    case 'grip': return <svg viewBox="0 0 24 24" {...c}><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></svg>;
+    case 'eye': return <svg viewBox="0 0 24 24" {...c}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>;
     case 'globe': return <svg viewBox="0 0 24 24" {...c}><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>;
     case 'ball': return <svg viewBox="0 0 24 24" {...c}><circle cx="12" cy="12" r="9"/><path d="M12 3c-1.5 3-1.5 6 0 9s4.5 5 9 4.5"/><path d="M3.6 8.2c3.2-.4 6.2.7 8.4 3.8"/><path d="M8.2 20.4c-.6-3.3.6-6.3 3.8-8.4"/></svg>;
     case 'trophy': return <svg viewBox="0 0 24 24" {...c}><path d="M8 4h8v5a4 4 0 0 1-8 0Z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4"/><path d="M12 13v4M8.5 20h7M10 17h4v3h-4z"/></svg>;
@@ -64,20 +68,20 @@ const Icon = ({ name, size = 18, stroke = 'currentColor', sw = 1.6 }) => {
 
 // People mock data — used across all screens for visual continuity
 const PEOPLE = [
-  { name: 'Артём',   init:'АР', tag: 'flame',  level:'A' },
-  { name: 'Никита',  init:'НК', tag: 'ink',    level:'B' },
-  { name: 'Маша',    init:'МА', tag: 'amber',  level:'A' },
-  { name: 'Лера',    init:'ЛР', tag: 'grass',  level:'B' },
-  { name: 'Игорь',   init:'ИГ', tag: 'ink',    level:'B' },
-  { name: 'Соня',    init:'СН', tag: 'flame',  level:'A' },
-  { name: 'Денис',   init:'ДН', tag: 'amber',  level:'B' },
-  { name: 'Юля',     init:'ЮЛ', tag: 'grass',  level:'C' },
-  { name: 'Стас',    init:'СТ', tag: 'ink',    level:'B' },
-  { name: 'Катя',    init:'КТ', tag: 'flame',  level:'A' },
-  { name: 'Паша',    init:'ПШ', tag: 'amber',  level:'C' },
-  { name: 'Даша',    init:'ДШ', tag: 'grass',  level:'B' },
-  { name: 'Лёша',    init:'ЛА', tag: 'ink',    level:'A' },
-  { name: 'Оля',     init:'ОЛ', tag: 'flame',  level:'B' },
+  { name: 'Артём',   init:'АР', tag: 'flame',  level:'В3' },
+  { name: 'Никита',  init:'НК', tag: 'ink',    level:'В2' },
+  { name: 'Маша',    init:'МА', tag: 'amber',  level:'В3' },
+  { name: 'Лера',    init:'ЛР', tag: 'grass',  level:'В2' },
+  { name: 'Игорь',   init:'ИГ', tag: 'ink',    level:'В2' },
+  { name: 'Соня',    init:'СН', tag: 'flame',  level:'В3' },
+  { name: 'Денис',   init:'ДН', tag: 'amber',  level:'В2' },
+  { name: 'Юля',     init:'ЮЛ', tag: 'grass',  level:'В1' },
+  { name: 'Стас',    init:'СТ', tag: 'ink',    level:'В2' },
+  { name: 'Катя',    init:'КТ', tag: 'flame',  level:'В3' },
+  { name: 'Паша',    init:'ПШ', tag: 'amber',  level:'В1' },
+  { name: 'Даша',    init:'ДШ', tag: 'grass',  level:'В2' },
+  { name: 'Лёша',    init:'ЛА', tag: 'ink',    level:'В3' },
+  { name: 'Оля',     init:'ОЛ', tag: 'flame',  level:'В2' },
 ];
 
 const Avi = ({ idx = 0, size = 'md', name, init, tag }) => {
@@ -101,7 +105,8 @@ const StatusBar = ({ time = '19:24' }) => (
 // Mini app top header (with optional close + title)
 const MiniHeader = ({ title, sub, onBack, right }) => {
   const nav = typeof useNav === 'function' ? useNav() : null;
-  const handleBack = onBack === true
+  const autoBack = onBack === undefined && window.VT_AUTO_BACK && nav && nav.canGoBack;
+  const handleBack = (onBack === true || autoBack)
     ? () => nav && nav.back()
     : (typeof onBack === 'function' ? onBack : null);
   return (
@@ -125,9 +130,11 @@ const MiniHeader = ({ title, sub, onBack, right }) => {
 // Tab bar — Player
 const TabBar = ({ active = 'home' }) => {
   const nav = typeof useNav === 'function' ? useNav() : null;
+  const [gs] = useGroupSettings();
   const tabs = [
     { id:'home', screen:'home', label:'Главная', icon:'home' },
-    { id:'subs', screen:'subs', label:'Абонементы', icon:'ticket' },
+    ...(window.VT_AUTO_BACK && gs.feat && gs.feat.cal ? [{ id:'cal', screen:'my-calendar', label:'Календарь', icon:'calendar' }] : []),
+    ...(gs.subsOn ? [{ id:'subs', screen:'subs', label:'Абонементы', icon:'ticket' }] : []),
     { id:'contrib', screen:'contrib-hub', label:'Сборы', icon:'gift' },
     { id:'me', screen:'profile', label:'Профиль', icon:'user' },
   ];
@@ -195,7 +202,9 @@ const meterTint = (pct) => pct >= 100 ? 'var(--vt-rose)' : pct > 70 ? 'var(--vt-
 // Group settings — one store. Every surface reads the same value, and the
 // controls that change it write through here, so a switch cannot desync
 // from the setting it controls.
-const VT_SETTINGS = { subsOn: true, maxSeats: 3, priceMode: 'fixed', cancelAllowed: true, cancelCutoff: 'за 6 ч' };
+const VT_SETTINGS = { subsOn: true, maxSeats: 3, priceMode: 'fixed', cancelAllowed: true, cancelCutoff: 'за 6 ч', seoIndex: true, joinMode: 'open', city: 'Минск',
+  // личные функции игрока (вариант A гипотез) — игрок выключает лишнее в профиле
+  feat: { cal:true, coach:true, warmup:true, self:true, mvp:true, teams:true, streak:true, wrapped:true } };
 const vtSettingsSubs = new Set();
 const getSetting = (k) => VT_SETTINGS[k];
 const setSetting = (k, v) => { VT_SETTINGS[k] = v; vtSettingsSubs.forEach(fn => fn()); };
@@ -246,7 +255,7 @@ const VT_EVENTS = [
     main:'9/14', meter:64, joinedCount:9, paid:'9/9', okAll:true, st:'Запись', col:5 },
   { id:'e4', dow:'СБ', dnum:7, month:'июня', t:'11:00', m:'Аренда большого зала', venue:'СК «Заслонова»',
     main:'8/16', meter:50, joinedCount:8, paid:'5/8', pending:3, st:'Запись', col:6,
-    priceMode:'split', total:240 },
+    priceMode:'split', total:240, join:'invite' },
   { id:'e9', dow:'ВС', dnum:8, month:'июня', t:'11:00', m:'Воскресная игра', venue:'Школа №24',
     main:'12/16', meter:75, joinedCount:12, paid:'8/12', pending:4, st:'Закрыта', closed:true, col:7,
     priceMode:'split', total:180 },
@@ -429,7 +438,7 @@ const OrgLogo = ({ name, logo, size = 40 }) => {
 };
 
 // Helper: format BYN
-const byn = (n) => `${(Number(n).toFixed(2)).replace('.', ',')} Br`;
+const byn = (n) => `${(Number(n).toFixed(2)).replace('.', ',')} BYN`;
 
 // Export to window
 Object.assign(window, {

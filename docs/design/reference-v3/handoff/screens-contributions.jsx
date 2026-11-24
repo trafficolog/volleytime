@@ -213,7 +213,7 @@ const ContribPledge = () => {
         <div style={{textAlign:'center', padding:'8px 0 18px'}}>
           <div style={{display:'inline-flex', alignItems:'baseline', gap:6}}>
             <span className="vt-mono" style={{fontFamily:'var(--f-display)', fontWeight:700, fontSize:'var(--fs-6xl)', lineHeight:1}}>{amount}</span>
-            <span style={{fontSize:'var(--fs-lg)', color:'var(--vt-mute-2)', fontWeight:600}}>Br</span>
+            <span style={{fontSize:'var(--fs-lg)', color:'var(--vt-mute-2)', fontWeight:600}}>BYN</span>
           </div>
         </div>
         <div style={{display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:8}}>
@@ -225,7 +225,7 @@ const ContribPledge = () => {
               border: '1px solid var(--vt-stroke)',
               fontFamily:'var(--f-mono)', fontWeight:700, fontSize:'var(--fs-md)',
               transition:'all .12s'
-            }}>{v} Br</button>
+            }}>{v} BYN</button>
           ))}
         </div>
 
@@ -318,7 +318,7 @@ const OrgContribs = () => {
           </div>
           <div className="vt-card" style={{padding:'12px 14px'}}>
             <div className="vt-cap" style={{color:'var(--vt-mute-2)'}}>Собрано всего</div>
-            <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-xl)', marginTop:4, color:'var(--vt-grass)'}}>295 Br</div>
+            <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-xl)', marginTop:4, color:'var(--vt-grass)'}}>295 BYN</div>
           </div>
         </div>
 
@@ -386,7 +386,7 @@ const OrgContribManage = () => {
             </div>
             <div>
               <div className="vt-cap" style={{color:'var(--vt-mute-2)'}}>обещано</div>
-              <div className="vt-mono" style={{fontWeight:600, fontSize:'var(--fs-base)', marginTop:4, color:'var(--vt-amber)'}}>+70,00 Br</div>
+              <div className="vt-mono" style={{fontWeight:600, fontSize:'var(--fs-base)', marginTop:4, color:'var(--vt-amber)'}}>+70,00 BYN</div>
             </div>
             <div>
               <div className="vt-cap" style={{color:'var(--vt-mute-2)'}}>осталось</div>

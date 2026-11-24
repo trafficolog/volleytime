@@ -42,16 +42,16 @@ const fgEvents = (mine) => {
 };
 
 const FDot = ({ c, ring, size = 7 }) => <i style={{width:size, height:size, borderRadius:'50%', display:'block', flexShrink:0, background: ring ? 'transparent' : c, boxShadow: ring ? `inset 0 0 0 1.5px ${c}` : 'none'}}/>;
-const FScreen = ({ children, h = 780 }) => <div style={{height:h, display:'flex', flexDirection:'column', minHeight:0}}>{children}</div>;
+const FScreen = ({ children, h = 780, fill }) => <div style={fill ? {flex:1, display:'flex', flexDirection:'column', minHeight:0} : {height:h, display:'flex', flexDirection:'column', minHeight:0}}>{children}</div>;
 const FBody = ({ children, style }) => <div style={{flex:1, minHeight:0, overflowY:'auto', scrollbarWidth:'none', padding:'8px 16px 16px', ...style}}>{children}</div>;
 const FTitle = ({ children, size = 'var(--fs-xl)', style }) => <div style={{fontFamily:'var(--f-display)', textTransform:'uppercase', fontWeight:700, lineHeight:1, fontSize:size, ...style}}>{children}</div>;
 
-const FTabBar = ({ tabs, active }) => {
+const FTabBar = ({ tabs, active, onTab }) => {
   const nav = useNav();
   return (
     <div className="vt-tabbar">
       {tabs.map(([id, label, icon, isNew]) => (
-        <button key={id} data-active={active === id} onClick={() => active !== id && nav.toast(`Вкладка «${label}»`)} style={{position:'relative'}}>
+        <button key={id} data-active={active === id} onClick={() => active !== id && (onTab ? onTab(id) : nav.toast(`Вкладка «${label}»`))} style={{position:'relative'}}>
           <span className="ico"><Icon name={icon} size={20}/></span>{label}
           {isNew && <span style={{position:'absolute', top:4, right:'calc(50% - 18px)', width:7, height:7, borderRadius:'50%', background:'var(--vt-orange)'}}/>}
         </button>
@@ -63,7 +63,7 @@ const FTabBar = ({ tabs, active }) => {
 // ============================================================
 // Мой календарь — все группы игрока
 // ============================================================
-const MyCalendar = () => {
+const MyCalendar = ({ embed }) => {
   const nav = useNav();
   const [mine, setMine] = React.useState(FG_MINE);
   const [view, setView] = React.useState('agenda');
@@ -134,7 +134,7 @@ const MyCalendar = () => {
   const selList = shown.filter(e => e.d === sel);
 
   return (
-    <FScreen>
+    <FScreen fill={embed}>
       <MiniHeader title="Мой календарь" sub={`${FG.length} группы · ${goCount} записей в июне`}
         right={<button onClick={() => nav.sheet({ title:'Календарь', items:[
           { icon:'calendar', label:'Подписка для календаря телефона', sub:'.ics', onClick: () => nav.toast('Подписка создана · обновляется сама') },
@@ -207,7 +207,7 @@ const MyCalendar = () => {
           </>
         )}
       </FBody>
-      <FTabBar active="cal" tabs={[['home','Главная','home'],['cal','Календарь','calendar',true],['subs','Абонементы','ticket'],['me','Профиль','user']]}/>
+      {embed ? <TabBar active="cal"/> : <FTabBar active="cal" tabs={[['home','Главная','home'],['cal','Календарь','calendar',true],['subs','Абонементы','ticket'],['me','Профиль','user']]}/>}
     </FScreen>
   );
 };
@@ -313,23 +313,125 @@ const FPostGame = () => {
 // ============================================================
 // Вариант A — «Лента дня»: главная становится личной
 // ============================================================
-const FutureVarA = () => {
+// Что игрок может выключить. Расписание и запись — ядро, не выключаются.
+const FA_FEATS = [
+  { k:'cal',     t:'Общий календарь',        d:'Вкладка со всеми играми из всех групп', icon:'calendar' },
+  { k:'coach',   t:'AI-тренер',              d:'План упражнений на неделю',            icon:'ball' },
+  { k:'warmup',  t:'Разминка',               d:'Карточка перед игрой и таймер в зале', icon:'clock' },
+  { k:'self',    t:'Самооценка и прогресс',  d:'Вопрос «Как сыграли?» после игры',      icon:'chart' },
+  { k:'mvp',     t:'MVP игры',               d:'Голосование после игры',               icon:'trophy' },
+  { k:'teams',   t:'Составы на игру',        d:'Уведомление, когда составы готовы',    icon:'users' },
+  { k:'streak',  t:'Серии и челленджи',      d:'Счётчик недель подряд',               icon:'star' },
+  { k:'wrapped', t:'Итоги сезона',           d:'Сторис с цифрами раз в сезон',         icon:'gift' },
+];
+const FA_ALL = Object.fromEntries(FA_FEATS.map(f => [f.k, true]));
+const FA_NONE = Object.fromEntries(FA_FEATS.map(f => [f.k, false]));
+
+const FaSwitch = ({ on, onChange, label }) => (
+  <button role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)}
+    style={{width:52, minWidth:52, height:44, minHeight:44, padding:0, background:'transparent', border:0, cursor:'pointer', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:0}}>
+    <span style={{width:44, height:26, borderRadius:'var(--r-pill)', background: on ? 'var(--vt-ink)' : 'var(--vt-stroke-2)', position:'relative', display:'block', transition:'background .15s'}}>
+      <span style={{position:'absolute', top:3, left: on ? 21 : 3, width:20, height:20, borderRadius:'var(--r-pill)', background:'var(--vt-paper)', transition:'left .15s', boxShadow:'0 1px 2px rgba(0,0,0,.15)'}}/>
+    </span>
+  </button>
+);
+
+const FaFeatures = ({ f, setF, onBack, embed }) => {
   const nav = useNav();
+  const onCount = FA_FEATS.filter(x => f[x.k]).length;
+  const preset = onCount === 0 ? 'core' : onCount === FA_FEATS.length ? 'all' : 'own';
+  return (
+    <FScreen fill={embed}>
+      <div style={{display:'flex', alignItems:'center', gap:8, padding:'10px 12px 4px'}}>
+        <button onClick={onBack} aria-label="Назад" className="vt-btn vt-btn--sm" style={{background:'transparent', padding:'8px 8px'}}><Icon name="chevron-l" size={20}/></button>
+        <FTitle size="var(--fs-lg)">Что показывать</FTitle>
+      </div>
+      <FBody style={{display:'flex', flexDirection:'column', gap:12}}>
+        <div style={{fontSize:'var(--fs-sm)', color:'var(--vt-ink-3)', lineHeight:1.45}}>Расписание, запись и оплата есть всегда. Остальное включите, если нужно, — главная и вкладки подстроятся.</div>
+        <div style={{display:'flex', gap:2, padding:3, background:'var(--vt-bone-2)', borderRadius:'var(--r-chip)'}}>
+          {[['core','Только игры'],['all','Всё'],['own','Своё']].map(([k, l]) => (
+            <button key={k} onClick={() => { if (k === 'core') { setF(FA_NONE); nav.toast('Оставили только расписание игр'); } if (k === 'all') { setF(FA_ALL); nav.toast('Включены все функции'); } }}
+              className="vt-btn vt-btn--sm" style={{flex:1, background: preset === k ? 'var(--vt-paper)' : 'transparent', boxShadow: preset === k ? 'var(--vt-seg-shadow)' : 'none', color: k === 'own' && preset !== 'own' ? 'var(--vt-mute-2)' : 'var(--vt-ink)', fontWeight: preset === k ? 700 : 500, cursor: k === 'own' ? 'default' : 'pointer'}}>{l}</button>
+          ))}
+        </div>
+        <div className="vt-card" style={{padding:'4px 14px'}}>
+          <div style={{display:'flex', alignItems:'center', gap:12, padding:'12px 0', boxShadow:'inset 0 -1px 0 var(--vt-bone-2)'}}>
+            <span style={{width:34, height:34, borderRadius:10, background:'var(--vt-blue-ink)', color:'var(--vt-paper)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0}}><Icon name="home" size={16}/></span>
+            <div style={{flex:1, minWidth:0}}><div style={{fontSize:'var(--fs-sm)', fontWeight:700}}>Расписание и запись</div><div style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)'}}>Ближайшая игра, моя неделя, оплата</div></div>
+            <span style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)', fontWeight:600}}>всегда</span>
+          </div>
+          {FA_FEATS.map((x, i) => (
+            <div key={x.k} style={{display:'flex', alignItems:'center', gap:12, padding:'12px 0', boxShadow: i < FA_FEATS.length - 1 ? 'inset 0 -1px 0 var(--vt-bone-2)' : 'none'}}>
+              <span style={{width:34, height:34, borderRadius:10, background:'var(--vt-ctl)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, color: f[x.k] ? 'var(--vt-ink)' : 'var(--vt-icon-idle)'}}><Icon name={x.icon} size={16}/></span>
+              <div style={{flex:1, minWidth:0}}><div style={{fontSize:'var(--fs-sm)', fontWeight:700, color: f[x.k] ? 'var(--vt-ink)' : 'var(--vt-ink-3)'}}>{x.t}</div><div style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)'}}>{x.d}</div></div>
+              <FaSwitch on={f[x.k]} label={x.t} onChange={(v) => setF({ ...f, [x.k]: v })}/>
+            </div>
+          ))}
+        </div>
+        <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', lineHeight:1.45}}>Выключенная функция не присылает уведомлений. Данные не удаляются — включите снова, и всё на месте.</div>
+      </FBody>
+    </FScreen>
+  );
+};
+
+const FaProfile = ({ f, onFeatures, tabs, onTab }) => {
+  const off = FA_FEATS.filter(x => !f[x.k]).length;
   return (
     <FScreen>
-      <FGroupsHead right={<FStreak/>}/>
+      <FBody style={{display:'flex', flexDirection:'column', gap:12, paddingTop:16}}>
+        <div style={{display:'flex', alignItems:'center', gap:12}}>
+          <Avi size="lg" name="Артём" init="АР" tag="flame"/>
+          <div><FTitle size="var(--fs-lg)">Артём</FTitle><div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', marginTop:4}}>3 группы · @artem_v</div></div>
+        </div>
+        <div className="vt-card" style={{padding:'4px 14px'}}>
+          {[['bell','Уведомления',''],['ball','Что показывать в приложении', off ? `выключено ${off}` : 'всё включено', onFeatures],['users','Мои группы','3'],['card','Способы оплаты','']].map(([ic, t, v, on], i, arr) => (
+            <button key={t} onClick={on} style={{display:'flex', alignItems:'center', gap:12, width:'100%', padding:'14px 0', background:'transparent', border:0, cursor: on ? 'pointer' : 'default', textAlign:'left', font:'inherit', color:'var(--vt-ink)', boxShadow: i < arr.length - 1 ? 'inset 0 -1px 0 var(--vt-bone-2)' : 'none'}}>
+              <Icon name={ic} size={18}/><span style={{flex:1, fontSize:'var(--fs-sm)', fontWeight: on ? 700 : 600}}>{t}</span>
+              {v && <span style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)'}}>{v}</span>}<Icon name="chevron-r" size={16} stroke="var(--vt-icon-idle)"/>
+            </button>
+          ))}
+        </div>
+      </FBody>
+      <FTabBar active="me" tabs={tabs} onTab={onTab}/>
+    </FScreen>
+  );
+};
+
+const FutureVarA = () => {
+  const nav = useNav();
+  const [f, setF] = React.useState(FA_ALL);
+  const [scr, setScr] = React.useState('home');
+  const tabs = [['home','Главная','home'], ...(f.cal ? [['cal','Календарь','calendar',true]] : []), ['subs','Абонементы','ticket'], ['contrib','Сборы','gift'], ['me','Профиль','user']];
+  const onTab = (id) => (id === 'home' || id === 'me') ? setScr(id) : nav.toast(id === 'cal' ? 'Общий календарь' : 'Вкладка');
+  if (scr === 'features') return <FaFeatures f={f} setF={setF} onBack={() => setScr('me')}/>;
+  if (scr === 'me') return <FaProfile f={f} tabs={tabs} onTab={onTab} onFeatures={() => setScr('features')}/>;
+  const extras = FA_FEATS.filter(x => f[x.k]).length;
+  return (
+    <FScreen>
+      <FGroupsHead right={f.streak ? <FStreak/> : null}/>
       <FBody style={{display:'flex', flexDirection:'column', gap:12, paddingTop:14}}>
-        <FNextHero extra={<div style={{marginTop:6, paddingTop:10, boxShadow:'inset 0 1px 0 var(--vt-on-hero-line)', fontSize:'var(--fs-xs)', display:'flex', justifyContent:'space-between'}}><span>Составы появятся в 20:00</span><span style={{opacity:.8}}>разминка в составе игры</span></div>}/>
-        <FWarmInGame time="21:00" compact/>
-        <FPostGame/>
-        <button onClick={() => nav.toast('План AI-тренера')} className="vt-card vt-card--cool" style={{padding:16, textAlign:'left', cursor:'pointer'}}>
-          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-            <span className="vt-cap" style={{color:'var(--vt-flame-ink)'}}>Тренер · подача · неделя 2</span>
-            <Icon name="chevron-r" size={16} stroke="var(--vt-flame-ink)" sw={2.2}/>
+        <FNextHero extra={(f.teams || f.warmup) ? <div style={{marginTop:6, paddingTop:10, boxShadow:'inset 0 1px 0 var(--vt-on-hero-line)', fontSize:'var(--fs-xs)', display:'flex', justifyContent:'space-between', gap:8}}>{f.teams ? <span>Составы появятся в 20:00</span> : <span/>}{f.warmup && <span style={{opacity:.8}}>разминка в составе игры</span>}</div> : null}/>
+        {f.warmup && <FWarmInGame time="21:00" compact/>}
+        {(f.self || f.mvp) && (
+          <div className="vt-card vt-card--warm" style={{padding:16}}>
+            <div className="vt-cap" style={{color:'var(--vt-orange-ink)'}}>После игры · Вс, Микст · VT Минск</div>
+            <div style={{fontSize:'var(--fs-md)', fontWeight:700, marginTop:6}}>Как сыграли?</div>
+            <div style={{display:'flex', gap:8, marginTop:12}}>
+              {f.self && <button onClick={() => nav.toast('Самооценка · 30 сек')} className="vt-btn vt-btn--ink vt-btn--sm" style={{flex:1}}>Самооценка</button>}
+              {f.mvp && <button onClick={() => nav.toast('Голосование MVP')} className="vt-btn vt-btn--sm" style={{flex:1, background: f.self ? 'var(--vt-paper)' : 'var(--vt-ink)', color: f.self ? 'var(--vt-ink)' : 'var(--vt-paper)'}}>MVP · до 23:00</button>}
+            </div>
           </div>
-          <div style={{fontSize:'var(--fs-sm)', marginTop:6, color:'var(--vt-ink)'}}>Следующая: <b>Чт · техника подачи · 30 мин</b></div>
-          <FWeekStrip/>
-        </button>
+        )}
+        {f.coach && (
+          <button onClick={() => nav.toast('План AI-тренера')} className="vt-card vt-card--cool" style={{padding:16, textAlign:'left', cursor:'pointer'}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+              <span className="vt-cap" style={{color:'var(--vt-flame-ink)'}}>Тренер · подача · неделя 2</span>
+              <Icon name="chevron-r" size={16} stroke="var(--vt-flame-ink)" sw={2.2}/>
+            </div>
+            <div style={{fontSize:'var(--fs-sm)', marginTop:6, color:'var(--vt-ink)'}}>Следующая: <b>Чт · техника подачи · 30 мин</b></div>
+            <FWeekStrip/>
+          </button>
+        )}
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', marginTop:6}}>
           <FTitle>Моя неделя</FTitle>
           <span style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)'}}>все группы</span>
@@ -342,8 +444,13 @@ const FutureVarA = () => {
             <span className="vt-mono" style={{fontSize:'var(--fs-sm)', color:'var(--vt-mute-2)'}}>{t}</span>
           </div>
         ))}
+        <button onClick={() => setScr('features')} style={{marginTop:8, padding:'12px 14px', borderRadius:'var(--r-chip)', background:'var(--vt-bone)', border:0, cursor:'pointer', display:'flex', alignItems:'center', gap:10, textAlign:'left', font:'inherit', color:'var(--vt-ink)'}}>
+          <Icon name="settings" size={16}/>
+          <span style={{flex:1, fontSize:'var(--fs-xs)', lineHeight:1.4}}>{extras ? 'Лишнее на главной? Выключите в профиле.' : 'Сейчас только расписание игр. Другие функции — в профиле.'}</span>
+          <Icon name="chevron-r" size={14} stroke="var(--vt-icon-idle)"/>
+        </button>
       </FBody>
-      <FTabBar active="home" tabs={[['home','Главная','home'],['cal','Календарь','calendar',true],['subs','Абонементы','ticket'],['contrib','Сборы','gift'],['me','Профиль','user']]}/>
+      <FTabBar active="home" tabs={tabs} onTab={onTab}/>
     </FScreen>
   );
 };
@@ -356,7 +463,7 @@ const FutureVarB = () => {
   const skills = [['Подача',62,'+8'],['Приём',55,'+3'],['Пас',48,'+1'],['Атака',58,'+5'],['Блок',40,'0'],['Защита',51,'+2']];
   return (
     <FScreen>
-      <MiniHeader title="Форма" sub="уровень B · серия 6 недель" right={<FStreak/>}/>
+      <MiniHeader title="Форма" sub="В2 · серия 6 недель" right={<FStreak/>}/>
       <FBody style={{display:'flex', flexDirection:'column', gap:12}}>
         <div className="vt-cap" style={{color:'var(--vt-mute-2)', margin:'2px 2px -4px'}}>Сегодня игра в 21:00 · МинскВолей</div>
         <FWarmInGame tone="hero" time="21:00"/>
@@ -460,4 +567,4 @@ const FutureVarC = () => {
   );
 };
 
-Object.assign(window, { MyCalendar, FutureVarA, FutureVarB, FutureVarC, FDot, FTabBar, FGroupsHead, FStreak, FNextHero, FWeekStrip, FWarmInGame, FPostGame });
+Object.assign(window, { FA_FEATS, FaFeatures, MyCalendar, FutureVarA, FutureVarB, FutureVarC, FDot, FTabBar, FGroupsHead, FStreak, FNextHero, FWeekStrip, FWarmInGame, FPostGame });
