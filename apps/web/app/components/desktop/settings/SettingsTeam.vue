@@ -65,7 +65,6 @@ const inviteLink = ref('')
 
 const api = computed(() => (props.orgId === undefined ? null : `/api/organizations/${props.orgId}`))
 const rows = computed(() => teamRows(members.value))
-const teamUserIds = computed(() => rows.value.map((r) => r.userId))
 const names = computed(() => ({
   byMemberId: new Map(members.value.map((m) => [m.id, m.user.name?.trim() || 'Участник'])),
   byUserId: new Map(members.value.map((m) => [m.user.id, m.user.name?.trim() || 'Участник'])),
@@ -387,7 +386,6 @@ function chooseStatus(value: string) {
       :org-id="orgId"
       :member="seriesFor"
       :time-zone="timeZone"
-      :team-user-ids="teamUserIds"
       @toast="toast"
       @assigned="loadMembers"
     />

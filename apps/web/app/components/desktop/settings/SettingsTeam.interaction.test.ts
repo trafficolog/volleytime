@@ -402,6 +402,7 @@ describe('SettingsTeam: назначить на серию', () => {
         status: 'published',
         seriesId: 5,
         seriesDate: '2026-12-02',
+        coachUserIds: [13],
       },
       {
         id: 2,
@@ -410,6 +411,16 @@ describe('SettingsTeam: назначить на серию', () => {
         status: 'published',
         seriesId: 6,
         seriesDate: '2026-12-06',
+        coachUserIds: [14, 99],
+      },
+      {
+        id: 3,
+        title: 'Микст',
+        startsAt: '2026-12-13T09:00:00.000Z',
+        status: 'published',
+        seriesId: 6,
+        seriesDate: '2026-12-13',
+        coachUserIds: [14, 55],
       },
     ],
   })
@@ -420,14 +431,14 @@ describe('SettingsTeam: назначить на серию', () => {
     await flushPromises()
   }
 
-  it('adds the coach to the template of the chosen series without dropping the others', async () => {
+  it('adds the coach to the template and to every date, keeping the coaches of single dates', async () => {
     route({
       '/api/organizations/7/events': events,
       '/api/organizations/7/series/6?scope': () => ({ updated: 3, events: [] }),
       '/api/organizations/7/series/6': () => ({ series: { template: { coachUserIds: [14, 99] } } }),
     })
     const wrapper = await mountTeam()
-    // Ольга (13) → серия «Микст»: в команде есть 14, а 99 уже не в команде и отбрасывается
+    // Ольга (13) → серия «Микст»: 99 вне команды и 55 только на одной дате сохраняются
     await openSeries(wrapper, 'Ольга')
     const dialog = document.body.querySelector('[role="dialog"]')!
     expect(dialog.textContent).toContain('Назначить на серию: Ольга Романова')
@@ -441,10 +452,16 @@ describe('SettingsTeam: назначить на серию', () => {
     )!
     submit.click()
     await flushPromises()
-    expect(fetchMock).toHaveBeenCalledWith(
-      '/api/organizations/7/series/6?scope=following&from=2026-12-06',
-      { method: 'PATCH', body: { coachUserIds: [14, 13] } },
-    )
+    const patches = fetchMock.mock.calls
+      .filter(([, init]) => init?.method === 'PATCH')
+      .map(([url, init]) => [url, init.body.coachUserIds])
+    expect(patches).toEqual([
+      // шаблон: только он, даты не затронуты (дата позже всех дат серии)
+      ['/api/organizations/7/series/6?scope=following&from=9999-12-31', [14, 99, 13]],
+      // каждая дата получает добавку к СВОЕМУ списку тренеров
+      ['/api/organizations/7/series/6?scope=single&from=2026-12-06', [14, 99, 13]],
+      ['/api/organizations/7/series/6?scope=single&from=2026-12-13', [14, 55, 13]],
+    ])
     expect(
       wrapper.emitted('toast')?.some(([m]) => String(m).includes('назначен на серию «Микст»')),
     ).toBe(true)

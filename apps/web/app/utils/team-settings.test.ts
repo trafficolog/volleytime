@@ -6,6 +6,7 @@ import {
   formatHistoryWhen,
   historyLine,
   leadsLines,
+  planSeriesAssignment,
   seriesOptions,
   teamMenuItems,
   teamRows,
@@ -272,5 +273,44 @@ describe('seriesOptions', () => {
       { seriesId: 5, title: 'Основа', label: 'Основа · Ср, Пт', from: '2026-12-02' },
       { seriesId: 6, title: 'Микст', label: 'Микст · Вс', from: '2026-12-06' },
     ])
+  })
+})
+
+describe('planSeriesAssignment', () => {
+  it('adds the coach to the template and keeps the own coaches of every date', () => {
+    const plan = planSeriesAssignment(
+      [1],
+      [
+        { seriesDate: '2026-12-02', coachUserIds: [1] },
+        { seriesDate: '2026-12-09', coachUserIds: [1, 7] },
+        { seriesDate: '2026-12-16', coachUserIds: [] },
+      ],
+      9,
+    )
+    expect(plan.template).toEqual([1, 9])
+    expect(plan.dates).toEqual([
+      { date: '2026-12-02', coachUserIds: [1, 9] },
+      { date: '2026-12-09', coachUserIds: [1, 7, 9] },
+      { date: '2026-12-16', coachUserIds: [9] },
+    ])
+  })
+
+  it('does not drop template coaches outside the team and skips dates that already have the coach', () => {
+    const plan = planSeriesAssignment(
+      [1, 500],
+      [{ seriesDate: '2026-12-02', coachUserIds: [9] }, { seriesDate: '2026-12-09' }],
+      9,
+    )
+    expect(plan.template).toEqual([1, 500, 9])
+    expect(plan.dates).toEqual([{ date: '2026-12-09', coachUserIds: [9] }])
+  })
+
+  it('plans nothing when the coach is everywhere already', () => {
+    expect(planSeriesAssignment([9], [{ seriesDate: '2026-12-02', coachUserIds: [9] }], 9)).toEqual(
+      {
+        template: null,
+        dates: [],
+      },
+    )
   })
 })

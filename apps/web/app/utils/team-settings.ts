@@ -215,6 +215,7 @@ export interface SeriesEventRow {
   status: string
   seriesId: number | null
   seriesDate: string | null
+  coachUserIds?: number[]
 }
 
 /** Серии группы из предстоящих событий: название, дни недели, дата начала правки. */
@@ -236,4 +237,30 @@ export function seriesOptions(events: SeriesEventRow[], timeZone: string): Serie
     label: `${g.title} · ${weekdaysLabel(g.dates, timeZone)}`,
     from: g.from,
   }))
+}
+
+export interface SeriesAssignmentPlan {
+  /** Новый список тренеров шаблона серии или `null`, если тренер в шаблоне уже есть. */
+  template: number[] | null
+  /** Даты, где тренера нет: свой список даты плюс новый тренер (чужие тренеры дат сохраняются). */
+  dates: { date: string; coachUserIds: number[] }[]
+}
+
+/**
+ * План «назначить на серию»: тренер ДОБАВЛЯЕТСЯ к списку шаблона и к собственному списку каждой
+ * будущей даты, ничьи тренеры не удаляются. `following` с общим списком затёр бы тренеров отдельных дат.
+ */
+export function planSeriesAssignment(
+  templateCoachIds: number[],
+  events: { seriesDate: string | null; coachUserIds?: number[] }[],
+  userId: number,
+): SeriesAssignmentPlan {
+  return {
+    template: templateCoachIds.includes(userId) ? null : [...templateCoachIds, userId],
+    dates: events.flatMap((e) =>
+      e.seriesDate === null || (e.coachUserIds ?? []).includes(userId)
+        ? []
+        : [{ date: e.seriesDate, coachUserIds: [...(e.coachUserIds ?? []), userId] }],
+    ),
+  }
 }
