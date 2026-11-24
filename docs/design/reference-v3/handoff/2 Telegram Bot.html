@@ -94,6 +94,7 @@
 
 <script type="text/babel" src="atoms.jsx?v=surf1"></script>
 <script type="text/babel" src="screens-bot.jsx?v=surf1"></script>
+<script type="text/babel" src="screens-support.jsx?v=1"></script>
 
 </head>
 <body class="vt-frame">
@@ -147,6 +148,24 @@
     </div>
   </div>
 
+  <div class="grid" style="margin-top:56px">
+    <div class="col">
+      <h3>Поддержка</h3>
+      <p>«Помощь» в меню или <span style="font-family:Golos Text, sans-serif; background:#ECECF0; padding:1px 6px; border-radius:4px;">/support</span> — база знаний и обращение в Mini App. Ответ поддержки приходит сюда и остаётся в «Моих обращениях».</p>
+      <div class="phone-mock"><div class="phone-screen" id="bot-4"></div></div>
+    </div>
+    <div class="col" style="grid-column:span 2; align-self:center">
+      <div class="caption" style="max-width:none; margin:0">
+        <span class="cap-k">Один канал ответа</span>
+        Обращение создаётся в Mini App, кабинете или на <b>help.volleytime.by</b>, а отвечает команда в Root Admin → «Поддержка». Каждый ответ приходит в бот с кнопками <b>«Ответить»</b> (открывает переписку в Mini App) и <b>«Вопрос решён»</b>. Если пользователь пришёл без Telegram (не может войти), ответ уходит на email.
+      </div>
+      <div class="caption" style="max-width:none; margin:14px 0 0">
+        <span class="cap-k">Статусы</span>
+        Принято → в работе → есть ответ → решено. Без ответа пользователя 3 дня — обращение закрывается само, бот предупреждает за сутки.
+      </div>
+    </div>
+  </div>
+
   <div style="margin-top:64px; padding:28px; background:var(--vt-ink); color:var(--vt-paper); border-radius:18px;">
     <div class="cap" style="opacity:0.55; font-family:'Golos Text'; font-size:10px; letter-spacing:0.1em; text-transform:uppercase;">Anti-goals · сознательно не делаем</div>
     <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:20px; margin-top:14px; font-size:14px; line-height:1.5;">
@@ -192,6 +211,7 @@
 ReactDOM.createRoot(document.getElementById('bot-1')).render(<BotDeeplink />);
 ReactDOM.createRoot(document.getElementById('bot-2')).render(<BotNotifications />);
 ReactDOM.createRoot(document.getElementById('bot-3')).render(<BotMenu />);
+ReactDOM.createRoot(document.getElementById('bot-4')).render(<BotSupport />);
 </script>
 </body>
 </html>

@@ -73,14 +73,14 @@ const PlayerNotifications = () => {
   const groups = [
     { day:'Сегодня', items:[
       { icon:'clock', tone:'flame', title:'Через 2 часа · Основа', body:'Сегодня 20:00 · Школа №24. Запись закроется в 19:00.', time:'18:00', actions:[{label:'Подтверждаю', primary:true},{label:'Не смогу'}] },
-      { icon:'check', tone:'grass', title:'Оплата подтверждена', body:'Иван П. подтвердил вашу оплату 15 Br за «Основа · 28 мая».', time:'14:22', read:true },
+      { icon:'check', tone:'grass', title:'Оплата подтверждена', body:'Иван П. подтвердил вашу оплату 15 BYN за «Основа · 28 мая».', time:'14:22', read:true },
     ]},
     { day:'Вчера', items:[
       { icon:'bell', tone:'amber', title:'Освободилось место', body:'«Открытая игра · 30 мая». Вы первый в листе ожидания — подтвердите за 30 мин.', time:'08:14', actions:[{label:'Хочу войти', primary:true},{label:'Пас'}], read:true },
       { icon:'ticket', tone:'amber', title:'Абонемент скоро закончится', body:'Осталось 5 сессий, действует до 12 июня. Продлите заранее.', time:'09:00', read:true, actions:[{label:'Купить'}] },
     ]},
     { day:'Ранее', items:[
-      { icon:'gift', tone:'flame', title:'Новый сбор', body:'«Новый комплект мячей» — цель 250 Br. Можно скинуться.', time:'25 мая', read:true },
+      { icon:'gift', tone:'flame', title:'Новый сбор', body:'«Новый комплект мячей» — цель 250 BYN. Можно скинуться.', time:'25 мая', read:true },
       { icon:'home', tone:'grass', title:'Тренировка завершена', body:'«Основа · 21 мая». Списано 1 с абонемента. Спасибо за игру!', time:'21 мая', read:true },
     ]},
   ];
@@ -118,8 +118,8 @@ const OrgNotifications = () => {
       { icon:'close', tone:'rose', title:'Отмена записи', body:'Катя отменила «Основа · 28 мая». Место ушло первому из листа ожидания.', time:'11:40', read:true },
     ]},
     { day:'Вчера', items:[
-      { icon:'gift', tone:'grass', title:'Новое обещание взноса', body:'Соня обещала 20 Br в сбор «Новый комплект мячей».', time:'19:31', read:true, actions:[{label:'Подтвердить'}] },
-      { icon:'card', tone:'amber', title:'Мало credits', body:'Осталось 8 credits — хватит примерно на 8 событий. Пополните.', time:'09:00', read:true, actions:[{label:'Пополнить'}] },
+      { icon:'gift', tone:'grass', title:'Новое обещание взноса', body:'Соня обещала 20 BYN в сбор «Новый комплект мячей».', time:'19:31', read:true, actions:[{label:'Подтвердить'}] },
+      { icon:'card', tone:'amber', title:'Баланс событий заканчивается', body:'Осталось 8 событий — хватит примерно на 8 событий. Пополните.', time:'09:00', read:true, actions:[{label:'Пополнить'}] },
     ]},
     { day:'Ранее', items:[
       { icon:'users', tone:'flame', title:'Новый игрок в группе', body:'Лёша вступил по приглашению.', time:'24 мая', read:true },
@@ -259,7 +259,7 @@ const OrgMembers = () => {
                     <div className="vt-mono" style={{fontSize:'var(--fs-sm)', fontWeight:600}}>{m.visits}</div>
                     <div className="vt-cap" style={{color:'var(--vt-mute-2)', fontSize:'var(--fs-2xs)'}}>трен.</div>
                   </div>
-                  {m.debt > 0 && <span className="vt-chip vt-chip--rose" style={{fontSize:'var(--fs-2xs)'}}>−{m.debt} Br</span>}
+                  {m.debt > 0 && <span className="vt-chip vt-chip--rose" style={{fontSize:'var(--fs-2xs)'}}>−{m.debt} BYN</span>}
                   {m.sub && m.debt === 0 && <span className="vt-chip" style={{fontSize:'var(--fs-2xs)'}}>{m.sub}</span>}
                   <Icon name="more" size={14} stroke="var(--vt-icon-idle)"/>
                 </button>
@@ -302,7 +302,7 @@ const OrgReports = () => {
         {/* Hero — net cash */}
         <div className="vt-card vt-card--hero" style={{padding:18, marginTop:6}}>
           <div className="vt-cap" style={{opacity:0.6}}>Итог месяца · касса</div>
-          <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-4xl)', marginTop:6}}>+248,50 Br</div>
+          <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-4xl)', marginTop:6}}>+248,50 BYN</div>
           <div style={{display:'flex', gap:18, marginTop:14}}>
             <div>
               <div className="vt-cap" style={{opacity:0.6}}>поступило</div>
@@ -325,7 +325,7 @@ const OrgReports = () => {
             ['Событий','12','+3 к апрелю'],
             ['Бронирований','168','87% заполнение'],
             ['Уникальных игроков','22','+4'],
-            ['Куплено абонементов','5','110 Br ср.'],
+            ['Куплено абонементов','5','110 BYN ср.'],
           ].map(([l,v,d], i) => (
             <div key={i} className="vt-card" style={{padding:'12px 14px'}}>
               <div className="vt-cap" style={{color:'var(--vt-mute-2)'}}>{l}</div>
@@ -377,7 +377,7 @@ const OrgReports = () => {
             <div key={i} style={{marginBottom: i<2?12:0}}>
               <div style={{display:'flex', justifyContent:'space-between', fontSize:'var(--fs-sm)', marginBottom:6}}>
                 <span>{l}</span>
-                <span className="vt-mono" style={{fontWeight:600}}>−{v},00 Br</span>
+                <span className="vt-mono" style={{fontWeight:600}}>−{v},00 BYN</span>
               </div>
               <div className="vt-meter"><i style={{width:`${pct}%`, background:'var(--vt-rose)'}}/></div>
             </div>
@@ -403,7 +403,7 @@ const PlayerBookings = () => {
   const up = PLAYER_EVENTS.filter(e => e.joined).map(e => ({ ...e, seats: e.mySeats || 1, time: e.time.split(' ')[0], pay: e.pay || 'pending' }));
   const wait = PLAYER_EVENTS.filter(e => e.inWaitlist).map(e => ({ ...e, pos: e.waitPos, time: e.time.split(' ')[0] }));
   const past = [
-    ['25 мая','Микст','пришёл','−1 сесс.'], ['23 мая','Открытая игра','пришёл','15,00 Br'],
+    ['25 мая','Микст','пришёл','−1 сесс.'], ['23 мая','Открытая игра','пришёл','15,00 BYN'],
     ['21 мая','Основа','пришёл','−1 сесс.'], ['18 мая','Основа','отменил','возврат'],
   ];
   const payChip = (p) => p === 'sub' ? <span className="vt-chip" style={{fontSize:'var(--fs-2xs)'}}>абонемент</span>
@@ -555,7 +555,7 @@ const OrgOnboarding = () => {
             </div>
             <div className="vt-card vt-card--warm" style={{padding:16, display:'flex', alignItems:'center', gap:14}}>
               <div className="vt-mono" style={{fontSize:'var(--fs-4xl)', fontWeight:700, lineHeight:1}}>5</div>
-              <div style={{fontSize:'var(--fs-sm)', lineHeight:1.45}}><b>credits в подарок</b><br/><span style={{color:'var(--vt-mute-2)'}}>1 credit = 1 событие. Хватит на первые недели.</span></div>
+              <div style={{fontSize:'var(--fs-sm)', lineHeight:1.45}}><b>события в подарок</b><br/><span style={{color:'var(--vt-mute-2)'}}>Хватит на первые недели.</span></div>
             </div>
             <div className="vt-card" style={{padding:14}}>
               <div style={{fontSize:'var(--fs-sm)', fontWeight:600}}>Пригласите игроков</div>

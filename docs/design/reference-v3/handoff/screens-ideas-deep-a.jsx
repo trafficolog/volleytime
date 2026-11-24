@@ -372,7 +372,7 @@ const ProgHub = () => {
       <button onClick={() => nav.push('prog-level')} className="vt-card vt-card--hero" style={{padding:20, width:'100%', textAlign:'left', position:'relative', overflow:'hidden', cursor:'pointer'}}>
         <IOrb/>
         <div style={{position:'relative'}}>
-          <div className="vt-cap" style={{color:'var(--vt-on-hero-3)'}}>До уровня A</div>
+          <div className="vt-cap" style={{color:'var(--vt-on-hero-3)'}}>До уровня В3</div>
           <div style={{marginTop:12}}><span className="vt-mono" style={{fontSize:'var(--fs-6xl)', fontWeight:700, lineHeight:1}}>68</span><span className="vt-mono" style={{fontSize:'var(--fs-2xl)'}}>%</span></div>
           <div style={{fontSize:'var(--fs-sm)', color:'var(--vt-on-hero-2)', margin:'8px 0 12px'}}>2 из 4 условий выполнены</div>
           <IBar pct={68} dark/>
@@ -420,7 +420,7 @@ const ProgSkill = () => {
   </>);
 };
 const ProgLevel = () => (<>
-  <MiniHeader title="Путь до уровня A" sub="условия группы" onBack/>
+  <MiniHeader title="Путь до уровня В3" sub="условия группы" onBack/>
   <IBody>
     {[
       ['ok','Посещаемость','≥ 8 игр в месяц','11 игр'],
@@ -448,6 +448,6 @@ IDEA_FLOWS.prog = {
     { id:'prog-hub', name:'Обзор', sub:'уровень и навыки', path:['prog-hub'], C:ProgHub },
     { id:'prog-radar', name:'Радар', sub:'месяц / сезон', path:['prog-hub','prog-radar'], C:() => <Progress/> },
     { id:'prog-skill', name:'Навык', sub:'динамика и источники', path:['prog-hub','prog-skill'], C:ProgSkill },
-    { id:'prog-level', name:'Путь до уровня A', sub:'условия и статус', path:['prog-hub','prog-level'], C:ProgLevel },
+    { id:'prog-level', name:'Путь до уровня В3', sub:'условия и статус', path:['prog-hub','prog-level'], C:ProgLevel },
   ],
 };

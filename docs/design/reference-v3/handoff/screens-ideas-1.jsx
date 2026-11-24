@@ -64,7 +64,7 @@ const makeTools = (onStep) => [
   { name:'get_schedule', description:'Расписание игр игрока на неделю (дни и время)', input_schema:{ type:'object', properties:{}, required:[] },
     run: async () => { onStep(STEP.schedule); return JSON.stringify(Object.entries(GAME_DAYS).map(([d, v]) => ({ day:d, game:v }))); } },
   { name:'get_player_profile', description:'Уровень, амплуа, посещаемость и последние самооценки игрока', input_schema:{ type:'object', properties:{}, required:[] },
-    run: async () => { onStep(STEP.profile); return JSON.stringify({ level:'B', role:'доигровщик', gamesLast30:11, selfRatings:{ подача:2.8, приём:3.6, пас:3.2, нападение:3.4, блок:2.6 }, injuries:'иногда тянет плечо' }); } },
+    run: async () => { onStep(STEP.profile); return JSON.stringify({ level:'В2', role:'доигровщик', gamesLast30:11, selfRatings:{ подача:2.8, приём:3.6, пас:3.2, нападение:3.4, блок:2.6 }, injuries:'иногда тянет плечо' }); } },
 ];
 
 const askCoach = async (form, feedback, prev, onStep = () => {}) => {

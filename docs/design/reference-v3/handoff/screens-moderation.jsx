@@ -199,7 +199,7 @@ const ModActionDialog = ({ kind, row, preset, onClose, onDone }) => {
 };
 
 const ModHistoryDialog = ({ row, onClose }) => (
-  <ModModal title={`История · ${row.g}`} sub={`volleytime.by/g/${row.slug} · ${row.city || ''}`} onClose={onClose} width={520}>
+  <ModModal title={`История · ${row.g}`} sub={`volleytime.by/${modSlug(row.city || 'Минск')}/${row.slug}`} onClose={onClose} width={520}>
     <div className="vt-card" style={{padding:14, background:'var(--vt-bone)'}}>
       <div className="vt-cap" style={{color:'var(--vt-mute-2)', marginBottom:8}}>Состояние модерации</div>
       <div style={{display:'grid', gridTemplateColumns:'110px 1fr', gap:'6px 12px', fontSize:'var(--fs-sm)'}}>
@@ -390,7 +390,7 @@ const ModCities = () => {
                     background: p.st === 'hidden' ? 'color-mix(in oklab, var(--vt-rose) 4%, transparent)' : p.st === 'noindex' ? 'color-mix(in oklab, var(--vt-amber) 5%, transparent)' : 'transparent'}}>
                     <div style={{minWidth:0}}>
                       <div style={{fontWeight:600}}>{p.g}</div>
-                      <div className="vt-code" style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)'}}>/g/{p.slug}</div>
+                      <div className="vt-code" style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)'}}>/{modSlug(p.city)}/{p.slug}</div>
                     </div>
                     {sel === '*' && <button onClick={() => pick(p.city)} style={{textAlign:'left', fontSize:'var(--fs-sm)', color:'var(--vt-flame-ink)', fontWeight:600}}>{p.city}</button>}
                     <div style={{minWidth:0}}>

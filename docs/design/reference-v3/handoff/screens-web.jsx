@@ -1,11 +1,47 @@
 // screens-web.jsx — Web SaaS desktop screens (1280x820)
 
+// Search hidden behind an icon: expands in place, closes on ×, Esc or outside click
+const WebSearchToggle = () => {
+  const [open, setOpen] = React.useState(false);
+  const [q, setQ] = React.useState('');
+  const box = React.useRef(), input = React.useRef();
+  React.useEffect(() => {
+    if (!open) return;
+    input.current && input.current.focus();
+    const out = (e) => { if (box.current && !box.current.contains(e.target)) setOpen(false); };
+    const esc = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', out); document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', out); document.removeEventListener('keydown', esc); };
+  }, [open]);
+  if (!open) return (
+    <button aria-label="Поиск" onClick={() => setOpen(true)} className="vt-btn vt-btn--ghost vt-btn--sm" style={{padding:'8px 10px'}}><Icon name="search" size={16}/></button>
+  );
+  return (
+    <div ref={box} style={{position:'relative', width:300, flexShrink:0, animation:'vtSearchIn .16s var(--ease-out, ease-out)'}}>
+      <div className="vt-field" style={{padding:'6px 6px 6px 12px', display:'flex', alignItems:'center', gap:8, background:'var(--vt-paper)', boxShadow:'0 0 0 2px var(--vt-ink)'}}>
+        <Icon name="search" size={14} stroke="var(--vt-mute)"/>
+        <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Игроки, события, платежи" aria-label="Поиск" style={{flex:1, minWidth:0, border:0, outline:0, background:'transparent', font:'inherit', fontSize:'var(--fs-sm)', color:'var(--vt-ink)'}}/>
+        <button aria-label="Закрыть поиск" onClick={() => { setOpen(false); setQ(''); }} className="vt-btn vt-btn--sm" style={{padding:'4px 6px', background:'var(--vt-bone)'}}><Icon name="close" size={13}/></button>
+      </div>
+      {q.trim() && (
+        <div style={{position:'absolute', top:'calc(100% + 6px)', left:0, right:0, background:'var(--vt-paper)', borderRadius:14, boxShadow:'var(--vt-pop-shadow)', padding:6, zIndex:20}}>
+          {[['user','Игроки', `«${q}» — искать среди игроков`],['calendar','События', `«${q}» — искать среди событий`],['wallet','Касса', `«${q}» — искать среди платежей`]].map(([ic, t, x]) => (
+            <div key={t} style={{display:'flex', alignItems:'center', gap:10, padding:'8px 10px', borderRadius:10, fontSize:'var(--fs-sm)'}}>
+              <Icon name={ic} size={14} stroke="var(--vt-icon-idle)"/><span style={{fontWeight:600}}>{t}</span><span style={{color:'var(--vt-mute-2)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{x}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Shared web shell with sidebar + topbar
 const WebShell = ({ activeNav, title, sub, topRight, children }) => {
   const nav = typeof useNav === 'function' ? useNav() : null;
   const handleNav = (k) => {
     if (!nav) return;
-    const map = { dashboard:'dashboard', events:'events', members:'members', ledger:'ledger', billing:'billing', settings:'settings', contributions:'contributions', reports:'reports', plans:'plans' };
+    const map = { dashboard:'dashboard', events:'events', members:'members', ledger:'ledger', billing:'billing', settings:'settings', contributions:'contributions', reports:'reports', plans:'plans', seo:'seo', support:'support' };
     if (map[k]) nav.reset(map[k]);
     else if (k === 'reports') nav.reset('reports');
   };
@@ -13,8 +49,8 @@ const WebShell = ({ activeNav, title, sub, topRight, children }) => {
     anchor: document.getElementById('vt-org-switch-anchor'),
     align: 'left',
     items: [
-      { icon:'check', label:'VolleyTime Минск', sub:'OWNER · 14 игр.' },
-      { icon:'building', label:'СпайкКлуб', sub:'organizer' },
+      { icon:'check', label:'VolleyTime Минск', sub:'владелец · 14 игроков' },
+      { icon:'building', label:'СпайкКлуб', sub:'организатор' },
       '---',
       { icon:'plus', label:'Создать новую', onClick: () => nav.toast('Создание организации') },
     ]
@@ -29,9 +65,12 @@ const WebShell = ({ activeNav, title, sub, topRight, children }) => {
     ['ledger', 'wallet', 'Касса'],
     ['contributions', 'gift', 'Сборы'],
     ['reports', 'chart', 'Отчёты'],
+    ['seo', 'globe', 'Страница группы'],
   ];
+  const isOrg = cabIsOrganizer();
   const platform = [
-    ['billing', 'card', 'Credits & биллинг'],
+    ...(isOrg ? [] : [['billing', 'card', 'Баланс и оплата']]),
+    ['support', 'chat', 'Поддержка'],
     ['settings', 'settings', 'Настройки'],
   ];
   return (
@@ -45,7 +84,7 @@ const WebShell = ({ activeNav, title, sub, topRight, children }) => {
           <span className="vt-avi vt-avi--brand" style={{width:28, height:28, fontSize:'var(--fs-2xs)'}}></span>
           <div style={{flex:1, minWidth:0}}>
             <div style={{fontWeight:600, fontSize:'var(--fs-sm)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>VolleyTime Минск</div>
-            <div style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)'}}>Owner · 14 игр.</div>
+            <div style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis'}}>{isOrg ? 'Организатор' : 'Владелец · 14 игроков'}</div>
           </div>
           <Icon name="chevron-d" size={14} stroke="var(--vt-mute)"/>
         </button>
@@ -66,16 +105,16 @@ const WebShell = ({ activeNav, title, sub, topRight, children }) => {
           </a>
         ))}
 
-        <div style={{marginTop:'auto', paddingTop:18}}>
+        {!isOrg && <div style={{marginTop:'auto', paddingTop:18}}>
           <div className="vt-card vt-card--hero" style={{padding:'12px 14px'}}>
-            <div style={{fontSize:'var(--fs-xs)', opacity:0.7}}>Credits</div>
+            <div style={{fontSize:'var(--fs-xs)', opacity:0.7}}>Баланс событий</div>
             <div style={{display:'flex', alignItems:'baseline', gap:6, marginTop:2}}>
               <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-lg)'}}>32</div>
               <div style={{fontSize:'var(--fs-2xs)', opacity:0.7}}>осталось</div>
             </div>
             <button onClick={() => nav && nav.reset('billing')} className="vt-btn vt-btn--sm" style={{width:'100%', marginTop:8, background:'var(--vt-orange)', color:'var(--vt-on-hero)'}}>Пополнить</button>
           </div>
-        </div>
+        </div>}
       </aside>
 
       <main className="vt-web__main">
@@ -86,16 +125,34 @@ const WebShell = ({ activeNav, title, sub, topRight, children }) => {
           </div>
           <div style={{display:'flex', alignItems:'center', gap:10, flex:1, minWidth:0, justifyContent:'flex-end'}}>
             {topRight}
-            <div className="vt-field" style={{width:260, padding:'8px 12px', display:'flex', alignItems:'center', gap:8, color:'var(--vt-mute)', fontSize:'var(--fs-sm)'}}>
-              <Icon name="search" size={14}/> <span>Поиск или ⌘K</span>
-            </div>
+            <WebSearchToggle/>
             <button onClick={() => nav && nav.reset('notifications')} className="vt-btn vt-btn--ghost vt-btn--sm" style={{padding:'8px 10px', position:'relative'}}><Icon name="bell" size={16}/><span style={{position:'absolute', top:6, right:8, width:6, height:6, borderRadius:'var(--r-pill)', background:'var(--vt-flame)'}}/></button>
-            <Avi size="sm" name="Иван П." init="ИП" tag="ink"/>
+            {isOrg ? <Avi size="sm" name="Никита К." init="НК" tag="flame"/> : <Avi size="sm" name="Иван П." init="ИП" tag="ink"/>}
           </div>
         </div>
         <div style={{padding:'24px 28px'}}>{children}</div>
       </main>
     </div>
+  );
+};
+
+// Кто вошёл в кабинет: владелец или организатор (P-18). Организатор не видит баланс событий, роли и опасную зону.
+const cabIsOrganizer = () => window.VT_CAB_ROLE === 'organizer';
+
+const WebNoAccess = ({ activeNav = 'billing', title = 'Баланс и оплата' }) => {
+  const nav = useNav();
+  return (
+    <WebShell activeNav={activeNav} title={title} sub="Раздел владельца группы">
+      <div className="vt-card" style={{padding:28, maxWidth:560}}>
+        <div style={{width:44, height:44, borderRadius:'var(--r-pill)', background:'var(--vt-paper)', display:'flex', alignItems:'center', justifyContent:'center'}}><Icon name="lock" size={20}/></div>
+        <h3 style={{fontSize:'var(--fs-xl)', marginTop:14}}>Этот раздел ведёт владелец</h3>
+        <div style={{fontSize:'var(--fs-sm)', color:'var(--vt-ink-3)', marginTop:8, lineHeight:1.5}}>Баланс событий, тариф и роли команды доступны только владельцу группы — Ивану П. Если событий на балансе мало, напишите ему: создать новое событие получится, пока на балансе есть единицы.</div>
+        <div style={{display:'flex', gap:8, marginTop:18}}>
+          <button onClick={() => nav.toast('Открываем чат с Иваном П.')} className="vt-btn vt-btn--primary"><Icon name="send" size={14}/> Написать владельцу</button>
+          <button onClick={() => nav.reset('dashboard')} className="vt-btn vt-btn--ghost">На обзор</button>
+        </div>
+      </div>
+    </WebShell>
   );
 };
 
@@ -115,7 +172,7 @@ const WebDashboard = () => {
     {/* KPI row */}
     <div style={{display:'grid', gridTemplateColumns:'minmax(0,1.35fr) minmax(0,1fr) minmax(0,1fr)', gridTemplateRows:'auto auto', gap:16}}>
       {[
-        { label:'Касса', val:'+248,50 Br', delta:'+82,50 за неделю', tint:'flame', big:true },
+        { label:'Касса', val:'+248,50 BYN', delta:'+82,50 за неделю', tint:'flame', big:true },
         { label:'Событий за месяц', val:'12', delta:'+3 к апрелю' },
         { label:'Бронирований', val:'168', delta:'87% заполнение' },
         ...(subsEnabled ? [{ label:'Активные абонементы', val:'9', delta:'2 истекают на неделе', tint:'amber' }] : []),
@@ -201,7 +258,7 @@ const WebDashboard = () => {
         <div className="vt-card" style={{padding:18}}>
           <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}>
             <h3 style={{fontSize:'var(--fs-md)'}}>Касса за 4 недели</h3>
-            <span className="vt-mono" style={{fontSize:'var(--fs-xs)', color:'var(--vt-grass)', fontWeight:600}}>+82,50 Br</span>
+            <span className="vt-mono" style={{fontSize:'var(--fs-xs)', color:'var(--vt-grass)', fontWeight:600}}>+82,50 BYN</span>
           </div>
           <div style={{display:'flex', gap:8, alignItems:'flex-end', height:90, marginTop:18}}>
             {[42, 68, 51, 88].map((h, i) => (
@@ -306,7 +363,7 @@ const WebEvents = () => {
             { icon:'send', label:'В чат группы', onClick: () => nav.toast('Опубликовано в чате') },
             '---',
             { icon:'close', tone:'danger', label:'Отменить событие', onClick: () => nav.alert({
-              title:'Отменить событие?', body:'Все записи будут отменены. Credit вернётся, если запись не открывалась.',
+              title:'Отменить событие?', body:'Все записи будут отменены. Событие вернётся на баланс, если запись не открывалась.',
               confirm:'Отменить', danger:true,
               onConfirm: () => nav.toast(`«${e.m}» отменено`)
             })},
@@ -445,9 +502,9 @@ const WebEventDetail = () => {
           <button onClick={() => nav.toast('Событие дублировано · 4 июня 20:00')} className="vt-btn vt-btn--ghost vt-btn--sm"><Icon name="copy" size={14}/> Дублировать</button>
           <button onClick={() => nav.toast('Опубликовано в чате группы')} className="vt-btn vt-btn--ghost vt-btn--sm"><Icon name="send" size={14}/> В чат</button>
           <button onClick={() => nav.alert({
-            title:'Отменить событие?', body:'Все записи будут отменены. Если запись ещё не открывалась, credit вернётся.',
+            title:'Отменить событие?', body:'Все записи будут отменены. Если запись ещё не открывалась, событие вернётся на баланс.',
             confirm:'Отменить событие', danger:true,
-            onConfirm: () => { nav.reset('events'); setTimeout(() => nav.toast('Событие отменено · +1 credit'), 80); }
+            onConfirm: () => { nav.reset('events'); setTimeout(() => nav.toast('Событие отменено · +1 на баланс'), 80); }
           })} className="vt-btn vt-btn--ghost vt-btn--sm" style={{color:'var(--vt-rose)'}}>Отменить</button>
         </>
       }
@@ -577,9 +634,9 @@ const WebEventDetail = () => {
               )}
               <span style={{color:'var(--vt-mute-2)'}}>Запись закроется</span><span>{isPast || isClosed ? 'закрыта' : '27 мая 20:00 (за 24 ч)'}</span>
               <span style={{color:'var(--vt-mute-2)'}}>Состав</span><span>{capacity} мест{isPast ? '' : ' + лист ожидания'}</span>
-              <span style={{color:'var(--vt-mute-2)'}}>Уровень</span><span>B / A</span>
+              <span style={{color:'var(--vt-mute-2)'}}>Уровень</span><span>В2–В3</span>
               <span style={{color:'var(--vt-mute-2)'}}>Владелец</span><span>Иван Петренко</span>
-              <span style={{color:'var(--vt-mute-2)'}}>Credit</span><span>−1 (списан 22 мая)</span>
+              <span style={{color:'var(--vt-mute-2)'}}>Баланс</span><span>−1 событие (22 мая)</span>
             </div>
             <button className="vt-btn vt-btn--ghost vt-btn--sm" style={{marginTop:14, width:'100%'}}><Icon name="edit" size={13}/> Изменить</button>
           </div>
@@ -655,6 +712,8 @@ const WebMembers = () => {
       </>
     }
   >
+    <WebDebtPanel/>
+
     {/* Tabs */}
     <div style={{display:'flex', gap:8, marginBottom:14}}>
       {[
@@ -684,7 +743,7 @@ const WebMembers = () => {
         ))}
       </div>
       {PEOPLE.slice(0, 8).map((p, i) => {
-        const role = i === 0 ? 'owner' : i === 1 ? 'organizer' : i === 7 ? 'guest' : 'player';
+        const role = i === 0 ? 'owner' : i === 1 ? 'organizer' : i === 2 ? 'coach' : i === 7 ? 'guest' : 'player';
         const sub = i % 3 === 0 ? '5 / 8' : i % 4 === 0 ? '0 / 4' : '—';
         const debt = i === 5 ? 15 : 0;
         return (
@@ -693,7 +752,7 @@ const WebMembers = () => {
               <Avi name={p.name} init={p.init} tag={p.tag} size="md"/>
               <div>
                 <div style={{fontSize:'var(--fs-base)', fontWeight:600}}>{p.name}</div>
-                <div style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)'}}>уровень {p.level} · {['доигр.','связ.','либеро'][i%3]}</div>
+                <div style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)'}}>{p.level} · {['доигр.','связ.','либеро'][i%3]}</div>
               </div>
             </div>
             <div className="vt-mono" style={{fontSize:'var(--fs-sm)', color:'var(--vt-mute-2)', display:'flex', alignItems:'center', gap:4}}>
@@ -701,22 +760,23 @@ const WebMembers = () => {
             </div>
             <div>
               <span className="vt-chip" style={{
-                background: role==='owner'?'var(--vt-ink)':role==='organizer'?'var(--vt-flame)':role==='guest'?'var(--vt-bone-2)':'var(--vt-bone)',
-                color: role==='owner'?'var(--vt-paper)':role==='organizer'?'var(--vt-on-hero)':'var(--vt-ink)',
+                background: role==='owner'?'var(--vt-ink)':role==='organizer'?'var(--vt-flame)':role==='coach'?'var(--vt-grass-soft)':role==='guest'?'var(--vt-bone-2)':'var(--vt-bone)',
+                color: role==='owner'?'var(--vt-paper)':role==='organizer'?'var(--vt-on-hero)':role==='coach'?'var(--vt-grass-ink)':'var(--vt-ink)',
                 fontSize:'var(--fs-2xs)'
-              }}>{role}</span>
+              }}>{ROLE_RU[role]}</span>
             </div>
             <div style={{fontSize:'var(--fs-xs)'}}>
               <div className="vt-mono" style={{fontWeight:600}}>{[24,18,9,32,6,12,21,4][i]} тр.</div>
               <div style={{color:'var(--vt-mute-2)', fontSize:'var(--fs-2xs)'}}>посл. {['вчера','сегодня','3 дня','6 ч','неделя','вчера','2 дня','5 дн'][i]}</div>
             </div>
             <div className="vt-mono" style={{fontSize:'var(--fs-xs)', fontWeight:600, color: sub === '—' ? 'var(--vt-mute-2)' : 'inherit'}}>{sub}</div>
-            <div className="vt-mono" style={{fontSize:'var(--fs-xs)', fontWeight:600, color: debt > 0 ? 'var(--vt-rose)' : 'var(--vt-mute-2)'}}>{debt > 0 ? `−${debt} Br` : '—'}</div>
+            <div className="vt-mono" style={{fontSize:'var(--fs-xs)', fontWeight:600, color: debt > 0 ? 'var(--vt-rose)' : 'var(--vt-mute-2)'}}>{debt > 0 ? `−${debt} BYN` : '—'}</div>
             <ActionMore mode="popover" align="right" items={[
               { icon:'tg', label:'Открыть профиль', onClick: () => nav.toast(`Профиль · ${p.name}`) },
               { icon:'send', label:'Написать в Telegram', onClick: () => nav.toast(`Открываем чат с ${p.name}`) },
-              { icon:'edit', label:'Сменить роль', onClick: () => nav.toast(`Роль ${p.name} → organizer`) },
+              ...(cabIsOrganizer() ? [] : [{ icon:'edit', label:'Роль в команде', onClick: () => nav.push('settings', { tab:'Команда' }) }]),
               { icon:'star', label:'Уровень и амплуа', onClick: () => nav.toast(`Уровень · ${p.level}`) },
+              ...restrictItems(nav, p.name),
               '---',
               { icon:'logout', tone:'danger', label:'Удалить из группы', onClick: () => nav.alert({
                 title:`Удалить ${p.name}?`, body:'Игрок не сможет видеть события группы и не получит уведомлений.',
@@ -756,13 +816,13 @@ const WebLedger = () => {
     <div style={{display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', gap:14, marginBottom:18}}>
       <div className="vt-card vt-card--hero" style={{padding:18}}>
         <div className="vt-cap" style={{opacity:0.6}}>Баланс кассы</div>
-        <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-5xl)', marginTop:8}}>+248,50 Br</div>
+        <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-5xl)', marginTop:8}}>+248,50 BYN</div>
         <div style={{fontSize:'var(--fs-xs)', opacity:0.7, marginTop:4}}>обновлено 14:22 сегодня</div>
       </div>
       {[
-        ['Поступило', '+318,50 Br', 'grass'],
-        ['Списано', '−70,00 Br', 'rose'],
-        ['Долги', '15,00 Br', 'amber'],
+        ['Поступило', '+318,50 BYN', 'grass'],
+        ['Списано', '−70,00 BYN', 'rose'],
+        ['Долги', '15,00 BYN', 'amber'],
       ].map(([l,v,c], i) => (
         <div key={i} className="vt-card" style={{padding:18}}>
           <div className="vt-cap" style={{color:'var(--vt-mute-2)'}}>{l}</div>
@@ -789,30 +849,33 @@ const WebLedger = () => {
       </div>
     </div>
 
+    <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', margin:'0 2px 10px'}}>Оплаты, подтверждённые в Mini App и на зале, попадают сюда сами. Вручную добавляются только расходы и исключения.</div>
+
     {/* Journal */}
     <div className="vt-card" style={{padding:0, overflow:'hidden'}}>
-      <div style={{display:'grid', gridTemplateColumns:'130px 1fr 140px 140px 130px 40px', padding:'10px 18px', borderBottom:'1px solid var(--vt-bone-2)'}}>
-        {['Дата','Описание','Категория','Способ','Сумма',''].map((h,i)=>(
+      <div style={{display:'grid', gridTemplateColumns:'120px minmax(0,1fr) 120px 110px 170px 120px 40px', padding:'10px 18px', borderBottom:'1px solid var(--vt-bone-2)'}}>
+        {['Дата','Описание','Категория','Способ','Источник','Сумма',''].map((h,i)=>(
           <div key={i} className="vt-cap" style={{color:'var(--vt-mute-2)'}}>{h}</div>
         ))}
       </div>
       {[
-        ['Сегодня 14:22', 'Артём, Никита · Основа 28 мая', 'training_fee', 'cash', 30, 'in'],
-        ['Сегодня 12:08', 'Маша · Открытая 30 мая', 'training_fee', 'transfer', 15, 'in'],
-        ['Сегодня 09:50', 'Аренда Школа №24', 'rent', 'cash', 42, 'out'],
-        ['Вчера 19:31', 'Соня · Абонемент 8 сессий', 'subscription', 'transfer', 110, 'in'],
-        ['Вчера 14:11', 'Лера · Открытая 23 мая', 'training_fee', 'cash', 15, 'in'],
-        ['24 мая 17:00', 'Мячи Mikasa MVA200 ×2', 'balls', 'transfer', 18, 'out'],
-        ['22 мая 10:30', 'Артём · Основа 21 мая', 'training_fee', 'cash', 15, 'in'],
-        ['21 мая 17:14', 'Денис · Refund (отмена)', 'refund', 'cash', 15, 'out'],
-      ].map(([d, e, cat, m, a, ty], i, arr) => (
-        <div key={i} style={{display:'grid', gridTemplateColumns:'130px 1fr 140px 140px 130px 40px', padding:'12px 18px', borderBottom:i<arr.length-1?'1px solid var(--vt-bone-2)':'none', alignItems:'center'}}>
+        ['Сегодня 14:22', 'Артём, Никита · Основа 28 мая', 'training_fee', 'cash', 30, 'in', 'на зале · тренер Ольга Р.'],
+        ['Сегодня 12:08', 'Маша · Открытая 30 мая', 'training_fee', 'transfer', 15, 'in', 'подтверждение · Иван П.'],
+        ['Сегодня 09:50', 'Аренда Школа №24', 'rent', 'cash', 42, 'out', 'вручную · Иван П.'],
+        ['Вчера 19:31', 'Соня · Абонемент 8 сессий', 'subscription', 'transfer', 110, 'in', 'подтверждение · Анна С.'],
+        ['Вчера 14:11', 'Лера · Открытая 23 мая', 'training_fee', 'cash', 15, 'in', 'на зале · Иван П.'],
+        ['24 мая 17:00', 'Мячи Mikasa MVA200 ×2', 'balls', 'transfer', 18, 'out', 'вручную · Анна С.'],
+        ['22 мая 10:30', 'Артём · Основа 21 мая', 'training_fee', 'cash', 15, 'in', 'на зале · тренер Ольга Р.'],
+        ['21 мая 17:14', 'Денис · возврат (отмена)', 'refund', 'cash', 15, 'out', 'отмена записи · система'],
+      ].map(([d, e, cat, m, a, ty, src], i, arr) => (
+        <div key={i} style={{display:'grid', gridTemplateColumns:'120px minmax(0,1fr) 120px 110px 170px 120px 40px', padding:'12px 18px', borderBottom:i<arr.length-1?'1px solid var(--vt-bone-2)':'none', alignItems:'center'}}>
           <div className="vt-mono" style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)'}}>{d}</div>
           <div style={{fontSize:'var(--fs-sm)', fontWeight:500}}>{e}</div>
           <div><span className="vt-chip" style={{fontSize:'var(--fs-2xs)'}}>{catLabel(cat)}</span></div>
-          <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)'}}>{m}</div>
+          <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)'}}>{methodLabel(m)}</div>
+          <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-ink-3)'}}>{src}</div>
           <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-base)', color: ty === 'in' ? 'var(--vt-grass)' : 'var(--vt-rose)'}}>
-            {ty === 'in' ? '+' : '−'}{a},00 Br
+            {ty === 'in' ? '+' : '−'}{a},00 BYN
           </div>
           <ActionMore mode="popover" align="right" items={[
             { icon:'edit', label:'Редактировать запись', onClick: () => nav.toast('Редактирование') },
@@ -836,24 +899,24 @@ const WebBilling = () => {
   return (
   <WebShell
     activeNav="billing"
-    title="Credits & биллинг"
-    sub="32 credits на балансе · ≈ 2,5 месяца при текущей частоте"
+    title="Баланс и оплата"
+    sub="32 события на балансе · ≈ 2,5 месяца при текущей частоте"
   >
     <div style={{display:'grid', gridTemplateColumns:'1fr 1.4fr', gap:16}}>
       {/* Left: balance + history */}
       <div style={{display:'flex', flexDirection:'column', gap:14}}>
         <div className="vt-card vt-card--hero" style={{padding:24, position:'relative', overflow:'hidden'}}>
           <div style={{position:'absolute', right:-30, bottom:-30, width:160, height:160, borderRadius:'50%', background:'var(--vt-orange)', opacity:0.28}}/>
-          <div className="vt-cap" style={{opacity:0.6}}>Баланс credits</div>
+          <div className="vt-cap" style={{opacity:0.6}}>Баланс событий</div>
           <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-6xl)', marginTop:6, lineHeight:1}}>32</div>
-          <div style={{fontSize:'var(--fs-sm)', opacity:0.7, marginTop:8}}>1 credit = 1 событие. Возврат при отмене до открытия записи.</div>
+          <div style={{fontSize:'var(--fs-sm)', opacity:0.7, marginTop:8}}>1 единица баланса = 1 событие. Возврат при отмене до открытия записи.</div>
           <button onClick={() => nav.sheet({
-            title:'Купить credits',
+            title:'Пополнить баланс',
             sub:'Выберите пакет',
             items:[
-              { icon:'card', label:'10 credits · 50 Br', onClick: () => nav.toast('Платёж создан · 50 Br') },
-              { icon:'card', label:'30 credits · 120 Br', onClick: () => nav.toast('Платёж создан · 120 Br') },
-              { icon:'card', label:'100 credits · 350 Br', onClick: () => nav.toast('Платёж создан · 350 Br') },
+              { icon:'card', label:'10 событий · 50 BYN', onClick: () => nav.toast('Платёж создан · 50 BYN') },
+              { icon:'card', label:'30 событий · 120 BYN', onClick: () => nav.toast('Платёж создан · 120 BYN') },
+              { icon:'card', label:'100 событий · 350 BYN', onClick: () => nav.toast('Платёж создан · 350 BYN') },
             ]
           })} className="vt-btn vt-btn--full" style={{marginTop:18, background:'var(--vt-orange)', color:'var(--vt-on-hero)'}}>Купить ещё</button>
         </div>
@@ -868,14 +931,14 @@ const WebBilling = () => {
           <div style={{display:'flex', justifyContent:'space-between', fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)', marginTop:8}}>
             <span>Н1</span><span>Н2</span><span>Н3</span><span>Н4</span><span>Н5</span><span>Н6</span><span>Н7</span><span>Н8</span>
           </div>
-          <div style={{marginTop:14, fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)'}}>В среднем 12 событий/мес · ~146 Br/мес в credits</div>
+          <div style={{marginTop:14, fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)'}}>В среднем 12 событий/мес · ~146 BYN/мес на баланс</div>
         </div>
       </div>
 
       {/* Right: packages */}
       <div className="vt-card" style={{padding:22}}>
-        <h3 style={{fontSize:'var(--fs-md)'}}>Пакеты credits</h3>
-        <div style={{fontSize:'var(--fs-sm)', color:'var(--vt-mute-2)', marginTop:4}}>Чем больше пакет, тем дешевле каждый credit. Без подписки, без обязательств.</div>
+        <h3 style={{fontSize:'var(--fs-md)'}}>Пакеты событий</h3>
+        <div style={{fontSize:'var(--fs-sm)', color:'var(--vt-mute-2)', marginTop:4}}>Чем больше пакет, тем дешевле каждое событие. Без подписки, без обязательств.</div>
 
         <div style={{display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:12, marginTop:18}}>
           {[
@@ -893,15 +956,15 @@ const WebBilling = () => {
                 <span className="vt-chip vt-chip--solid" style={{position:'absolute', top:-10, left:14, fontSize:'var(--fs-2xs)'}}>{p.badge}</span>
               )}
               <div style={{fontFamily:'var(--f-display)', fontWeight:700, fontSize:'var(--fs-4xl)', lineHeight:1}}>{p.n}</div>
-              <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', marginTop:4}}>credits</div>
+              <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', marginTop:4}}>событий</div>
               <div className="vt-divider" style={{margin:'14px 0'}}/>
-              <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-xl)'}}>{p.price} Br</div>
-              <div style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)', marginTop:2}}>{p.per.toFixed(2).replace('.', ',')} Br / credit</div>
+              <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-xl)'}}>{p.price} BYN</div>
+              <div style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)', marginTop:2}}>{p.per.toFixed(2).replace('.', ',')} BYN за событие</div>
               <button onClick={() => nav.alert({
-                title:`Купить «${p.n} credits»?`,
-                body:`Будет списано ${p.price} Br. Метод оплаты — наличные / перевод (онлайн-оплата в Phase 12).`,
+                title:`Купить пакет на ${p.n} событий?`,
+                body:`Будет списано ${p.price} BYN. Метод оплаты — наличные / перевод (онлайн-оплата в Phase 12).`,
                 confirm:'Подтвердить покупку',
-                onConfirm: () => nav.toast(`Покупка создана · +${p.n} credits будут зачислены после подтверждения`)
+                onConfirm: () => nav.toast(`Покупка создана · +${p.n} событий будут зачислены после подтверждения`)
               })} className="vt-btn vt-btn--ink vt-btn--full vt-btn--sm" style={{marginTop:14}}>Купить</button>
             </div>
           ))}
@@ -912,7 +975,7 @@ const WebBilling = () => {
           {[
             ['Сегодня', 'Событие «Основа · 28 мая»', '−1', 'spend'],
             ['25 мая', 'Событие «Турнир «Внутри»»', '−1', 'spend'],
-            ['22 мая', 'Пакет 30 credits', '+30', 'purchase', '120 Br'],
+            ['22 мая', 'Пакет на 30 событий', '+30', 'purchase', '120 BYN'],
             ['15 мая', 'Возврат · отменено событие', '+1', 'refund'],
             ['1 мая', 'Demo grant от платформы', '+5', 'grant'],
           ].map(([d,e,v,t,amt], i, arr) => (
@@ -951,7 +1014,8 @@ const SettingsToggle = ({ t, s, on: initOn, nav }) => {
 // ---------- WebSettings ----------
 const WebSettings = () => {
   const nav = useNav();
-  const [activeTab, setActiveTab] = React.useState('Профиль');
+  const [activeTab, setActiveTab] = React.useState((nav.data && nav.data.tab) || 'Профиль');
+  React.useEffect(() => { if (nav.data && nav.data.tab) setActiveTab(nav.data.tab); }, [nav.data && nav.data.tab]);
   const [pays, setPays] = React.useState({ cash:true, transfer:true, erip:false, bepaid:false });
   const [s, set] = useGroupSettings();
   const cancelAllowed = s.cancelAllowed, cancelCutoff = s.cancelCutoff;
@@ -972,13 +1036,14 @@ const WebSettings = () => {
       <div style={{display:'flex', flexDirection:'column', gap:2}}>
         {[
           'Профиль',
+          ...(cabIsOrganizer() ? [] : ['Команда']),
           'Расписание по умолчанию',
           'Записи и оплата',
           'Залы и площадки',
           'Способы оплаты',
           'Уведомления',
           'Telegram-бот',
-          'Опасная зона',
+          ...(cabIsOrganizer() ? [] : ['Опасная зона']),
         ].map((t, i) => {
           const danger = t === 'Опасная зона';
           const act = activeTab === t;
@@ -1020,23 +1085,26 @@ const WebSettings = () => {
             </div>
             <div style={{gridColumn:'1/-1'}}>
               <label className="vt-label">Описание</label>
-              <textarea className="vt-field" rows={3} defaultValue="Любительская группа в Минске. Тренировки 3 раза в неделю, средний уровень B/A."/>
+              <textarea className="vt-field" rows={3} defaultValue="Любительская группа в Минске. Тренировки 3 раза в неделю, средний уровень В2–В3."/>
             </div>
             <div>
               <label className="vt-label">Город</label>
-              <input className="vt-field" defaultValue="Минск"/>
+              <input className="vt-field" value={s.city} onChange={(e) => set('city', e.target.value)}/>
             </div>
             <div>
               <label className="vt-label">Часовой пояс</label>
               <input className="vt-field" defaultValue="Europe/Minsk (UTC+3)"/>
             </div>
           </div>
+
           <div style={{display:'flex', justifyContent:'flex-end', gap:8, marginTop:18}}>
             <button className="vt-btn vt-btn--ghost vt-btn--sm">Отмена</button>
             <button onClick={() => nav.toast('Профиль организации сохранён')} className="vt-btn vt-btn--ink vt-btn--sm">Сохранить</button>
           </div>
         </div>
         )}
+
+        {activeTab === 'Команда' && !cabIsOrganizer() && <WebTeamSettings/>}
 
         {activeTab === 'Расписание по умолчанию' && (
         <div className="vt-card" style={{padding:22}}>
@@ -1130,6 +1198,36 @@ const WebSettings = () => {
           </div>
 
           <div className="vt-card" style={{padding:22}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12}}>
+              <div>
+                <h3 style={{fontSize:'var(--fs-md)'}}>Запись на события по умолчанию</h3>
+                <div style={{fontSize:'var(--fs-sm)', color:'var(--vt-mute-2)', marginTop:4}}>Подставляется в каждое новое событие. На самом событии можно выбрать другое — выбор события важнее этой настройки.</div>
+              </div>
+              <span className="vt-chip" style={{fontSize:'var(--fs-2xs)'}}>по умолчанию</span>
+            </div>
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:16}}>
+              {[['open','users','Свободная запись','Записаться может любой участник группы и тот, кто нашёл событие по ссылке.'],['invite','lock','По приглашению','Записаться можно только по личной ссылке-приглашению от организатора.']].map(([v, ic, t, x]) => {
+                const on = s.joinMode === v;
+                return (
+                  <button key={v} onClick={() => { set('joinMode', v); nav.toast(v === 'open' ? 'Новые события — со свободной записью' : 'Новые события — по приглашению'); }}
+                    style={{display:'flex', gap:12, alignItems:'flex-start', padding:14, borderRadius:'var(--r-chip)', textAlign:'left', cursor:'pointer', border:0,
+                      background: on ? 'var(--vt-paper)' : 'var(--vt-ctl)', boxShadow: on ? '0 0 0 2px var(--vt-ink)' : 'none', color:'var(--vt-ink)', font:'inherit'}}>
+                    <span style={{width:20, height:20, borderRadius:'var(--r-pill)', flexShrink:0, marginTop:1, display:'flex', alignItems:'center', justifyContent:'center', background: on ? 'var(--vt-ink)' : 'transparent', boxShadow: on ? 'none' : 'inset 0 0 0 2px var(--vt-icon-idle)', color:'var(--vt-paper)'}}>{on && <Icon name="check" size={12} sw={2.6}/>}</span>
+                    <span style={{minWidth:0}}>
+                      <span style={{display:'flex', alignItems:'center', gap:6, fontSize:'var(--fs-base)', fontWeight:700}}><Icon name={ic} size={14}/>{t}</span>
+                      <span style={{display:'block', fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', marginTop:4, lineHeight:1.45}}>{x}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', marginTop:12, display:'flex', gap:8, alignItems:'flex-start'}}>
+              <Icon name="bell" size={13} stroke="var(--vt-icon-idle)"/>
+              <span>Уже созданные события не меняются. Индексация страницы группы в поиске настраивается отдельно — в разделе «Страница группы».</span>
+            </div>
+          </div>
+
+          <div className="vt-card" style={{padding:22}}>
             <h3 style={{fontSize:'var(--fs-md)'}}>Мест на одного игрока</h3>
             <div style={{fontSize:'var(--fs-sm)', color:'var(--vt-mute-2)', marginTop:4}}>Сколько мест игрок может занять одной записью — например, привести друзей.</div>
             <div style={{display:'flex', alignItems:'center', gap:18, marginTop:16}}>
@@ -1151,8 +1249,8 @@ const WebSettings = () => {
             <div style={{fontSize:'var(--fs-sm)', color:'var(--vt-mute-2)', marginTop:4}}>Подставляется при создании события — на самом событии можно поменять.</div>
             <div style={{display:'flex', flexDirection:'column', gap:10, marginTop:16}}>
               {[
-                { v:'fixed', t:'Фиксированная цена', s:'Каждый платит одну и ту же сумму за место.', ex:'15 Br × 12 мест = 180 Br' },
-                { v:'split', t:'Делим общую сумму', s:'Известна стоимость аренды — делится на всех после закрытия записи.', ex:'180 Br ÷ 12 мест = 15 Br за место' },
+                { v:'fixed', t:'Фиксированная цена', s:'Каждый платит одну и ту же сумму за место.', ex:'15 BYN × 12 мест = 180 BYN' },
+                { v:'split', t:'Делим общую сумму', s:'Известна стоимость аренды — делится на всех после закрытия записи.', ex:'180 BYN ÷ 12 мест = 15 BYN за место' },
               ].map(o => {
                 const sel = priceMode === o.v;
                 return (
@@ -1193,7 +1291,7 @@ const WebSettings = () => {
             <button onClick={() => nav.toast('Добавление зала')} className="vt-btn vt-btn--ghost vt-btn--sm" style={{gap:6}}><Icon name="plus" size={13}/> Добавить зал</button>
           </div>
           <div style={{display:'flex', flexDirection:'column', gap:10, marginTop:16}}>
-            {[['Школа №24, малый зал','ул. Кропоткина 91 · 15 Br/ч','чаще всего'],['СК «Заслонова»','ул. Заслонова 27 · 20 Br/ч',''],['Школа №3, большой зал','пр. Независимости 45 · 25 Br/ч','']].map((v,i) => (
+            {[['Школа №24, малый зал','ул. Кропоткина 91 · 15 BYN/ч','чаще всего'],['СК «Заслонова»','ул. Заслонова 27 · 20 BYN/ч',''],['Школа №3, большой зал','пр. Независимости 45 · 25 BYN/ч','']].map((v,i) => (
               <div key={i} style={{display:'flex', alignItems:'center', gap:12, padding:'14px', borderRadius:'var(--r-chip)'}}>
                 <div style={{width:38, height:38, borderRadius:'var(--r-sm)', background:'var(--vt-bone-2)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0}}><Icon name="pin" size={18}/></div>
                 <div style={{flex:1}}>
@@ -1286,14 +1384,14 @@ const WebSettings = () => {
         </div>
         )}
 
-        {activeTab === 'Опасная зона' && (
+        {activeTab === 'Опасная зона' && !cabIsOrganizer() && (
         <div className="vt-card" style={{padding:22, borderColor:'color-mix(in oklab, var(--vt-rose) 30%, transparent)'}}>
           <h3 style={{fontSize:'var(--fs-md)', color:'var(--vt-rose)'}}>Опасная зона</h3>
           <div style={{fontSize:'var(--fs-sm)', color:'var(--vt-mute-2)', marginTop:4}}>Необратимые действия. Будьте осторожны.</div>
           <div style={{display:'flex', flexDirection:'column', gap:12, marginTop:16}}>
             {[
               ['Архивировать организацию','События скроются, данные сохранятся','Архивировать'],
-              ['Передать владение','Назначить нового owner-а','Передать'],
+              ['Передать владение','Назначить нового владельца','Передать'],
               ['Удалить организацию','Все события, касса и записи будут удалены','Удалить'],
             ].map(([t,s,btn],i) => (
               <div key={i} style={{display:'flex', alignItems:'center', gap:14, padding:'14px', borderRadius:'var(--r-chip)'}}>
@@ -1354,8 +1452,8 @@ const WebPlans = () => {
     <div style={{display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:14, marginBottom:18}}>
       {[
         ['Активных абонементов','9','у 9 игроков'],
-        ['Продано за май','5','+110 Br ср. чек','grass'],
-        ['Доход с абонементов','+540 Br','43% поступлений','grass'],
+        ['Продано за май','5','+110 BYN ср. чек','grass'],
+        ['Доход с абонементов','+540 BYN','43% поступлений','grass'],
         ['Истекают на неделе','2','напомнить игрокам','amber'],
       ].map(([l,v,d,c],i) => (
         <div key={i} className="vt-card" style={{padding:16}}>
@@ -1388,8 +1486,8 @@ const WebPlans = () => {
             </div>
             <div style={{fontSize:'var(--fs-sm)', color:'var(--vt-mute-2)', marginTop:4}}>{p.name}</div>
             <div className="vt-divider" style={{margin:'14px 0'}}/>
-            <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-xl)'}}>{p.price} Br</div>
-            <div style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)', marginTop:2}}>{p.per>0 ? `${p.per.toFixed(2).replace('.', ',')} Br/сессия · ` : ''}{p.valid} дней</div>
+            <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-xl)'}}>{p.price} BYN</div>
+            <div style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)', marginTop:2}}>{p.per>0 ? `${p.per.toFixed(2).replace('.', ',')} BYN/сессия · ` : ''}{p.valid} дней</div>
             <div style={{display:'flex', gap:6, marginTop:14, flexWrap:'wrap'}}>
               {p.draft
                 ? <span className="vt-chip vt-chip--amber" style={{fontSize:'var(--fs-2xs)'}}>черновик</span>
@@ -1463,8 +1561,8 @@ const WebContributions = () => {
     <div style={{display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:14, marginBottom:18}}>
       {[
         ['Активных сборов', '2', null],
-        ['Собрано в этом месяце', '+295 Br', 'grass'],
-        ['Обещано · ждёт', '70 Br', 'amber'],
+        ['Собрано в этом месяце', '+295 BYN', 'grass'],
+        ['Обещано · ждёт', '70 BYN', 'amber'],
         ['Участников', '24', null],
       ].map(([l, v, c], i) => (
         <div key={i} className="vt-card" style={{padding:16}}>
@@ -1550,10 +1648,10 @@ const WebNotifications = () => {
     { cat:'payments', icon:'wallet', tone:'amber', title:'4 платежа ждут подтверждения', body:'По событиям «Основа · 28 мая» и «Микст · 1 июня». Самому старому 6 ч.', time:'14:30', day:'Сегодня', action:{label:'Проверить платежи', to:'ledger'} },
     { cat:'events', icon:'user', tone:'flame', title:'Новая запись', body:'Денис записался на «Открытая игра · 30 мая».', time:'13:08', day:'Сегодня', read:true, action:{label:'Открыть событие', to:'events'} },
     { cat:'events', icon:'close', tone:'rose', title:'Отмена записи', body:'Катя отменила запись на «Основа · 28 мая» — место ушло первому из листа ожидания.', time:'11:40', day:'Сегодня', read:true },
-    { cat:'billing', icon:'card', tone:'amber', title:'Мало credits', body:'Осталось 8 credits — хватит примерно на 8 событий. Пополните баланс.', time:'09:00', day:'Сегодня', read:true, action:{label:'Пополнить', to:'billing'} },
-    { cat:'events', icon:'gift', tone:'grass', title:'Новое обещание взноса', body:'Соня обещала 20 Br в сбор «Новый комплект мячей».', time:'19:31', day:'Вчера', read:true, action:{label:'Открыть сборы', to:'contributions'} },
+    { cat:'billing', icon:'card', tone:'amber', title:'Баланс заканчивается', body:'На балансе 8 событий. Пополните, чтобы не остановить расписание.', time:'09:00', day:'Сегодня', read:true, action:{label:'Пополнить', to:'billing'} },
+    { cat:'events', icon:'gift', tone:'grass', title:'Новое обещание взноса', body:'Соня обещала 20 BYN в сбор «Новый комплект мячей».', time:'19:31', day:'Вчера', read:true, action:{label:'Открыть сборы', to:'contributions'} },
     { cat:'members', icon:'users', tone:'flame', title:'Заявка на вступление', body:'Marina V. хочет вступить по invite-ссылке.', time:'16:05', day:'Вчера', read:true, action:{label:'Игроки', to:'members'} },
-    { cat:'system', icon:'chart', tone:'ink', title:'Отчёт за апрель готов', body:'Касса +166 Br, 9 событий, 84% заполнение. Доступен экспорт CSV.', time:'1 мая', day:'Ранее', read:true },
+    { cat:'system', icon:'chart', tone:'ink', title:'Отчёт за апрель готов', body:'Касса +166 BYN, 9 событий, 84% заполнение. Доступен экспорт CSV.', time:'1 мая', day:'Ранее', read:true },
   ];
   const filtered = filter === 'all' ? items : items.filter(i => i.cat === filter);
   const days = ['Сегодня','Вчера','Ранее'];
@@ -1616,4 +1714,4 @@ const WebNotifications = () => {
   );
 };
 
-Object.assign(window, { WebShell, WebDashboard, WebEvents, WebEventDetail, WebMembers, WebLedger, WebBilling, WebSettings, WebContributions, WebNotifications, WebPlans });
+Object.assign(window, { WebNoAccess, cabIsOrganizer, WebSearchToggle, WebShell, WebDashboard, WebEvents, WebEventDetail, WebMembers, WebLedger, WebBilling, WebSettings, WebContributions, WebNotifications, WebPlans });

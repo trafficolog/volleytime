@@ -1,18 +1,40 @@
 // screens-admin.jsx — Root admin (platform owner) screens
 // Distinct from org SaaS: dark sidebar = "platform" mode signal.
 
+// Вход root в организацию: только с подтверждением, баннером и записью в журнал
+const impersonate = (nav, name) => nav.alert({
+  title:`Войти в «${name}» как владелец?`,
+  body:'Сессия на 30 минут. Каждое действие пишется в журнал с пометкой root. Касса, баланс событий и выплаты в этой сессии только для чтения.',
+  confirm:'Войти', onConfirm: () => { window.VT_IMP = name; nav.reset('orgs'); setTimeout(() => nav.toast(`Сессия в «${name}» открыта · записано в журнал`), 80); }
+});
+const ORG_FLAGS = [['cal','Общий календарь',true],['warmup','Разминка',true],['self','Самооценка',true],['streak','Серии и челленджи',true],['mvp','MVP игры',false],['teams','Составы на игру',false],['coach','AI-тренер',false],['wrapped','Итоги сезона',false]];
+const orgFlags = (nav, name) => nav.sheet({
+  title:`Функции · ${name}`, sub:'Волны гипотез включаются по организациям. Изменения пишутся в журнал.',
+  items: ORG_FLAGS.map(([k, l, on]) => ({ check:on, label:l, sub: on ? 'включено' : 'выключено', onClick: () => nav.toast(`${l} · ${on ? 'выключено' : 'включено'} для «${name}»`) }))
+});
+const ImpBanner = ({ nav }) => window.VT_IMP ? (
+  <div style={{display:'flex', alignItems:'center', gap:12, padding:'10px 28px', background:'var(--vt-amber-soft)', color:'var(--vt-ink)', fontSize:'var(--fs-sm)'}}>
+    <Icon name="globe" size={15} stroke="var(--vt-amber-ink)"/>
+    <span style={{flex:1, minWidth:0}}><b>Вы в «{window.VT_IMP}» как root.</b> Деньги только для чтения · осталось 29 мин · все действия в журнале</span>
+    <button onClick={() => { const n = window.VT_IMP; window.VT_IMP = null; nav && nav.reset('audit'); setTimeout(() => nav && nav.toast(`Сессия в «${n}» завершена`), 80); }} className="vt-btn vt-btn--ink vt-btn--sm">Завершить</button>
+  </div>
+) : null;
+
 const AdminShell = ({ activeNav, title, sub, topRight, children }) => {
   const nav = typeof useNav === 'function' ? useNav() : null;
   const handleNav = (k) => {
     if (!nav) return;
-    const map = { overview:'overview', orgs:'orgs', users:'users', credits:'credits', audit:'audit', payouts:'payouts', settings:'settings' };
+    const map = { overview:'overview', orgs:'orgs', users:'users', complaints:'complaints', pages:'pages', credits:'credits', audit:'audit', payouts:'payouts', settings:'settings', support:'support' };
     if (map[k]) nav.reset(map[k]);
   };
   const nav_ = [
     ['overview', 'chart', 'Обзор платформы'],
     ['orgs', 'building', 'Организации'],
     ['users', 'users', 'Пользователи'],
-    ['credits', 'card', 'Credits & тарифы'],
+    ['support', 'send', 'Поддержка'],
+    ['complaints', 'chat', 'Жалобы'],
+    ['pages', 'globe', 'Страницы групп'],
+    ['credits', 'card', 'Баланс и тарифы'],
     ['payouts', 'wallet', 'Подписки & выплаты'],
     ['audit', 'clock', 'Аудит'],
     ['settings', 'settings', 'Настройки'],
@@ -29,7 +51,7 @@ const AdminShell = ({ activeNav, title, sub, topRight, children }) => {
         <div style={{display:'flex', alignItems:'center', gap:10, padding:'2px 8px 6px'}}>
           <span className="vt-ball vt-ball--on-dark" style={{fontSize:'var(--fs-xl)'}}/>
           <div style={{flex:1}}>
-            <div style={{fontFamily:'var(--f-display)', fontWeight:700, fontSize:'var(--fs-md)'}}>Volley<span style={{color:'var(--vt-flame-ink)'}}>Time</span></div>
+            <div style={{fontFamily:'var(--f-display)', fontWeight:700, fontSize:'var(--fs-md)'}}>Volley<span style={{color:'var(--vt-orange)'}}>Time</span></div>
             <div className="vt-mono" style={{fontSize:'var(--fs-2xs)', opacity:0.55, letterSpacing:'0.08em'}}>PLATFORM ROOT</div>
           </div>
         </div>
@@ -83,6 +105,7 @@ const AdminShell = ({ activeNav, title, sub, topRight, children }) => {
       </aside>
 
       <main className="vt-web__main">
+        <ImpBanner nav={nav}/>
         <div className="vt-web__topbar">
           <div style={{flexShrink:0, minWidth:0, marginRight:16}}>
             <div style={{display:'flex', alignItems:'center', gap:8}}>
@@ -135,7 +158,7 @@ const AdminOverview = () => {
         </div>
       </div>
       {[
-        ['MRR · прогноз', '52 Br', '+12 Br', 'grass'],
+        ['MRR · прогноз', '52 BYN', '+12 BYN', 'grass'],
         ['Событий за неделю', '38', '+9'],
         ['Записей за неделю', '438', '+87'],
       ].map(([l, v, d, c], i) => (
@@ -166,12 +189,13 @@ const AdminOverview = () => {
         </div>
         <div style={{padding:'4px 0'}}>
           {[
-            ['14:22', 'event.payment.confirmed', 'VT Минск', 'Иван П. подтвердил оплату Никиты · 15 Br', 'grass'],
+            ['14:22', 'event.payment.confirmed', 'VT Минск', 'Иван П. подтвердил оплату Никиты · 15 BYN', 'grass'],
             ['13:08', 'org.member.invited', 'СОК Витебск', 'sergey приглашён в команду · org_3', 'ink'],
-            ['12:30', 'billing.credits.purchased', 'СпайкКлуб', 'Купил пакет 30 credits · +120 Br', 'flame'],
-            ['11:15', 'event.created', 'VT Минск', '«Основа · 4 июня · 20:00» · −1 credit', 'ink'],
+            ['12:30', 'billing.credits.purchased', 'СпайкКлуб', 'Купил пакет 30 событий · +120 BYN', 'flame'],
+            ['11:15', 'event.created', 'VT Минск', '«Основа · 4 июня · 20:00» · −1 событие', 'ink'],
             ['10:48', 'auth.user.signed_up', '—', 'Новый пользователь @marina_v (через invite org_2)', 'grass'],
-            ['09:02', 'billing.credits.granted', 'СОК Витебск', 'root@volleytime выдал +10 credits (промо)', 'amber'],
+            ['09:40', 'admin.impersonate.start', 'СпайкКлуб', 'root@volleytime вошёл как владелец · 30 мин · деньги только чтение', 'amber'],
+        ['09:02', 'billing.credits.granted', 'СОК Витебск', 'root@volleytime выдал +10 событий (промо)', 'amber'],
             ['08:44', 'system.error.handled', 'apps/bot', 'Telegram 429 rate limit · retried 3x', 'rose'],
           ].map(([t, ev, org, msg, c], i, arr) => (
             <div key={i} style={{display:'grid', gridTemplateColumns:'60px 220px 1fr 100px', gap:14, padding:'10px 18px', borderBottom: i<arr.length-1?'1px solid var(--vt-bone-2)':'none', alignItems:'center'}}>
@@ -198,7 +222,7 @@ const AdminOverview = () => {
           <div style={{display:'flex', flexDirection:'column', gap:10, marginTop:14}}>
             {[
               ['H1', 'Telegram-first', 82, 'на пути', 'grass', '≥80%'],
-              ['H2', 'Event credits', 30, 'надо больше', 'amber', '≥30%'],
+              ['H2', 'Баланс событий', 30, 'надо больше', 'amber', '≥30%'],
               ['H3', 'Manual payments OK', 94, 'подтв.', 'grass', '≥90%'],
               ['H4', 'Абонементы — киллер', 21, 'риск', 'rose', '≥30%'],
             ].map(([id, name, pct, st, c, target], i) => (
@@ -283,7 +307,7 @@ const AdminOrgs = () => {
             items:[
               { icon:'card', label:'План: beta', onClick: () => nav.toast('Фильтр: beta') },
               { icon:'card', label:'План: demo', onClick: () => nav.toast('Фильтр: demo') },
-              { icon:'wallet', label:'Низкий баланс credits (<5)', onClick: () => nav.toast('Фильтр: low credits') },
+              { icon:'wallet', label:'Баланс событий < 5', onClick: () => nav.toast('Фильтр: низкий баланс') },
               { icon:'clock', label:'Неактивны >7 дней', onClick: () => nav.toast('Фильтр: inactive') },
               { icon:'chart', label:'По убыванию событий', onClick: () => nav.toast('Сортировка: events') },
             ]
@@ -293,7 +317,7 @@ const AdminOrgs = () => {
 
       <div className="vt-card" style={{padding:0, overflow:'hidden'}}>
         <div style={{display:'grid', gridTemplateColumns:'2fr 140px 90px 100px 90px 110px 90px 40px', padding:'10px 18px', borderBottom:'1px solid var(--vt-bone-2)'}}>
-          {['Организация','Владелец','План','Credits','Игроки','Событий / мес','Активн.',''].map((h,i)=>(
+          {['Организация','Владелец','План','Баланс','Игроки','Событий / мес','Активн.',''].map((h,i)=>(
             <div key={i} className="vt-cap" style={{color:'var(--vt-mute-2)'}}>{h}</div>
           ))}
         </div>
@@ -330,9 +354,9 @@ const AdminOrgs = () => {
               {o.last}
             </div>
             <div onClick={ev => ev.stopPropagation()}><ActionMore mode="popover" align="right" items={[
-              { icon:'globe', label:'Войти как owner', onClick: () => nav.toast(`Импер-сессия · ${o.name}`) },
-              { icon:'gift', label:'Выдать credits', onClick: () => nav.toast('+10 credits выдано') },
-              { icon:'settings', label:'Feature flags', onClick: () => nav.toast('Открыты feature-флаги') },
+              { icon:'globe', label:'Войти как владелец', onClick: () => impersonate(nav, o.name) },
+              { icon:'gift', label:'Выдать события', onClick: () => nav.toast('+10 событий выдано') },
+              { icon:'settings', label:'Функции организации', onClick: () => orgFlags(nav, o.name) },
               '---',
               { icon:'trash', tone:'danger', label:'Заблокировать организацию', onClick: () => nav.alert({
                 title:`Заблокировать «${o.name}»?`, body:'Доступ владельцу и игрокам будет приостановлен. Это можно отменить.',
@@ -368,7 +392,7 @@ const AdminOrgDetail = () => {
   >
     {/* Tabs */}
     <div style={{display:'flex', gap:2, borderBottom:'1px solid var(--vt-bone-2)', marginBottom:18}}>
-      {['Обзор','Члены','События','Credits','Финансы','Аудит'].map((t,i) => (
+      {['Обзор','Члены','События','Баланс','Финансы','Аудит'].map((t,i) => (
         <button key={t} style={{
           padding:'10px 14px', fontSize:'var(--fs-sm)', fontWeight:600,
           color: i===0?'var(--vt-ink)':'var(--vt-mute-2)',
@@ -381,10 +405,10 @@ const AdminOrgDetail = () => {
     {/* Summary cards */}
     <div style={{display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:14, marginBottom:18}}>
       {[
-        ['Credits balance', '32', '−12 в месяц', 'flame'],
+        ['Баланс событий', '32', '−12 в месяц', 'flame'],
         ['Игроков', '14', '+2 за неделю'],
         ['Events за май', '12', '87% заполнение'],
-        ['Касса org', '+248,50 Br', '+82,50 неделя', 'grass'],
+        ['Касса org', '+248,50 BYN', '+82,50 неделя', 'grass'],
       ].map(([l, v, d, c], i) => (
         <div key={i} className="vt-card" style={{padding:16}}>
           <div className="vt-cap" style={{color:'var(--vt-mute-2)'}}>{l}</div>
@@ -409,7 +433,7 @@ const AdminOrgDetail = () => {
             <span style={{display:'flex', gap:6, flexWrap:'wrap'}}>
               <span className="vt-chip" style={{fontSize:'var(--fs-2xs)'}}>subscriptions</span>
               <span className="vt-chip" style={{fontSize:'var(--fs-2xs)'}}>ledger</span>
-              <span className="vt-chip" style={{fontSize:'var(--fs-2xs)'}}>credits</span>
+              <span className="vt-chip" style={{fontSize:'var(--fs-2xs)'}}>событий</span>
               <span className="vt-chip" style={{fontSize:'var(--fs-2xs)', opacity:0.5}}>contributions: off</span>
               <span className="vt-chip" style={{fontSize:'var(--fs-2xs)', opacity:0.5}}>online_payments: off</span>
             </span>
@@ -424,13 +448,13 @@ const AdminOrgDetail = () => {
           </div>
           <div style={{display:'flex', flexDirection:'column', marginTop:14}}>
             {[
-              ['14:22', 'payment.confirmed', 'Иван П.', '+15 Br · Никита · Основа 28 мая', 'grass'],
-              ['12:08', 'payment.confirmed', 'Иван П.', '+15 Br · Маша · Открытая 30 мая', 'grass'],
-              ['10:00', 'event.created', 'Иван П.', 'Основа · 4 июня 20:00 · −1 credit', 'flame'],
-              ['Вчера 19:31', 'subscription.purchased', 'Соня', '8 сессий · 110 Br', 'ink'],
+              ['14:22', 'payment.confirmed', 'Иван П.', '+15 BYN · Никита · Основа 28 мая', 'grass'],
+              ['12:08', 'payment.confirmed', 'Иван П.', '+15 BYN · Маша · Открытая 30 мая', 'grass'],
+              ['10:00', 'event.created', 'Иван П.', 'Основа · 4 июня 20:00 · −1 событие', 'flame'],
+              ['Вчера 19:31', 'subscription.purchased', 'Соня', '8 сессий · 110 BYN', 'ink'],
               ['Вчера 14:02', 'member.joined', 'Лёша', 'через invite org_7gK4nT', 'grass'],
-              ['Вчера 09:50', 'ledger.expense', 'Иван П.', '−42 Br · rent / Школа №24', 'rose'],
-              ['22 мая 16:10', 'credits.purchased', 'Иван П.', '+30 credits · 120 Br пакет', 'flame'],
+              ['Вчера 09:50', 'ledger.expense', 'Иван П.', '−42 BYN · rent / Школа №24', 'rose'],
+              ['22 мая 16:10', 'credits.purchased', 'Иван П.', '+30 событий · 120 BYN пакет', 'flame'],
             ].map(([t, ev, who, msg, c], i, arr) => (
               <div key={i} style={{display:'grid', gridTemplateColumns:'90px 170px 80px 1fr', gap:12, padding:'8px 0', borderBottom:i<arr.length-1?'1px solid var(--vt-bone-2)':'none', alignItems:'center'}}>
                 <div className="vt-mono" style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)'}}>{t}</div>
@@ -452,14 +476,14 @@ const AdminOrgDetail = () => {
           <h3 style={{fontSize:'var(--fs-md)'}}>Действия root</h3>
           <div style={{display:'flex', flexDirection:'column', gap:8, marginTop:14}}>
             <button onClick={() => nav.sheet({
-              title:'Выдать credits', sub:'Promo, compensation или manual grant',
+              title:'Выдать события', sub:'Промо, компенсация или ручное начисление',
               items:[
-                { icon:'gift', label:'+5 credits · промо', onClick: () => nav.toast('+5 credits выдано · промо за фидбек') },
-                { icon:'gift', label:'+10 credits · промо', onClick: () => nav.toast('+10 credits выдано') },
-                { icon:'gift', label:'+1 credit · compensation', onClick: () => nav.toast('+1 credit · компенсация') },
+                { icon:'gift', label:'+5 событий · промо', onClick: () => nav.toast('+5 событий выдано · промо за фидбек') },
+                { icon:'gift', label:'+10 событий · промо', onClick: () => nav.toast('+10 событий выдано') },
+                { icon:'gift', label:'+1 событие · компенсация', onClick: () => nav.toast('+1 событие · компенсация') },
               ]
             })} className="vt-btn" style={{background:'var(--vt-on-hero-fill)', color:'var(--vt-paper)', justifyContent:'space-between', width:'100%'}}>
-              <span style={{display:'flex', alignItems:'center', gap:8}}><Icon name="gift" size={14}/> Выдать credits</span>
+              <span style={{display:'flex', alignItems:'center', gap:8}}><Icon name="gift" size={14}/> Выдать события</span>
               <Icon name="chevron-r" size={14}/>
             </button>
             <button onClick={() => nav.toast('Feature flags · contributions, online_payments, crm_pro')} className="vt-btn" style={{background:'var(--vt-on-hero-fill)', color:'var(--vt-paper)', justifyContent:'space-between', width:'100%'}}>
@@ -485,7 +509,7 @@ const AdminOrgDetail = () => {
 
         {/* Credit balance widget */}
         <div className="vt-card" style={{padding:18}}>
-          <h3 style={{fontSize:'var(--fs-base)'}}>Credits · история</h3>
+          <h3 style={{fontSize:'var(--fs-base)'}}>Баланс · история</h3>
           <div style={{display:'flex', alignItems:'baseline', gap:8, marginTop:10}}>
             <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-4xl)'}}>32</div>
             <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)'}}>осталось</div>
@@ -513,6 +537,59 @@ const AdminOrgDetail = () => {
 };
 
 // ============================================================
+const PAGE_QUEUE = [
+  { g:'СпайкКлуб', url:'volleytime.by/g/spikeclub', what:'Новая страница', flags:['фото зала','цены'], age:'40 мин', risk:'ok' },
+  { g:'Пляж Минск', url:'volleytime.by/g/plyazh', what:'Изменён текст «О группе»', flags:['ссылка на сторонний сайт оплаты'], age:'3 ч', risk:'warn' },
+  { g:'Волейбол 24/7', url:'volleytime.by/g/v247', what:'Новая страница', flags:['обещание «гарантированного места»','телефон в заголовке'], age:'1 д', risk:'warn' },
+];
+const AdminPages = () => {
+  const nav = useNav();
+  const [q, setQ] = React.useState(PAGE_QUEUE);
+  const done = (i, msg) => { const p = q[i]; setQ(x => x.filter((_, j) => j !== i)); nav.toast(`«${p.g}» · ${msg} · записано в журнал`); };
+  const cols = 'minmax(0,1.3fr) minmax(0,1.4fr) minmax(0,1.6fr) 80px auto';
+  return (
+    <AdminShell activeNav="pages" title="Страницы групп" sub="Модерация публичных страниц перед индексацией">
+      <div style={{display:'grid', gridTemplateColumns:'repeat(3, minmax(0,1fr))', gap:14, marginBottom:18}}>
+        {[['На проверке', String(q.length), 'новые и изменённые'], ['Опубликовано', '23', 'индексируются'], ['Снято за 30 дней', '2', 'по правилам площадки']].map(([l, v, d]) => (
+          <div key={l} className="vt-card" style={{padding:16}}>
+            <div className="vt-cap" style={{color:'var(--vt-mute-2)'}}>{l}</div>
+            <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-2xl)', marginTop:8}}>{v}</div>
+            <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', marginTop:4}}>{d}</div>
+          </div>
+        ))}
+      </div>
+      <div className="vt-card" style={{padding:0, overflow:'hidden'}}>
+        <div style={{display:'grid', gridTemplateColumns:cols, gap:12, padding:'10px 18px', borderBottom:'1px solid var(--vt-bone-2)'}}>
+          {['Группа','Что изменилось','На что обратить внимание','Ждёт',''].map((h, i) => <div key={i} className="vt-cap" style={{color:'var(--vt-mute-2)'}}>{h}</div>)}
+        </div>
+        {q.length === 0 && <div style={{padding:'28px 18px', fontSize:'var(--fs-sm)', color:'var(--vt-mute-2)'}}>Очередь пуста. Новые страницы появятся здесь до попадания в поиск.</div>}
+        {q.map((p, i) => (
+          <div key={p.url} style={{display:'grid', gridTemplateColumns:cols, gap:12, padding:'12px 18px', alignItems:'center', borderBottom: i < q.length - 1 ? '1px solid var(--vt-bone-2)' : 'none', fontSize:'var(--fs-sm)'}}>
+            <div style={{minWidth:0}}>
+              <div style={{fontWeight:600}}>{p.g}</div>
+              <div className="vt-mono" style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{p.url}</div>
+            </div>
+            <div>{p.what}</div>
+            <div style={{display:'flex', gap:4, flexWrap:'wrap'}}>{p.flags.map(f => <span key={f} className={`vt-chip ${p.risk === 'warn' ? 'vt-chip--amber' : ''}`} style={{fontSize:'var(--fs-2xs)'}}>{f}</span>)}</div>
+            <span className="vt-mono" style={{color:'var(--vt-mute-2)'}}>{p.age}</span>
+            <div style={{display:'flex', gap:6, justifyContent:'flex-end'}}>
+              <button onClick={() => nav.toast(`Открываем предпросмотр ${p.url}`)} className="vt-btn vt-btn--ghost vt-btn--sm"><Icon name="eye" size={13}/></button>
+              <button onClick={() => nav.sheet({ title:`Вернуть на доработку · ${p.g}`, sub:'Организатор получит причину в кабинете', items:[
+                { label:'Сторонние ссылки на оплату', onClick: () => done(i, 'возвращено: ссылки на оплату') },
+                { label:'Вводящие в заблуждение обещания', onClick: () => done(i, 'возвращено: обещания') },
+                { label:'Контакты в заголовке или спам', onClick: () => done(i, 'возвращено: контакты') },
+                { label:'Другое — написать', onClick: () => done(i, 'возвращено с комментарием') },
+              ]})} className="vt-btn vt-btn--ghost vt-btn--sm">Вернуть</button>
+              <button onClick={() => done(i, 'опубликовано')} className="vt-btn vt-btn--primary vt-btn--sm">Опубликовать</button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', marginTop:12, maxWidth:'70ch'}}>Пока страница на проверке, она доступна по ссылке, но закрыта от поиска. Запись на события работает как обычно.</div>
+    </AdminShell>
+  );
+};
+
 // AdminCredits — pricing config
 // ============================================================
 const AdminCredits = () => {
@@ -520,7 +597,7 @@ const AdminCredits = () => {
   return (
   <AdminShell
     activeNav="credits"
-    title="Credits & тарифы"
+    title="Баланс и тарифы"
     sub="Конфиг пакетов · demo-квоты · ручные грантования"
     topRight={<button onClick={() => nav.push('credits-history')} className="vt-btn vt-btn--ghost vt-btn--sm"><Icon name="clock" size={13}/> История изменений</button>}
   >
@@ -529,7 +606,7 @@ const AdminCredits = () => {
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
         <div>
           <h3 style={{fontSize:'var(--fs-md)'}}>Demo-квота новой организации</h3>
-          <div style={{fontSize:'var(--fs-sm)', color:'var(--vt-mute-2)', marginTop:4}}>Сколько credits получает каждая новая организация бесплатно при регистрации.</div>
+          <div style={{fontSize:'var(--fs-sm)', color:'var(--vt-mute-2)', marginTop:4}}>Сколько событий получает каждая новая организация бесплатно при регистрации.</div>
         </div>
         <span className="vt-chip vt-chip--solid" style={{fontSize:'var(--fs-2xs)'}}>Phase 7</span>
       </div>
@@ -539,7 +616,7 @@ const AdminCredits = () => {
           <label className="vt-label">Сейчас</label>
           <div style={{display:'flex', alignItems:'baseline', gap:8}}>
             <div className="vt-mono" style={{fontFamily:'var(--f-display)', fontWeight:700, fontSize:'var(--fs-5xl)'}}>5</div>
-            <span style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)'}}>credits</span>
+            <span style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)'}}>событий</span>
           </div>
         </div>
         <div>
@@ -574,7 +651,7 @@ const AdminCredits = () => {
 
       <div style={{marginTop:16, background:'var(--vt-paper)', borderRadius:'var(--r-tile)', overflow:'hidden'}}>
         <div style={{display:'grid', gridTemplateColumns:'80px 100px 110px 130px 100px 90px 100px 1fr 40px', padding:'10px 16px', borderBottom:'1px solid var(--vt-bone-2)'}}>
-          {['Credits','Цена','За credit','Бейдж','Видимый','Продаж','Доход',''].map((h,i)=>(
+          {['Баланс','Цена','За событие','Бейдж','Видимый','Продаж','Доход',''].map((h,i)=>(
             <div key={i} className="vt-cap" style={{color:'var(--vt-mute-2)'}}>{h}</div>
           ))}
           <div></div>
@@ -587,8 +664,8 @@ const AdminCredits = () => {
         ].map((p, i, arr) => (
           <div key={i} style={{display:'grid', gridTemplateColumns:'80px 100px 110px 130px 100px 90px 100px 1fr 40px', padding:'12px 16px', borderBottom: i<arr.length-1?'1px solid var(--vt-bone-2)':'none', alignItems:'center', filter: p.draft ? 'grayscale(1)' : 'none'}}>
             <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-md)'}}>{p.c}</div>
-            <div className="vt-mono" style={{fontSize:'var(--fs-sm)', fontWeight:600}}>{p.p} Br</div>
-            <div className="vt-mono" style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)'}}>{p.per.toFixed(2).replace('.', ',')} Br</div>
+            <div className="vt-mono" style={{fontSize:'var(--fs-sm)', fontWeight:600}}>{p.p} BYN</div>
+            <div className="vt-mono" style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)'}}>{p.per.toFixed(2).replace('.', ',')} BYN</div>
             <div>{p.badge && <span className="vt-chip vt-chip--solid" style={{fontSize:'var(--fs-2xs)'}}>{p.badge}</span>}</div>
             <div>
               <div style={{width:32, height:18, borderRadius:'var(--r-pill)', background: p.shown?'var(--vt-ink)':'var(--vt-stroke-2)', position:'relative'}}>
@@ -596,7 +673,7 @@ const AdminCredits = () => {
               </div>
             </div>
             <div className="vt-mono" style={{fontSize:'var(--fs-sm)'}}>{p.sold}</div>
-            <div className="vt-mono" style={{fontSize:'var(--fs-sm)', fontWeight:600, color: p.rev>0 ? 'var(--vt-grass)' : 'var(--vt-mute-2)'}}>{p.rev>0 ? `+${p.rev} Br` : '—'}</div>
+            <div className="vt-mono" style={{fontSize:'var(--fs-sm)', fontWeight:600, color: p.rev>0 ? 'var(--vt-grass)' : 'var(--vt-mute-2)'}}>{p.rev>0 ? `+${p.rev} BYN` : '—'}</div>
             <div>{p.draft && <span className="vt-chip vt-chip--amber" style={{fontSize:'var(--fs-2xs)'}}>черновик</span>}</div>
             <ActionMore mode="popover" align="right" items={[
               { icon:'edit', label:'Редактировать пакет', onClick: () => nav.toast(`Редактируем пакет ${p.c}`) },
@@ -618,13 +695,13 @@ const AdminCredits = () => {
           <div style={{fontSize:'var(--fs-sm)', color:'var(--vt-mute-2)', marginTop:4}}>Compensation, промо, исправление багов. Указывайте причину — пригодится в аудите.</div>
         </div>
         <button onClick={() => nav.sheet({
-          title:'Выдать credits', sub:'Выберите организацию',
+          title:'Выдать события', sub:'Выберите организацию',
           items:[
             { icon:'building', label:'VolleyTime Минск', onClick: () => nav.push('grant-credits', { org:'VolleyTime Минск' }) },
             { icon:'building', label:'СпайкКлуб', onClick: () => nav.push('grant-credits', { org:'СпайкКлуб' }) },
             { icon:'building', label:'СОК Витебск', onClick: () => nav.push('grant-credits', { org:'СОК Витебск' }) },
           ]
-        })} className="vt-btn vt-btn--ink vt-btn--sm" style={{gap:6}}><Icon name="plus" size={13}/> Выдать credits</button>
+        })} className="vt-btn vt-btn--ink vt-btn--sm" style={{gap:6}}><Icon name="plus" size={13}/> Выдать события</button>
       </div>
 
       <div style={{marginTop:14, background:'var(--vt-paper)', borderRadius:'var(--r-tile)', overflow:'hidden'}}>
@@ -635,7 +712,7 @@ const AdminCredits = () => {
         </div>
         {[
           ['Сегодня 09:02', 'СОК Витебск', '+10', 'Промо за фидбек по Phase 10', 'root@volleytime'],
-          ['22 мая',        'VolleyTime Минск', '+5', 'Compensation: bug #142 (списан credit без события)', 'root@volleytime'],
+          ['22 мая',        'VolleyTime Минск', '+5', 'Compensation: bug #142 (списано событие без события)', 'root@volleytime'],
           ['18 марта',      'VolleyTime Минск', '+5', 'Demo grant · auto', 'system'],
         ].map(([d, o, n, r, w], i, a) => (
           <div key={i} style={{display:'grid', gridTemplateColumns:'130px 220px 80px 1fr 120px', padding:'12px 16px', borderBottom: i<a.length-1?'1px solid var(--vt-bone-2)':'none', alignItems:'center', fontSize:'var(--fs-sm)'}}>
@@ -714,10 +791,10 @@ const AdminAudit = () => {
         ['12:30:02', 'OK',    'flame',  'billing.credits.purchased', 'user:anton_k',   'org:spike-club',   'pack30 · 120 BYN · stripe_test'],
         ['11:48:55', 'WARN',  'amber',  'subscription.depleted',     'system',         'sub:sub_0143',     'attempted spend on empty sub'],
         ['10:48:21', 'INFO',  'grass',  'auth.user.signed_up',       'system',         'user:marina_v',    'via invite org:mv-pro'],
-        ['09:02:14', 'INFO',  'amber',  'billing.credits.granted',   'root@volleytime','org:sok-vit',      '+10 credits · reason="промо за фидбек"'],
+        ['09:02:14', 'INFO',  'amber',  'billing.credits.granted',   'root@volleytime','org:sok-vit',      '+10 событий · reason="промо за фидбек"'],
         ['08:44:38', 'ERROR', 'rose',   'telegram.api.error',        'apps/bot',       'chat:847291',      '429 Too Many Requests · retry=3 ok'],
         ['08:30:00', 'INFO',  'mute',   'scheduler.job.executed',    'system',         '—',                'reminder-24h · 12 messages sent'],
-        ['07:15:02', 'OK',    'grass',  'org.created',               'user:olga_r',    'org:mv-pro',       'demo credits +5 granted'],
+        ['07:15:02', 'OK',    'grass',  'org.created',               'user:olga_r',    'org:mv-pro',       'demo-баланс +5 событий'],
         ['Вчера 22:05', 'INFO', 'ink',  'event.finished',            'scheduler',      'event:ev_T19s',    'attendees=12/14 · auto-finalized'],
       ].map(([t, lvl, c, ev, actor, target, detail], i, arr) => (
         <div key={i} style={{display:'grid', gridTemplateColumns:'100px 60px 220px 160px 160px 1fr', padding:'10px 18px', borderBottom:i<arr.length-1?'1px solid var(--vt-bone-2)':'none', alignItems:'center'}}>
@@ -766,6 +843,8 @@ const AdminUsers = () => {
       ))}
     </div>
 
+    <AdminDuplicates/>
+
     <div className="vt-card" style={{padding:0, overflow:'hidden'}}>
       <div style={{display:'grid', gridTemplateColumns:'2fr 130px 130px 110px 130px 110px 40px', padding:'10px 18px', borderBottom:'1px solid var(--vt-bone-2)'}}>
         {['Пользователь','Telegram','Email','Групп','Записей','Активн.',''].map((h,i)=>(
@@ -792,7 +871,7 @@ const AdminUsers = () => {
           </div>
           <div className="vt-mono" style={{fontSize:'var(--fs-xs)', color: u.tg==='—'?'var(--vt-mute-2)':'var(--vt-flame-deep)'}}>{u.tg}</div>
           <div className="vt-mono" style={{fontSize:'var(--fs-xs)', color: u.email==='—'?'var(--vt-mute-2)':'var(--vt-ink-3)'}}>{u.email}</div>
-          <div style={{fontSize:'var(--fs-sm)'}}><span className="vt-mono" style={{fontWeight:600}}>{u.orgs}</span> <span style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)'}}>· {u.role}</span></div>
+          <div style={{fontSize:'var(--fs-sm)'}}><span className="vt-mono" style={{fontWeight:600}}>{u.orgs}</span> <span style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)'}}>· {({owner:'владелец',organizer:'организатор',player:'игрок',pending:'ожидает'})[u.role]}</span></div>
           <div className="vt-mono" style={{fontSize:'var(--fs-sm)', fontWeight:600}}>{u.bk}</div>
           <div style={{fontSize:'var(--fs-xs)', display:'flex', alignItems:'center', gap:6}}>
             <span style={{width:6, height:6, borderRadius:'var(--r-pill)', background:`var(--vt-${u.health})`}}/> {u.act}
@@ -801,6 +880,7 @@ const AdminUsers = () => {
             { icon:'tg', label:'Открыть профиль', onClick: () => nav.toast(`Открыт профиль ${u.n}`) },
             { icon:'send', label:'Связаться в Telegram', onClick: () => nav.toast(`Открываем чат ${u.tg}`) },
             { icon:'building', label:'Список организаций', onClick: () => nav.toast(`${u.n} в ${u.orgs} орг.`) },
+            { icon:'users', label:'Объединить с другой записью', onClick: () => nav.toast('Найдите вторую запись по @username или email') },
             '---',
             { icon:'logout', tone:'danger', label:'Заблокировать пользователя', onClick: () => nav.alert({
               title:`Заблокировать ${u.n}?`, body:'Пользователь не сможет войти в платформу. Сессии будут закрыты.',
@@ -814,4 +894,4 @@ const AdminUsers = () => {
   );
 };
 
-Object.assign(window, { AdminShell, AdminOverview, AdminOrgs, AdminOrgDetail, AdminCredits, AdminAudit, AdminUsers });
+Object.assign(window, { AdminShell, AdminOverview, AdminOrgs, AdminOrgDetail, AdminCredits, AdminAudit, AdminUsers, AdminPages });

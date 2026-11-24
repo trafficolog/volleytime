@@ -24,14 +24,22 @@
 
 <script type="text/babel" src="tweaks-panel.jsx?v=surf1"></script>
 <script type="text/babel" src="app-nav.jsx?v=surf1"></script>
-<script type="text/babel" src="atoms.jsx?v=surf1"></script>
+<script type="text/babel" src="atoms.jsx?v=join1"></script>
 <script type="text/babel" src="prototype-shell.jsx?v=surf1"></script>
-<script type="text/babel" src="screens-web.jsx?v=surf1"></script>
+<script type="text/babel" src="screens-web.jsx?v=rshot2"></script>
+<script type="text/babel" src="screens-team.jsx?v=1"></script>
+<script type="text/babel" src="screens-web-more.jsx?v=1"></script>
+<script type="text/babel" src="screens-event-staff.jsx?v=1"></script>
 <script type="text/babel" src="screens-schedule.jsx?v=surf1"></script>
-<script type="text/babel" src="screens-web-forms.jsx?v=surf1"></script>
+<script type="text/babel" src="screens-web-forms.jsx?v=staff1"></script>
 <script type="text/babel" src="screens-contributions.jsx?v=surf1"></script>
+<script type="text/babel" src="screens-seo-page.jsx?v=4"></script>
+<script type="text/babel" src="screens-seo.jsx?v=6"></script>
+<script type="text/babel" src="screens-moderation.jsx?v=3"></script>
+<script type="text/babel" src="screens-support.jsx?v=1"></script>
 </head>
 <body>
+<style>@keyframes vtSearchIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}@media (prefers-reduced-motion:reduce){@keyframes vtSearchIn{from{opacity:0}to{opacity:1}}}</style>
 <div id="root"></div>
 
 <script type="text/babel" data-presets="env,react">
@@ -41,7 +49,9 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "dark": false,
   "density": "compact",
   "accent": "#2437C9",
-  "role": "player"
+  "role": "player",
+  "moderation": "none",
+  "cabRole": "owner"
 }/*EDITMODE-END*/;
 
 const ACCENTS = ["#2437C9", "#1F2E96", "#FF6B1F", "#15161A", "#456F34"];
@@ -61,13 +71,18 @@ const SCREENS = {
   reports:        () => <WebReports/>,
   'reports-export': () => <WebReportsExport/>,
   notifications:  () => <WebNotifications/>,
-  billing:        () => <WebBilling/>,
+  billing:        () => (cabIsOrganizer() ? <WebNoAccess/> : <WebBilling/>),
   settings:       () => <WebSettings/>,
+  seo:            () => <WebSeoBuilder/>,
+  'seo-preview':  () => <WebSeoPreview/>,
+  support:        () => <WebSupport/>,
+  'support-new':  () => <WebSupport/>,
 };
 
-function InnerApp() {
-  const { ctx, sheet, popover, toast, alertCfg } = useNavState('dashboard');
+function InnerApp({ initial = 'dashboard' }) {
+  const { ctx, sheet, popover, toast, alertCfg } = useNavState(initial);
   const Screen = SCREENS[ctx.current] || SCREENS.dashboard;
+  React.useEffect(() => { window.__nav = ctx; }, [ctx.current, ctx.data]);
   return (
     <NavContext.Provider value={ctx}>
       <Screen />
@@ -80,20 +95,27 @@ function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   useEffect(() => { document.documentElement.style.setProperty('--vt-flame', t.accent); }, [t.accent]);
   const frameCls = ["vt-frame", t.dark ? "vt-dark" : "vt-light", t.density === "compact" ? "vt-dense" : ""].filter(Boolean).join(" ");
+  // 24.1.3 · R-06: состояние модерации страницы группы (решение root)
+  window.VT_SEO_MOD = t.moderation || 'none';
+  // P-18: кто вошёл в кабинет — владелец или организатор
+  window.VT_CAB_ROLE = t.cabRole || 'owner';
 
   const sceneLeft = (
-    <span style={{display:'inline-flex', alignItems:'center', gap:7, padding:'5px 12px', borderRadius:99, background:'rgba(255,255,255,0.75)', backdropFilter:'blur(12px)', border:'1px solid rgba(0,0,0,0.06)', fontSize:12, fontWeight:600, fontFamily:'Golos Text'}}>
-      <span style={{width:7,height:7,borderRadius:99,background:'#2437C9'}}></span> Кабинет организатора
-    </span>
+    <Segmented value={t.cabRole || 'owner'} onChange={(v) => setTweak('cabRole', v)}
+      options={[{value:'owner', label:'Владелец'}, {value:'organizer', label:'Организатор'}]}/>
   );
 
   return (
     <>
       <DesktopPrototype width={1440} height={900} frameCls={frameCls} sceneLeft={sceneLeft}>
-        <InnerApp/>
+        <InnerApp key={window.VT_SEO_MOD + window.VT_CAB_ROLE} initial={window.VT_SEO_MOD !== 'none' ? 'seo' : 'dashboard'}/>
       </DesktopPrototype>
 
       <TweaksPanel title="Tweaks · Кабинет">
+        <TweakSection label="Кто вошёл · P-18" />
+        <TweakRadio label="Роль" value={t.cabRole || 'owner'} options={[{value:'owner', label:'владелец'}, {value:'organizer', label:'организатор'}]} onChange={(v) => setTweak('cabRole', v)} />
+        <TweakSection label="Страница группы · модерация" />
+        <TweakRadio label="Решение root" value={t.moderation || 'none'} options={[{value:'none', label:'нет'}, {value:'hidden', label:'скрыта'}, {value:'noindex', label:'noindex'}]} onChange={(v) => setTweak('moderation', v)} />
         <TweakSection label="Тема" />
         <TweakToggle label="Тёмная" value={t.dark} onChange={(v) => setTweak('dark', v)} />
         <TweakRadio label="Плотность" value={t.density} options={['compact','regular']} onChange={(v) => setTweak('density', v)} />
@@ -101,7 +123,7 @@ function App() {
         <TweakColor label="Primary" value={t.accent} options={ACCENTS} onChange={(v) => setTweak('accent', v)} />
         <TweakSection label="Подсказка" />
         <div style={{fontSize:11, color:'rgba(41,38,27,0.6)', lineHeight:1.4, padding:'2px 2px'}}>
-          Полноценный кабинет: создание событий, календарь, касса с формами, сборы, отчёты, все разделы настроек.
+          Полноценный кабинет: создание событий, календарь, касса с формами, сборы, отчёты, все разделы настроек. Сверху выберите, кто вошёл: организатор не видит баланс событий, роли команды и опасную зону.
         </div>
       </TweaksPanel>
     </>

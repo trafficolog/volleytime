@@ -304,12 +304,12 @@ const RecurrenceBlock = ({ start = new Date(2026, 5, 6), balance = 32, onCount, 
         <Icon name="ticket" size={16} stroke={short ? 'var(--vt-amber-ink)' : 'var(--vt-icon-idle)'}/>
         <div style={{flex:1, fontSize:'var(--fs-sm)', lineHeight:1.4}}>
           {short
-            ? <>Нужно <b>{n} credits</b>, на балансе {balance}. Опубликуем первые {balance}, остальные {short} станут черновиками до пополнения.</>
-            : <>Спишется <b>{n} {plural(n, 'credit', 'credits', 'credits')}</b> — по одному на тренировку. На балансе {balance}, останется {balance - n}.</>}
+            ? <>Нужно <b>{n} {plural(n, 'событие', 'события', 'событий')}</b>, на балансе {balance}. Опубликуем первые {balance}, остальные {short} станут черновиками до пополнения.</>
+            : <>Спишется <b>{n} {plural(n, 'событие', 'события', 'событий')}</b> — по одному на тренировку. На балансе {balance}, останется {balance - n}.</>}
         </div>
       </div>
       <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', lineHeight:1.45}}>
-        Серию можно отредактировать целиком или любую дату отдельно. Отмена будущих дат возвращает credits.
+        Серию можно отредактировать целиком или любую дату отдельно. Отмена будущих дат возвращает события на баланс.
       </div>
     </div>
   );

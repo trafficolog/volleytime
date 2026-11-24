@@ -22,15 +22,28 @@
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 
+<script>window.VT_AUTO_BACK = true;</script>
 <script type="text/babel" src="tweaks-panel.jsx?v=surf1"></script>
 <script type="text/babel" src="app-nav.jsx?v=surf1"></script>
-<script type="text/babel" src="atoms.jsx?v=surf1"></script>
+<script type="text/babel" src="atoms.jsx?v=roles1"></script>
 <script type="text/babel" src="prototype-shell.jsx?v=surf1"></script>
-<script type="text/babel" src="screens-player.jsx?v=surf1"></script>
-<script type="text/babel" src="screens-organizer.jsx?v=surf1"></script>
+<script type="text/babel" src="screens-player.jsx?v=more1"></script>
+<script type="text/babel" src="screens-organizer.jsx?v=staff1"></script>
 <script type="text/babel" src="screens-contributions.jsx?v=surf1"></script>
-<script type="text/babel" src="screens-schedule.jsx?v=surf1"></script>
-<script type="text/babel" src="screens-extra.jsx?v=surf1"></script>
+<script type="text/babel" src="screens-schedule.jsx?v=roles1"></script>
+<script type="text/babel" src="screens-extra.jsx?v=roles1"></script>
+<script type="text/babel" src="screens-ideas-1.jsx?v=fa1"></script>
+<script type="text/babel" src="screens-ideas-2.jsx?v=fa1"></script>
+<script type="text/babel" src="idea-app.jsx?v=fa1"></script>
+<script type="text/babel" src="screens-ideas-deep-a.jsx?v=fa1"></script>
+<script type="text/babel" src="screens-ideas-deep-b.jsx?v=fa1"></script>
+<script type="text/babel" src="screens-ideas-future.jsx?v=fa3"></script>
+<script type="text/babel" src="screens-player-plus.jsx?v=1"></script>
+<script type="text/babel" src="screens-invite.jsx?v=1"></script>
+<script type="text/babel" src="screens-event-staff.jsx?v=1"></script>
+<script type="text/babel" src="screens-roles.jsx?v=2"></script>
+<script type="text/babel" src="screens-player-more.jsx?v=1"></script>
+<script type="text/babel" src="screens-support.jsx?v=1"></script>
 </head>
 <body>
 <div id="root"></div>
@@ -44,7 +57,9 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "accent": "#2437C9",
   "role": "player",
   "screen": "home",
-  "dataState": "data"
+  "dataState": "data",
+  "invite": "off",
+  "coachPay": false
 }/*EDITMODE-END*/;
 
 const ACCENTS = ["#2437C9", "#1F2E96", "#FF6B1F", "#15161A", "#456F34"];
@@ -64,6 +79,19 @@ const PLAYER_SCREENS = {
   bookings:         { Component: () => <PlayerBookings /> },
   schedule:         { Component: () => <PlayerSchedule /> },
   'org-new':        { Component: () => <OrgOnboarding /> },
+  'my-calendar':    { Component: () => <PlayerMyCalendar /> },
+  features:         { Component: () => <PlayerFeatures /> },
+  invite:           { Component: () => <PlayerInvite /> },
+  'seat-offer':     { Component: () => <PlayerSeatOffer /> },
+  'seat-transfer':  { Component: () => <PlayerSeatTransfer /> },
+  partner:          { Component: () => <PlayerPartner /> },
+  'auto-series':    { Component: () => <PlayerAutoSeries /> },
+  checkin:          { Component: () => <PlayerCheckin /> },
+  nearby:           { Component: () => <PlayerNearby /> },
+  support:          { Component: () => <SupportHub /> },
+  'support-new':    { Component: () => <SupportNew /> },
+  'support-ticket': { Component: () => <SupportTicket /> },
+  ...ideaScreens(),
 };
 
 const ORG_SCREENS = {
@@ -80,25 +108,44 @@ const ORG_SCREENS = {
   'org-new':        { Component: () => <OrgOnboarding /> },
   members:          { Component: () => <OrgMembers       /> },
   reports:          { Component: () => <OrgReports       /> },
+  'roster-today':   { Component: () => <RosterToday /> },
+  expense:          { Component: () => <OrgExpense /> },
+  support:          { Component: () => <SupportHub /> },
+  'support-new':    { Component: () => <SupportNew /> },
+  'support-ticket': { Component: () => <SupportTicket /> },
 };
+
+const COACH_SCREENS = {
+  home:     { Component: () => <CoachToday /> },
+  roster:   { Component: () => <RosterToday /> },
+  schedule: { Component: () => <CoachSchedule /> },
+  support:          { Component: () => <SupportHub /> },
+  'support-new':    { Component: () => <SupportNew /> },
+  'support-ticket': { Component: () => <SupportTicket /> },
+};
+const COACH_LABEL = { home:'Сегодня', roster:'Состав сегодня', schedule:'Мои тренировки', support:'Помощь', 'support-new':'Новое обращение', 'support-ticket':'Обращение' };
 
 const PLAYER_LABEL = {
   home:'Главная', event:'Тренировка', book:'Запись', subs:'Абонементы',
   buy:'Покупка абонемента', profile:'Профиль', onboard:'Приглашение',
   'contrib-hub':'Сборы', 'contrib-detail':'Сбор', 'contrib-pledge':'Взнос',
-  notifications:'Уведомления', bookings:'Мои записи', 'org-new':'Своя группа', schedule:'Расписание'
+  notifications:'Уведомления', bookings:'Мои записи', 'org-new':'Своя группа', schedule:'Расписание',
+  'my-calendar':'Мой календарь', features:'Что показывать', invite:'Запись по приглашению',
+  'seat-offer':'Место из листа ожидания', 'seat-transfer':'Передать место', partner:'С напарником', 'auto-series':'Автозапись', checkin:'Отметка по QR', nearby:'Открытые игры рядом', support:'Помощь', 'support-new':'Новое обращение', 'support-ticket':'Обращение'
 };
 const ORG_LABEL = {
   home:'События', 'event-detail':'Состав события', payments:'Платежи',
   ledger:'Касса', create:'Новая тренировка',
   contribs:'Сборы', 'contrib-manage':'Управление сбором', 'contrib-create':'Новый сбор',
-  notifications:'Уведомления', members:'Игроки', reports:'Отчёт за месяц', schedule:'Расписание'
+  notifications:'Уведомления', members:'Игроки', reports:'Отчёт за месяц', schedule:'Расписание',
+  'roster-today':'Состав сегодня', expense:'Расход', support:'Помощь', 'support-new':'Новое обращение', 'support-ticket':'Обращение'
 };
 
-function InnerApp({ role, dataState }) {
-  const screens = role === 'organizer' ? ORG_SCREENS : PLAYER_SCREENS;
-  const labels = role === 'organizer' ? ORG_LABEL : PLAYER_LABEL;
-  const initial = role === 'organizer' ? 'home' : 'home';
+function InnerApp({ mode, dataState, invite }) {
+  const screens = mode === 'manage' ? ORG_SCREENS : mode === 'lead' ? COACH_SCREENS : PLAYER_SCREENS;
+  const labels = mode === 'manage' ? ORG_LABEL : mode === 'lead' ? COACH_LABEL : PLAYER_LABEL;
+  const initial = mode === 'play' && invite !== 'off' ? 'invite' : 'home';
+  window.VT_INVITE_STATE = invite;
   const { ctx, sheet, popover, toast, alertCfg } = useNavState(initial);
 
   // expose ctx via window for debugging
@@ -111,6 +158,7 @@ function InnerApp({ role, dataState }) {
     <NavContext.Provider value={ctx}>
       {/* StatusBar lives at prototype level so it's stable across nav */}
       <StatusBar time="19:24"/>
+      <ModeBar/>
 
       {/* Screen body fills remaining height */}
       <div style={{flex:1, display:'flex', flexDirection:'column', minHeight:0, position:'relative'}}>
@@ -134,7 +182,16 @@ function InnerApp({ role, dataState }) {
 }
 
 function App() {
-  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [t0, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [ov, setOv] = useState({});
+  useEffect(() => { window.__vtOverride = (o) => setOv(o || {}); }, []);
+  const t = { ...t0, ...ov };
+  const [modeSel, setModeSel] = useState(null);
+  useEffect(() => { setModeSel(null); }, [t.role]);
+  const modes = ROLE_MODES[t.role] || ['play'];
+  const mode = modeSel && modes.includes(modeSel) ? modeSel : defaultModeOf(t.role);
+  const roleCtx = { person: t.role, mode, coachPay: t.coachPay, setMode: setModeSel };
+  useEffect(() => { window.__vtSetMode = setModeSel; }, []);
 
   useEffect(() => {
     document.documentElement.style.setProperty('--vt-flame', t.accent);
@@ -145,14 +202,16 @@ function App() {
 
   const sceneLeft = (
     <Segmented value={t.role} onChange={(v) => setTweak('role', v)}
-      options={[{value:'player', label:'Игрок'}, {value:'organizer', label:'Организатор'}]}/>
+      options={[{value:'player', label:'Игрок'}, {value:'organizer', label:'Организатор'}, {value:'coach', label:'Тренер'}]}/>
   );
 
   return (
     <>
+      <RoleContext.Provider value={roleCtx}>
       <PhonePrototype frameCls={frameCls} sceneLeft={sceneLeft}>
-        <InnerApp key={t.role} role={t.role} dataState={t.dataState}/>
+        <InnerApp key={t.role + mode + t.invite + t.coachPay} mode={mode} dataState={t.dataState} invite={t.invite}/>
       </PhonePrototype>
+      </RoleContext.Provider>
 
       <TweaksPanel title="Tweaks · Mini App">
         <TweakSection label="Тема" />
@@ -165,13 +224,20 @@ function App() {
         <TweakRadio label="Данные" value={t.dataState}
           options={['data','empty','offline']}
           onChange={(v) => setTweak('dataState', v)} />
+        <TweakSection label="Тренер · M-25" />
+        <TweakToggle label="Принимает оплату" value={t.coachPay}
+          onChange={(v) => { setTweak('coachPay', v); setTweak('role', 'coach'); }} />
+        <TweakSection label="Запись по приглашению · M-08" />
+        <TweakSelect label="Состояние" value={t.invite}
+          options={[{value:'off', label:'Выкл · главная'}, {value:'none', label:'Без приглашения'}, {value:'sent', label:'Запрос отправлен'}, {value:'ok', label:'Приглашение принято'}, {value:'expired', label:'Ссылка просрочена'}]}
+          onChange={(v) => { setTweak('invite', v); if (v !== 'off') setTweak('role', 'player'); }} />
         <TweakSection label="Акцент" />
         <TweakColor label="Primary" value={t.accent}
           options={ACCENTS}
           onChange={(v) => setTweak('accent', v)} />
         <TweakSection label="Подсказка" />
         <div style={{fontSize:11, color:'rgba(41,38,27,0.6)', lineHeight:1.4, padding:'2px 2px'}}>
-          Кликайте на карточки, ··· меню и кнопки — экраны связаны. Переключитесь между Игроком и Организатором сверху.
+          Кликайте на карточки, ··· меню и кнопки — экраны связаны. Сверху выберите, кто открыл приложение: игрок, организатор или тренер. У организатора и тренера в шапке есть переключатель «Играю».
         </div>
       </TweaksPanel>
     </>
