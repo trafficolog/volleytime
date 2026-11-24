@@ -85,6 +85,7 @@ erDiagram
 | Привязка Telegram-чата     | `organization_telegram_chats`, `telegram_chat_link_codes`          | `telegram-chats`        | 20.3.4         | новые (миграция 0031)              |
 | Время открытия записи      | `events.booking_opens_at`                                          | `events`                | 20.3.1         | новая колонка                      |
 | Фоновые задачи (журнал)    | `scheduled_jobs`                                                   | `scheduler`             | 20.3.1         | новая (вместо pg-boss, 2026-10-16) |
+| Роли на членстве, тренер   | `organization_members.role` (`coach`), `…can_accept_payment`, `events.coach_user_ids` | `members`, `events` | 30.1.1 | новые колонки, enum `assistant` → `coach` (миграция 0047) |
 
 ### Настройки группы и снимок в событие (19.2.2, D-02)
 
@@ -366,6 +367,21 @@ erDiagram
 - `telegram_chat_link_codes`: `organization_id`, `created_by_user_id`, `code_hash` (SHA-256, UNIQUE), `expires_at` (15 минут), `consumed_at`. Код — 8 символов без похожих (≈ 39,6 бит); расходуется условным `UPDATE … WHERE consumed_at IS NULL AND expires_at > now()`.
 - Порядок: кабинет выдаёт код → администратор чата отправляет боту `/link <код>` → бот проверяет `getChatMember` отправителя (creator/administrator) и свои права → web (`POST /api/internal/bot/chat-link`) создаёт привязку. `my_chat_member` в группах (`POST /api/internal/bot/chat-member`) обновляет только существующую привязку: исключение бота — `unlinked` (`bot_removed`), потеря права писать — `invalid` (`no_rights`), возвращение права — `active`. Код сгорает при любом исходе, кроме неверного/просроченного (`verdict: rejected` от бота для не администратора).
 - Анонс (`POST …/events/{id}/telegram-announce`): текст и кнопки строит web из данных события; в групповом чате только `url`-кнопки `https://t.me/<бот>?startapp=event_<id>`; ошибки Bot API бот отдаёт web заголовком `x-failure-reason` (`bot_removed`, `no_rights`, `migrated`) на ответе 410, web помечает привязку недействительной (`no_rights`, `migrated`) или снимает её (`bot_removed`) и возвращает организатору `telegram_chat.*`.
+
+### Роли на членстве и тренер (30.1.1, P-18, D-31)
+
+Референс задаёт `membership(user, group, roles[])` с ролями owner, organizer, coach, player, где у всех ролей есть и `player`.
+
+**Решение: одна колонка `organization_members.role` плюс выводимый `player`, без массива и без отдельной таблицы.**
+
+- Управляющие роли взаимоисключающие: владелец один на группу, организатор и тренер — разные уровни прав, человек с обеими ролями референсом не описан. Поэтому `roles[]` в API выводится: `memberRoles = [role, 'player']`, у игрока — `['player']`. Отдельный `player` хранить нечего: записываться как игрок могут все роли.
+- Отдельная таблица `member_roles` или `role[]` дали бы недопустимые состояния (owner + organizer, пустой набор) и потребовали бы переписать все политики и запросы `role = …` в один релиз; колонка сохраняет работающий код (правило «работающее не переписывается»).
+- `assistant` → `coach`: `ALTER TYPE … RENAME VALUE` переводит строки и приглашения без перестройки таблиц; значение `assistant` возвращается в конец enum (expand), чтобы прежний runtime в окне отката мог его записать. Новый код его не пишет и читает как `coach` (`normalizeRole`). Удаление значения — будущий contract-шаг.
+- `can_accept_payment boolean NOT NULL DEFAULT false` на членстве; действует только у активного `coach`, при смене роли сбрасывается. Выдают owner и organizer (`PATCH …/members/{id}` `{canAcceptPayment}`), роль меняет только owner. Оба изменения пишутся в `audit_log` (`member.role_changed`, old/new `{role, canAcceptPayment}`, автор — актор).
+- Тренеры события — `events.coach_user_ids integer[] NOT NULL DEFAULT '{}'` (до 10, без FK; состав проверяет сервис событий: активные coach/organizer/owner группы). Даты серии получают тренеров из шаблона серии; правка серии «это и последующие» меняет их у будущих дат.
+- Политика: роль в группе ∪ роль на событии. Управляющие видят состав любого события; тренер — только событий, где назначен; суммы и статусы оплаты тренеру — только с флагом (`canSeeEventPayments`).
+- Режимы Mini App (`memberModes`): owner/organizer — `play`, `manage`; coach — `play`, `coach`; player — `play`. В режиме «Играю» (`X-VT-Mode: play`) tenant middleware считает права по копии членства с ролью `player`.
+- Откат 0047 отказывает, пока есть выданные флаги или назначенные тренеры (их прежний runtime хранить не умеет).
 
 ## Статусы референса ↔ enum
 

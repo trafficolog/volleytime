@@ -1,11 +1,12 @@
 type Actor = {
-  role: 'owner' | 'organizer' | 'coach' | 'player'
+  /** `assistant` — устаревшее имя `coach` (30.1.1, D-31); API отдаёт `coach`. */
+  role: 'owner' | 'organizer' | 'coach' | 'player' | 'assistant'
   status: string
   userId: number
 }
 
 type Target = {
-  role: Actor['role']
+  role: 'owner' | 'organizer' | 'coach' | 'player'
   status: string
   userId: number
 }
