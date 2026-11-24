@@ -2,10 +2,11 @@
 id: '10.4.1'
 phase: '10'
 epic: '10.4'
-status: todo
+status: superseded
 sync_state: drifted
-last_reviewed: 2026-05-29
-status_note: ''
+last_reviewed: 2026-11-24
+status_note: 'Поглощена 29.4.1 — база знаний (решение владельца D-33, 2026-11-24). Карточка — входной материал, не реализуется.'
+superseded_by: '29.4.1'
 roles:
   - FE
   - DOCS

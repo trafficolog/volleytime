@@ -2,11 +2,12 @@
 id: '27.7.2'
 phase: '27'
 epic: '27.7'
-status: todo
+status: superseded
 release: ''
 sync_state: synced
-last_reviewed: 2026-11-10
-status_note: 'Из аудита 2026-11-10 (ROLE-02). Релиз назначает владелец; не стартует до решения AQ-6.'
+last_reviewed: 2026-11-24
+status_note: 'Не реализуется (решение владельца D-32, 2026-11-24): организатор сохраняет кассу; роли — 30.1.1. Карточка — входной материал.'
+superseded_by: '30.1.1'
 ref_id: ''
 review_ref: 'ROLE-02'
 priority: P2

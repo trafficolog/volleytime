@@ -2,11 +2,12 @@
 id: '27.7.1'
 phase: '27'
 epic: '27.7'
-status: todo
+status: superseded
 release: ''
 sync_state: synced
-last_reviewed: 2026-11-10
-status_note: 'Из аудита 2026-11-10 (ROLE-01). Релиз назначает владелец; не стартует до решения AQ-5.'
+last_reviewed: 2026-11-24
+status_note: 'Поглощена задачей 30.1.1 (решение владельца D-31, 2026-11-24: assistant → coach). Карточка — входной материал, не реализуется.'
+superseded_by: '30.1.1'
 ref_id: ''
 review_ref: 'ROLE-01'
 priority: P2

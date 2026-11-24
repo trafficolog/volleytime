@@ -31,6 +31,7 @@ depends_on: ['19.2.1']
 | [19.0.2](../tasks/19-0-2-visual-reference-harness.md)        | Харнесс визуальной сверки с референсом        | —        | M      | `claude-sonnet-5-5` | `claude-opus-5-5` |
 | [19.0.3](../tasks/19-0-3-reference-v3-owner-decisions.md)    | Решения владельца по конфликтам референса v3  | —        | S      | `claude-opus-5-5`   | `claude-opus-5-5` |
 | [19.0.4](../tasks/19-0-4-reference-v3-refresh-2026-11-24.md) | Обновление референса v3 по макету 2026-11-24  | —        | M      | `claude-opus-5-5`   | владелец          |
+| [19.0.5](../tasks/19-0-5-replan-2026-11-24.md)               | Перепланирование по референсу 2026-11-24      | —        | L      | `claude-opus-5-5`   | владелец          |
 
 ## Не делать
 

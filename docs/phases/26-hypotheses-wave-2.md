@@ -1,7 +1,7 @@
 ---
 id: '26'
 status: todo
-release: 'v0.7.0'
+release: 'v0.8.0'
 sync_state: synced
 last_reviewed: 2026-10-12
 status_note: 'Референс v3 Ф6. 6 задач.'
