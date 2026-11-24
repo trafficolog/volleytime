@@ -3,10 +3,10 @@ id: '29.3.5'
 phase: '29'
 epic: '29.3'
 status: todo
-release: ''
+release: 'v0.6.0'
 sync_state: synced
 last_reviewed: 2026-11-24
-status_note: 'Бэклог (D-30): релиз назначает владелец.'
+status_note: 'Бэклог (D-30) в составе v0.6.0 (D-34).'
 ref_id: ''
 complexity: M
 impl_model: claude-sonnet-5-5

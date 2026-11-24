@@ -3,10 +3,10 @@ id: '29.3.2'
 phase: '29'
 epic: '29.3'
 status: todo
-release: ''
+release: 'v0.6.0'
 sync_state: synced
 last_reviewed: 2026-11-24
-status_note: 'Перепланирование 19.0.5 (референс 2026-11-24). Релиз назначает владелец.'
+status_note: 'Перепланирование 19.0.5 (референс 2026-11-24). Релиз v0.6.0 (D-34).'
 ref_id: 'R-12'
 complexity: M
 impl_model: claude-sonnet-5-5
@@ -14,8 +14,8 @@ review_model: claude-opus-5-5
 review_gate: opus
 roles: [FE, BACK]
 depends_on: ['29.1.1', '22.1.2', '29.3.1']
-supersedes: []
-decisions: []
+supersedes: ['10.5.3']
+decisions: ['D-33']
 estimated_hours: '4-8'
 reference:
   spec: 'docs/design/reference-v3/specs/04-root-admin/R-12-support-queue.md'
@@ -45,6 +45,10 @@ tags: [reference-v3]
 - Фильтры: активные, новые, мои, все; по роли — игроки, тренеры, организаторы
 - Таблица: номер, обращение и тема, кто (роль, организация), канал, статус, сколько ждёт, срок (в срок / осталось 1 ч / просрочено)
 - Сортировка по сроку: просроченные и близкие к сроку сверху
+
+**Поглощённые карточки** ([D-33](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-33))
+
+- [10.5.3](10-5-3-feedback-tracking.md): процесс разбора обратной связи — через очередь обращений, темы и статусы
 
 ## Критерии приёмки
 

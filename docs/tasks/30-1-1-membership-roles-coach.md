@@ -3,10 +3,10 @@ id: '30.1.1'
 phase: '30'
 epic: '30.1'
 status: todo
-release: ''
+release: 'v0.6.0'
 sync_state: synced
 last_reviewed: 2026-11-24
-status_note: 'Перепланирование 19.0.5 (референс 2026-11-24). Релиз назначает владелец.'
+status_note: 'Перепланирование 19.0.5 (референс 2026-11-24). Релиз v0.6.0 (D-34).'
 ref_id: 'P-18'
 complexity: XL
 impl_model: claude-opus-5-5
@@ -14,8 +14,8 @@ review_model: claude-opus-5-5
 review_gate: opus+tests
 roles: [BACK, DB]
 depends_on: ['19.2.1', '19.3.1']
-supersedes: ['27.7.1']
-decisions: ['D-31', 'D-27']
+supersedes: ['27.7.1', '27.7.2']
+decisions: ['D-31', 'D-27', 'D-32']
 estimated_hours: '16-32'
 reference:
   spec: 'docs/design/reference-v3/specs/01-platform/P-18-membership-roles.md'
@@ -36,7 +36,7 @@ tags: [reference-v3]
 - **Как есть (main `69a5595`):** `organization_members.role` — одна роль: `owner`, `organizer`, `assistant`, `player`; `MANAGER_ROLES = owner, organizer`; `assistant` фактически права игрока (`packages/core/src/permissions/policies.ts`); тренера, `canAcceptPayment` и `event.coachIds` нет.
 - **Дельта до референса:** всё, что в «Что должно быть сделано»; работающее не переписывается.
 - Решения владельца: [D-31](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-31), [D-27](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-27).
-- Поглощает: [27.7.1](27-7-1-assistant-role.md).
+- Поглощает: [27.7.1](27-7-1-assistant-role.md), [27.7.2](27-7-2-organizer-finance-access.md) (D-32).
 - Модель: реализация `claude-opus-5-5`, ревью `claude-opus-5-5` (обязательны тесты граничных случаев); маршрутизация — [ORCHESTRATION](../ORCHESTRATION.md).
 
 ## Что должно быть сделано
@@ -78,10 +78,10 @@ tags: [reference-v3]
 
 - Handoff: [README](../design/reference-v3/handoff/README.md) — статусная модель, токены, доменная логика.
 - Организатор видит баланс событий, пополняет только владелец — как сейчас в коде (D-27); не менять.
-- 27.7.2 «Организатор без доступа к кассе» (AQ-6) противоречит матрице референса: до решения AQ-6 организатор сохраняет кассу.
+- Организатор сохраняет кассу, сборы, абонементы и отчёты (D-32); 27.7.2 не реализуется.
 - Подпись «Помощник» во всех экранах и `labels.ts` → «Тренер».
 
 ## Не делать
 
 - ❌ Не расширять scope за пределы карточки: соседние экраны и гипотезы принадлежат своим задачам
-- ❌ Не трогать права организатора на кассу до решения AQ-6
+- ❌ Не менять права организатора на кассу (D-32)

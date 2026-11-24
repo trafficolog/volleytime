@@ -3,10 +3,10 @@ id: '29.3.4'
 phase: '29'
 epic: '29.3'
 status: todo
-release: ''
+release: 'v0.6.0'
 sync_state: synced
 last_reviewed: 2026-11-24
-status_note: 'Перепланирование 19.0.5 (референс 2026-11-24). Релиз назначает владелец.'
+status_note: 'Перепланирование 19.0.5 (референс 2026-11-24). Релиз v0.6.0 (D-34).'
 ref_id: 'R-14'
 complexity: M
 impl_model: claude-sonnet-5-5
@@ -14,8 +14,8 @@ review_model: claude-opus-5-5
 review_gate: opus
 roles: [FE, BACK]
 depends_on: ['29.3.2', '22.3.1', '29.3.1']
-supersedes: []
-decisions: []
+supersedes: ['10.5.2']
+decisions: ['D-33']
 estimated_hours: '4-8'
 reference:
   spec: 'docs/design/reference-v3/specs/04-root-admin/R-14-support-settings.md'
@@ -45,6 +45,10 @@ tags: [reference-v3]
 - Шаблоны ответов: название, текст с подстановками {имя}, {группа}, {событие}, привязка к теме
 - Часы работы по дням недели, срок первого ответа, срок автозакрытия
 - Команда поддержки: кто видит очередь, кому назначать по умолчанию
+
+**Поглощённые карточки** ([D-33](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-33))
+
+- [10.5.2](10-5-2-support-runbook.md): регламент поддержки — типовые проблемы и эскалация — в `docs/operations/runbooks/support.md`, ссылка из настроек
 
 ## Критерии приёмки
 

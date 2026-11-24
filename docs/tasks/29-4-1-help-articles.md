@@ -3,10 +3,10 @@ id: '29.4.1'
 phase: '29'
 epic: '29.4'
 status: todo
-release: ''
+release: 'v0.6.0'
 sync_state: synced
 last_reviewed: 2026-11-24
-status_note: 'Перепланирование 19.0.5 (референс 2026-11-24). Релиз назначает владелец.'
+status_note: 'Перепланирование 19.0.5 (референс 2026-11-24). Релиз v0.6.0 (D-34).'
 ref_id: 'H-01'
 complexity: L
 impl_model: claude-sonnet-5-5
@@ -14,8 +14,8 @@ review_model: claude-opus-5-5
 review_gate: opus
 roles: [BACK, DB, FE]
 depends_on: ['19.3.1', '29.3.1']
-supersedes: []
-decisions: []
+supersedes: ['10.4.1', '10.5.1']
+decisions: ['D-33']
 estimated_hours: '8-16'
 reference:
   spec: 'docs/design/reference-v3/specs/05-help-center/H-01-articles.md'
@@ -54,6 +54,11 @@ tags: [reference-v3]
 - GET /kb/articles/{slug}
 - POST/PATCH /admin/kb/articles
 
+**Поглощённые карточки** ([D-33](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-33))
+
+- [10.4.1](10-4-1-user-faq.md): вопросы FAQ организатора и игрока — первые статьи разделов
+- [10.5.1](10-5-1-onboarding-checklist.md): раздел «Первые шаги организатора» — чек-лист запуска группы
+
 ## Критерии приёмки
 
 - ✅ Смена slug оставляет 301-редирект со старого адреса
@@ -64,7 +69,6 @@ tags: [reference-v3]
 ## Подсказки
 
 - Handoff: [README](../design/reference-v3/handoff/README.md) — статусная модель, токены, доменная логика.
-- 10.4.1 «FAQ организатора и игрока» пересекается с базой знаний: содержимое FAQ становится первыми статьями; поглощение 10.4.1 — решение владельца.
 - Макета редактора нет: нарисовать до UI-шага.
 
 ## Не делать

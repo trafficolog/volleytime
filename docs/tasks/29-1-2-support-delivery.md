@@ -3,10 +3,10 @@ id: '29.1.2'
 phase: '29'
 epic: '29.1'
 status: todo
-release: ''
+release: 'v0.6.0'
 sync_state: synced
 last_reviewed: 2026-11-24
-status_note: 'Перепланирование 19.0.5 (референс 2026-11-24). Релиз назначает владелец.'
+status_note: 'Перепланирование 19.0.5 (референс 2026-11-24). Релиз v0.6.0 (D-34).'
 ref_id: 'P-23'
 complexity: M
 impl_model: claude-sonnet-5-5

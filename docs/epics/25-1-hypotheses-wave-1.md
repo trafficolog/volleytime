@@ -2,7 +2,7 @@
 id: '25.1'
 phase: '25'
 status: todo
-release: 'v0.6.0'
+release: 'v0.7.0'
 sync_state: synced
 last_reviewed: 2026-10-12
 status_note: ''
@@ -16,7 +16,7 @@ depends_on: ['19.2.3', '20.3.1', '20.3.2', '20.5.5', '21.1.2', '23.1.1', '23.1.2
 
 ## Контекст
 
-Фаза [25](../phases/25-hypotheses-wave-1.md) · релиз `v0.6.0` · референс Ф5. Порядок внутри эпика — по `depends_on` карточек; задачи без взаимных зависимостей идут параллельно (см. [ORCHESTRATION](../ORCHESTRATION.md)).
+Фаза [25](../phases/25-hypotheses-wave-1.md) · релиз `v0.7.0` · референс Ф5. Порядок внутри эпика — по `depends_on` карточек; задачи без взаимных зависимостей идут параллельно (см. [ORCHESTRATION](../ORCHESTRATION.md)).
 
 ## Definition of Done
 
@@ -31,7 +31,7 @@ depends_on: ['19.2.3', '20.3.1', '20.3.2', '20.5.5', '21.1.2', '23.1.1', '23.1.2
 | [25.1.2](../tasks/25-1-2-self-check.md)              | Самооценка                                 | M-17     | M      | `claude-sonnet-5-5` | `claude-sonnet-5-5` |
 | [25.1.3](../tasks/25-1-3-skill-progress.md)          | Прогресс навыков                           | M-18     | M      | `claude-sonnet-5-5` | `claude-sonnet-5-5` |
 | [25.1.4](../tasks/25-1-4-streaks.md)                 | Серии и челленджи                          | M-20     | M      | `claude-sonnet-5-5` | `claude-sonnet-5-5` |
-| [25.1.5](../tasks/25-1-5-release-v0-6-0-decision.md) | Релиз v0.6.0: решение по гипотезам волны 1 | —        | M      | `claude-opus-5-5`   | `claude-opus-5-5`   |
+| [25.1.5](../tasks/25-1-5-release-v0-7-0-decision.md) | Релиз v0.7.0: решение по гипотезам волны 1 | —        | M      | `claude-opus-5-5`   | `claude-opus-5-5`   |
 
 ## Не делать
 

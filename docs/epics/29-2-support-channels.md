@@ -2,10 +2,10 @@
 id: '29.2'
 phase: '29'
 status: todo
-release: ''
+release: 'v0.6.0'
 sync_state: synced
 last_reviewed: 2026-11-24
-status_note: 'Перепланирование 19.0.5. Релиз назначает владелец.'
+status_note: 'Перепланирование 19.0.5. Релиз v0.6.0 (D-34).'
 estimated_hours: '14-28'
 depends_on: ['29.1.1']
 ---

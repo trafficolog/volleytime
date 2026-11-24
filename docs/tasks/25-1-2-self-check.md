@@ -3,7 +3,7 @@ id: '25.1.2'
 phase: '25'
 epic: '25.1'
 status: todo
-release: 'v0.6.0'
+release: 'v0.7.0'
 sync_state: synced
 last_reviewed: 2026-10-12
 status_note: ''

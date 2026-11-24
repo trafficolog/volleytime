@@ -1,10 +1,10 @@
 ---
 id: '29'
 status: todo
-release: ''
+release: 'v0.6.0'
 sync_state: synced
 last_reviewed: 2026-11-24
-status_note: 'Перепланирование 19.0.5 (референс 2026-11-24). 4 эпика, 15 задач. Релиз назначает владелец.'
+status_note: 'Перепланирование 19.0.5 (референс 2026-11-24). 4 эпика, 15 задач. Релиз v0.6.0 (D-34).'
 estimated_hours: '98-196'
 depends_on: []
 ---
@@ -16,11 +16,11 @@ depends_on: []
 ## Контекст
 
 - Источник — референс v3, обновление 2026-11-24: [фаза 29](../design/reference-v3/specs/29-support/README.md), [отчёт](../design/2026-11-24-reference-v3-update.md); перепланирование — [19.0.5](../tasks/19-0-5-replan-2026-11-24.md).
-- Фаза поглощает [27.10.3](../tasks/27-10-3-feedback-support.md), [10.2.1](../tasks/10-2-1-feedback-endpoint.md), [10.2.2](../tasks/10-2-2-feedback-ui.md) (D-29). [10.4.1](../tasks/10-4-1-user-faq.md) «FAQ» пересекается с базой знаний 29.4, [10.5.2](../tasks/10-5-2-support-runbook.md) и [10.5.3](../tasks/10-5-3-feedback-tracking.md) — с регламентом поддержки: поглощение — решение владельца.
+- Фаза поглощает [27.10.3](../tasks/27-10-3-feedback-support.md), [10.2.1](../tasks/10-2-1-feedback-endpoint.md), [10.2.2](../tasks/10-2-2-feedback-ui.md) (D-29). Поглощены также [10.4.1](../tasks/10-4-1-user-faq.md) и [10.5.1](../tasks/10-5-1-onboarding-checklist.md) → 29.4.1, [10.5.2](../tasks/10-5-2-support-runbook.md) → 29.3.4, [10.5.3](../tasks/10-5-3-feedback-tracking.md) → 29.3.2 (D-33).
 - Обращения опираются на роли на членстве ([30.1.1](../tasks/30-1-1-membership-roles-coach.md)) и полосу режима Mini App ([30.1.3](../tasks/30-1-3-mode-switch-coach.md)): эпик 30.1 идёт раньше или параллельно с 29.4.
 - Второй фактор для команды платформы — [27.7.4](../tasks/27-7-4-root-admin-hardening.md) (AQ-20), не в этой фазе.
 
-Номер фазы — ID, а не порядок ([RELEASES](../RELEASES.md)). Карточки не входят в релизы, пока владелец их не назначит.
+Номер фазы — ID, а не порядок ([RELEASES](../RELEASES.md)). Релиз — `v0.6.0` (решение владельца [D-34](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-34)); гипотезы фаз 25–26 сдвинуты в `v0.7.0` и `v0.8.0`.
 
 ## Definition of Done
 
