@@ -2755,6 +2755,32 @@ ol.vt-desktop-event-detail__rows > li {
   font-size: 0.75rem;
   font-weight: 600;
 }
+.vt-desktop-reports__breakdown {
+  display: grid;
+  gap: 0.875rem;
+  margin-top: 1.5rem;
+}
+.vt-desktop-table .vt-desktop-reports__num {
+  text-align: end;
+  white-space: nowrap;
+}
+.vt-desktop-table .vt-desktop-reports__muted {
+  color: var(--vt-mute-2);
+  font-weight: 500;
+}
+.vt-desktop-reports__breakdown .vt-desktop-table table {
+  min-width: 36rem;
+}
+.vt-desktop-reports__breakdown tfoot th,
+.vt-desktop-reports__breakdown tfoot td {
+  border-block-end: 0;
+  border-block-start: 1px solid var(--vt-hairline);
+  font-weight: 700;
+}
+.vt-desktop-reports__breakdown .vt-desktop-reports__hint {
+  margin: 0;
+  padding: 0.75rem 1rem;
+}
 .vt-desktop-reports__export {
   display: grid;
   grid-template-columns: minmax(0, 22.5rem) minmax(0, 1fr);

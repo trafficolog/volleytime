@@ -1,4 +1,5 @@
 import {
+  REPORT_BREAKDOWN_DIMENSIONS,
   REPORT_EXPORT_COLUMNS,
   REPORT_EXPORT_TYPES,
   resolveReportPeriod,
@@ -50,3 +51,12 @@ export const ReportExportQuery = z
     { message: 'Неизвестная колонка отчёта', path: ['columns'] },
   )
 export type ReportExportQuery = z.infer<typeof ReportExportQuery>
+
+/** Запрос отчёта «В разрезе» (W-19): разрез и период в датах группы, как у отчёта периода. */
+export const ReportBreakdownQuery = z
+  .object({ dimension: z.enum(REPORT_BREAKDOWN_DIMENSIONS), from: LocalDate, to: LocalDate })
+  .refine((p) => resolveReportPeriod(p.from, p.to, 'UTC') !== null, {
+    message: 'Период: даты ГГГГ-ММ-ДД, начало не позже конца, не длиннее года',
+    path: ['to'],
+  })
+export type ReportBreakdownQuery = z.infer<typeof ReportBreakdownQuery>

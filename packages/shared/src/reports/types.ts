@@ -116,3 +116,42 @@ export interface ReportExportPreview {
   /** Размер файла в байтах. */
   bytes: number
 }
+
+/** Разрезы отчёта «В разрезе» (W-19, 30.3.4): по тренерам, залам и сериям. */
+export const REPORT_BREAKDOWN_DIMENSIONS = ['coach', 'venue', 'series'] as const
+export type ReportBreakdownDimension = (typeof REPORT_BREAKDOWN_DIMENSIONS)[number]
+
+/** Показатели строки отчёта «В разрезе»; деньги — минорные единицы валюты группы. */
+export interface ReportBreakdownFigures {
+  /** События периода (без черновиков и отменённых). */
+  events: number
+  seats: number
+  capacity: number
+  /** Целые проценты; `null`, если вместимость нулевая. */
+  percent: number | null
+  /** Поступления периода по дате операции: те же записи кассы, что в «Поступлениях» итога. */
+  income: number
+  /** Расход «Аренда» периода, привязанный к событию (запись кассы с событием или его оплатой). */
+  rent: number
+}
+
+export interface ReportBreakdownRow extends ReportBreakdownFigures {
+  /** Идентификатор тренера (user id), зала или серии; `null` — «Не указано». */
+  key: number | null
+  /** Имя тренера, название зала или серии; `null` у строки «Не указано». */
+  label: string | null
+}
+
+export interface ReportBreakdown {
+  dimension: ReportBreakdownDimension
+  currency: string
+  /** Локальные даты группы, обе включительно. */
+  period: { from: string; to: string }
+  /** От большей выручки к меньшей; строка «Не указано» всегда последняя. */
+  rows: ReportBreakdownRow[]
+  /**
+   * Итог периода: `income` и `rent` — суммы кассы и равны сумме строк; `events`, `seats`,
+   * `capacity` — по событиям периода, без повторного счёта события с несколькими тренерами.
+   */
+  totals: ReportBreakdownFigures
+}

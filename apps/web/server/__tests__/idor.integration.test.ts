@@ -171,6 +171,10 @@ const ROUTES: OrgRouteTable = {
     access: 'manager',
     query: '?from=2026-05-01&to=2026-05-31',
   },
+  'GET /api/organizations/:orgId/reports/breakdown': {
+    access: 'manager',
+    query: '?dimension=venue&from=2026-05-01&to=2026-05-31',
+  },
   'GET /api/organizations/:orgId/reports/export': {
     access: 'manager',
     query: '?type=finance&from=2026-05-01&to=2026-05-31',

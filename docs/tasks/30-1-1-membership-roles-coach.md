@@ -2,11 +2,11 @@
 id: '30.1.1'
 phase: '30'
 epic: '30.1'
-status: in_progress
+status: done
 release: 'v0.6.0'
 sync_state: synced
 last_reviewed: 2026-11-24
-status_note: 'Перепланирование 19.0.5 (референс 2026-11-24). Релиз v0.6.0 (D-34).'
+status_note: 'Сделано в #351 (d24b97eb), CI зелёный на 43925cf2, ревью Opus: merge. Роль — одна колонка с выводимым player (ADR-v3-domain); сочетание управляющих ролей потребует миграции.'
 ref_id: 'P-18'
 complexity: XL
 impl_model: claude-opus-5-5

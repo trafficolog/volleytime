@@ -7,10 +7,12 @@ import ReportsPage from './index.vue'
 
 import ErrorState from '~/components/ErrorState.vue'
 import SkeletonList from '~/components/SkeletonList.vue'
+import ReportsBreakdown from '~/components/desktop/ReportsBreakdown.vue'
 import ReportsOverview from '~/components/desktop/ReportsOverview.vue'
 import ReportsPeriodPicker from '~/components/desktop/ReportsPeriodPicker.vue'
 import Avatar from '~/components/vt/Avatar.vue'
 import Icon from '~/components/vt/Icon.vue'
+import Segment from '~/components/vt/Segment.vue'
 
 const route = reactive<{ params: { orgId: string }; query: Record<string, string> }>({
   params: { orgId: '30' },
@@ -18,6 +20,7 @@ const route = reactive<{ params: { orgId: string }; query: Record<string, string
 })
 const replace = vi.fn()
 const reportFetches: { url: string; query: unknown }[] = []
+const breakdownQueries: { value: unknown }[] = []
 let wrapper: VueWrapper | undefined
 let failReport = false
 
@@ -44,7 +47,27 @@ const report = {
   attendance: { visits: 0, noShows: 0, cancellations: 0, top: [] },
 }
 
+const breakdown = {
+  dimension: 'coach',
+  currency: 'BYN',
+  period: { from: '2026-05-01', to: '2026-05-31' },
+  rows: [
+    {
+      key: 4,
+      label: 'Ольга',
+      events: 2,
+      seats: 5,
+      capacity: 10,
+      percent: 50,
+      income: 1000,
+      rent: 0,
+    },
+  ],
+  totals: { events: 2, seats: 5, capacity: 10, percent: 50, income: 1000, rent: 0 },
+}
+
 beforeEach(() => {
+  breakdownQueries.length = 0
   route.query = {}
   failReport = false
   reportFetches.length = 0
@@ -55,6 +78,15 @@ beforeEach(() => {
   vi.stubGlobal('useRouter', () => ({ replace }))
   vi.stubGlobal('useFetch', async (url: () => string, opts: { query?: { value: unknown } }) => {
     const target = url()
+    if (target.endsWith('/reports/breakdown')) {
+      breakdownQueries.push(opts.query as { value: unknown })
+      return {
+        data: ref(breakdown),
+        pending: ref(false),
+        error: ref(null),
+        refresh: vi.fn(),
+      }
+    }
     if (target.endsWith('/reports')) {
       reportFetches.push({ url: target, query: opts.query?.value })
       return {
@@ -67,6 +99,7 @@ beforeEach(() => {
     return { data: ref({ organization: { id: 30, defaultTimezone: 'Europe/Minsk' } }) }
   })
   vi.stubGlobal('computed', computed)
+  vi.stubGlobal('ref', ref)
 })
 
 afterEach(() => {
@@ -87,7 +120,9 @@ async function render() {
           SkeletonList,
           VtIcon: Icon,
           VtAvatar: Avatar,
+          VtSegment: Segment,
           DesktopReportsOverview: ReportsOverview,
+          DesktopReportsBreakdown: ReportsBreakdown,
           DesktopReportsPeriodPicker: ReportsPeriodPicker,
         },
         stubs: {
@@ -160,5 +195,24 @@ describe('reports page (21.2.7, W-10)', () => {
 
     expect(page.get('[role="alert"]').text()).toContain('Не удалось загрузить отчёты')
     expect(page.find('.vt-desktop-reports__kpis').exists()).toBe(false)
+  })
+
+  it('shows the breakdown of the same period and refetches it for another dimension (W-19)', async () => {
+    const page = await render()
+
+    expect(page.get('#reports-breakdown-title').text()).toBe('В разрезе')
+    expect(page.findAll('.vt-desktop-table tbody th').map((c) => c.text())).toEqual(['Ольга'])
+    expect(breakdownQueries[0]!.value).toEqual({
+      dimension: 'coach',
+      from: '2026-05-01',
+      to: '2026-05-31',
+    })
+
+    await page.findAll('[role="radio"]')[1]!.trigger('click')
+    expect(breakdownQueries[0]!.value).toEqual({
+      dimension: 'venue',
+      from: '2026-05-01',
+      to: '2026-05-31',
+    })
   })
 })
