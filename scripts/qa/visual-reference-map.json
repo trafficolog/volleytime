@@ -317,6 +317,16 @@
       "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
     },
     {
+      "id": "player-nearby-games",
+      "title": "Игрок: открытые игры рядом (30.3.3, M-32; макета экрана нет, референс — профиль)",
+      "viewport": "miniapp",
+      "role": "player",
+      "org": "vt",
+      "path": "/m/orgs/{org}/nearby",
+      "references": ["3-miniapp-player/06-screen.png"],
+      "referenceCrop": { "x": 357, "y": 57, "width": 202, "height": 412 }
+    },
+    {
       "id": "organizer-members",
       "title": "Организатор: игроки (уровни и фильтр)",
       "viewport": "miniapp",

@@ -31,7 +31,7 @@ export const GROUP_SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/
  * (`publicPageEnabled`, 24.1.2) и root её не скрыл (24.1.3: скрытая неотличима от
  * неопубликованной). Индексируемость — отдельно, по `seoIndex` и решению root.
  */
-const publicGroup = and(
+export const publicGroup = and(
   eq(organizations.status, 'active'),
   isNull(organizations.deletedAt),
   eq(organizations.publicPageEnabled, true),
