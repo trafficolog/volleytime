@@ -3,15 +3,19 @@ import {
   bookings,
   desc,
   eq,
+  eventSeries,
   events,
   gte,
   inArray,
+  ledgerEntries,
   lt,
   notInArray,
   organizationMembers,
   organizations,
+  payments,
   sql,
   users,
+  venues,
 } from '@volley-time/db'
 import {
   REPORT_EXPORT_COLUMNS,
@@ -23,6 +27,10 @@ import {
   resolveReportPeriod,
   safeTimezone,
   type ManagerReport,
+  type ReportBreakdown,
+  type ReportBreakdownDimension,
+  type ReportBreakdownFigures,
+  type ReportBreakdownRow,
   type ReportExportType,
   type ReportOccupancy,
   type ReportPeriod,
@@ -135,6 +143,141 @@ export const reportsService = {
         cancellations: attendance.reduce((a, p) => a + p.cancellations, 0),
         top: attendance.filter((p) => p.visits > 0).slice(0, REPORT_TOP_PLAYERS),
       },
+    }
+  },
+
+  /**
+   * «В разрезе» (W-19, 30.3.4): игры, заполняемость, выручка и аренда по тренерам, залам или
+   * сериям. Деньги — записи кассы периода по дате операции в валюте группы (как `getPeriodTotals`):
+   * поступления и расход «Аренда», отнесённые к событию записью кассы или оплатой записи; то, что
+   * к событию не привязано или у события нет тренера/зала/серии, идёт в строку «Не указано», поэтому
+   * `income` и `rent` строк в сумме равны кассе. Игры и места — события периода (как заполняемость
+   * отчёта). Событие с несколькими тренерами считается в игры каждого, а деньги делятся между ними
+   * поровну в минорных единицах (остаток — тренерам с меньшим id), итог считает событие один раз.
+   */
+  async getBreakdown(
+    ctx: ServiceContext,
+    orgId: number,
+    input: { dimension: ReportBreakdownDimension; from: string; to: string },
+  ): Promise<ReportBreakdown> {
+    const db = getDb(ctx)
+    const org = await db.query.organizations.findFirst({
+      where: eq(organizations.id, orgId),
+      columns: { defaultCurrency: true, defaultTimezone: true },
+    })
+    const currency = org?.defaultCurrency ?? 'BYN'
+    const period = requirePeriod(input, safeTimezone(org?.defaultTimezone))
+    const { dimension } = input
+
+    const resolvedEventId = sql<
+      number | null
+    >`COALESCE(${ledgerEntries.eventId}, ${bookings.eventId})`
+    const income = sql<number>`COALESCE(SUM(${ledgerEntries.amount}) FILTER (WHERE ${ledgerEntries.type} = 'income'), 0)::int`
+    const rent = sql<number>`COALESCE(SUM(${ledgerEntries.amount}) FILTER (WHERE ${ledgerEntries.type} = 'expense'), 0)::int`
+    const [periodEvents, seatRows, moneyRows] = await Promise.all([
+      db
+        .select({
+          id: events.id,
+          venueId: events.venueId,
+          seriesId: events.seriesId,
+          coachUserIds: events.coachUserIds,
+          capacity: events.capacity,
+        })
+        .from(events)
+        .where(eventsInPeriod(orgId, period)),
+      db
+        .select({
+          eventId: bookings.eventId,
+          seats: sql<number>`coalesce(sum(${bookings.seats}), 0)::int`,
+        })
+        .from(bookings)
+        .innerJoin(events, eq(events.id, bookings.eventId))
+        .where(
+          and(eventsInPeriod(orgId, period), inArray(bookings.status, [...OCCUPYING_STATUSES])),
+        )
+        .groupBy(bookings.eventId),
+      db
+        .select({ eventId: resolvedEventId, income, rent })
+        .from(ledgerEntries)
+        .leftJoin(payments, eq(payments.id, ledgerEntries.paymentId))
+        .leftJoin(bookings, eq(bookings.id, payments.bookingId))
+        .where(
+          and(
+            eq(ledgerEntries.organizationId, orgId),
+            eq(ledgerEntries.currency, currency),
+            gte(ledgerEntries.occurredAt, period.from),
+            lt(ledgerEntries.occurredAt, period.to),
+            sql`(${ledgerEntries.type} = 'income' OR (${ledgerEntries.type} = 'expense' AND ${ledgerEntries.category} = 'rent'))`,
+          ),
+        )
+        .groupBy(resolvedEventId),
+    ])
+
+    // деньги события могут лежать вне периода (оплата внесена в этот период): берём его разрез
+    const dims = new Map<number, EventDims>(periodEvents.map((e) => [e.id, e]))
+    const moneyEventIds = moneyRows.flatMap((m) => (m.eventId !== null ? [m.eventId] : []))
+    if (moneyEventIds.length > 0) {
+      const rows = await db
+        .select({
+          id: events.id,
+          venueId: events.venueId,
+          seriesId: events.seriesId,
+          coachUserIds: events.coachUserIds,
+        })
+        .from(events)
+        .where(and(eq(events.organizationId, orgId), inArray(events.id, moneyEventIds)))
+      for (const row of rows) dims.set(row.id, row)
+    }
+
+    const seatsByEvent = new Map(seatRows.map((r) => [r.eventId, r.seats]))
+    const groups = new Map<number | null, BreakdownTally>()
+    const tally = (key: number | null) => {
+      let t = groups.get(key)
+      if (!t) groups.set(key, (t = { events: 0, seats: 0, capacity: 0, income: 0, rent: 0 }))
+      return t
+    }
+    const totals: BreakdownTally = { events: 0, seats: 0, capacity: 0, income: 0, rent: 0 }
+
+    for (const e of periodEvents) {
+      const seats = seatsByEvent.get(e.id) ?? 0
+      totals.events += 1
+      totals.seats += seats
+      totals.capacity += e.capacity
+      for (const key of breakdownKeys(dimension, e)) {
+        const t = tally(key)
+        t.events += 1
+        t.seats += seats
+        t.capacity += e.capacity
+      }
+    }
+    for (const m of moneyRows) {
+      totals.income += m.income
+      totals.rent += m.rent
+      const keys = breakdownKeys(dimension, m.eventId !== null ? dims.get(m.eventId) : undefined)
+      const incomeShares = splitMinor(m.income, keys.length)
+      const rentShares = splitMinor(m.rent, keys.length)
+      keys.forEach((key, i) => {
+        const t = tally(key)
+        t.income += incomeShares[i]!
+        t.rent += rentShares[i]!
+      })
+    }
+
+    const labels = await breakdownLabels(ctx, orgId, dimension, [...groups.keys()])
+    const rows: ReportBreakdownRow[] = [...groups.entries()]
+      .map(([key, t]) => ({
+        key,
+        label: key === null ? null : (labels.get(key) ?? null),
+        ...figures(t),
+      }))
+      .sort(compareBreakdownRows)
+
+    return {
+      dimension,
+      currency,
+      period: { from: input.from, to: input.to },
+      rows,
+      totals: figures(totals),
     }
   },
 
@@ -308,4 +451,91 @@ function attendanceRecord(
     lastVisit: p.lastVisitAt ? formatShortDate(p.lastVisitAt, timezone) : '',
     level: p.level ? (levelTitles.get(p.level) ?? p.level) : '',
   }
+}
+
+interface BreakdownTally {
+  events: number
+  seats: number
+  capacity: number
+  income: number
+  rent: number
+}
+
+interface EventDims {
+  venueId: number | null
+  seriesId: number | null
+  coachUserIds: number[]
+}
+
+/** Ключи строк разреза для события; `null` — «Не указано» (нет события, зала, серии или тренера). */
+function breakdownKeys(
+  dimension: ReportBreakdownDimension,
+  event: EventDims | undefined,
+): (number | null)[] {
+  if (!event) return [null]
+  if (dimension === 'venue') return [event.venueId]
+  if (dimension === 'series') return [event.seriesId]
+  const coaches = [...new Set(event.coachUserIds)].sort((a, b) => a - b)
+  return coaches.length > 0 ? coaches : [null]
+}
+
+/** Делит минорные единицы поровну на `parts` без потери копейки: остаток — первым долям. */
+function splitMinor(amount: number, parts: number): number[] {
+  const base = Math.floor(amount / parts)
+  const rest = amount - base * parts
+  return Array.from({ length: parts }, (_, i) => base + (i < rest ? 1 : 0))
+}
+
+function figures(t: BreakdownTally): ReportBreakdownFigures {
+  return {
+    ...t,
+    percent: t.capacity > 0 ? Math.round((t.seats / t.capacity) * 100) : null,
+  }
+}
+
+/** Больше выручка — выше; при равенстве больше игр, затем название; «Не указано» — последним. */
+function compareBreakdownRows(a: ReportBreakdownRow, b: ReportBreakdownRow): number {
+  if ((a.key === null) !== (b.key === null)) return a.key === null ? 1 : -1
+  return (
+    b.income - a.income ||
+    b.events - a.events ||
+    (a.label ?? '').localeCompare(b.label ?? '', 'ru') ||
+    (a.key ?? 0) - (b.key ?? 0)
+  )
+}
+
+/** Подписи строк разреза: имя тренера, название зала или серии (группы `orgId`). */
+async function breakdownLabels(
+  ctx: ServiceContext,
+  orgId: number,
+  dimension: ReportBreakdownDimension,
+  keys: (number | null)[],
+): Promise<Map<number, string>> {
+  const ids = keys.filter((k): k is number => k !== null)
+  const labels = new Map<number, string>()
+  if (ids.length === 0) return labels
+  const db = getDb(ctx)
+  if (dimension === 'venue') {
+    const rows = await db
+      .select({ id: venues.id, name: venues.name })
+      .from(venues)
+      .where(and(eq(venues.organizationId, orgId), inArray(venues.id, ids)))
+    for (const r of rows) labels.set(r.id, r.name)
+  } else if (dimension === 'series') {
+    const rows = await db
+      .select({ id: eventSeries.id, title: sql<string | null>`${eventSeries.template}->>'title'` })
+      .from(eventSeries)
+      .where(and(eq(eventSeries.organizationId, orgId), inArray(eventSeries.id, ids)))
+    for (const r of rows) if (r.title) labels.set(r.id, r.title)
+  } else {
+    const rows = await db
+      .select({ id: users.id, name: users.name, telegramUsername: users.telegramUsername })
+      .from(users)
+      .where(inArray(users.id, ids))
+    for (const r of rows) {
+      const label = personLabel(r)
+      if (label) labels.set(r.id, label)
+    }
+  }
+  return labels
 }

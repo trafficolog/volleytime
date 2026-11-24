@@ -4,6 +4,8 @@ import {
   DEFAULT_TIMEZONE,
   reportPeriodPresets,
   type ManagerReport,
+  type ReportBreakdown,
+  type ReportBreakdownDimension,
   type ReportExportType,
 } from '@volley-time/shared'
 
@@ -33,6 +35,20 @@ const { data, pending, error, refresh } = await useFetch<ManagerReport>(
     key: () => `desktop-reports-${orgId.value}-${dates.value.from}-${dates.value.to}`,
   },
 )
+
+// «В разрезе» (W-19): грузится отдельно от обзора, не блокирует экран
+const dimension = ref<ReportBreakdownDimension>('coach')
+const {
+  data: breakdown,
+  pending: breakdownPending,
+  error: breakdownError,
+  refresh: refreshBreakdown,
+} = await useFetch<ReportBreakdown>(() => `/api/organizations/${orgId.value}/reports/breakdown`, {
+  query: computed(() => ({ dimension: dimension.value, ...reportQuery(dates.value) })),
+  key: () =>
+    `desktop-reports-breakdown-${orgId.value}-${dimension.value}-${dates.value.from}-${dates.value.to}`,
+  lazy: true,
+})
 
 function select(next: ReportDates) {
   void router.replace({ query: { from: next.from, to: next.to } })
@@ -84,6 +100,14 @@ const READY_REPORTS: { type: ReportExportType; title: string; text: string; icon
     />
     <div v-else :aria-busy="pending">
       <DesktopReportsOverview :report="data" />
+
+      <DesktopReportsBreakdown
+        v-model:dimension="dimension"
+        :breakdown="breakdown"
+        :pending="breakdownPending"
+        :error="!!breakdownError"
+        @retry="refreshBreakdown()"
+      />
 
       <h2 class="vt-desktop-reports__ready-title">Готовые отчёты</h2>
       <div class="vt-desktop-reports__ready">
