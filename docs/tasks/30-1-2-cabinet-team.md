@@ -2,7 +2,7 @@
 id: '30.1.2'
 phase: '30'
 epic: '30.1'
-status: todo
+status: in_progress
 release: 'v0.6.0'
 sync_state: synced
 last_reviewed: 2026-11-24
