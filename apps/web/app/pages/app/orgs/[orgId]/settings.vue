@@ -13,6 +13,7 @@ import SettingsTeam from '~/components/desktop/settings/SettingsTeam.vue'
 import SettingsVenues from '~/components/desktop/settings/SettingsVenues.vue'
 import { canSaveDesktopSettings } from '~/utils/desktop-settings'
 import {
+  isSettingsOwner,
   parseSection,
   visibleSections,
   type GroupSettings,
@@ -54,7 +55,7 @@ const { data: levelsData } = useFetch<{
 }>('/api/levels', { key: 'levels', lazy: true })
 
 const actor = computed(() => data.value?.myMember ?? null)
-const isOwner = computed(() => actor.value?.role === 'owner' && actor.value.status === 'active')
+const isOwner = computed(() => isSettingsOwner(actor.value))
 // логотип и короткую ссылку меняют владелец и организатор (21.2.16)
 const canManageBranding = computed(
   () =>
@@ -138,6 +139,11 @@ async function retry() {
 async function onDeleted() {
   if (!isCurrent()) return
   await Promise.all([refreshOrg(), fetchAll().catch(() => undefined)])
+}
+
+// «Передать владение» в таблице команды ведёт в «Опасную зону» (30.1.2)
+async function openSection(key: 'danger') {
+  if (isCurrent()) await navigateTo({ path, query: { section: key } })
 }
 
 const archiving = ref(false)
@@ -257,11 +263,15 @@ async function archive() {
           @toast="toast.show"
         />
         <SettingsTeam
-          v-else-if="section === 'team'"
+          v-else-if="section === 'team' && isOwner"
           :org="profile"
           :base="base"
           :can-edit="isOwner"
           :controller="controller"
+          :org-id="orgId"
+          :time-zone="data.organization.defaultTimezone"
+          @toast="toast.show"
+          @open-section="openSection"
         />
         <SettingsNotifications
           v-else-if="section === 'notifications'"

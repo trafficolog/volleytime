@@ -35,11 +35,16 @@ export const SETTINGS_SECTIONS: { key: SettingsSectionKey; label: string; ownerO
     { key: 'bookings', label: 'Записи и оплата' },
     { key: 'venues', label: 'Залы и площадки' },
     { key: 'payments', label: 'Способы оплаты' },
-    { key: 'team', label: 'Команда' },
+    { key: 'team', label: 'Команда', ownerOnly: true },
     { key: 'notifications', label: 'Уведомления' },
     { key: 'integrations', label: 'Интеграции' },
     { key: 'danger', label: 'Опасная зона', ownerOnly: true },
   ]
+
+/** Владелец-актор: действующий участник с ролью owner (команда и «Опасная зона» — только ему). */
+export function isSettingsOwner(member: { role: string; status: string } | null): boolean {
+  return member?.role === 'owner' && member.status === 'active'
+}
 
 export function visibleSections(isOwner: boolean) {
   return SETTINGS_SECTIONS.filter((s) => isOwner || !s.ownerOnly)
