@@ -134,6 +134,7 @@ describe('Mini App player profile level', () => {
       expect.arrayContaining([
         '/m/orgs/30/bookings',
         '/m/orgs/30/notifications',
+        '/m/orgs/30/nearby',
         '/m/orgs/create',
         '/m/orgs',
       ]),

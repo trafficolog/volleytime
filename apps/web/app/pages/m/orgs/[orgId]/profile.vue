@@ -130,6 +130,12 @@ const activityRows = computed(() => [
     sub: 'лента группы',
   },
   {
+    to: `${base.value}/nearby`,
+    icon: 'pin',
+    title: 'Открытые игры рядом',
+    sub: 'игры других групп вашего города',
+  },
+  {
     to: `${base.value}/features`,
     icon: 'settings',
     title: 'Что показывать',
