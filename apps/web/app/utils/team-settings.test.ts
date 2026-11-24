@@ -6,8 +6,10 @@ import {
   formatHistoryWhen,
   historyLine,
   leadsLines,
+  eligibleCoachIds,
   planSeriesAssignment,
   seriesOptions,
+  upcomingSeriesEvents,
   teamMenuItems,
   teamRows,
   type TeamMember,
@@ -276,7 +278,58 @@ describe('seriesOptions', () => {
   })
 })
 
+describe('eligibleCoachIds', () => {
+  it('takes active members with a coach-or-higher role only', () => {
+    const m = (id: number, role: string, status = 'active') => ({ role, status, user: { id } })
+    expect(
+      eligibleCoachIds([
+        m(1, 'owner'),
+        m(2, 'organizer'),
+        m(3, 'coach'),
+        m(4, 'assistant'),
+        m(5, 'player'),
+        m(6, 'coach', 'left'),
+        m(7, 'organizer', 'blocked'),
+      ]),
+    ).toEqual(new Set([1, 2, 3, 4]))
+  })
+})
+
+describe('upcomingSeriesEvents', () => {
+  const now = new Date('2026-12-05T12:00:00Z')
+  const ev = (
+    id: number,
+    seriesDate: string,
+    startsAt: string,
+    status = 'published',
+    seriesId = 5,
+  ) => ({
+    id,
+    title: 'Основа',
+    startsAt,
+    status,
+    seriesId,
+    seriesDate,
+  })
+
+  it('keeps only dates that have not started yet, of this series, from the given date', () => {
+    const rows = [
+      ev(1, '2026-12-02', '2026-12-02T16:00:00Z'),
+      ev(2, '2026-12-05', '2026-12-05T10:00:00Z'),
+      ev(3, '2026-12-09', '2026-12-09T16:00:00Z'),
+      ev(4, '2026-12-16', '2026-12-16T16:00:00Z', 'cancelled'),
+      ev(5, '2026-12-23', '2026-12-23T16:00:00Z', 'finished'),
+      ev(6, '2026-12-30', '2026-12-30T16:00:00Z', 'published', 6),
+      ev(7, '2027-01-06', '2027-01-06T16:00:00Z'),
+    ]
+    expect(upcomingSeriesEvents(rows, 5, '2026-12-02', now).map((e) => e.id)).toEqual([3, 7])
+    expect(upcomingSeriesEvents(rows, 5, '2027-01-01', now).map((e) => e.id)).toEqual([7])
+  })
+})
+
 describe('planSeriesAssignment', () => {
+  const all = new Set([1, 7, 9, 500])
+
   it('adds the coach to the template and keeps the own coaches of every date', () => {
     const plan = planSeriesAssignment(
       [1],
@@ -286,6 +339,7 @@ describe('planSeriesAssignment', () => {
         { seriesDate: '2026-12-16', coachUserIds: [] },
       ],
       9,
+      all,
     )
     expect(plan.template).toEqual([1, 9])
     expect(plan.dates).toEqual([
@@ -295,22 +349,50 @@ describe('planSeriesAssignment', () => {
     ])
   })
 
-  it('does not drop template coaches outside the team and skips dates that already have the coach', () => {
+  it('drops coaches that are no longer eligible, in the template and in every date, and keeps the rest', () => {
+    const plan = planSeriesAssignment(
+      [1, 404],
+      [
+        { seriesDate: '2026-12-02', coachUserIds: [404, 7] },
+        { seriesDate: '2026-12-09', coachUserIds: [404] },
+        { seriesDate: '2026-12-16', coachUserIds: [1, 7] },
+      ],
+      9,
+      all,
+    )
+    expect(plan.template).toEqual([1, 9])
+    expect(plan.dates).toEqual([
+      { date: '2026-12-02', coachUserIds: [7, 9] },
+      { date: '2026-12-09', coachUserIds: [9] },
+      { date: '2026-12-16', coachUserIds: [1, 7, 9] },
+    ])
+  })
+
+  it('cleans a stale coach out of a list that already has the target coach', () => {
+    const plan = planSeriesAssignment(
+      [9, 404],
+      [{ seriesDate: '2026-12-02', coachUserIds: [9, 404] }],
+      9,
+      all,
+    )
+    expect(plan.template).toEqual([9])
+    expect(plan.dates).toEqual([{ date: '2026-12-02', coachUserIds: [9] }])
+  })
+
+  it('skips dates that already have the coach and nothing stale', () => {
     const plan = planSeriesAssignment(
       [1, 500],
       [{ seriesDate: '2026-12-02', coachUserIds: [9] }, { seriesDate: '2026-12-09' }],
       9,
+      all,
     )
     expect(plan.template).toEqual([1, 500, 9])
     expect(plan.dates).toEqual([{ date: '2026-12-09', coachUserIds: [9] }])
   })
 
   it('plans nothing when the coach is everywhere already', () => {
-    expect(planSeriesAssignment([9], [{ seriesDate: '2026-12-02', coachUserIds: [9] }], 9)).toEqual(
-      {
-        template: null,
-        dates: [],
-      },
-    )
+    expect(
+      planSeriesAssignment([9], [{ seriesDate: '2026-12-02', coachUserIds: [9] }], 9, all),
+    ).toEqual({ template: null, dates: [] })
   })
 })

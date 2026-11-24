@@ -4,10 +4,13 @@ import { computed, ref, watch } from 'vue'
 import VtDialog from '~/components/vt/Dialog.vue'
 import { apiErrorMessage } from '~/utils/api-error'
 import {
+  eligibleCoachIds,
   planSeriesAssignment,
   seriesOptions,
+  upcomingSeriesEvents,
   type SeriesEventRow,
   type SeriesOption,
+  type TeamMember,
 } from '~/utils/team-settings'
 
 /**
@@ -20,6 +23,8 @@ const open = defineModel<boolean>({ default: false })
 const props = defineProps<{
   orgId: number
   member: { userId: number; name: string } | null
+  /** Участники группы (все статусы): по ним определяется, кто ещё допустим как тренер. */
+  members: TeamMember[]
   timeZone: string
 }>()
 const emit = defineEmits<{ toast: [message: string, tone: 'ok' | 'danger']; assigned: [] }>()
@@ -60,11 +65,7 @@ async function futureEvents(option: SeriesOption): Promise<SeriesEventRow[]> {
     const page = await $fetch<{ events: SeriesEventRow[] }>(
       `${base.value}/events?limit=100&offset=${offset}`,
     )
-    for (const e of page.events) {
-      if (e.seriesId !== option.seriesId || e.seriesDate === null) continue
-      if (e.status === 'cancelled' || e.status === 'finished') continue
-      if (e.seriesDate >= option.from) found.push(e)
-    }
+    found.push(...upcomingSeriesEvents(page.events, option.seriesId, option.from, new Date()))
     if (page.events.length < 100) return found
   }
 }
@@ -96,7 +97,12 @@ async function submit() {
       `${base.value}/series/${option.seriesId}`,
     )
     const template = series.template.coachUserIds ?? []
-    const plan = planSeriesAssignment(template, await futureEvents(option), member.userId)
+    const plan = planSeriesAssignment(
+      template,
+      await futureEvents(option),
+      member.userId,
+      eligibleCoachIds(props.members),
+    )
     if (plan.template === null && plan.dates.length === 0) {
       emit('toast', `${member.name} уже ведёт серию «${option.title}»`, 'ok')
       open.value = false

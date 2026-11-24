@@ -240,27 +240,73 @@ export function seriesOptions(events: SeriesEventRow[], timeZone: string): Serie
 }
 
 export interface SeriesAssignmentPlan {
-  /** Новый список тренеров шаблона серии или `null`, если тренер в шаблоне уже есть. */
+  /** Новый список тренеров шаблона серии или `null`, если менять шаблон не нужно. */
   template: number[] | null
-  /** Даты, где тренера нет: свой список даты плюс новый тренер (чужие тренеры дат сохраняются). */
+  /** Даты, где список меняется: свой список даты без недопустимых плюс новый тренер. */
   dates: { date: string; coachUserIds: number[] }[]
+}
+
+const COACH_ROLES = ['owner', 'organizer', 'coach', 'assistant']
+
+/**
+ * Кто может быть тренером события: активный участник с ролью owner, organizer, coach или assistant
+ * (то же правило, что `assertCoachesInOrg` на сервере; иначе `event.invalid_coach`).
+ */
+export function eligibleCoachIds(
+  members: { role: string; status: string; user: { id: number } }[],
+): Set<number> {
+  return new Set(
+    members
+      .filter((m) => m.status === 'active' && COACH_ROLES.includes(m.role))
+      .map((m) => m.user.id),
+  )
+}
+
+/**
+ * Предстоящие даты серии для правки: с даты `from`, не отменённые и не завершённые и только те, что
+ * ещё не начались (сервер правит `startsAt > now`, прошедшая дата дала бы 404 на всё назначение).
+ */
+export function upcomingSeriesEvents<T extends SeriesEventRow>(
+  events: T[],
+  seriesId: number,
+  from: string,
+  now: Date,
+): T[] {
+  return events.filter(
+    (e) =>
+      e.seriesId === seriesId &&
+      e.seriesDate !== null &&
+      e.seriesDate >= from &&
+      e.status !== 'cancelled' &&
+      e.status !== 'finished' &&
+      new Date(e.startsAt).getTime() > now.getTime(),
+  )
 }
 
 /**
  * План «назначить на серию»: тренер ДОБАВЛЯЕТСЯ к списку шаблона и к собственному списку каждой
- * будущей даты, ничьи тренеры не удаляются. `following` с общим списком затёр бы тренеров отдельных дат.
+ * будущей даты, допустимые тренеры сохраняются. Сервер проверяет весь список целиком, поэтому
+ * недопустимые (понижены или ушли из группы) отбрасываются: иначе назначение падало бы навсегда.
+ * `following` с общим списком затёр бы тренеров отдельных дат.
  */
 export function planSeriesAssignment(
   templateCoachIds: number[],
   events: { seriesDate: string | null; coachUserIds?: number[] }[],
   userId: number,
+  eligible: ReadonlySet<number>,
 ): SeriesAssignmentPlan {
+  const next = (ids: number[]): number[] | null => {
+    const kept = ids.filter((id) => eligible.has(id))
+    if (kept.includes(userId) && kept.length === ids.length) return null
+    return kept.includes(userId) ? kept : [...kept, userId]
+  }
   return {
-    template: templateCoachIds.includes(userId) ? null : [...templateCoachIds, userId],
-    dates: events.flatMap((e) =>
-      e.seriesDate === null || (e.coachUserIds ?? []).includes(userId)
+    template: next(templateCoachIds),
+    dates: events.flatMap((e) => {
+      const list = e.seriesDate === null ? null : next(e.coachUserIds ?? [])
+      return e.seriesDate === null || list === null
         ? []
-        : [{ date: e.seriesDate, coachUserIds: [...(e.coachUserIds ?? []), userId] }],
-    ),
+        : [{ date: e.seriesDate, coachUserIds: list }]
+    }),
   }
 }

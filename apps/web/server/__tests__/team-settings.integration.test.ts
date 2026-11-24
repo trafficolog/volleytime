@@ -3,6 +3,13 @@ import { closeDb, db, organizations, users } from '@volley-time/db'
 import { dateToZonedInput } from '@volley-time/shared'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
+import {
+  eligibleCoachIds,
+  planSeriesAssignment,
+  upcomingSeriesEvents,
+  type SeriesEventRow,
+  type TeamMember,
+} from '../../app/utils/team-settings'
 import { createTestApi } from './harness'
 
 const DAY = 86_400_000
@@ -188,5 +195,101 @@ describe('cabinet team settings API (HTTP integration, 30.1.2)', () => {
         })
       ).status,
     ).toBe(200)
+  })
+
+  it('assigns a coach to a series over the real API: keeps date coaches, drops a demoted one, template-only step leaves dates alone', async () => {
+    const startDate = futureWednesday()
+    const created = await request('POST', `${base()}/series`, {
+      user: ownerId,
+      body: {
+        rule: { freq: 'weekly', weekdays: [3], startDate, count: 3 },
+        template: { title: 'Среда', startTime: '19:00', durationMinutes: 120, capacity: 12 },
+        idempotencyKey: `team-series-plan-${Date.now()}`,
+      },
+    })
+    expect(created.status, created.text).toBe(200)
+    const seriesId = (created.body as { series: { id: number } }).series.id
+    const patch = (scope: string, from: string, coachUserIds: number[]) =>
+      request('PATCH', `${base()}/series/${seriesId}?scope=${scope}&from=${from}`, {
+        user: ownerId,
+        body: { coachUserIds },
+      })
+
+    // стартовое состояние: coachId ведёт шаблон и все даты, у второй даты свой тренер coach2
+    const coach2Id = await newUser('coach2')
+    await memberService.add(
+      { userId: ownerId },
+      { organizationId: orgId, userId: coach2Id, role: 'coach' },
+    )
+    const newCoachId = await newUser('newcoach')
+    await memberService.add(
+      { userId: ownerId },
+      { organizationId: orgId, userId: newCoachId, role: 'coach' },
+    )
+    expect((await patch('following', startDate, [coachId])).status).toBe(200)
+    const listBefore = await request('GET', `${base()}/events?limit=100`, { user: ownerId })
+    const rows = (listBefore.body as { events: SeriesEventRow[] }).events.filter(
+      (e) => e.seriesId === seriesId,
+    )
+    expect(rows).toHaveLength(3)
+    const secondDate = rows[1]!.seriesDate!
+    expect((await patch('single', secondDate, [coachId, coach2Id])).status).toBe(200)
+
+    // coachId понижен до игрока: сервер больше не принимает его в списках тренеров
+    expect(
+      (
+        await request('PATCH', `${base()}/members/${coachMemberId}`, {
+          user: ownerId,
+          body: { role: 'player' },
+        })
+      ).status,
+    ).toBe(200)
+    const naive = await patch('following', startDate, [coachId, newCoachId])
+    expect(naive.status).toBeGreaterThanOrEqual(400)
+
+    // то же, что делает диалог: читает шаблон, даты и участников, затем правит шаблон и даты
+    const readEvents = async () =>
+      (
+        (await request('GET', `${base()}/events?limit=100`, { user: ownerId })).body as {
+          events: SeriesEventRow[]
+        }
+      ).events
+        .filter((e) => e.seriesId === seriesId)
+        .sort((a, b) => a.seriesDate!.localeCompare(b.seriesDate!))
+    const members = (
+      (await request('GET', `${base()}/members?statuses=${ALL_STATUSES}`, { user: ownerId }))
+        .body as { members: TeamMember[] }
+    ).members
+    const series = await request('GET', `${base()}/series/${seriesId}`, { user: ownerId })
+    const template = (series.body as { series: { template: { coachUserIds?: number[] } } }).series
+      .template.coachUserIds
+    const upcoming = upcomingSeriesEvents(await readEvents(), seriesId, startDate, new Date())
+    expect(upcoming).toHaveLength(3)
+    const plan = planSeriesAssignment(
+      template ?? [],
+      upcoming,
+      newCoachId,
+      eligibleCoachIds(members),
+    )
+    expect(plan.template).toEqual([newCoachId])
+
+    // шаблон: from=9999-12-31 меняет только шаблон, даты не затрагиваются
+    const datesBefore = await readEvents()
+    expect((await patch('following', '9999-12-31', plan.template!)).status).toBe(200)
+    expect(await readEvents()).toEqual(datesBefore)
+    const after = await request('GET', `${base()}/series/${seriesId}`, { user: ownerId })
+    expect(
+      (after.body as { series: { template: { coachUserIds?: number[] } } }).series.template
+        .coachUserIds,
+    ).toEqual([newCoachId])
+
+    for (const d of plan.dates)
+      expect((await patch('single', d.date, d.coachUserIds)).status).toBe(200)
+    const final = await readEvents()
+    expect(final.map((e) => e.coachUserIds)).toEqual([
+      [newCoachId],
+      [coach2Id, newCoachId],
+      [newCoachId],
+    ])
   })
 })

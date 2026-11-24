@@ -385,6 +385,7 @@ function chooseStatus(value: string) {
       v-model="seriesOpen"
       :org-id="orgId"
       :member="seriesFor"
+      :members="members"
       :time-zone="timeZone"
       @toast="toast"
       @assigned="loadMembers"
