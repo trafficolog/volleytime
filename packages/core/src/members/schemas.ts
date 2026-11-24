@@ -15,16 +15,33 @@ export type SetMemberPositionInput = z.infer<typeof SetMemberPositionInput>
 export const AddMemberInput = z.object({
   organizationId: z.number().int().positive(),
   userId: z.number().int().positive(),
-  role: z.enum(['organizer', 'assistant', 'player']).default('player'),
+  role: z.enum(['organizer', 'coach', 'player']).default('player'),
   status: z.enum(['pending', 'active', 'guest']).default('active'),
   invitedByUserId: z.number().int().positive().optional(),
 })
 export type AddMemberInput = z.input<typeof AddMemberInput>
 
-export const ChangeMemberRoleInput = z.object({
-  role: z.enum(['organizer', 'assistant', 'player']), // owner не назначается через UI
-})
+/** Назначаемые роли (owner не назначается через UI; передача владения — отдельный поток). */
+export const AssignableRole = z.enum(['organizer', 'coach', 'player'])
+
+export const ChangeMemberRoleInput = z.object({ role: AssignableRole })
 export type ChangeMemberRoleInput = z.infer<typeof ChangeMemberRoleInput>
+
+/**
+ * PATCH …/members/{memberId} (30.1.1, P-18): роль и/или флаг «Принимает оплату» у тренера.
+ * `role: 'player'` — «Убрать из команды»: человек остаётся игроком группы.
+ */
+export const UpdateMemberInput = z
+  .object({ role: AssignableRole.optional(), canAcceptPayment: z.boolean().optional() })
+  .strict()
+  .refine((d) => d.role !== undefined || d.canAcceptPayment !== undefined, {
+    message: 'Nothing to update',
+  })
+export type UpdateMemberInput = z.infer<typeof UpdateMemberInput>
+
+/** Фильтр списка участников по роли (`?role=`); `coach` включает устаревшее `assistant`. */
+export const MemberRoleFilter = z.enum(['owner', 'organizer', 'coach', 'player'])
+export type MemberRoleFilter = z.infer<typeof MemberRoleFilter>
 
 /** Исключение из группы (21.2.21): причина необязательна, пишется в журнал аудита. */
 export const ExcludeMemberInput = z

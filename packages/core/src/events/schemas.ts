@@ -27,6 +27,15 @@ function validPricing(data: {
     : data.targetAmount === null
 }
 
+/**
+ * Тренеры события (30.1.1, P-18): user id участников группы с ролью coach, organizer или owner;
+ * без повторов, не больше 10. Состав проверяет сервис событий (`event.invalid_coach`).
+ */
+export const CoachUserIds = z
+  .array(z.number().int().positive())
+  .max(10)
+  .refine((ids) => new Set(ids).size === ids.length, { message: 'Duplicate coach' })
+
 export const EventPricingInput = z.object(pricingFields).refine(validPricing, {
   message: 'Split requires price=0 and a target; fixed cannot contain a split target',
   path: ['targetAmount'],
@@ -59,6 +68,8 @@ export const CreateEventInput = z
     bookingOpensAt: z.coerce.date().nullable().optional(),
     // за сколько минут до начала планировщик закрывает запись; по умолчанию 120
     closeBeforeMinutes: CloseBeforeMinutes.optional(),
+    // тренеры события (30.1.1); у дат серии — из шаблона серии
+    coachUserIds: CoachUserIds.optional(),
     status: z.enum(['draft', 'published']).default('published'),
   })
   .strict()
@@ -91,6 +102,7 @@ export const UpdateEventInput = z
     joinMode: z.enum(['open', 'invite']).optional(),
     bookingOpensAt: z.coerce.date().nullable().optional(),
     closeBeforeMinutes: CloseBeforeMinutes.optional(),
+    coachUserIds: CoachUserIds.optional(),
     status: z.enum(['draft', 'published', 'closed', 'finished']).optional(),
   })
   .strict()

@@ -15,7 +15,7 @@ describe('organizer entry policy', () => {
   it('keeps non-organizers and pending memberships outside the organizer cabinet', () => {
     expect(resolveOrganizerEntry([])).toEqual({ kind: 'none' })
     expect(resolveOrganizerEntry([org({ membershipRole: 'player' })])).toEqual({ kind: 'none' })
-    expect(resolveOrganizerEntry([org({ membershipRole: 'assistant' })])).toEqual({ kind: 'none' })
+    expect(resolveOrganizerEntry([org({ membershipRole: 'coach' })])).toEqual({ kind: 'none' })
     expect(resolveOrganizerEntry([org({ membershipStatus: 'pending' })])).toEqual({ kind: 'none' })
     expect(resolveOrganizerEntry([org({ status: 'archived' })])).toEqual({ kind: 'none' })
   })

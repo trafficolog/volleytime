@@ -59,7 +59,7 @@ describe('ownership transfer and soft delete API (HTTP integration)', { timeout:
   let otherOwnerId: number
   let orgId: number
   let otherOrgId: number
-  let members: Record<'organizer' | 'assistant' | 'player' | 'applicant' | 'owner', number>
+  let members: Record<'organizer' | 'coach' | 'player' | 'applicant' | 'owner', number>
   let otherMemberId: number
   const ORG_NAME = 'Волейбол Минск'
   const base = (id = orgId) => `/api/organizations/${id}`
@@ -120,7 +120,7 @@ describe('ownership transfer and soft delete API (HTTP integration)', { timeout:
     await db.delete(users)
     ownerId = await newUser('owner')
     organizerId = await newUser('organizer')
-    assistantId = await newUser('assistant')
+    assistantId = await newUser('coach')
     playerId = await newUser('player')
     applicantId = await newUser('applicant')
     outsiderId = await newUser('outsider')
@@ -132,7 +132,7 @@ describe('ownership transfer and soft delete API (HTTP integration)', { timeout:
     members = {
       owner: (await memberRow(ownerId))!.id,
       organizer: await add(organizerId, { role: 'organizer' }),
-      assistant: await add(assistantId, { role: 'assistant' }),
+      assistant: await add(assistantId, { role: 'coach' }),
       player: await add(playerId),
       applicant: await add(applicantId, { status: 'pending' }),
     }

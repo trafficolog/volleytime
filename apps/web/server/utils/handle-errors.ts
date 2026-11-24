@@ -96,6 +96,8 @@ const CODE_STATUS: Record<string, number> = {
   'member.cannot_change_own_role': 422,
   'member.blocked': 403,
   'member.invalid_transition': 409,
+  'member.not_coach': 422,
+  'event.invalid_coach': 422,
   'member.level_not_assignable': 409,
   'member.position_not_assignable': 409,
   // invite
@@ -199,6 +201,7 @@ const CODE_STATUS: Record<string, number> = {
   'forbidden.invite_role': 403,
   'forbidden.moderate': 403,
   'forbidden.exclude': 403,
+  'forbidden.coach_event': 403,
   'forbidden.pending_approval': 403,
   'forbidden.not_member': 403,
   'forbidden.root_only': 403,

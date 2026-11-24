@@ -91,7 +91,7 @@ const inviteNotice = ref('')
 const excludeError = ref('')
 const busy = ref(false)
 const selectedId = ref<number | null>(null)
-const selectedRoles = reactive<Record<number, 'organizer' | 'assistant' | 'player'>>({})
+const selectedRoles = reactive<Record<number, 'organizer' | 'coach' | 'player'>>({})
 let generation = 0
 let alive = true
 
@@ -623,7 +623,7 @@ const filtered = computed(() => query.value.trim() !== '' || levelFilter.value !
                     :disabled="busy"
                   >
                     <option value="player">Игрок</option>
-                    <option value="assistant">Помощник</option>
+                    <option value="coach">Тренер</option>
                     <option value="organizer">Организатор</option>
                   </select>
                   <button

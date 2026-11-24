@@ -13,6 +13,7 @@ import { slugify, uniqueSlug } from '@volley-time/shared'
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
 import { eventBalanceService } from '../event-balance/service'
+import { normalizeRole, type Role } from '../permissions/policies'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
 
 import {
@@ -30,7 +31,9 @@ import {
 
 export type OrganizationWithMembership = Organization & {
   membershipStatus: 'active' | 'pending'
-  membershipRole: 'owner' | 'organizer' | 'assistant' | 'player'
+  membershipRole: Role
+  /** Тренер принимает оплату (30.1.1). */
+  membershipCanAcceptPayment: boolean
 }
 
 export const organizationService = {
@@ -134,7 +137,7 @@ export const organizationService = {
         eq(organizationMembers.userId, ctx.userId),
         inArray(organizationMembers.status, ['active', 'pending']),
       ),
-      columns: { organizationId: true, status: true, role: true },
+      columns: { organizationId: true, status: true, role: true, canAcceptPayment: true },
     })
     if (memberships.length === 0) return []
     const byOrg = new Map(memberships.map((m) => [m.organizationId, m]))
@@ -151,7 +154,8 @@ export const organizationService = {
     return orgs.map((o) => ({
       ...o,
       membershipStatus: byOrg.get(o.id)!.status as 'active' | 'pending',
-      membershipRole: byOrg.get(o.id)!.role,
+      membershipRole: normalizeRole(byOrg.get(o.id)!.role),
+      membershipCanAcceptPayment: byOrg.get(o.id)!.canAcceptPayment,
     }))
   },
 

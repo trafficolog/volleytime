@@ -47,7 +47,7 @@ import {
 
 export const DEMO_EMAIL_DOMAIN = 'demo.volleytime.local'
 
-type Role = 'owner' | 'organizer' | 'assistant' | 'player'
+type Role = 'owner' | 'organizer' | 'coach' | 'player'
 type PayMethod = 'cash' | 'transfer'
 
 /**
@@ -206,7 +206,7 @@ export const DEMO_ORGANIZATIONS: DemoOrganization[] = [
     members: {
       ...Object.fromEntries(VT_PLAYERS.map((u) => [u, 'player' as const])),
       nikita: 'organizer',
-      masha: 'assistant',
+      masha: 'coach',
     },
     venues: [
       { name: 'Школа №24', address: 'Минск, малый и большой зал', capacityHint: 16 },

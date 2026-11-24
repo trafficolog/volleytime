@@ -117,7 +117,7 @@ export function userCounter(shown: number, total: number): string {
 const ROLE_LABELS: Record<PlatformUserMembership['role'] | 'pending', string> = {
   owner: 'админ группы',
   organizer: 'организатор',
-  assistant: 'помощник',
+  coach: 'тренер',
   player: 'игрок',
   pending: 'заявка',
 }

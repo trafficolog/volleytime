@@ -1,7 +1,7 @@
 import { SERIES_MAX_DATES } from '@volley-time/shared'
 import { z } from 'zod'
 
-import { CloseBeforeMinutes } from '../events/schemas'
+import { CloseBeforeMinutes, CoachUserIds } from '../events/schemas'
 import { LevelCode } from '../levels/schemas'
 
 const IsoDay = z.iso.date()
@@ -40,6 +40,8 @@ export const SeriesTemplateInput = z
     joinMode: z.enum(['open', 'invite']).optional(),
     // срок закрытия записи дат серии (20.3.1); без поля — 120 мин
     closeBeforeMinutes: CloseBeforeMinutes.optional(),
+    // тренеры серии (30.1.1): по умолчанию для каждой даты
+    coachUserIds: CoachUserIds.optional(),
   })
   .strict()
 export type SeriesTemplate = z.output<typeof SeriesTemplateInput>
@@ -93,6 +95,7 @@ export const UpdateSeriesInput = z
     level: LevelCode.nullable().optional(),
     joinMode: z.enum(['open', 'invite']).optional(),
     closeBeforeMinutes: CloseBeforeMinutes.optional(),
+    coachUserIds: CoachUserIds.optional(),
   })
   .strict()
   .refine((d) => Object.keys(d).length > 0, { message: 'Nothing to update' })

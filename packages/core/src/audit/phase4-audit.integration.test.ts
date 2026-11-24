@@ -20,7 +20,7 @@ describe('Phase 4 audit wiring (integration)', () => {
     await organizationService.update(o, org.id, { city: 'Минск' })
     const inv = await inviteService.create(o, { organizationId: org.id })
     const m = await inviteService.redeem({ userId: player!.id }, inv.token)
-    await memberService.changeRole(o, m.id, 'assistant')
+    await memberService.changeRole(o, m.id, 'coach')
     await memberService.block(o, m.id)
     await inviteService.revoke(o, org.id, inv.id)
     await organizationService.archive(o, org.id)
@@ -43,7 +43,8 @@ describe('Phase 4 audit wiring (integration)', () => {
     ])
     expect(rows.find((r) => r.action === 'invite.redeemed')?.userId).toBe(player!.id)
     expect(rows.find((r) => r.action === 'member.role_changed')?.newValue).toEqual({
-      role: 'assistant',
+      role: 'coach',
+      canAcceptPayment: false,
     })
   })
 

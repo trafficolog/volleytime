@@ -4,13 +4,23 @@ import {
   isMultiSeatEnabled,
   isSchedulerEnabled,
   isSplitPricingEnabled,
+  memberModes,
+  memberRoles,
+  normalizeRole,
 } from '@volley-time/core'
 
 export default defineApiHandler((event) => {
   // tenant middleware (4.5.1) уже проверил доступ и наполнил context
+  const member = event.context.member
   return {
     organization: event.context.organization,
-    myMember: event.context.member,
+    // роли и режимы на членстве (30.1.1, P-18): устаревшее `assistant` — тренер
+    myMember: member && {
+      ...member,
+      role: normalizeRole(member.role),
+      roles: memberRoles(member),
+      modes: memberModes(member),
+    },
     capabilities: {
       eventSplitPricing: isSplitPricingEnabled(process.env.EVENT_SPLIT_PRICING_ENABLED),
       // запись «по приглашению» (20.1.3): форма события и настройки скрывают режим, пока выключен

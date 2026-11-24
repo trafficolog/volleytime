@@ -38,7 +38,7 @@ describe('excluded players (21.2.24, PostgreSQL)', () => {
       .returning()
     return u!.id
   }
-  async function member(role: 'organizer' | 'assistant' | 'player' = 'player') {
+  async function member(role: 'organizer' | 'coach' | 'player' = 'player') {
     const userId = await newUser(role)
     const m = await memberService.add(owner(), { organizationId: orgId, userId, role })
     return { userId, memberId: m.id }
@@ -271,7 +271,7 @@ describe('excluded players (21.2.24, PostgreSQL)', () => {
   it('permissions: only the owner excludes+blocks admins; an organizer cannot; nothing changes', async () => {
     const organizer = await member('organizer')
     const organizer2 = await member('organizer')
-    const assistant = await member('assistant')
+    const assistant = await member('coach')
     const player = await member()
 
     for (const target of [organizer2, assistant]) {

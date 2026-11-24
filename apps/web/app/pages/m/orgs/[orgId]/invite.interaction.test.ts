@@ -39,6 +39,7 @@ const member: OrganizationMember = {
   ratingInOrg: null,
   level: null,
   position: null,
+  canAcceptPayment: false,
   createdAt: new Date('2026-09-29T07:00:00Z'),
   updatedAt: new Date('2026-09-29T07:00:00Z'),
 }

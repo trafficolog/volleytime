@@ -91,7 +91,7 @@ describe('ownership transfer bot link (HTTP integration)', { timeout: 60_000 }, 
     ownerId = await newUser('owner', TG.owner)
     recipientId = await newUser('recipient', TG.recipient)
     organizerId = await newUser('organizer', TG.organizer)
-    assistantId = await newUser('assistant', 8006n)
+    assistantId = await newUser('coach', 8006n)
     playerId = await newUser('player', TG.player)
     foreignOwnerId = await newUser('foreign', TG.foreign)
     orgId = (await organizationService.create({ userId: ownerId }, { name: 'Волейбол Минск' })).id
@@ -104,7 +104,7 @@ describe('ownership transfer bot link (HTTP integration)', { timeout: 60_000 }, 
       ).id
     recipientMemberId = await add(recipientId)
     await add(organizerId, 'organizer')
-    await add(assistantId, 'assistant')
+    await add(assistantId, 'coach')
     await add(playerId)
     const foreignOrg = (
       await organizationService.create({ userId: foreignOwnerId }, { name: 'Чужая группа' })
@@ -236,7 +236,7 @@ describe('ownership transfer bot link (HTTP integration)', { timeout: 60_000 }, 
   describe('IDOR', () => {
     it.each([
       ['organizer', () => organizerId],
-      ['assistant', () => assistantId],
+      ['coach', () => assistantId],
       ['player', () => playerId],
       ['recipient', () => recipientId],
     ])('%s cannot start a transfer and nothing is sent', async (_name, who) => {

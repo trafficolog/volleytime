@@ -55,9 +55,9 @@ function escapeLike(text: string): string {
 const GROUPS: SQL = sql`(SELECT count(*)::int FROM ${organizationMembers} m
   WHERE m.user_id = ${users.id} AND m.status = 'active')`
 /** Старшая роль среди активных членств. */
-const TOP_ROLE: SQL = sql`(SELECT m.role FROM ${organizationMembers} m
+const TOP_ROLE: SQL = sql`(SELECT CASE m.role WHEN 'assistant' THEN 'coach' ELSE m.role::text END FROM ${organizationMembers} m
   WHERE m.user_id = ${users.id} AND m.status = 'active'
-  ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'organizer' THEN 1 WHEN 'assistant' THEN 2 ELSE 3 END
+  ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'organizer' THEN 1 WHEN 'coach' THEN 2 WHEN 'assistant' THEN 2 ELSE 3 END
   LIMIT 1)`
 const HAS_PENDING: SQL = sql`EXISTS (SELECT 1 FROM ${organizationMembers} m
   WHERE m.user_id = ${users.id} AND m.status = 'pending')`
@@ -236,7 +236,11 @@ export const platformUsersService = {
 
     return {
       ...toRow(row),
-      memberships: memberships as PlatformUserMembership[],
+      // устаревшее `assistant` — тренер (30.1.1, D-31)
+      memberships: memberships.map((m) => ({
+        ...m,
+        role: m.role === 'assistant' ? 'coach' : m.role,
+      })) as PlatformUserMembership[],
       recentAudit: auditRows.map((a) => ({
         id: a.id,
         createdAt: a.createdAt.toISOString(),

@@ -13,12 +13,38 @@ async function tableApplied(url: string, table: string): Promise<boolean> {
   }
 }
 
+async function columnApplied(url: string, table: string, column: string): Promise<boolean> {
+  const sql = postgres(url, { max: 1 })
+  try {
+    const [row] = await sql<{ applied: boolean }[]>`
+      SELECT EXISTS (SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = ${table} AND column_name = ${column}) AS applied`
+    return row!.applied
+  } finally {
+    await sql.end()
+  }
+}
+
+/**
+ * Откат 0047 (30.1.1) отказывает, пока есть флаги приёма оплаты или тренеры событий; тесты старых
+ * миграций работают на базах без них. Помощник откатывает 0047 и возвращает тег; следующая
+ * миграция добавляет свой шаг сюда.
+ */
+export async function rollbackMembershipRolesCoach(url: string): Promise<string> {
+  const tag = await rollbackLastMigration(url)
+  if (tag !== '0047_membership_roles_coach')
+    throw new Error(`expected 0047 to roll back first, got ${tag}`)
+  return tag
+}
+
 /**
  * Откат 0046 (24.1.3) отказывает, пока есть решения root или жалобы; тесты старых миграций
- * работают на базах без них. Помощник откатывает 0046 и возвращает тег; следующая миграция
- * добавляет свой шаг сюда.
+ * работают на базах без них. Помощник откатывает 0046 и возвращает тег.
  */
 export async function rollbackGroupPageModeration(url: string): Promise<string> {
+  // 30.1.1: новая миграция откатывается первой; повторный вызов после отказа 0046 её уже не найдёт
+  if (await columnApplied(url, 'organization_members', 'can_accept_payment'))
+    await rollbackMembershipRolesCoach(url)
   const tag = await rollbackLastMigration(url)
   if (tag !== '0046_group_page_moderation')
     throw new Error(`expected 0046 to roll back first, got ${tag}`)

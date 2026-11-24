@@ -330,6 +330,13 @@
       "when": 1795435740962,
       "tag": "0046_group_page_moderation",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1795536323308,
+      "tag": "0047_membership_roles_coach",
+      "breakpoints": true
     }
   ]
 }

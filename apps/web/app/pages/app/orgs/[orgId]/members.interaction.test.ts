@@ -27,7 +27,7 @@ function row(
   return {
     id,
     organizationId: 30,
-    role: 'player' as 'player' | 'assistant',
+    role: 'player' as 'player' | 'coach',
     status,
     level,
     joinedAt: '2026-09-29T07:00:00.000Z',
@@ -232,7 +232,7 @@ describe('desktop players (W-06)', () => {
       ).toMatchObject({ stats: '1' })
       wrapper?.unmount()
       apiFetch.mockClear()
-      actorRole = 'assistant'
+      actorRole = 'coach'
       await render()
       const query = apiFetch.mock.calls.find(([url]) => url === '/api/organizations/30/members')![1]
         .query
@@ -330,7 +330,7 @@ describe('desktop players (W-06)', () => {
   })
 
   it('hides the position selector from an assistant (21.2.22)', async () => {
-    actorRole = 'assistant'
+    actorRole = 'coach'
     const w = await render()
     await w.findAll('tbody .vt-desktop-members__name')[1]!.trigger('click')
     expect(w.find('#player-drawer-position').exists()).toBe(false)
@@ -459,7 +459,7 @@ describe('desktop players (W-06)', () => {
     })
 
     it('is not offered to an assistant', async () => {
-      actorRole = 'assistant'
+      actorRole = 'coach'
       const w = await render()
       await open(w, 1)
       expect(w.find('[data-testid="player-exclude"]').exists()).toBe(false)
@@ -504,7 +504,7 @@ describe('desktop players (W-06)', () => {
 
     it('an organizer cannot block an excluded admin', async () => {
       actorRole = 'organizer'
-      excludedRows[0]!.role = 'assistant'
+      excludedRows[0]!.role = 'coach'
       try {
         const w = await render()
         await openTab(w)
@@ -515,7 +515,7 @@ describe('desktop players (W-06)', () => {
     })
 
     it('an assistant has no tab and never requests the list', async () => {
-      actorRole = 'assistant'
+      actorRole = 'coach'
       const w = await render()
       expect(w.findAll('button').some((b) => b.text().startsWith('Исключённые'))).toBe(false)
       expect(
@@ -607,7 +607,7 @@ describe('desktop players (W-06)', () => {
   })
 
   it('hides the copy button and the level selector from an assistant', async () => {
-    actorRole = 'assistant'
+    actorRole = 'coach'
     const w = await render()
     expect(w.text()).not.toContain('Скопировать invite-link')
     await w.findAll('tbody .vt-desktop-members__name')[1]!.trigger('click')

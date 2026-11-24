@@ -11,6 +11,12 @@ export class EventNotFoundError extends EventError {
     super('event.not_found', `Event ${id} not found`)
   }
 }
+/** Тренер события — активный участник группы с ролью coach, organizer или owner (30.1.1). */
+export class EventCoachInvalidError extends EventError {
+  constructor() {
+    super('event.invalid_coach', 'Event coaches must be active coaches or managers of the group')
+  }
+}
 export class EventNotEditableError extends EventError {
   constructor() {
     super('event.not_editable', 'Cancelled or finished events cannot be edited')

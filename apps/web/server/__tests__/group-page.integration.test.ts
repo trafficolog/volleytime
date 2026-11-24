@@ -85,15 +85,15 @@ describe('group page API (HTTP integration)', () => {
     await db.delete(users)
     ownerId = await newUser('owner')
     organizerId = await newUser('organizer')
-    assistantId = await newUser('assistant')
+    assistantId = await newUser('coach')
     playerId = await newUser('player')
     otherOwnerId = await newUser('other-owner')
     orgId = (await organizationService.create({ userId: ownerId }, { name: 'Волна' })).id
     otherOrgId = (await organizationService.create({ userId: otherOwnerId }, { name: 'Другая' })).id
-    const add = (userId: number, role: 'organizer' | 'assistant' | 'player') =>
+    const add = (userId: number, role: 'organizer' | 'coach' | 'player') =>
       memberService.add({ userId: ownerId }, { organizationId: orgId, userId, role })
     await add(organizerId, 'organizer')
-    await add(assistantId, 'assistant')
+    await add(assistantId, 'coach')
     await add(playerId, 'player')
   })
 

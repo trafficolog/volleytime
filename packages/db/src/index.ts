@@ -26,6 +26,7 @@ export {
   gt,
   isNull,
   isNotNull,
+  arrayOverlaps,
 } from 'drizzle-orm'
 
 // алиасы таблиц для self-join (6.8.12)
