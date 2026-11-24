@@ -5,6 +5,7 @@ import {
   eq,
   organizationMembers,
   organizations,
+  platformStaff,
   sessions,
   sql,
   users,
@@ -71,6 +72,9 @@ const LAST_ACTIVITY: SQL = sql`GREATEST(
   COALESCE((SELECT max(s.updated_at) FROM ${sessions} s WHERE s.user_id = ${users.id}), ${users.createdAt})
 )`
 
+/** Член команды платформы (29.3.1): флаг `users.is_root_admin` больше не читается. */
+const IS_STAFF: SQL = sql`EXISTS (SELECT 1 FROM ${platformStaff} ps WHERE ps.user_id = ${users.id})`
+
 const rowColumns = {
   id: users.id,
   name: users.name,
@@ -78,7 +82,7 @@ const rowColumns = {
   telegramUsername: users.telegramUsername,
   telegramLinked: sql<boolean>`${users.telegramUserId} IS NOT NULL`,
   isActive: users.isActive,
-  isRootAdmin: users.isRootAdmin,
+  isRootAdmin: sql<boolean>`${IS_STAFF}`,
   createdAt: users.createdAt,
   groups: sql<number>`${GROUPS}`,
   topRole: sql<PlatformUserTopRole | null>`${TOP_ROLE}`,
@@ -134,7 +138,7 @@ export const platformUsersService = {
     params: PlatformUsersParams = {},
     now: Date = new Date(),
   ): Promise<PlatformUsersPage> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'users')
     const db = getDb(ctx)
     const since = new Date(now.getTime() - ACTIVE_DAYS * DAY_MS).toISOString()
 
@@ -200,7 +204,7 @@ export const platformUsersService = {
   },
 
   async get(ctx: ServiceContext, userId: number): Promise<PlatformUserDetail> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'users')
     const db = getDb(ctx)
 
     const [row] = await db.select(rowColumns).from(users).where(eq(users.id, userId))
@@ -252,11 +256,11 @@ export const platformUsersService = {
 
   /**
    * Блокировка: флаг, закрытие всех сессий и запись журнала (автор — root) — одна транзакция.
-   * Нельзя заблокировать себя и другого root: снять роль root может только оператор базы, после
-   * этого пользователь блокируется как обычный. Повторная блокировка — ошибка без записи.
+   * Нельзя заблокировать себя и члена команды платформы (29.3.1): сначала Owner убирает его из
+   * команды, после этого пользователь блокируется как обычный. Повторная блокировка — ошибка без записи.
    */
   async block(ctx: ServiceContext, userId: number): Promise<PlatformUserBlockResult> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'usersManage')
     if (userId === ctx.userId) {
       throw new PlatformUserError(
         'platform.user_cannot_block_self',
@@ -296,7 +300,7 @@ export const platformUsersService = {
 
   /** Разблокировка: флаг и запись журнала в одной транзакции; закрытые сессии не восстанавливаются. */
   async unblock(ctx: ServiceContext, userId: number): Promise<PlatformUserBlockResult> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'usersManage')
     return inTransaction(ctx, async (tx) => {
       const target = await lockUser(tx, userId)
       if (target.isActive) {
@@ -324,7 +328,7 @@ const notFound = (userId: number) =>
 /** Строка пользователя под блокировкой: два параллельных запроса не запишут два события. */
 async function lockUser(ctx: ServiceContext, userId: number) {
   const [target] = await getDb(ctx)
-    .select({ id: users.id, isActive: users.isActive, isRootAdmin: users.isRootAdmin })
+    .select({ id: users.id, isActive: users.isActive, isRootAdmin: sql<boolean>`${IS_STAFF}` })
     .from(users)
     .where(eq(users.id, userId))
     .for('update')

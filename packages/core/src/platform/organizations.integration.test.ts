@@ -11,6 +11,7 @@ import {
   organizations,
   users,
 } from '@volley-time/db'
+import { grantPlatformRole } from '@volley-time/db/test-utils'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { ForbiddenError } from '../permissions/errors'
@@ -114,7 +115,8 @@ describe('platformOrganizationsService (integration)', { timeout: 60_000 }, () =
 
   beforeEach(async () => {
     await clean()
-    rootId = await newUser('root', { isRootAdmin: true })
+    rootId = await newUser('root')
+    await grantPlatformRole(rootId)
     plainId = await newUser('plain', { name: 'Owner One', telegramUsername: 'owner_one' })
   })
   afterAll(async () => {
@@ -128,7 +130,7 @@ describe('platformOrganizationsService (integration)', { timeout: 60_000 }, () =
         platformOrganizationsService.list({ userId: plainId }, {}, now),
       ).rejects.toBeInstanceOf(ForbiddenError)
       await expect(platformOrganizationsService.get({ userId: plainId }, 1, now)).rejects.toThrow(
-        /администратору платформы/,
+        /команде платформы/,
       )
       await expect(
         platformOrganizationsService.create(

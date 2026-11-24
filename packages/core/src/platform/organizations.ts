@@ -196,7 +196,7 @@ export const platformOrganizationsService = {
     params: PlatformOrganizationsParams = {},
     now: Date = new Date(),
   ): Promise<PlatformOrganizationsPage> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'organizations')
     const db = getDb(ctx)
 
     const rows = await db
@@ -312,7 +312,7 @@ export const platformOrganizationsService = {
     orgId: number,
     now: Date = new Date(),
   ): Promise<PlatformOrganizationDetail> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'organizations')
     const db = getDb(ctx)
 
     const [org] = await db
@@ -420,7 +420,7 @@ export const platformOrganizationsService = {
     ctx: ServiceContext,
     input: PlatformOrganizationCreateInput,
   ): Promise<PlatformOrganizationCreateResult> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'organizationsManage')
     const { owner, ...data } = CreateInput.parse(input)
     return inTransaction(ctx, async (tx) => {
       const ownerId = await resolveOwner(getDb(tx), owner)

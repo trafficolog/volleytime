@@ -8,6 +8,7 @@ import {
   organizations,
   users,
 } from '@volley-time/db'
+import { grantPlatformRole } from '@volley-time/db/test-utils'
 import type { PlatformGrantResult, PlatformGrantsPage } from '@volley-time/shared'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -47,11 +48,12 @@ describe('platform event balance grants (HTTP)', { timeout: 60_000 }, () => {
       await db
         .insert(users)
         .values([
-          { name: 'Root', email: 'root@vt.test', isRootAdmin: true },
+          { name: 'Root', email: 'root@vt.test' },
           { name: 'Plain', email: 'plain@vt.test' },
         ])
         .returning()
     ).map((u) => u.id) as [number, number]
+    await grantPlatformRole(root)
     orgId = (await organizationService.create({ userId: plain }, { name: 'Grant HTTP' })).id
   })
   afterAll(async () => {

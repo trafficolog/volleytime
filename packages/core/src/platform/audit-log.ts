@@ -13,6 +13,7 @@ import {
   users,
 } from '@volley-time/db'
 import type {
+  PlatformRole,
   PlatformAuditCategory,
   PlatformAuditEntry,
   PlatformAuditPage,
@@ -53,6 +54,17 @@ const CATEGORY_PREFIXES: Record<PlatformAuditCategory, string[]> = {
   plans: ['plan.', 'subscription.'],
   organizations: ['organization.', 'ownership_transfer.', 'member.', 'invite.'],
   settings: ['venue.', 'schedule_slot.', 'telegram_chat.', 'platform_setting.'],
+}
+
+/**
+ * «Свои разделы» журнала по роли команды (29.3.1, R-15): Finance — баланс и тарифы, Moderator и
+ * Support — пользователи и страницы групп (их разделы с записями журнала). Owner и Admin видят всё,
+ * Analyst журнала не видит (политика `audit`).
+ */
+const ROLE_SCOPE: Partial<Record<PlatformRole, string[]>> = {
+  finance: [...CATEGORY_PREFIXES.balance, ...CATEGORY_PREFIXES.plans],
+  moderator: ['user.', 'group_page.'],
+  support: ['user.', 'group_page.'],
 }
 
 const startsWith = (prefixes: string[]): SQL =>
@@ -124,8 +136,10 @@ export const platformAuditService = {
     params: PlatformAuditParams = {},
     now: Date = new Date(),
   ): Promise<PlatformAuditPage> {
-    await assertRootAdmin(ctx)
+    const role = await assertRootAdmin(ctx, 'audit')
     const db = getDb(ctx)
+    const scope = ROLE_SCOPE[role]
+    const scopeCond = scope ? startsWith(scope) : undefined
 
     const period = params.period ?? DEFAULT_PERIOD
     const limit = Math.min(Math.max(Math.trunc(params.limit ?? DEFAULT_LIMIT), 1), MAX_LIMIT)
@@ -134,7 +148,7 @@ export const platformAuditService = {
         ? undefined
         : gte(auditLog.createdAt, new Date(now.getTime() - PERIOD_MS[period]))
 
-    const filters: (SQL | undefined)[] = [periodCond]
+    const filters: (SQL | undefined)[] = [periodCond, scopeCond]
     if (params.organizationId !== undefined) {
       filters.push(eq(auditLog.organizationId, params.organizationId))
     }
@@ -185,7 +199,7 @@ export const platformAuditService = {
         .selectDistinct({ id: organizations.id, name: organizations.name })
         .from(auditLog)
         .innerJoin(organizations, eq(organizations.id, auditLog.organizationId))
-        .where(periodCond)
+        .where(and(periodCond, scopeCond))
         .orderBy(organizations.name, organizations.id)
         .limit(MAX_ORGANIZATIONS),
     ])

@@ -1,4 +1,5 @@
 import { closeDb, db, organizations, users } from '@volley-time/db'
+import { grantPlatformRole } from '@volley-time/db/test-utils'
 import * as h3 from 'h3'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -30,9 +31,10 @@ describe('server middleware for /root pages (integration)', () => {
     await db.delete(users)
     const people = await db
       .insert(users)
-      .values([{ name: 'Root', isRootAdmin: true }, { name: 'Plain' }])
+      .values([{ name: 'Root' }, { name: 'Plain' }])
       .returning()
     rootId = people[0]!.id
+    await grantPlatformRole(rootId)
     plainId = people[1]!.id
   })
   afterAll(async () => {

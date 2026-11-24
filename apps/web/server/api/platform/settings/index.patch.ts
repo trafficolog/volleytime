@@ -1,4 +1,5 @@
 import { PlatformSettingsError, platformSettingsService } from '@volley-time/core'
+import { PLATFORM_POLICIES } from '@volley-time/shared'
 
 /**
  * Правка настроек платформы (22.3.1): `{ changes: [{ key, value, version }] }`, 1–20 ключей без
@@ -7,7 +8,7 @@ import { PlatformSettingsError, platformSettingsService } from '@volley-time/cor
  * 422 `platform_settings.unknown_key`. Значение, равное действующему, ничего не пишет (no-op).
  */
 export default defineApiHandler(async (event) => {
-  const user = await requireRootAdmin(event)
+  const user = await requirePlatformRole(event, ...PLATFORM_POLICIES.settings)
   setResponseHeader(event, 'cache-control', 'no-store')
   try {
     return await platformSettingsService.update({ userId: user.id }, await readBody(event))

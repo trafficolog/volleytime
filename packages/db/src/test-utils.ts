@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm'
 
 import { db } from './client'
+import { platformStaff } from './schema'
 
 /**
  * Очищает все пользовательские таблицы (для изоляции интеграционных тестов).
@@ -50,4 +51,22 @@ export async function resetEventBalancePackages(): Promise<void> {
       ('events_100', 100, 35000, 'discount', 30)
     ) AS s(code, units, amount, badge, sort_order)
     WHERE p.code = s.code`)
+}
+
+/**
+ * Сделать пользователя членом команды платформы (29.3.1, R-15) — замена прежнего
+ * `isRootAdmin: true` в фикстурах. Роль по умолчанию — `owner` (как у root после миграции 0048).
+ * Только для тестов.
+ */
+export async function grantPlatformRole(
+  userId: number,
+  role: (typeof platformStaff.$inferInsert)['role'] = 'owner',
+): Promise<void> {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('grantPlatformRole is test-only and forbidden in production')
+  }
+  await db
+    .insert(platformStaff)
+    .values({ userId, role })
+    .onConflictDoUpdate({ target: platformStaff.userId, set: { role } })
 }

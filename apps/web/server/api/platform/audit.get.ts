@@ -1,5 +1,9 @@
 import { platformAuditService } from '@volley-time/core'
-import { PLATFORM_AUDIT_CATEGORIES, PLATFORM_AUDIT_PERIODS } from '@volley-time/shared'
+import {
+  PLATFORM_AUDIT_CATEGORIES,
+  PLATFORM_AUDIT_PERIODS,
+  PLATFORM_POLICIES,
+} from '@volley-time/shared'
 import { z } from 'zod'
 
 const Query = z.object({
@@ -16,7 +20,7 @@ const Query = z.object({
  * (401 без сессии, 403 `forbidden.root_only` иначе). Изменяющих маршрутов у журнала нет.
  */
 export default defineApiHandler(async (event) => {
-  const user = await requireRootAdmin(event)
+  const user = await requirePlatformRole(event, ...PLATFORM_POLICIES.audit)
   setResponseHeader(event, 'cache-control', 'no-store')
   const params = Query.parse(getQuery(event))
   return platformAuditService.list({ userId: user.id }, params)

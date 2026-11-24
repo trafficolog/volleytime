@@ -25,8 +25,10 @@ export {
   buildPurchaseRequestsCsv,
   platformPurchaseRequestsService,
 } from './purchase-requests'
+export { platformStaffService } from './staff'
 export {
   PlatformGrantError,
+  PlatformStaffError,
   PlatformOwnerError,
   PlatformPurchaseRequestError,
   PlatformUserError,

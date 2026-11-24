@@ -45,6 +45,7 @@ import {
   venues,
   waitlistOffers,
 } from '@volley-time/db'
+import { grantPlatformRole } from '@volley-time/db/test-utils'
 import { defaultGroupPageContent } from '@volley-time/shared'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
@@ -616,7 +617,8 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
     await db.delete(users)
     A = await makeOrg('A')
     B = await makeOrg('B')
-    root = await newUser('root', { isRootAdmin: true })
+    root = await newUser('root')
+    await grantPlatformRole(root)
   }, 60_000)
 
   it('every route under organizations/[orgId] is in the IDOR table', async () => {

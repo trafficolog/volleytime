@@ -26,11 +26,24 @@ async function columnApplied(url: string, table: string, column: string): Promis
 }
 
 /**
+ * Откат 0048 (29.3.1) отказывает, пока в команде платформы есть роли кроме owner; тесты старых
+ * миграций работают на базах без них. Помощник откатывает 0048 и возвращает тег; следующая
+ * миграция добавляет свой шаг сюда.
+ */
+export async function rollbackPlatformStaff(url: string): Promise<string> {
+  const tag = await rollbackLastMigration(url)
+  if (tag !== '0048_platform_staff') throw new Error(`expected 0048 to roll back first, got ${tag}`)
+  return tag
+}
+
+/**
  * Откат 0047 (30.1.1) отказывает, пока есть флаги приёма оплаты или тренеры событий; тесты старых
  * миграций работают на базах без них. Помощник откатывает 0047 и возвращает тег; следующая
  * миграция добавляет свой шаг сюда.
  */
 export async function rollbackMembershipRolesCoach(url: string): Promise<string> {
+  // 29.3.1: новая миграция откатывается первой; повторный вызов после отказа 0047 её уже не найдёт
+  if (await tableApplied(url, 'platform_staff')) await rollbackPlatformStaff(url)
   const tag = await rollbackLastMigration(url)
   if (tag !== '0047_membership_roles_coach')
     throw new Error(`expected 0047 to roll back first, got ${tag}`)

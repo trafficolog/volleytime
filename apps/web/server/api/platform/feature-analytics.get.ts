@@ -1,4 +1,5 @@
 import { featureAnalyticsService } from '@volley-time/core'
+import { PLATFORM_POLICIES } from '@volley-time/shared'
 
 const metric = {
   type: 'object',
@@ -73,7 +74,7 @@ defineRouteMeta({
 
 /** Вне tenant-префикса: пользователь — из `requireRootAdmin`, роль проверяется и в сервисе. */
 export default defineApiHandler(async (event) => {
-  const user = await requireRootAdmin(event)
+  const user = await requirePlatformRole(event, ...PLATFORM_POLICIES.overview)
   setResponseHeader(event, 'cache-control', 'no-store')
-  return featureAnalyticsService.report({ userId: user.id })
+  return forPlatformRole(user, await featureAnalyticsService.report({ userId: user.id }))
 })

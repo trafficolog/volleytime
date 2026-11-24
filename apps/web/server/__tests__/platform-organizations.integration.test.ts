@@ -9,6 +9,7 @@ import {
   organizations,
   users,
 } from '@volley-time/db'
+import { grantPlatformRole } from '@volley-time/db/test-utils'
 import type {
   PlatformOrganizationCreateResult,
   PlatformOrganizationDetail,
@@ -42,11 +43,12 @@ describe('/api/platform/organizations (HTTP)', { timeout: 60_000 }, () => {
     const people = await db
       .insert(users)
       .values([
-        { name: 'Root', isRootAdmin: true },
+        { name: 'Root' },
         { name: 'Owner', email: 'owner@vt.test', telegramUsername: 'owner_tg' },
       ])
       .returning()
     root = people[0]!.id
+    await grantPlatformRole(root)
     owner = people[1]!.id
     orgId = (
       await db

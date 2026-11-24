@@ -1,4 +1,5 @@
 import { platformPurchaseRequestsService } from '@volley-time/core'
+import { PLATFORM_POLICIES } from '@volley-time/shared'
 
 /**
  * Подтвердить заявку (22.2.3): `pending → approved` и начисление на снимок заявки, журнал и аудит —
@@ -6,7 +7,7 @@ import { platformPurchaseRequestsService } from '@volley-time/core'
  * Тело: `{ comment? }`. Только root.
  */
 export default defineApiHandler(async (event) => {
-  const user = await requireRootAdmin(event)
+  const user = await requirePlatformRole(event, ...PLATFORM_POLICIES.balanceManage)
   setResponseHeader(event, 'cache-control', 'no-store')
   const requestId = pathId(getRouterParam(event, 'id'))
   const body = await readBody(event).catch(() => null)

@@ -9,7 +9,7 @@ import {
   sql,
   users,
 } from '@volley-time/db'
-import { resetEventBalancePackages } from '@volley-time/db/test-utils'
+import { resetEventBalancePackages, grantPlatformRole } from '@volley-time/db/test-utils'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { eventBalanceService } from '../event-balance/service'
@@ -28,13 +28,14 @@ describe('platformEventBalancePackagesService (integration)', { timeout: 60_000 
   let orgId: number
   const ctx = () => ({ userId: rootId })
 
-  const newUser = async (label: string, isRootAdmin = false) =>
-    (
-      await db
-        .insert(users)
-        .values({ email: `pkg-${label}-${++seq}@t.by`, name: label, isRootAdmin })
-        .returning()
-    )[0]!.id
+  const newUser = async (label: string, isRootAdmin = false) => {
+    const [u] = await db
+      .insert(users)
+      .values({ email: `pkg-${label}-${++seq}@t.by`, name: label })
+      .returning()
+    if (isRootAdmin) await grantPlatformRole(u!.id)
+    return u!.id
+  }
 
   const auditOf = async (action?: string) => {
     const rows = await db

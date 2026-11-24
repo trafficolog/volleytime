@@ -9,6 +9,7 @@ import {
   organizations,
   users,
 } from '@volley-time/db'
+import { grantPlatformRole } from '@volley-time/db/test-utils'
 import type {
   PlatformPurchaseDecisionResult,
   PlatformPurchaseRequestsPage,
@@ -48,11 +49,12 @@ describe('platform purchase requests (HTTP)', { timeout: 60_000 }, () => {
       await db
         .insert(users)
         .values([
-          { name: 'Root', email: 'root@vt.test', isRootAdmin: true },
+          { name: 'Root', email: 'root@vt.test' },
           { name: 'Plain', email: 'plain@vt.test' },
         ])
         .returning()
     ).map((u) => u.id) as [number, number]
+    await grantPlatformRole(root)
     orgId = (await organizationService.create({ userId: plain }, { name: 'Заявки HTTP' })).id
   })
   afterAll(async () => {

@@ -1,4 +1,5 @@
 import { bookings, closeDb, db, events, organizations, users } from '@volley-time/db'
+import { grantPlatformRole } from '@volley-time/db/test-utils'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { ForbiddenError } from '../permissions/errors'
@@ -21,13 +22,14 @@ describe('platformOverviewService (integration)', { timeout: 60_000 }, () => {
   let archivedOrg: number
   let deletedOrg: number
 
-  const newUser = async (label: string, isRootAdmin = false) =>
-    (
-      await db
-        .insert(users)
-        .values({ email: `plat-${label}-${++seq}@t.by`, name: label, isRootAdmin })
-        .returning()
-    )[0]!.id
+  const newUser = async (label: string, isRootAdmin = false) => {
+    const [u] = await db
+      .insert(users)
+      .values({ email: `plat-${label}-${++seq}@t.by`, name: label })
+      .returning()
+    if (isRootAdmin) await grantPlatformRole(u!.id)
+    return u!.id
+  }
   const newOrg = async (
     name: string,
     extra: Partial<typeof organizations.$inferInsert> = {},

@@ -1,5 +1,9 @@
 import { platformOrganizationsService } from '@volley-time/core'
-import { PLATFORM_ORG_SORTS, PLATFORM_ORG_STATUS_FILTERS } from '@volley-time/shared'
+import {
+  PLATFORM_ORG_SORTS,
+  PLATFORM_ORG_STATUS_FILTERS,
+  PLATFORM_POLICIES,
+} from '@volley-time/shared'
 import { z } from 'zod'
 
 /** `1`/`true` из строки запроса; прочее — ошибка валидации (`z.coerce.boolean` считал бы «false» истиной). */
@@ -20,8 +24,8 @@ const Query = z.object({
  * (401 без сессии, 403 `forbidden.root_only` иначе).
  */
 export default defineApiHandler(async (event) => {
-  const user = await requireRootAdmin(event)
+  const user = await requirePlatformRole(event, ...PLATFORM_POLICIES.organizations)
   setResponseHeader(event, 'cache-control', 'no-store')
   const params = Query.parse(getQuery(event))
-  return platformOrganizationsService.list({ userId: user.id }, params)
+  return forPlatformRole(user, await platformOrganizationsService.list({ userId: user.id }, params))
 })

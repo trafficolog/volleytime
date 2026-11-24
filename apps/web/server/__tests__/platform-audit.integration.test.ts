@@ -1,4 +1,5 @@
 import { auditLog, closeDb, db, organizations, users } from '@volley-time/db'
+import { grantPlatformRole } from '@volley-time/db/test-utils'
 import type { PlatformAuditPage } from '@volley-time/shared'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -20,9 +21,10 @@ describe('GET /api/platform/audit (HTTP)', { timeout: 60_000 }, () => {
     await db.delete(users)
     const people = await db
       .insert(users)
-      .values([{ name: 'Root', isRootAdmin: true }, { name: 'Owner' }])
+      .values([{ name: 'Root' }, { name: 'Owner' }])
       .returning()
     root = people[0]!.id
+    await grantPlatformRole(root)
     owner = people[1]!.id
     orgId = (
       await db

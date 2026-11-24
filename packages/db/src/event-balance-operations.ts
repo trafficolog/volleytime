@@ -17,6 +17,7 @@ import {
   eventBalanceEntries,
   eventBalancePurchaseRequests,
   organizations,
+  platformStaff,
   users,
   type EventBalanceEntry,
   type EventBalancePurchaseRequest,
@@ -58,15 +59,17 @@ async function resolveOperator(db: DbOrTx, ref: OperatorRef): Promise<number> {
   if (hasId && !isDbId(ref.operatorId!)) {
     throw new OperatorError('operator.invalid_id', '--operator-id must be a positive integer')
   }
+  // 29.3.1 (R-15): оператор — член команды платформы с правом на баланс (Owner, Admin, Finance)
   const [user] = await db
-    .select({ id: users.id, isRootAdmin: users.isRootAdmin, isActive: users.isActive })
+    .select({ id: users.id, role: platformStaff.role, isActive: users.isActive })
     .from(users)
+    .leftJoin(platformStaff, eq(platformStaff.userId, users.id))
     .where(
       hasId
         ? eq(users.id, ref.operatorId!)
         : sql`lower(${users.email}) = lower(${ref.operator!.trim()})`,
     )
-  if (!user || !user.isRootAdmin || !user.isActive) {
+  if (!user || !user.isActive || !BALANCE_OPERATOR_ROLES.includes(user.role ?? '')) {
     throw new OperatorError(
       'forbidden.root_only',
       `Operator ${hasId ? `id ${ref.operatorId}` : ref.operator} is not an active root admin`,
@@ -74,6 +77,8 @@ async function resolveOperator(db: DbOrTx, ref: OperatorRef): Promise<number> {
   }
   return user.id
 }
+
+const BALANCE_OPERATOR_ROLES: string[] = ['owner', 'admin', 'finance']
 
 function requireComment(comment: string | undefined): string {
   const value = comment?.trim()

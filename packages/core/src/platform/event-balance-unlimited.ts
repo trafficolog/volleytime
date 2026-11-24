@@ -62,7 +62,7 @@ export const platformEventBalanceUnlimitedService = {
     input: unknown,
     now: Date = new Date(),
   ): Promise<PlatformUnlimitedResult> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'balanceManage')
     const data = SetInput.parse(input)
     const today = minskToday(now)
     if (data.until < today || data.until > addIsoDays(today, UNLIMITED_MAX_DAYS_AHEAD)) {
@@ -116,7 +116,7 @@ export const platformEventBalanceUnlimitedService = {
     input: unknown,
     now: Date = new Date(),
   ): Promise<PlatformUnlimitedResult> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'balanceManage')
     const data = CancelInput.parse(input)
     return inTransaction(ctx, async (tx) => {
       const db = getDb(tx)

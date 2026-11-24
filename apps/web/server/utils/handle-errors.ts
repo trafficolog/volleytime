@@ -53,6 +53,14 @@ const CODE_STATUS: Record<string, number> = {
   'platform.user_cannot_block_root': 422,
   'platform.user_already_blocked': 409,
   'platform.user_not_blocked': 409,
+  // команда платформы (29.3.1, R-15)
+  'platform.staff_not_found': 404,
+  'platform.staff_exists': 409,
+  'platform.staff_same_role': 409,
+  'platform.staff_last_owner': 409,
+  'platform.staff_user_not_found': 404,
+  'platform.staff_user_ambiguous': 409,
+  'platform.staff_user_inactive': 409,
   'platform.grant_org_deleted': 409,
   'platform.grant_idempotency_conflict': 409,
   // решения root по заявкам на покупку баланса (22.2.3)
@@ -205,6 +213,7 @@ const CODE_STATUS: Record<string, number> = {
   'forbidden.pending_approval': 403,
   'forbidden.not_member': 403,
   'forbidden.root_only': 403,
+  'forbidden.platform_role': 403,
 }
 
 /**

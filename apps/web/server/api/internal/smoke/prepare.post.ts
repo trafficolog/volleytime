@@ -1,4 +1,4 @@
-import { and, db, eq, organizationMembers, users } from '@volley-time/db'
+import { and, db, eq, organizationMembers, platformStaff, sql, users } from '@volley-time/db'
 import { z } from 'zod'
 
 const Body = z.object({ telegramUserId: z.coerce.bigint() })
@@ -26,7 +26,7 @@ export default defineApiHandler(async (event) => {
 
   const user = await db.query.users.findFirst({
     where: eq(users.telegramUserId, telegramUserId),
-    columns: { id: true, name: true, isActive: true, isRootAdmin: true },
+    columns: { id: true, name: true, isActive: true },
   })
   if (!user) return { prepared: true, reason: 'user_not_found' as const }
   if (user.isActive) return { prepared: true, reason: 'already_active' as const }
@@ -36,7 +36,12 @@ export default defineApiHandler(async (event) => {
     .from(organizationMembers)
     .where(eq(organizationMembers.userId, user.id))
     .limit(1)
-  if (user.isRootAdmin || membership || user.name !== SMOKE_NAME) {
+  // член команды платформы (29.3.1) — не smoke-аккаунт, сколько бы ни совпадало имя
+  const [staff] = await db
+    .select({ userId: platformStaff.userId })
+    .from(platformStaff)
+    .where(eq(platformStaff.userId, user.id))
+  if (staff || membership || user.name !== SMOKE_NAME) {
     return { prepared: false, reason: 'not_smoke_account' as const }
   }
 
@@ -44,7 +49,13 @@ export default defineApiHandler(async (event) => {
   const updated = await db
     .update(users)
     .set({ isActive: true })
-    .where(and(eq(users.id, user.id), eq(users.isRootAdmin, false), eq(users.name, SMOKE_NAME)))
+    .where(
+      and(
+        eq(users.id, user.id),
+        eq(users.name, SMOKE_NAME),
+        sql`NOT EXISTS (SELECT 1 FROM ${platformStaff} ps WHERE ps.user_id = ${users.id})`,
+      ),
+    )
     .returning({ id: users.id })
   if (!updated.length) return { prepared: false, reason: 'not_smoke_account' as const }
   return { prepared: true, reason: 'reenabled' as const, userId: user.id }

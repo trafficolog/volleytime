@@ -51,3 +51,21 @@ export class PlatformUserError extends OrganizationError {
     this.name = 'PlatformUserError'
   }
 }
+
+/** Команда платформы (29.3.1, R-15): приглашение, смена роли и удаление. */
+export class PlatformStaffError extends OrganizationError {
+  constructor(
+    code:
+      | 'platform.staff_not_found'
+      | 'platform.staff_exists'
+      | 'platform.staff_same_role'
+      | 'platform.staff_last_owner'
+      | 'platform.staff_user_not_found'
+      | 'platform.staff_user_ambiguous'
+      | 'platform.staff_user_inactive',
+    message: string,
+  ) {
+    super(code, message)
+    this.name = 'PlatformStaffError'
+  }
+}

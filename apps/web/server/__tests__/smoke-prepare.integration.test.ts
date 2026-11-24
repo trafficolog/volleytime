@@ -3,6 +3,7 @@ import { createHmac } from 'node:crypto'
 import { auth } from '@volley-time/auth'
 import { organizationService } from '@volley-time/core'
 import { closeDb, db, eq, organizations, sessions, users } from '@volley-time/db'
+import { grantPlatformRole } from '@volley-time/db/test-utils'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { createTestApi } from './harness'
@@ -110,7 +111,8 @@ describe('smoke cleanup / prepare (integration)', { timeout: 30_000 }, () => {
   })
 
   it('never re-enables a root admin, even one named «Smoke check»', async () => {
-    const u = await smokeUser({ isRootAdmin: true })
+    const u = await smokeUser()
+    await grantPlatformRole(u.id, 'support')
     expect((await prepare()).body).toEqual({ prepared: false, reason: 'not_smoke_account' })
     expect(await flag(u.id)).toBe(false)
   })

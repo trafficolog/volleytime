@@ -1,5 +1,5 @@
 import { platformUsersService } from '@volley-time/core'
-import { PLATFORM_USER_STATUS_FILTERS } from '@volley-time/shared'
+import { PLATFORM_USER_STATUS_FILTERS, PLATFORM_POLICIES } from '@volley-time/shared'
 import { z } from 'zod'
 
 const Query = z.object({
@@ -15,7 +15,7 @@ const Query = z.object({
  * (email, Telegram-имя) — только в этом ответе и только root.
  */
 export default defineApiHandler(async (event) => {
-  const user = await requireRootAdmin(event)
+  const user = await requirePlatformRole(event, ...PLATFORM_POLICIES.users)
   setResponseHeader(event, 'cache-control', 'no-store')
   const params = Query.parse(getQuery(event))
   return platformUsersService.list({ userId: user.id }, params)

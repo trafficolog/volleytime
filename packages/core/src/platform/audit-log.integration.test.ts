@@ -1,4 +1,5 @@
 import { auditLog, closeDb, db, organizations, users } from '@volley-time/db'
+import { grantPlatformRole } from '@volley-time/db/test-utils'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { ForbiddenError } from '../permissions/errors'
@@ -19,13 +20,14 @@ describe('platformAuditService (integration)', { timeout: 60_000 }, () => {
   let orgA: number
   let orgB: number
 
-  const newUser = async (label: string, isRootAdmin = false, email?: string) =>
-    (
-      await db
-        .insert(users)
-        .values({ email: email ?? `audit-${label}-${++seq}@t.by`, name: label, isRootAdmin })
-        .returning()
-    )[0]!.id
+  const newUser = async (label: string, isRootAdmin = false, email?: string) => {
+    const [u] = await db
+      .insert(users)
+      .values({ email: email ?? `audit-${label}-${++seq}@t.by`, name: label })
+      .returning()
+    if (isRootAdmin) await grantPlatformRole(u!.id)
+    return u!.id
+  }
   const newOrg = async (name: string): Promise<number> =>
     (
       await db

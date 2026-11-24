@@ -65,7 +65,7 @@ export const platformEventBalanceGrantsService = {
    * прежний результат (`replayed`) и баланс не меняет; тот же ключ с другими данными — 409.
    */
   async grant(ctx: ServiceContext, input: PlatformGrantInput): Promise<PlatformGrantResult> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'balanceManage')
     const data = GrantInput.parse(input)
     return inTransaction(ctx, async (tx) => {
       const db = getDb(tx)
@@ -164,7 +164,7 @@ export const platformEventBalanceGrantsService = {
     ctx: ServiceContext,
     query: { cursor?: number | string; limit?: number | string } = {},
   ): Promise<PlatformGrantsPage> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'balance')
     const { cursor, limit } = ListQuery.parse(query)
     const rows = await getDb(ctx)
       .select({

@@ -10,6 +10,7 @@ import {
   organizations,
   users,
 } from '@volley-time/db'
+import { grantPlatformRole } from '@volley-time/db/test-utils'
 import { addIsoDays, minskToday, unlimitedBoundary } from '@volley-time/shared'
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -33,13 +34,14 @@ describe('event balance unlimited (integration)', { timeout: 60_000 }, () => {
   const owner = () => ({ userId: ownerId })
   const previousFlag = process.env.EVENT_BALANCE_ENFORCED
 
-  const newUser = async (label: string, isRootAdmin = false) =>
-    (
-      await db
-        .insert(users)
-        .values({ email: `unl-${label}-${++seq}@t.by`, name: label, isRootAdmin })
-        .returning()
-    )[0]!.id
+  const newUser = async (label: string, isRootAdmin = false) => {
+    const [u] = await db
+      .insert(users)
+      .values({ email: `unl-${label}-${++seq}@t.by`, name: label })
+      .returning()
+    if (isRootAdmin) await grantPlatformRole(u!.id)
+    return u!.id
+  }
 
   const auditOf = async () =>
     (

@@ -1,5 +1,6 @@
 import { organizationService } from '@volley-time/core'
-import { closeDb, db, eq, organizations, users } from '@volley-time/db'
+import { closeDb, db, eq, organizations, users, platformStaff } from '@volley-time/db'
+import { grantPlatformRole } from '@volley-time/db/test-utils'
 import * as h3 from 'h3'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -38,9 +39,10 @@ describe('requireRootAdmin (integration)', () => {
     rootId = (
       await db
         .insert(users)
-        .values({ email: `root-${Math.random()}@t.by`, isRootAdmin: true })
+        .values({ email: `root-${Math.random()}@t.by` })
         .returning()
     )[0]!.id
+    await grantPlatformRole(rootId)
     ownerId = (
       await db
         .insert(users)
@@ -63,12 +65,12 @@ describe('requireRootAdmin (integration)', () => {
   it('root passes', async () => {
     const r = await call(rootId)
     expect(r.status).toBe(200)
-    expect(r.body).toEqual({ user: { id: rootId } })
+    expect(r.body).toEqual({ user: { id: rootId, role: 'owner' } })
   })
 
   it('revoked root is rejected on the next request', async () => {
     expect((await call(rootId)).status).toBe(200)
-    await db.update(users).set({ isRootAdmin: false }).where(eq(users.id, rootId))
+    await db.delete(platformStaff).where(eq(platformStaff.userId, rootId))
     expect((await call(rootId)).status).toBe(403)
   })
 

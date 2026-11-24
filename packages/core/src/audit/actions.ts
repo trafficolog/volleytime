@@ -132,6 +132,11 @@ export const AUDIT_ACTIONS = {
   GROUP_PAGE_NOINDEXED: 'group_page.moderation_noindex',
   GROUP_PAGE_RESTORED: 'group_page.moderation_restored',
   GROUP_PAGE_COMPLAINT_REJECTED: 'group_page.complaint_rejected',
+  // команда платформы, Root Admin (29.3.1, R-15); запись платформенная (organization_id = NULL,
+  // entity — пользователь-член команды): кто, кому, было → стало
+  PLATFORM_STAFF_INVITED: 'platform.staff.invited',
+  PLATFORM_STAFF_ROLE_CHANGED: 'platform.staff.role_changed',
+  PLATFORM_STAFF_REMOVED: 'platform.staff.removed',
 } as const
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS]
@@ -159,3 +164,4 @@ export type AuditEntityType =
   | 'ownership_transfer'
   | 'user'
   | 'group_page_complaint'
+  | 'platform_staff'

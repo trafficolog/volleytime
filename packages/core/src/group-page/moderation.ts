@@ -370,7 +370,7 @@ async function complaintStats(
 export const groupPageModerationService = {
   /** Справочник городов (районные центры и Минск) со счётчиками страниц; прочие города — `other`. */
   async cities(ctx: ServiceContext): Promise<PlatformGroupPageCities> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'groupPages')
     const pages = await pageRows(getDb(ctx))
     const byKey = new Map<string, PlatformGroupPageCity>()
     const regions = GROUP_PAGE_CITY_REGIONS.map(([region, cities]) => ({
@@ -409,7 +409,7 @@ export const groupPageModerationService = {
 
   /** Страницы города (или всей страны), фильтр «скрытые и noindex» / «с жалобами», поиск. */
   async list(ctx: ServiceContext, query: unknown): Promise<PlatformGroupPagesList> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'groupPages')
     const q = ListGroupPagesQuery.parse(query ?? {})
     let items = await pageRows(getDb(ctx))
     if (q.city) {
@@ -430,7 +430,7 @@ export const groupPageModerationService = {
 
   /** «Скрыть» или «Принудительный noindex» с обязательной причиной и заметкой «Что исправить». */
   async act(ctx: ServiceContext, orgId: number, input: unknown): Promise<PlatformGroupPageRow> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'groupPagesModerate')
     const data = ActInput.parse(input ?? {})
     return inTransaction(ctx, async (tx) => {
       await applyDecision(tx, orgId, data)
@@ -440,7 +440,7 @@ export const groupPageModerationService = {
 
   /** «Вернуть» / «Вернуть индексацию»: решение снимается, дальше решает настройка владельца. */
   async restore(ctx: ServiceContext, orgId: number): Promise<PlatformGroupPageRow> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'groupPagesModerate')
     return inTransaction(ctx, async (tx) => {
       const db = getDb(tx)
       const org = await lockOrg(db, orgId)
@@ -466,7 +466,7 @@ export const groupPageModerationService = {
 
   /** Состояние и журнал страницы: решения root (с автором) и жалобы (без автора). */
   async history(ctx: ServiceContext, orgId: number): Promise<PlatformGroupPageHistory> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'groupPages')
     const db = getDb(ctx)
     const [page] = await pageRows(
       db,
@@ -542,7 +542,7 @@ export const groupPageModerationService = {
     query: unknown,
     now = new Date(),
   ): Promise<PlatformGroupPageComplaints> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'groupPageComplaints')
     const q = ComplaintsQuery.parse(query ?? {})
     const db = getDb(ctx)
     const statusWhere =
@@ -605,7 +605,7 @@ export const groupPageModerationService = {
 
   /** «Отклонить» — нарушений нет. */
   async rejectComplaint(ctx: ServiceContext, id: number): Promise<{ id: number }> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'groupPageComplaintsReject')
     return inTransaction(ctx, async (tx) => {
       const c = await lockComplaint(getDb(tx), id)
       await closeComplaint(tx, c.id, 'rejected', 'no_violation')
@@ -629,7 +629,7 @@ export const groupPageModerationService = {
     id: number,
     input: unknown,
   ): Promise<{ id: number; page: PlatformGroupPageRow }> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'groupPageComplaintsResolve')
     const data = ActInput.parse(input ?? {})
     return inTransaction(ctx, async (tx) => {
       const db = getDb(tx)

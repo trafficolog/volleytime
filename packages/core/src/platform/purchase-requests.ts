@@ -170,7 +170,7 @@ async function precheck(db: DbOrTx, requestId: number, approving: boolean): Prom
 export const platformPurchaseRequestsService = {
   /** Реестр: фильтры статуса, организации и периода (по дате заявки); keyset по `id`, новые сверху. */
   async list(ctx: ServiceContext, query: Query = {}): Promise<PlatformPurchaseRequestsPage> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'balance')
     const q = ListQuery.parse(query)
     const rows = await selectRows(getDb(ctx))
       .where(
@@ -195,7 +195,7 @@ export const platformPurchaseRequestsService = {
    * платящие организации, доходы по организациям и сверка с журналом баланса (`purchase`).
    */
   async summary(ctx: ServiceContext, query: Query = {}): Promise<PlatformPurchaseSummary> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'balance')
     const p = Period.parse(query)
     const db = getDb(ctx)
     const approvedIn = and(eq(req.status, 'approved'), periodOf(req.decidedAt, p))
@@ -274,7 +274,7 @@ export const platformPurchaseRequestsService = {
 
   /** Подтверждённые заявки периода (по дате решения) для выгрузки; не больше EXPORT_MAX_ROWS + 1. */
   async exportRows(ctx: ServiceContext, query: Query = {}): Promise<PlatformPurchaseRequestRow[]> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'balance')
     const p = Period.parse(query)
     const rows = await selectRows(getDb(ctx))
       .where(and(eq(req.status, 'approved'), periodOf(req.decidedAt, p)))
@@ -288,7 +288,7 @@ export const platformPurchaseRequestsService = {
     ctx: ServiceContext,
     input: { requestId: number | string; comment?: string },
   ): Promise<PlatformPurchaseDecisionResult> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'balanceManage')
     const data = ApproveInput.parse(input)
     return inTransaction(ctx, async (tx) => {
       const db = getDb(tx)
@@ -308,7 +308,7 @@ export const platformPurchaseRequestsService = {
     ctx: ServiceContext,
     input: { requestId: number | string; reason: string },
   ): Promise<PlatformPurchaseDecisionResult> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'balanceManage')
     const data = RejectInput.parse(input)
     return inTransaction(ctx, async (tx) => {
       const db = getDb(tx)
