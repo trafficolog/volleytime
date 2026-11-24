@@ -32,9 +32,12 @@ defineRouteMeta({
 /** Смена роли — только владелец, флаг оплаты — владелец или организатор (4.9.1, 30.1.1). */
 export default defineApiHandler(async (event) => {
   const member = event.context.member ?? null
-  const input = UpdateMemberInput.parse(await readBody(event))
-  if (input.role !== undefined) requireOrgOwner(member)
+  const body: unknown = await readBody(event)
+  // права — до валидации: попытка сменить роль (даже недопустимую, например owner) — 403 не-владельцу
+  const wantsRole = !!body && typeof body === 'object' && 'role' in body
+  if (wantsRole) requireOrgOwner(member)
   else requireCanManageMembers(member)
+  const input = UpdateMemberInput.parse(body)
   const ctx = createServiceContextFromEvent(event)
   const memberId = Number(getRouterParam(event, 'memberId'))
   const target = await memberService.getById(ctx, memberId)

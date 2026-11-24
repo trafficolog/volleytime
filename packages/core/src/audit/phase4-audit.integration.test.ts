@@ -44,6 +44,7 @@ describe('Phase 4 audit wiring (integration)', () => {
     expect(rows.find((r) => r.action === 'invite.redeemed')?.userId).toBe(player!.id)
     expect(rows.find((r) => r.action === 'member.role_changed')?.newValue).toEqual({
       role: 'coach',
+      canAcceptPayment: false,
     })
   })
 
