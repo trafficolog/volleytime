@@ -6,7 +6,7 @@ status: in_progress
 release: ''
 sync_state: synced
 last_reviewed: 2026-11-24
-status_note: 'PR #348 (https://github.com/trafficolog/volleytime/pull/348) открыт, ждёт ревью владельца. Решения U-1, U-3…U-6 приняты 2026-11-24 (D-26…D-30), U-2 открыт (D-31). Карточки для 33 новых задач референса — отдельной задачей перепланирования.'
+status_note: 'PR #348 (https://github.com/trafficolog/volleytime/pull/348) открыт, ждёт ревью владельца. Все решения U-1…U-6 приняты 2026-11-24 (D-26…D-31). Карточки для 33 новых задач референса — отдельной задачей перепланирования.'
 ref_id: ''
 complexity: M
 impl_model: claude-opus-5-5
