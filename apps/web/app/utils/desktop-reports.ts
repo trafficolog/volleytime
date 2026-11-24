@@ -2,6 +2,9 @@ import {
   REPORT_EXPORT_TYPES,
   resolveReportPeriod,
   type ManagerReport,
+  type ReportBreakdown,
+  type ReportBreakdownDimension,
+  type ReportBreakdownFigures,
   type ReportExportType,
   type ReportPlayerAttendance,
 } from '@volley-time/shared'
@@ -198,4 +201,56 @@ export function reportExportHref(
   const params = new URLSearchParams({ type, from: dates.from, to: dates.to })
   if (columns) params.set('columns', columns.join(','))
   return `/api/organizations/${orgId}/reports/export?${params.toString()}`
+}
+
+/** Переключатель разреза отчёта (W-19). */
+export const BREAKDOWN_OPTIONS: { value: ReportBreakdownDimension; label: string }[] = [
+  { value: 'coach', label: 'По тренерам' },
+  { value: 'venue', label: 'По залам' },
+  { value: 'series', label: 'По сериям' },
+]
+
+const BREAKDOWN_NOT_SET: Record<ReportBreakdownDimension, string> = {
+  coach: 'Без тренера',
+  venue: 'Без зала',
+  series: 'Вне серий',
+}
+
+export interface BreakdownCells {
+  events: string
+  occupancy: string
+  income: string
+  rent: string
+}
+
+export interface BreakdownTableRow extends BreakdownCells {
+  key: string
+  label: string
+  /** Строка «Не указано»: приглушённая подпись. */
+  muted: boolean
+}
+
+function breakdownCells(f: ReportBreakdownFigures, currency: string): BreakdownCells {
+  return {
+    events: String(f.events),
+    occupancy: f.percent === null ? '—' : `${f.percent}%`,
+    income: formatMoneyRu(f.income, currency),
+    rent: formatMoneyRu(f.rent, currency),
+  }
+}
+
+/** Строки таблицы «В разрезе»: цифры считает сервер, здесь только подписи и форматирование. */
+export function breakdownRows(report: ReportBreakdown): {
+  rows: BreakdownTableRow[]
+  total: BreakdownCells
+} {
+  return {
+    rows: report.rows.map((row) => ({
+      key: row.key === null ? 'none' : String(row.key),
+      label: row.label ?? (row.key === null ? BREAKDOWN_NOT_SET[report.dimension] : 'Без названия'),
+      muted: row.key === null,
+      ...breakdownCells(row, report.currency),
+    })),
+    total: breakdownCells(report.totals, report.currency),
+  }
 }

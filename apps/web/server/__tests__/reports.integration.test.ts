@@ -1,8 +1,19 @@
 import { eventService, memberService, organizationService } from '@volley-time/core'
-import { bookings, closeDb, db, events, ledgerEntries, organizations, users } from '@volley-time/db'
+import {
+  bookings,
+  closeDb,
+  db,
+  eq,
+  events,
+  ledgerEntries,
+  organizationMembers,
+  organizations,
+  users,
+} from '@volley-time/db'
 import {
   resolveReportPeriod,
   type ManagerReport,
+  type ReportBreakdown,
   type ReportExportPreview,
 } from '@volley-time/shared'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -220,5 +231,66 @@ describe('cabinet reports (HTTP)', { timeout: 60_000 }, () => {
       expect(
         (await request('GET', `${base()}/reports/export?${q}&${period}`, { user: owner })).status,
       ).toBe(422)
+  })
+
+  describe('breakdown', () => {
+    const query = (dimension: string) => `breakdown?dimension=${dimension}&${period}`
+
+    it('gives the manager rows that add up to the cash desk income of the period', async () => {
+      const res = await request('GET', `${base()}/reports/${query('venue')}`, { user: owner })
+      expect(res.status).toBe(200)
+      expect(res.headers.get('cache-control')).toBe('no-store')
+      const body = res.body as ReportBreakdown
+      const report = (await request('GET', `${base()}/reports?${period}`, { user: owner }))
+        .body as ManagerReport
+      expect(body.dimension).toBe('venue')
+      expect(body.rows.reduce((a, r) => a + r.income, 0)).toBe(report.money.income)
+      expect(body.totals).toMatchObject({ events: 1, seats: 2, capacity: 4, percent: 50 })
+    })
+
+    it('hides the money from a coach, players, outsiders, anonymous callers and another group', async () => {
+      const coach = (await db.insert(users).values({ name: 'Coach' }).returning())[0]!.id
+      await memberService.add({ userId: owner }, { organizationId: orgId, userId: coach })
+      await db
+        .update(organizationMembers)
+        .set({ role: 'coach' })
+        .where(eq(organizationMembers.userId, coach))
+      for (const dimension of ['coach', 'venue', 'series']) {
+        const path = `${base()}/reports/${query(dimension)}`
+        for (const user of [coach, player, outsider])
+          expect((await request('GET', path, { user })).status).toBe(403)
+        expect((await request('GET', path)).status).toBe(401)
+        expect(
+          (
+            await request('GET', `${base(foreignOrgId)}/reports/${query(dimension)}`, {
+              user: owner,
+            })
+          ).status,
+        ).toBe(403)
+      }
+    })
+
+    it('does not mix another group into the rows', async () => {
+      const foreign = (
+        await request('GET', `${base(foreignOrgId)}/reports/${query('series')}`, {
+          user: foreignOwner,
+        })
+      ).body as ReportBreakdown
+      expect(foreign.totals.income).toBe(77_000)
+      const own = (await request('GET', `${base()}/reports/${query('series')}`, { user: owner }))
+        .body as ReportBreakdown
+      expect(own.totals.income).toBe(5000)
+    })
+
+    it('rejects an unknown dimension and an invalid period with 422', async () => {
+      for (const q of [
+        `dimension=type&${period}`,
+        `${period}`,
+        'dimension=venue&from=2026-05-31&to=2026-05-01',
+      ])
+        expect(
+          (await request('GET', `${base()}/reports/breakdown?${q}`, { user: owner })).status,
+        ).toBe(422)
+    })
   })
 })

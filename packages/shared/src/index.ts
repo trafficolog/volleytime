@@ -188,9 +188,14 @@ export {
   type ReportPeriodPreset,
 } from './reports/periods'
 export {
+  REPORT_BREAKDOWN_DIMENSIONS,
   REPORT_EXPORT_COLUMNS,
   REPORT_EXPORT_TYPES,
   type ManagerReport,
+  type ReportBreakdown,
+  type ReportBreakdownDimension,
+  type ReportBreakdownFigures,
+  type ReportBreakdownRow,
   type ReportCashBucket,
   type ReportExpenseCategory,
   type ReportExportPreview,

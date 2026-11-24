@@ -1,7 +1,9 @@
-import type { ManagerReport } from '@volley-time/shared'
+import type { ManagerReport, ReportBreakdown } from '@volley-time/shared'
 import { describe, expect, it } from 'vitest'
 
 import {
+  BREAKDOWN_OPTIONS,
+  breakdownRows,
   exportTypeFromQuery,
   expenseCategoryRows,
   formatExportSize,
@@ -199,5 +201,83 @@ describe('report helpers', () => {
     expect(reportExportHref(7, 'finance', { from: '2026-05-01', to: '2026-05-31' })).toBe(
       '/api/organizations/7/reports/export?type=finance&from=2026-05-01&to=2026-05-31',
     )
+  })
+})
+
+describe('report breakdown view (W-19)', () => {
+  const breakdown = (dimension: ReportBreakdown['dimension']): ReportBreakdown => ({
+    dimension,
+    currency: 'BYN',
+    period: { from: '2026-05-01', to: '2026-05-31' },
+    rows: [
+      {
+        key: 3,
+        label: 'Школа №5',
+        events: 8,
+        seats: 61,
+        capacity: 80,
+        percent: 76,
+        income: 123_450,
+        rent: 40_000,
+      },
+      {
+        key: null,
+        label: null,
+        events: 0,
+        seats: 0,
+        capacity: 0,
+        percent: null,
+        income: 2_000,
+        rent: 0,
+      },
+    ],
+    totals: {
+      events: 8,
+      seats: 61,
+      capacity: 80,
+      percent: 76,
+      income: 125_450,
+      rent: 40_000,
+    },
+  })
+
+  it('offers the three switch options in the order of the layout', () => {
+    expect(BREAKDOWN_OPTIONS.map((o) => [o.value, o.label])).toEqual([
+      ['coach', 'По тренерам'],
+      ['venue', 'По залам'],
+      ['series', 'По сериям'],
+    ])
+  })
+
+  it('formats rows and the total with the dimension-specific not-set caption', () => {
+    const view = breakdownRows(breakdown('venue'))
+    expect(view.rows).toEqual([
+      {
+        key: '3',
+        label: 'Школа №5',
+        muted: false,
+        events: '8',
+        occupancy: '76%',
+        income: '1 234,50 BYN',
+        rent: '400,00 BYN',
+      },
+      {
+        key: 'none',
+        label: 'Без зала',
+        muted: true,
+        events: '0',
+        occupancy: '—',
+        income: '20,00 BYN',
+        rent: '0,00 BYN',
+      },
+    ])
+    expect(view.total).toEqual({
+      events: '8',
+      occupancy: '76%',
+      income: '1 254,50 BYN',
+      rent: '400,00 BYN',
+    })
+    expect(breakdownRows(breakdown('coach')).rows[1]!.label).toBe('Без тренера')
+    expect(breakdownRows(breakdown('series')).rows[1]!.label).toBe('Вне серий')
   })
 })
