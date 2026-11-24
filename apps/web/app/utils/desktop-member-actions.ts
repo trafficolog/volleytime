@@ -18,8 +18,7 @@ export function desktopMemberActions(actor: Actor | null, target: Target): Deskt
   if (!actor || actor.status !== 'active') return []
   if (actor.role !== 'owner' && actor.role !== 'organizer') return []
   if (target.role === 'owner' || target.userId === actor.userId) return []
-  if (actor.role === 'organizer' && target.role !== 'player' && target.role !== 'coach')
-    return []
+  if (actor.role === 'organizer' && target.role !== 'player' && target.role !== 'coach') return []
 
   const actions: DesktopMemberAction[] = []
   if (target.status === 'pending') actions.push('approve', 'reject', 'block')

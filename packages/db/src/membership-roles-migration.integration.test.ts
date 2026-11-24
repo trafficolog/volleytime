@@ -130,7 +130,9 @@ describe('migration 0047 membership roles coach (integration)', { timeout: 90_00
       await runMigrations(url)
       expect(await roleOf(sql, helperId)).toEqual({ role: 'coach', flag: false })
       expect(await roleOf(sql, ownerId)).toEqual({ role: 'owner', flag: false })
-      const [invite] = await sql<{ r: string }[]>`SELECT role_to_assign::text AS r FROM invite_links`
+      const [invite] = await sql<
+        { r: string }[]
+      >`SELECT role_to_assign::text AS r FROM invite_links`
       expect(invite!.r).toBe('coach')
       // прежний runtime в окне отката ещё пишет `assistant`: значение принимается
       await sql`UPDATE organization_members SET role = 'assistant' WHERE user_id = ${helperId}`

@@ -59,33 +59,33 @@ erDiagram
 
 Владелец сущности — модуль `packages/core/src/<module>` (правило modulith: чужие таблицы только через public service) и карточка, которая вводит её схему.
 
-| Сущность (референс)        | Таблица / колонки                                                  | Модуль-владелец         | Карточка схемы | Состояние                          |
-| -------------------------- | ------------------------------------------------------------------ | ----------------------- | -------------- | ---------------------------------- |
-| Организация (группа)       | `organizations`                                                    | `organizations`         | —              | есть                               |
-| Настройки группы           | колонки `organizations.*` (см. ниже)                               | `organizations`         | 19.2.2         | новые колонки                      |
-| История настроек           | `audit_log` (`organization.settings_updated`, old/new)             | `audit`                 | 19.2.2         | без новой таблицы                  |
-| Участник и роль            | `organization_members`                                             | `members`               | —              | есть                               |
-| Уровень В1–В4+             | `player_levels` + `organization_members.level`, `…levels[]`        | `levels` (новый)        | 19.2.3         | новая таблица-справочник + колонки |
-| Зал                        | `venues`                                                           | `venues`                | —              | есть                               |
-| Событие                    | `events`                                                           | `events`                | —              | есть, новые колонки по карточкам   |
-| Серия                      | `event_series` + `events.series_id`, `events.series_date`          | `events` (series)       | 20.2.2         | новая                              |
-| Запись                     | `bookings`                                                         | `bookings`              | —              | есть                               |
-| Место в записи             | `bookings.seats`, `bookings.waitlist_seats`                        | `bookings`              | 20.1.2         | новые колонки                      |
-| Лист ожидания              | `bookings` (`waitlisted` / `waitlist_seats > 0`)                   | `bookings`              | —              | есть                               |
-| Предложение места (TTL)    | `waitlist_offers`                                                  | `bookings`              | 20.3.1         | новая                              |
-| Приглашение на событие     | `invite_links` (`type = 'event_join'`) + `bookings.invite_id`      | `invites`               | 20.1.3         | есть таблица, новые FK/колонки     |
-| Запрос приглашения         | `event_invite_requests`                                            | `invites`               | 20.1.3         | новая                              |
-| План абонемента, абонемент | `subscription_plans`, `subscriptions`                              | `subscriptions`         | —              | есть                               |
-| Сбор                       | `collections`                                                      | `collections` (новый)   | 21.2.4         | новая                              |
-| Взнос в сбор               | `payments` с `collection_id`                                       | `payments`              | 21.2.4         | новая колонка                      |
-| Операция кассы             | `ledger_entries`                                                   | `ledger`                | —              | есть                               |
-| Баланс событий             | `organization_event_balances` (проекция) + `event_balance_entries` | `event-balance` (новый) | 20.2.1         | новые                              |
-| Заявка на покупку баланса  | `event_balance_purchase_requests`                                  | `event-balance`         | 20.2.1         | новая (UI 21.2.8, реестр 22.2.3)   |
-| Уведомление                | `notifications`                                                    | `notifier`              | 20.3.2         | новая                              |
-| Привязка Telegram-чата     | `organization_telegram_chats`, `telegram_chat_link_codes`          | `telegram-chats`        | 20.3.4         | новые (миграция 0031)              |
-| Время открытия записи      | `events.booking_opens_at`                                          | `events`                | 20.3.1         | новая колонка                      |
-| Фоновые задачи (журнал)    | `scheduled_jobs`                                                   | `scheduler`             | 20.3.1         | новая (вместо pg-boss, 2026-10-16) |
-| Роли на членстве, тренер   | `organization_members.role` (`coach`), `…can_accept_payment`, `events.coach_user_ids` | `members`, `events` | 30.1.1 | новые колонки, enum `assistant` → `coach` (миграция 0047) |
+| Сущность (референс)        | Таблица / колонки                                                                     | Модуль-владелец         | Карточка схемы | Состояние                                                 |
+| -------------------------- | ------------------------------------------------------------------------------------- | ----------------------- | -------------- | --------------------------------------------------------- |
+| Организация (группа)       | `organizations`                                                                       | `organizations`         | —              | есть                                                      |
+| Настройки группы           | колонки `organizations.*` (см. ниже)                                                  | `organizations`         | 19.2.2         | новые колонки                                             |
+| История настроек           | `audit_log` (`organization.settings_updated`, old/new)                                | `audit`                 | 19.2.2         | без новой таблицы                                         |
+| Участник и роль            | `organization_members`                                                                | `members`               | —              | есть                                                      |
+| Уровень В1–В4+             | `player_levels` + `organization_members.level`, `…levels[]`                           | `levels` (новый)        | 19.2.3         | новая таблица-справочник + колонки                        |
+| Зал                        | `venues`                                                                              | `venues`                | —              | есть                                                      |
+| Событие                    | `events`                                                                              | `events`                | —              | есть, новые колонки по карточкам                          |
+| Серия                      | `event_series` + `events.series_id`, `events.series_date`                             | `events` (series)       | 20.2.2         | новая                                                     |
+| Запись                     | `bookings`                                                                            | `bookings`              | —              | есть                                                      |
+| Место в записи             | `bookings.seats`, `bookings.waitlist_seats`                                           | `bookings`              | 20.1.2         | новые колонки                                             |
+| Лист ожидания              | `bookings` (`waitlisted` / `waitlist_seats > 0`)                                      | `bookings`              | —              | есть                                                      |
+| Предложение места (TTL)    | `waitlist_offers`                                                                     | `bookings`              | 20.3.1         | новая                                                     |
+| Приглашение на событие     | `invite_links` (`type = 'event_join'`) + `bookings.invite_id`                         | `invites`               | 20.1.3         | есть таблица, новые FK/колонки                            |
+| Запрос приглашения         | `event_invite_requests`                                                               | `invites`               | 20.1.3         | новая                                                     |
+| План абонемента, абонемент | `subscription_plans`, `subscriptions`                                                 | `subscriptions`         | —              | есть                                                      |
+| Сбор                       | `collections`                                                                         | `collections` (новый)   | 21.2.4         | новая                                                     |
+| Взнос в сбор               | `payments` с `collection_id`                                                          | `payments`              | 21.2.4         | новая колонка                                             |
+| Операция кассы             | `ledger_entries`                                                                      | `ledger`                | —              | есть                                                      |
+| Баланс событий             | `organization_event_balances` (проекция) + `event_balance_entries`                    | `event-balance` (новый) | 20.2.1         | новые                                                     |
+| Заявка на покупку баланса  | `event_balance_purchase_requests`                                                     | `event-balance`         | 20.2.1         | новая (UI 21.2.8, реестр 22.2.3)                          |
+| Уведомление                | `notifications`                                                                       | `notifier`              | 20.3.2         | новая                                                     |
+| Привязка Telegram-чата     | `organization_telegram_chats`, `telegram_chat_link_codes`                             | `telegram-chats`        | 20.3.4         | новые (миграция 0031)                                     |
+| Время открытия записи      | `events.booking_opens_at`                                                             | `events`                | 20.3.1         | новая колонка                                             |
+| Фоновые задачи (журнал)    | `scheduled_jobs`                                                                      | `scheduler`             | 20.3.1         | новая (вместо pg-boss, 2026-10-16)                        |
+| Роли на членстве, тренер   | `organization_members.role` (`coach`), `…can_accept_payment`, `events.coach_user_ids` | `members`, `events`     | 30.1.1         | новые колонки, enum `assistant` → `coach` (миграция 0047) |
 
 ### Настройки группы и снимок в событие (19.2.2, D-02)
 

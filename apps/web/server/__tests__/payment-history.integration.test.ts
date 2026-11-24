@@ -89,16 +89,13 @@ describe('payment history HTTP (integration)', () => {
     const filtered = await request('GET', url() + '?status=cancelled', { user: owner })
     expect((filtered.body as typeof body).payments.map((p) => p.status)).toEqual(['cancelled'])
   })
-  it.each(['organizer', 'coach', 'player'] as const)(
-    'enforces %s permissions',
-    async (role) => {
-      const [user] = await db.insert(users).values({ name: role }).returning()
-      await memberService.add({ userId: owner }, { organizationId: orgId, userId: user!.id, role })
-      const response = await request('GET', url(), { user: user!.id })
-      expect(response.status).toBe(role === 'organizer' ? 200 : 403)
-      if (role !== 'organizer') expect(response.text).not.toContain('payments')
-    },
-  )
+  it.each(['organizer', 'coach', 'player'] as const)('enforces %s permissions', async (role) => {
+    const [user] = await db.insert(users).values({ name: role }).returning()
+    await memberService.add({ userId: owner }, { organizationId: orgId, userId: user!.id, role })
+    const response = await request('GET', url(), { user: user!.id })
+    expect(response.status).toBe(role === 'organizer' ? 200 : 403)
+    if (role !== 'organizer') expect(response.text).not.toContain('payments')
+  })
   it('does not disclose another organization or allow anonymous access', async () => {
     const [user] = await db.insert(users).values({ name: 'Foreign owner' }).returning()
     const org = await organizationService.create({ userId: user!.id }, { name: 'Foreign' })

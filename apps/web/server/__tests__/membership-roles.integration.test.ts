@@ -278,9 +278,7 @@ describe('membership roles API (HTTP integration, 30.1.1)', () => {
 
     it('IDOR: a member of another group is not found and stays unchanged', async () => {
       expect((await patch(otherMemberId, ownerId, { canAcceptPayment: true })).status).toBe(404)
-      expect((await patch(otherMemberId, organizerId, { canAcceptPayment: true })).status).toBe(
-        404,
-      )
+      expect((await patch(otherMemberId, organizerId, { canAcceptPayment: true })).status).toBe(404)
       expect((await patch(otherMemberId, ownerId, { role: 'organizer' })).status).toBe(404)
       expect((await patch(coachMemberId, otherOwnerId, { canAcceptPayment: true })).status).toBe(
         403,

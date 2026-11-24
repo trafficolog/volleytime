@@ -85,11 +85,7 @@ describe('canExcludeMember (21.2.21)', () => {
 })
 
 describe('canBlockExcludedMember (21.2.24)', () => {
-  const t = (
-    role: 'owner' | 'organizer' | 'coach' | 'player',
-    status = 'left',
-    userId = 4,
-  ) => ({
+  const t = (role: 'owner' | 'organizer' | 'coach' | 'player', status = 'left', userId = 4) => ({
     role,
     status,
     userId,
