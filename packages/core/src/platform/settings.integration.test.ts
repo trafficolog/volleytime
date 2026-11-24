@@ -1,5 +1,5 @@
 import { auditLog, closeDb, db, eq, organizations, platformSettings, users } from '@volley-time/db'
-import { resetPlatformSettings } from '@volley-time/db/test-utils'
+import { resetPlatformSettings, grantPlatformRole } from '@volley-time/db/test-utils'
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ForbiddenError } from '../permissions/errors'
@@ -21,13 +21,14 @@ describe('platform settings (integration)', { timeout: 60_000 }, () => {
   let plainId: number
   const ctx = () => ({ userId: rootId })
 
-  const newUser = async (label: string, isRootAdmin = false) =>
-    (
-      await db
-        .insert(users)
-        .values({ email: `ps-${label}-${++seq}@t.by`, name: label, isRootAdmin })
-        .returning()
-    )[0]!.id
+  const newUser = async (label: string, isRootAdmin = false) => {
+    const [u] = await db
+      .insert(users)
+      .values({ email: `ps-${label}-${++seq}@t.by`, name: label })
+      .returning()
+    if (isRootAdmin) await grantPlatformRole(u!.id)
+    return u!.id
+  }
 
   const audit = () =>
     db

@@ -3,6 +3,7 @@ import {
   buildPurchaseRequestsCsv,
   platformPurchaseRequestsService,
 } from '@volley-time/core'
+import { PLATFORM_POLICIES } from '@volley-time/shared'
 
 /**
  * CSV платежей организаций за период `from`/`to` (подтверждённые заявки по дате решения, 22.2.3,
@@ -10,11 +11,11 @@ import {
  * Больше EXPORT_MAX_ROWS строк — 422.
  */
 export default defineApiHandler(async (event) => {
-  const user = await requireRootAdmin(event)
+  const user = await requirePlatformRole(event, ...PLATFORM_POLICIES.balance)
   setResponseHeader(event, 'cache-control', 'no-store')
-  const rows = await platformPurchaseRequestsService.exportRows(
-    { userId: user.id },
-    getQuery(event),
+  const rows = forPlatformRole(
+    user,
+    await platformPurchaseRequestsService.exportRows({ userId: user.id }, getQuery(event)),
   )
   if (rows.length > EXPORT_MAX_ROWS) {
     throw createError({

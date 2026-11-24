@@ -7,7 +7,9 @@ import {
   organizations,
   sessions,
   users,
+  platformStaff,
 } from '@volley-time/db'
+import { grantPlatformRole } from '@volley-time/db/test-utils'
 import type {
   PlatformUserBlockResult,
   PlatformUserDetail,
@@ -42,8 +44,8 @@ describe('/api/platform/users (HTTP)', { timeout: 60_000 }, () => {
     const people = await db
       .insert(users)
       .values([
-        { name: 'Root', isRootAdmin: true },
-        { name: 'Root Two', isRootAdmin: true },
+        { name: 'Root' },
+        { name: 'Root Two' },
         { name: 'Plain', email: 'plain@vt.test' },
         {
           name: 'Target',
@@ -55,6 +57,8 @@ describe('/api/platform/users (HTTP)', { timeout: 60_000 }, () => {
       ])
       .returning()
     ;[root, otherRoot, plain, target] = people.map((p) => p.id) as [number, number, number, number]
+    await grantPlatformRole(root)
+    await grantPlatformRole(otherRoot, 'support')
     orgId = (
       await db
         .insert(organizations)
@@ -192,7 +196,10 @@ describe('/api/platform/users (HTTP)', { timeout: 60_000 }, () => {
         expect(res.status, `${id} ${action}`).toBe(404)
       }
     }
-    const roots = await db.select().from(users).where(eq(users.isRootAdmin, true))
+    const roots = await db
+      .select({ isActive: users.isActive })
+      .from(users)
+      .innerJoin(platformStaff, eq(platformStaff.userId, users.id))
     expect(roots.every((r) => r.isActive)).toBe(true)
     expect(await db.$count(auditLog)).toBe(before)
   })

@@ -9,6 +9,7 @@ import {
   userFeatures,
   users,
 } from '@volley-time/db'
+import { grantPlatformRole } from '@volley-time/db/test-utils'
 import type { FeatureAnalyticsRow } from '@volley-time/shared'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -29,13 +30,14 @@ describe('featureAnalyticsService (integration)', { timeout: 90_000 }, () => {
   let orgId: number
   let eventId: number
 
-  const newUser = async (label: string, isRootAdmin = false) =>
-    (
-      await db
-        .insert(users)
-        .values({ email: `fa-${label}-${++seq}@t.by`, name: label, isRootAdmin })
-        .returning()
-    )[0]!.id
+  const newUser = async (label: string, isRootAdmin = false) => {
+    const [u] = await db
+      .insert(users)
+      .values({ email: `fa-${label}-${++seq}@t.by`, name: label })
+      .returning()
+    if (isRootAdmin) await grantPlatformRole(u!.id)
+    return u!.id
+  }
 
   /** Игроки платформы: активные участники живой группы. */
   const newPlayers = async (n: number) => {

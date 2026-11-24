@@ -10,7 +10,9 @@ import {
   sessions,
   sql,
   users,
+  platformStaff,
 } from '@volley-time/db'
+import { grantPlatformRole } from '@volley-time/db/test-utils'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { ForbiddenError } from '../permissions/errors'
@@ -89,7 +91,8 @@ describe('platformUsersService (integration)', { timeout: 60_000 }, () => {
 
   beforeEach(async () => {
     await clean()
-    rootId = await newUser('root', { isRootAdmin: true })
+    rootId = await newUser('root')
+    await grantPlatformRole(rootId)
     plainId = await newUser('plain')
     orgId = (
       await db
@@ -137,7 +140,7 @@ describe('platformUsersService (integration)', { timeout: 60_000 }, () => {
     })
 
     it('re-reads the root flag from the database on every call', async () => {
-      await db.update(users).set({ isRootAdmin: false }).where(eq(users.id, rootId))
+      await db.delete(platformStaff).where(eq(platformStaff.userId, rootId))
       await expect(list()).rejects.toBeInstanceOf(ForbiddenError)
     })
   })
@@ -380,7 +383,8 @@ describe('platformUsersService (integration)', { timeout: 60_000 }, () => {
     })
 
     it('root can neither block themselves nor another root, and nothing is written', async () => {
-      const otherRoot = await newUser('root-2', { isRootAdmin: true })
+      const otherRoot = await newUser('root-2')
+      await grantPlatformRole(otherRoot, 'moderator')
       await session(rootId, now)
       await expect(platformUsersService.block({ userId: rootId }, rootId)).rejects.toMatchObject({
         code: 'platform.user_cannot_block_self',

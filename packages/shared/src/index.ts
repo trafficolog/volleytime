@@ -157,6 +157,16 @@ export {
   type PlatformUserStatusFilter,
   type PlatformUserTopRole,
 } from './platform/users-types'
+export {
+  PLATFORM_POLICIES,
+  PLATFORM_ROLES,
+  platformRoleAllows,
+  type PlatformPolicy,
+  type PlatformRole,
+  type PlatformStaffList,
+  type PlatformStaffMe,
+  type PlatformStaffMember,
+} from './platform/staff-types'
 export type {
   PlatformGateKey,
   PlatformGateMetric,

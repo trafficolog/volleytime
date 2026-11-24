@@ -1,6 +1,6 @@
 import { organizationService } from '@volley-time/core'
 import { auditLog, closeDb, db, eq, organizations, users } from '@volley-time/db'
-import { resetEventBalancePackages } from '@volley-time/db/test-utils'
+import { resetEventBalancePackages, grantPlatformRole } from '@volley-time/db/test-utils'
 import type {
   PlatformEventBalancePackage,
   PlatformEventBalancePackages,
@@ -37,11 +37,12 @@ describe('/api/platform/event-balance/packages (HTTP)', { timeout: 60_000 }, () 
       await db
         .insert(users)
         .values([
-          { name: 'Root', email: 'root@vt.test', isRootAdmin: true },
+          { name: 'Root', email: 'root@vt.test' },
           { name: 'Plain', email: 'plain@vt.test' },
         ])
         .returning()
     ).map((u) => u.id) as [number, number]
+    await grantPlatformRole(root)
     orgId = (await organizationService.create({ userId: plain }, { name: 'Pkg HTTP' })).id
   })
   afterAll(async () => {

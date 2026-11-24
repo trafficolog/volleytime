@@ -19,13 +19,15 @@ import {
   organizations,
   users,
 } from './schema'
+import { grantPlatformRole } from './test-utils'
 
 let rootEmail: string
 let ownerId: number
 let orgId: number
 
 async function newUser(email: string, isRootAdmin = false) {
-  const [u] = await db.insert(users).values({ email, isRootAdmin }).returning()
+  const [u] = await db.insert(users).values({ email }).returning()
+  if (isRootAdmin) await grantPlatformRole(u!.id)
   return u!.id
 }
 
@@ -325,7 +327,10 @@ describe('event balance operator command (integration)', () => {
   })
 
   describe('operator by user id (--operator-id)', () => {
-    async function telegramUser(patch: Partial<typeof users.$inferInsert>) {
+    async function telegramUser(
+      patch: Partial<typeof users.$inferInsert>,
+      role?: 'owner' | 'admin' | 'finance' | 'support',
+    ) {
       const [u] = await db
         .insert(users)
         .values({
@@ -334,11 +339,12 @@ describe('event balance operator command (integration)', () => {
           ...patch,
         })
         .returning()
+      if (role) await grantPlatformRole(u!.id, role)
       return u!.id
     }
 
     it('accepts an active root admin by id; journal and audit_log carry that user id', async () => {
-      const id = await telegramUser({ isRootAdmin: true })
+      const id = await telegramUser({}, 'owner')
       const entry = await grantEventBalance(db, {
         organizationId: orgId,
         units: 7,
@@ -351,7 +357,7 @@ describe('event balance operator command (integration)', () => {
     })
 
     it('finds a root admin with no email by id and works for every command', async () => {
-      const id = await telegramUser({ isRootAdmin: true })
+      const id = await telegramUser({}, 'finance')
       expect((await db.select().from(users).where(eq(users.id, id)))[0]!.email).toBeNull()
       await grantEventBalance(db, {
         organizationId: orgId,
@@ -384,8 +390,10 @@ describe('event balance operator command (integration)', () => {
 
     it('refuses an id that is not a root admin, inactive or missing (forbidden.root_only)', async () => {
       const plain = await telegramUser({})
-      const inactive = await telegramUser({ isRootAdmin: true, isActive: false })
-      for (const operatorId of [plain, inactive, 999_999_999]) {
+      const inactive = await telegramUser({ isActive: false }, 'owner')
+      // поддержка без права на баланс (29.3.1, R-15) — не оператор
+      const support = await telegramUser({}, 'support')
+      for (const operatorId of [plain, inactive, support, 999_999_999]) {
         await expect(
           grantEventBalance(db, { organizationId: orgId, units: 5, operatorId, comment: 'x' }),
         ).rejects.toMatchObject({ code: 'forbidden.root_only' })

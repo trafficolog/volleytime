@@ -1,4 +1,5 @@
 import { groupPageModerationService } from '@volley-time/core'
+import { PLATFORM_POLICIES } from '@volley-time/shared'
 
 // defineRouteMeta разбирается Nitro статически: схема описывается литералом прямо здесь.
 defineRouteMeta({
@@ -47,7 +48,7 @@ defineRouteMeta({
 })
 
 export default defineApiHandler(async (event) => {
-  const user = await requireRootAdmin(event)
+  const user = await requirePlatformRole(event, ...PLATFORM_POLICIES.groupPageComplaintsResolve)
   setResponseHeader(event, 'cache-control', 'no-store')
   const id = pathId(getRouterParam(event, 'id'))
   const body = await readBody(event).catch(() => null)

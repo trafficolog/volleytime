@@ -11,7 +11,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import type { DB } from './client'
 import { runMigrations } from './migrate'
-import { rollbackMembershipRolesCoach } from './migration-test-helpers'
+import { rollbackMembershipRolesCoach, rollbackPlatformStaff } from './migration-test-helpers'
 import { rollbackLastMigration } from './rollback'
 import * as schema from './schema'
 import { seedDemo } from './seed-demo'
@@ -95,7 +95,9 @@ describe('migration 0047 membership roles coach (integration)', { timeout: 90_00
     const journal = JSON.parse(await readFile(journalPath, 'utf8')) as {
       entries: { tag: string }[]
     }
-    journal.entries = journal.entries.filter((e) => e.tag !== TAG)
+    // 29.3.1: схема до 0047 — без 0047 и всех следующих миграций
+    const at = journal.entries.findIndex((e) => e.tag === TAG)
+    journal.entries = journal.entries.slice(0, at)
     await writeFile(journalPath, JSON.stringify(journal))
   })
 
@@ -115,6 +117,7 @@ describe('migration 0047 membership roles coach (integration)', { timeout: 90_00
       expect(await columns(sql)).toBe(0)
       await runMigrations(url)
       expect(await columns(sql)).toBe(2)
+      await rollbackPlatformStaff(url) // 29.3.1: новая миграция откатывается первой
       expect(await rollbackLastMigration(url)).toBe(TAG)
       expect(await rollbackLastMigration(url)).toBe(PREVIOUS)
     } finally {
@@ -160,6 +163,7 @@ describe('migration 0047 membership roles coach (integration)', { timeout: 90_00
       const { orgId, ownerId, helperId } = await orgWithAssistant(sql, 'mrc-guard')
       await runMigrations(url)
       await sql`UPDATE organization_members SET can_accept_payment = true WHERE user_id = ${helperId}`
+      await rollbackPlatformStaff(url) // 29.3.1: новая миграция откатывается первой
       await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0047 refused/)
       await sql`UPDATE organization_members SET can_accept_payment = false`
       await sql`INSERT INTO events (organization_id, created_by_user_id, title, starts_at, ends_at,
@@ -188,7 +192,7 @@ describe('migration 0047 membership roles coach (integration)', { timeout: 90_00
       const [coaches] = await sql<{ n: number }[]>`
         SELECT count(*)::int AS n FROM organization_members WHERE role = 'coach'`
       expect(coaches!.n).toBeGreaterThan(0)
-      expect(await rollbackLastMigration(url)).toBe(TAG)
+      expect(await rollbackMembershipRolesCoach(url)).toBe(TAG)
       expect(await sql`SELECT 1 FROM organization_members`).toHaveLength(members!.n)
       await runMigrations(url)
       const [after] = await sql<{ n: number }[]>`

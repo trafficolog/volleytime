@@ -242,7 +242,7 @@ export const platformEventBalancePackagesService = {
     ctx: ServiceContext,
     params: { archived?: boolean } = {},
   ): Promise<PlatformEventBalancePackages> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'plans')
     const db = getDb(ctx)
     const archived = params.archived === true
     const [rows, sales] = await Promise.all([
@@ -268,7 +268,7 @@ export const platformEventBalancePackagesService = {
   },
 
   async create(ctx: ServiceContext, input: CreateInput): Promise<PlatformEventBalancePackage> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'plansManage')
     const data = CreatePackageInput.parse(input)
     return insertPackage(ctx, data)
   },
@@ -282,7 +282,7 @@ export const platformEventBalancePackagesService = {
     id: number,
     input: DuplicateInput,
   ): Promise<PlatformEventBalancePackage> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'plansManage')
     const data = DuplicatePackageInput.parse(input)
     const [src] = await getDb(ctx)
       .select()
@@ -306,7 +306,7 @@ export const platformEventBalancePackagesService = {
     id: number,
     input: UpdateInput,
   ): Promise<PlatformEventBalancePackage> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'plansManage')
     const data = UpdatePackageInput.parse(input)
     return inTransaction(ctx, async (tx) => {
       const db = getDb(tx)
@@ -364,7 +364,7 @@ export const platformEventBalancePackagesService = {
     id: number,
     input: ArchiveInput,
   ): Promise<PlatformEventBalancePackage> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'plansManage')
     const data = ArchivePackageInput.parse(input)
     return inTransaction(ctx, async (tx) => {
       const db = getDb(tx)
@@ -398,7 +398,7 @@ export const platformEventBalancePackagesService = {
     ctx: ServiceContext,
     query: HistoryQuery = {},
   ): Promise<PlatformPackageHistoryPage> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'plans')
     const { cursor, limit } = PackageHistoryQuery.parse(query)
     const where = and(
       eq(auditLog.entityType, 'event_balance_package'),

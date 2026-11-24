@@ -51,7 +51,7 @@ function utcDay(d: Date): string {
  */
 export const platformOverviewService = {
   async getOverview(ctx: ServiceContext, now: Date = new Date()): Promise<PlatformOverview> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'overview')
     const db = getDb(ctx)
 
     const thisWeekFrom = new Date(now.getTime() - WEEK_MS)

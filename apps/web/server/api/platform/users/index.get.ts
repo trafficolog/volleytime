@@ -1,5 +1,5 @@
 import { platformUsersService } from '@volley-time/core'
-import { PLATFORM_USER_STATUS_FILTERS } from '@volley-time/shared'
+import { PLATFORM_USER_STATUS_FILTERS, PLATFORM_POLICIES } from '@volley-time/shared'
 import { z } from 'zod'
 
 const Query = z.object({
@@ -10,12 +10,12 @@ const Query = z.object({
 })
 
 /**
- * Пользователи платформы Root Admin (22.1.4): список с поиском и фильтром, только
- * `users.is_root_admin` (401 без сессии, 403 `forbidden.root_only` иначе). Личные данные
- * (email, Telegram-имя) — только в этом ответе и только root.
+ * Пользователи платформы Root Admin (22.1.4): список с поиском и фильтром, доступ —
+ * роль команды платформы по `PLATFORM_POLICIES` (`platform_staff`, 29.3.1). Личные данные
+ * (email, Telegram-имя) — только ролям с политикой `users`.
  */
 export default defineApiHandler(async (event) => {
-  const user = await requireRootAdmin(event)
+  const user = await requirePlatformRole(event, ...PLATFORM_POLICIES.users)
   setResponseHeader(event, 'cache-control', 'no-store')
   const params = Query.parse(getQuery(event))
   return platformUsersService.list({ userId: user.id }, params)

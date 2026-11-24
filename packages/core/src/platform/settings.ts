@@ -208,7 +208,7 @@ async function loadView(db: Db): Promise<PlatformSettingsResponse> {
 export const platformSettingsService = {
   /** `GET /api/platform/settings`: значения, версии и статусы только для чтения. */
   async get(ctx: ServiceContext): Promise<PlatformSettingsResponse> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'settings')
     return loadView(getDb(ctx))
   },
 
@@ -219,7 +219,7 @@ export const platformSettingsService = {
    * аудит не меняются. Аудит — по записи на изменённый ключ, в той же транзакции.
    */
   async update(ctx: ServiceContext, input: unknown): Promise<PlatformSettingsResponse> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'settings')
     const data = UpdateInput.parse(input)
     const parsed = data.changes.map((c, i) => {
       if (!isPlatformSettingKey(c.key))
@@ -306,7 +306,7 @@ export const platformSettingsService = {
 
   /** Последние изменения настроек из `audit_log` (кто, когда, ключ, было → стало). */
   async history(ctx: ServiceContext, limit = 10): Promise<PlatformSettingsHistoryEntry[]> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'settings')
     const rows = await getDb(ctx)
       .select({
         id: auditLog.id,

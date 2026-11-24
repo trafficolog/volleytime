@@ -1,5 +1,6 @@
 import { organizationService } from '@volley-time/core'
-import { closeDb, db, eq, organizations, users } from '@volley-time/db'
+import { closeDb, db, eq, organizations, users, platformStaff } from '@volley-time/db'
+import { grantPlatformRole } from '@volley-time/db/test-utils'
 import type { PlatformOverview } from '@volley-time/shared'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -20,9 +21,10 @@ describe('GET /api/platform/overview (HTTP)', { timeout: 60_000 }, () => {
     await db.delete(users)
     const people = await db
       .insert(users)
-      .values([{ name: 'Root', isRootAdmin: true }, { name: 'Owner' }, { name: 'Player' }])
+      .values([{ name: 'Root' }, { name: 'Owner' }, { name: 'Player' }])
       .returning()
     root = people[0]!.id
+    await grantPlatformRole(root)
     owner = people[1]!.id
     player = people[2]!.id
     await organizationService.create({ userId: owner }, { name: 'Platform overview' })
@@ -62,9 +64,9 @@ describe('GET /api/platform/overview (HTTP)', { timeout: 60_000 }, () => {
   })
 
   it('a revoked root is rejected on the next request', async () => {
-    await db.update(users).set({ isRootAdmin: false }).where(eq(users.id, root))
+    await db.delete(platformStaff).where(eq(platformStaff.userId, root))
     expect((await request('GET', '/api/platform/overview', { user: root })).status).toBe(403)
-    await db.update(users).set({ isRootAdmin: true }).where(eq(users.id, root))
+    await grantPlatformRole(root)
   })
 
   it('every /api/platform route rejects a non-root user', async () => {

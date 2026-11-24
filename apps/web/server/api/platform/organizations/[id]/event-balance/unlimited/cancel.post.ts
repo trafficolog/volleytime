@@ -1,11 +1,12 @@
 import { PlatformUnlimitedError, platformEventBalanceUnlimitedService } from '@volley-time/core'
+import { PLATFORM_POLICIES } from '@volley-time/shared'
 
 /**
  * Отключить безлимит событий группы (22.3.1): `{ reason }` (3–500 символов). POST, а не `DELETE` с
  * телом: тело `DELETE` не гарантируется прокси и клиентами. Без активного безлимита — 200 без аудита.
  */
 export default defineApiHandler(async (event) => {
-  const user = await requireRootAdmin(event)
+  const user = await requirePlatformRole(event, ...PLATFORM_POLICIES.balanceManage)
   setResponseHeader(event, 'cache-control', 'no-store')
   const orgId = pathId(getRouterParam(event, 'id'))
   try {

@@ -196,7 +196,10 @@ export const platformOrganizationsService = {
     params: PlatformOrganizationsParams = {},
     now: Date = new Date(),
   ): Promise<PlatformOrganizationsPage> {
-    await assertRootAdmin(ctx)
+    const role = await assertRootAdmin(ctx, 'organizations')
+    // Analyst не ищет по контактам владельца: иначе поиск — оракул существования email/Telegram
+    // (решение владельца 2026-11-25, 29.3.1).
+    const searchContacts = role !== 'analyst'
     const db = getDb(ctx)
 
     const rows = await db
@@ -274,8 +277,8 @@ export const platformOrganizationsService = {
           row.slug,
           row.city,
           row.owner?.name,
-          row.owner?.email,
-          row.owner?.telegramUsername,
+          searchContacts ? row.owner?.email : undefined,
+          searchContacts ? row.owner?.telegramUsername : undefined,
         ]
           .filter(Boolean)
           .join('\n')
@@ -312,7 +315,7 @@ export const platformOrganizationsService = {
     orgId: number,
     now: Date = new Date(),
   ): Promise<PlatformOrganizationDetail> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'organizations')
     const db = getDb(ctx)
 
     const [org] = await db
@@ -420,7 +423,7 @@ export const platformOrganizationsService = {
     ctx: ServiceContext,
     input: PlatformOrganizationCreateInput,
   ): Promise<PlatformOrganizationCreateResult> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'organizationsManage')
     const { owner, ...data } = CreateInput.parse(input)
     return inTransaction(ctx, async (tx) => {
       const ownerId = await resolveOwner(getDb(tx), owner)

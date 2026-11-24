@@ -76,7 +76,7 @@ export const featureAnalyticsService = {
   },
 
   async report(ctx: ServiceContext, now: Date = new Date()): Promise<FeatureAnalyticsReport> {
-    await assertRootAdmin(ctx)
+    await assertRootAdmin(ctx, 'overview')
     const db = getDb(ctx)
     const { activeDays, retentionDays, frequencyDays } = FEATURE_ANALYTICS_WINDOWS
     const activeFrom = iso(daysBefore(now, activeDays))

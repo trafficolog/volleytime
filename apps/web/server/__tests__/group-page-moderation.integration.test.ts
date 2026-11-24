@@ -11,6 +11,7 @@ import {
   organizations,
   users,
 } from '@volley-time/db'
+import { grantPlatformRole } from '@volley-time/db/test-utils'
 import type {
   PlatformGroupPageCities,
   PlatformGroupPageComplaints,
@@ -70,12 +71,13 @@ describe('group page moderation (24.1.3)', () => {
     const rows = await db
       .insert(users)
       .values([
-        { email: `gpm-root-${tag}@t.by`, name: 'Анна Модератор', isRootAdmin: true },
+        { email: `gpm-root-${tag}@t.by`, name: 'Анна Модератор' },
         { email: `gpm-owner-${tag}@t.by`, name: 'Олег Владелец' },
         { email: `gpm-org-${tag}@t.by`, name: 'Ира Организатор' },
       ])
       .returning()
     ;[rootId, ownerId, organizerId] = rows.map((r) => r.id) as [number, number, number]
+    await grantPlatformRole(rootId)
     const org = await organizationService.create({ userId: ownerId }, { name: 'Волей на Немиге' })
     orgId = org.id
     slug = org.slug

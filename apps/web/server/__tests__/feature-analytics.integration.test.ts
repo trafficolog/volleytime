@@ -1,5 +1,14 @@
 import { organizationService } from '@volley-time/core'
-import { closeDb, db, eq, featureEvents, organizations, users } from '@volley-time/db'
+import {
+  closeDb,
+  db,
+  eq,
+  featureEvents,
+  organizations,
+  users,
+  platformStaff,
+} from '@volley-time/db'
+import { grantPlatformRole } from '@volley-time/db/test-utils'
 import type { FeatureAnalyticsReport } from '@volley-time/shared'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -27,12 +36,13 @@ describe('feature analytics API (HTTP integration)', { timeout: 60_000 }, () => 
     const people = await db
       .insert(users)
       .values([
-        { name: 'Root', email: `fa-root-${Math.random()}@t.by`, isRootAdmin: true },
+        { name: 'Root', email: `fa-root-${Math.random()}@t.by` },
         { name: 'Owner', email: `fa-owner-${Math.random()}@t.by` },
         { name: 'Player', email: `fa-player-${Math.random()}@t.by` },
       ])
       .returning()
     root = people[0]!.id
+    await grantPlatformRole(root)
     owner = people[1]!.id
     player = people[2]!.id
     await organizationService.create({ userId: owner }, { name: 'Feature analytics' })
@@ -127,7 +137,7 @@ describe('feature analytics API (HTTP integration)', { timeout: 60_000 }, () => 
     })
 
     it('a revoked root is rejected on the next request', async () => {
-      await db.update(users).set({ isRootAdmin: false }).where(eq(users.id, root))
+      await db.delete(platformStaff).where(eq(platformStaff.userId, root))
       expect((await request('GET', '/api/platform/feature-analytics', { user: root })).status).toBe(
         403,
       )

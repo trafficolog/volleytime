@@ -1,4 +1,5 @@
 import { PlatformUnlimitedError, platformEventBalanceUnlimitedService } from '@volley-time/core'
+import { PLATFORM_POLICIES } from '@volley-time/shared'
 
 /**
  * Безлимит событий группы до даты (22.3.1, ADR-22-3-1): `{ until: 'YYYY-MM-DD', reason }`, дата —
@@ -7,7 +8,7 @@ import { PlatformUnlimitedError, platformEventBalanceUnlimitedService } from '@v
  * группа — 409 `organization.deleted`. Только root.
  */
 export default defineApiHandler(async (event) => {
-  const user = await requireRootAdmin(event)
+  const user = await requirePlatformRole(event, ...PLATFORM_POLICIES.balanceManage)
   setResponseHeader(event, 'cache-control', 'no-store')
   const orgId = pathId(getRouterParam(event, 'id'))
   try {

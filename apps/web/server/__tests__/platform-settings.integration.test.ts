@@ -1,6 +1,6 @@
 import { invalidatePlatformSettingsCache, organizationService } from '@volley-time/core'
 import { auditLog, closeDb, db, eq, organizations, platformSettings, users } from '@volley-time/db'
-import { resetPlatformSettings } from '@volley-time/db/test-utils'
+import { resetPlatformSettings, grantPlatformRole } from '@volley-time/db/test-utils'
 import { addIsoDays, minskToday, type PlatformSettingsResponse } from '@volley-time/shared'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -39,11 +39,12 @@ describe('/api/platform/settings (HTTP)', { timeout: 60_000 }, () => {
       await db
         .insert(users)
         .values([
-          { name: 'Root', email: 'root@vt.test', isRootAdmin: true },
+          { name: 'Root', email: 'root@vt.test' },
           { name: 'Plain', email: 'plain@vt.test' },
         ])
         .returning()
     ).map((u) => u.id) as [number, number]
+    await grantPlatformRole(root)
     orgId = (await organizationService.create({ userId: plain }, { name: 'Settings HTTP' })).id
   })
   afterEach(() => {

@@ -9,6 +9,7 @@ import {
   sql,
   users,
 } from '@volley-time/db'
+import { grantPlatformRole } from '@volley-time/db/test-utils'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { eventBalanceService } from '../event-balance/service'
@@ -48,11 +49,12 @@ describe('platformEventBalanceGrantsService (integration)', { timeout: 60_000 },
       await db
         .insert(users)
         .values([
-          { name: 'Root', email: 'root@vt.test', isRootAdmin: true },
+          { name: 'Root', email: 'root@vt.test' },
           { name: 'Plain', email: 'plain@vt.test' },
         ])
         .returning()
     ).map((u) => u.id) as [number, number]
+    await grantPlatformRole(rootId)
     orgId = (await organizationService.create({ userId: plainId }, { name: 'Grant Org' })).id
   })
   afterAll(async () => {
