@@ -2,11 +2,11 @@
 id: '30.3.3'
 phase: '30'
 epic: '30.3'
-status: in_progress
+status: done
 release: 'v0.6.0'
 sync_state: synced
 last_reviewed: 2026-11-24
-status_note: 'Перепланирование 19.0.5 (референс 2026-11-24). Релиз v0.6.0 (D-34).'
+status_note: 'Сделано в #350 (256c4e4f), CI зелёный на b0f348bb, ревью: merge. Флаг функции игрока (23.1.1) отложен.'
 ref_id: 'M-32'
 complexity: M
 impl_model: claude-sonnet-5-5
