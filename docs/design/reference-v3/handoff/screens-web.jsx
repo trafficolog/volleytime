@@ -69,7 +69,7 @@ const WebShell = ({ activeNav, title, sub, topRight, children }) => {
   ];
   const isOrg = cabIsOrganizer();
   const platform = [
-    ...(isOrg ? [] : [['billing', 'card', 'Баланс и оплата']]),
+    ['billing', 'card', 'Баланс и оплата'],
     ['support', 'chat', 'Поддержка'],
     ['settings', 'settings', 'Настройки'],
   ];
@@ -105,16 +105,16 @@ const WebShell = ({ activeNav, title, sub, topRight, children }) => {
           </a>
         ))}
 
-        {!isOrg && <div style={{marginTop:'auto', paddingTop:18}}>
+        <div style={{marginTop:'auto', paddingTop:18}}>
           <div className="vt-card vt-card--hero" style={{padding:'12px 14px'}}>
             <div style={{fontSize:'var(--fs-xs)', opacity:0.7}}>Баланс событий</div>
             <div style={{display:'flex', alignItems:'baseline', gap:6, marginTop:2}}>
               <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-lg)'}}>32</div>
               <div style={{fontSize:'var(--fs-2xs)', opacity:0.7}}>осталось</div>
             </div>
-            <button onClick={() => nav && nav.reset('billing')} className="vt-btn vt-btn--sm" style={{width:'100%', marginTop:8, background:'var(--vt-orange)', color:'var(--vt-on-hero)'}}>Пополнить</button>
+            <button onClick={() => nav && nav.reset('billing')} className="vt-btn vt-btn--sm" style={{width:'100%', marginTop:8, background:'var(--vt-orange)', color:'var(--vt-on-hero)'}}>{isOrg ? 'Подробнее' : 'Пополнить'}</button>
           </div>
-        </div>}
+        </div>
       </aside>
 
       <main className="vt-web__main">
@@ -136,25 +136,8 @@ const WebShell = ({ activeNav, title, sub, topRight, children }) => {
   );
 };
 
-// Кто вошёл в кабинет: владелец или организатор (P-18). Организатор не видит баланс событий, роли и опасную зону.
+// Кто вошёл в кабинет: владелец или организатор (P-18). Организатор видит баланс событий, но пополняет только владелец; роли и опасная зона — только владелец.
 const cabIsOrganizer = () => window.VT_CAB_ROLE === 'organizer';
-
-const WebNoAccess = ({ activeNav = 'billing', title = 'Баланс и оплата' }) => {
-  const nav = useNav();
-  return (
-    <WebShell activeNav={activeNav} title={title} sub="Раздел владельца группы">
-      <div className="vt-card" style={{padding:28, maxWidth:560}}>
-        <div style={{width:44, height:44, borderRadius:'var(--r-pill)', background:'var(--vt-paper)', display:'flex', alignItems:'center', justifyContent:'center'}}><Icon name="lock" size={20}/></div>
-        <h3 style={{fontSize:'var(--fs-xl)', marginTop:14}}>Этот раздел ведёт владелец</h3>
-        <div style={{fontSize:'var(--fs-sm)', color:'var(--vt-ink-3)', marginTop:8, lineHeight:1.5}}>Баланс событий, тариф и роли команды доступны только владельцу группы — Ивану П. Если событий на балансе мало, напишите ему: создать новое событие получится, пока на балансе есть единицы.</div>
-        <div style={{display:'flex', gap:8, marginTop:18}}>
-          <button onClick={() => nav.toast('Открываем чат с Иваном П.')} className="vt-btn vt-btn--primary"><Icon name="send" size={14}/> Написать владельцу</button>
-          <button onClick={() => nav.reset('dashboard')} className="vt-btn vt-btn--ghost">На обзор</button>
-        </div>
-      </div>
-    </WebShell>
-  );
-};
 
 // ---------- WebDashboard ----------
 const WebDashboard = () => {
@@ -896,6 +879,8 @@ const WebLedger = () => {
 // ---------- WebBilling ----------
 const WebBilling = () => {
   const nav = useNav();
+  const isOrg = cabIsOrganizer();
+  const askOwner = () => nav.toast('Открываем чат с Иваном П. — владелец пополнит баланс');
   return (
   <WebShell
     activeNav="billing"
@@ -910,7 +895,12 @@ const WebBilling = () => {
           <div className="vt-cap" style={{opacity:0.6}}>Баланс событий</div>
           <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-6xl)', marginTop:6, lineHeight:1}}>32</div>
           <div style={{fontSize:'var(--fs-sm)', opacity:0.7, marginTop:8}}>1 единица баланса = 1 событие. Возврат при отмене до открытия записи.</div>
-          <button onClick={() => nav.sheet({
+          {isOrg ? (
+            <>
+              <div style={{fontSize:'var(--fs-xs)', opacity:0.75, marginTop:14, lineHeight:1.45}}>Пополняет баланс владелец группы — Иван П. Если событий мало, напишите ему.</div>
+              <button onClick={askOwner} className="vt-btn vt-btn--full" style={{marginTop:12, background:'var(--vt-orange)', color:'var(--vt-on-hero)'}}><Icon name="send" size={14}/> Написать владельцу</button>
+            </>
+          ) : <button onClick={() => nav.sheet({
             title:'Пополнить баланс',
             sub:'Выберите пакет',
             items:[
@@ -918,7 +908,7 @@ const WebBilling = () => {
               { icon:'card', label:'30 событий · 120 BYN', onClick: () => nav.toast('Платёж создан · 120 BYN') },
               { icon:'card', label:'100 событий · 350 BYN', onClick: () => nav.toast('Платёж создан · 350 BYN') },
             ]
-          })} className="vt-btn vt-btn--full" style={{marginTop:18, background:'var(--vt-orange)', color:'var(--vt-on-hero)'}}>Купить ещё</button>
+          })} className="vt-btn vt-btn--full" style={{marginTop:18, background:'var(--vt-orange)', color:'var(--vt-on-hero)'}}>Купить ещё</button>}
         </div>
 
         <div className="vt-card" style={{padding:16}}>
@@ -960,12 +950,12 @@ const WebBilling = () => {
               <div className="vt-divider" style={{margin:'14px 0'}}/>
               <div className="vt-mono" style={{fontWeight:700, fontSize:'var(--fs-xl)'}}>{p.price} BYN</div>
               <div style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)', marginTop:2}}>{p.per.toFixed(2).replace('.', ',')} BYN за событие</div>
-              <button onClick={() => nav.alert({
+              {isOrg ? <div style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)', marginTop:14, minHeight:32, display:'flex', alignItems:'center', justifyContent:'center'}}>Покупает владелец</div> : <button onClick={() => nav.alert({
                 title:`Купить пакет на ${p.n} событий?`,
                 body:`Будет списано ${p.price} BYN. Метод оплаты — наличные / перевод (онлайн-оплата в Phase 12).`,
                 confirm:'Подтвердить покупку',
                 onConfirm: () => nav.toast(`Покупка создана · +${p.n} событий будут зачислены после подтверждения`)
-              })} className="vt-btn vt-btn--ink vt-btn--full vt-btn--sm" style={{marginTop:14}}>Купить</button>
+              })} className="vt-btn vt-btn--ink vt-btn--full vt-btn--sm" style={{marginTop:14}}>Купить</button>}
             </div>
           ))}
         </div>
@@ -1714,4 +1704,4 @@ const WebNotifications = () => {
   );
 };
 
-Object.assign(window, { WebNoAccess, cabIsOrganizer, WebSearchToggle, WebShell, WebDashboard, WebEvents, WebEventDetail, WebMembers, WebLedger, WebBilling, WebSettings, WebContributions, WebNotifications, WebPlans });
+Object.assign(window, { cabIsOrganizer, WebSearchToggle, WebShell, WebDashboard, WebEvents, WebEventDetail, WebMembers, WebLedger, WebBilling, WebSettings, WebContributions, WebNotifications, WebPlans });

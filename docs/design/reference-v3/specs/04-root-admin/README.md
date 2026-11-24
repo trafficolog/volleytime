@@ -15,8 +15,9 @@
 | [R-09](R-09-impersonation-flags.md) | Вход в организацию и функции | M | Sonnet | Ф2 | R-07, P-14 |
 | [R-10](R-10-complaints.md) | Жалобы | M | Sonnet | Ф2 | M-33, R-07 |
 | [R-11](R-11-merge-users.md) | Склейка дублей пользователей | M | Opus | Ф2 | P-11, P-18 |
-| [R-12](R-12-support-queue.md) | Очередь обращений | M | Sonnet | Ф29 | P-22, R-07 |
+| [R-15](R-15-platform-team-roles.md) | Роли команды платформы | L | контракт Opus, UI Sonnet | Ф29 | P-11, R-05, R-07 |
+| [R-12](R-12-support-queue.md) | Очередь обращений | M | Sonnet | Ф29 | P-22, R-07, R-15 |
 | [R-13](R-13-support-ticket.md) | Карточка обращения | L | Sonnet | Ф29 | R-12, P-23 |
-| [R-14](R-14-support-settings.md) | Настройки поддержки | M | Sonnet | Ф29 | R-12, R-05 |
+| [R-14](R-14-support-settings.md) | Настройки поддержки | M | Sonnet | Ф29 | R-12, R-05, R-15 |
 
 [← План](../README.md) · [Роадмап](../roadmap.md) · [Связи](../links.md)

@@ -8,21 +8,33 @@
 
 |                        | Было (2026-10-12)    | Стало (2026-11-24)                                                                                                                                                                                                                                                                       |
 | ---------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Задачи в `specs/`      | 66                   | 98 (+19 из ревью платформы, +13 фаза 29)                                                                                                                                                                                                                                                 |
-| Снимки                 | 161 в `screenshots/` | 214 в `screenshots-2026-11-24/` (новые папки `3-miniapp-coach`, `11-help`, `10-review`); `screenshots/` не тронута — на неё ссылается харнесс визуальной сверки                                                                                                                          |
+| Задачи в `specs/`      | 66                   | 99 (+19 из ревью платформы, +14 фаза 29)                                                                                                                                                                                                                                                 |
+| Снимки                 | 161 в `screenshots/` | 218 в `screenshots-2026-11-24/` (новые папки `3-miniapp-coach`, `11-help`, `10-review`); `screenshots/` не тронута — на неё ссылается харнесс визуальной сверки                                                                                                                          |
 | Исходники в `handoff/` | 61 файл              | 75: 36 обновлены, 14 новых — `screens-roles.jsx` (режимы и тренер), `screens-support.jsx` (поддержка и база знаний), `screens-seo*.jsx`, `screens-team.jsx`, `screens-invite.jsx`, `screens-event-staff.jsx` и др., страницы «10 База знаний», «Ревью платформы», `assets/logo-full.png` |
 
 Основные темы:
 
 1. **Роли и режимы.** Роль живёт на членстве (owner, organizer, coach, player; гость — без членства). Mini App переключается «Играю · Управляю · Веду», у тренера свой короткий интерфейс, флаг `canAcceptPayment`. Спецификации [P-18](reference-v3/specs/01-platform/P-18-membership-roles.md), [M-25](reference-v3/specs/02-mini-app/M-25-mode-switch.md), [M-26](reference-v3/specs/02-mini-app/M-26-roster-today.md), группа [«Роли и режимы»](reference-v3/specs/links.md#roles).
 2. **Модерация страниц групп (R-06).** Реализована в [24.1.3](../tasks/24-1-3-group-page-moderation.md); спецификация переписана под макет 2026-11-23 и добавлены права команды платформы.
-3. **Кабинет глазами организатора.** Без «Баланс и оплата», «Команды» и «Опасной зоны» ([W-01](reference-v3/specs/03-organizer-web/W-01-cabinet-shell.md)).
-4. **Фаза 29 «Техподдержка и база знаний»** — обращения из Mini App, бота и кабинета, очередь в Root Admin, сайт help.volleytime.by ([README фазы](reference-v3/specs/29-support/README.md)).
-5. Город страницы группы — поиском по всем ≈120 районным центрам ([W-13](reference-v3/specs/03-organizer-web/W-13-group-page-builder.md)).
+3. **Кабинет глазами организатора.** Баланс событий только для просмотра, без «Команды» и «Опасной зоны» ([W-01](reference-v3/specs/03-organizer-web/W-01-cabinet-shell.md)).
+4. **Роли команды платформы.** Owner, Admin, Finance, Moderator, Support, Analyst вместо одного флага root ([R-15](reference-v3/specs/04-root-admin/R-15-platform-team-roles.md)).
+5. **Фаза 29 «Техподдержка и база знаний»** — обращения из Mini App, бота и кабинета, очередь в Root Admin, сайт help.volleytime.by ([README фазы](reference-v3/specs/29-support/README.md)).
+6. Город страницы группы — поиском по всем ≈120 районным центрам ([W-13](reference-v3/specs/03-organizer-web/W-13-group-page-builder.md)).
 
 ## Решения владельца
 
-Каждый пункт противоречит реализованному или принятому. Карточка, которая от него зависит, не стартует до решения (правило [журнала решений](../operations/decisions/2026-10-12-reference-v3-decisions.md)).
+Каждый пункт противоречил реализованному или принятому. Решения владельца 2026-11-24 записаны в [журнал решений](../operations/decisions/2026-10-12-reference-v3-decisions.md):
+
+| #   | Решение                                                                                      | Запись                                                                    |
+| --- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| U-1 | Адрес `/{город}/{группа}`, например `/minsk/vt-minsk`; нужна карточка на смену адресов с 301 | [D-26](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-26) |
+| U-2 | Открыто: `assistant` фактически равен игроку; рекомендация — заменить на `coach`             | [D-31](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-31) |
+| U-3 | Организатор видит баланс, пополняет владелец — как в коде; референс исправлен                | [D-27](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-27) |
+| U-4 | Шесть ролей команды платформы, спецификация R-15, задача 29.3.1                              | [D-28](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-28) |
+| U-5 | Фаза 29 поглощает 27.10.3, 10.2.1, 10.2.2                                                    | [D-29](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-29) |
+| U-6 | Кнопки отложены, бэклог фазы 29 (через обращение в поддержку)                                | [D-30](../operations/decisions/2026-10-12-reference-v3-decisions.md#d-30) |
+
+Исходные расхождения:
 
 | #   | Расхождение                                         | Как сейчас в коде                                                                                                     | Как в референсе                                                                           | Затрагивает                                               |
 | --- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------- |
@@ -35,7 +47,7 @@
 
 ## Новые задачи референса без карточек
 
-Карточки `docs/tasks/` для них создаются отдельной задачей перепланирования после решений U-1…U-5.
+Карточки `docs/tasks/` для них создаются отдельной задачей перепланирования; карточки ролей и тренера (P-18, M-25, M-26) ждут решения D-31.
 
 **Из ревью платформы (19)**
 
@@ -61,7 +73,7 @@
 | [R-10](reference-v3/specs/04-root-admin/R-10-complaints.md) Жалобы                                                |
 | [R-11](reference-v3/specs/04-root-admin/R-11-merge-users.md) Склейка дублей пользователей                         |
 
-**Фаза 29 «Техподдержка и база знаний» (13)**
+**Фаза 29 «Техподдержка и база знаний» (14)**
 
 | Задача                                                                                               |
 | ---------------------------------------------------------------------------------------------------- |
@@ -74,6 +86,7 @@
 | [R-12](reference-v3/specs/04-root-admin/R-12-support-queue.md) Очередь обращений                     |
 | [R-13](reference-v3/specs/04-root-admin/R-13-support-ticket.md) Карточка обращения                   |
 | [R-14](reference-v3/specs/04-root-admin/R-14-support-settings.md) Настройки поддержки                |
+| [R-15](reference-v3/specs/04-root-admin/R-15-platform-team-roles.md) Роли команды платформы          |
 | [H-01](reference-v3/specs/05-help-center/H-01-articles.md) Статьи и разделы: модель и редактор       |
 | [H-02](reference-v3/specs/05-help-center/H-02-help-site.md) help.volleytime.by: рендер, поиск, SEO   |
 | [H-03](reference-v3/specs/05-help-center/H-03-contact-form.md) Форма обращения на сайте              |
@@ -103,7 +116,7 @@
 | [M-19](reference-v3/specs/02-mini-app/M-19-team-balancing.md) Составы на игру                        | сначала ручной режим, алгоритм — вторым шагом                                                                    | [26.1.2](../tasks/26-1-2-team-balancing.md) `todo`                                                                                                                                                                                                                        |
 | [M-23](reference-v3/specs/02-mini-app/M-23-org-event-create.md) Организатор · создание события       | адрес макета: «Управляю» → События                                                                               | [21.1.2](../tasks/21-1-2-org-event-create.md) `done`                                                                                                                                                                                                                      |
 | [M-24](reference-v3/specs/02-mini-app/M-24-org-players-report.md) Организатор · игроки и отчёт       | адрес макета: «Управляю» → Игроки                                                                                | [21.1.3](../tasks/21-1-3-org-players-report.md) `done`                                                                                                                                                                                                                    |
-| [W-01](reference-v3/specs/03-organizer-web/W-01-cabinet-shell.md) Оболочка кабинета                  | новые разделы сайдбара; вариант кабинета для организатора (без баланса, «Команды», «Опасной зоны»)               | [20.5.3](../tasks/20-5-3-cabinet-shell.md) `done`                                                                                                                                                                                                                         |
+| [W-01](reference-v3/specs/03-organizer-web/W-01-cabinet-shell.md) Оболочка кабинета                  | новые разделы сайдбара; вариант для организатора: баланс только просмотр, без «Команды» и «Опасной зоны»         | [20.5.3](../tasks/20-5-3-cabinet-shell.md) `done`                                                                                                                                                                                                                         |
 | [W-04](reference-v3/specs/03-organizer-web/W-04-event-create.md) Создание события                    | блок «Тренер» и «Разминка», зал из справочника P-21                                                              | [20.5.5](../tasks/20-5-5-event-create.md) `done`                                                                                                                                                                                                                          |
 | [W-06](reference-v3/specs/03-organizer-web/W-06-players.md) Игроки                                   | колонка «Роль», статус «Гость», «Роль в команде»                                                                 | [21.2.24](../tasks/21-2-24-excluded-players.md) `done`, [21.2.20](../tasks/21-2-20-players-stats-api.md) `done`, [21.2.22](../tasks/21-2-22-player-position.md) `done`, [21.2.21](../tasks/21-2-21-player-exclude.md) `done`, [21.2.2](../tasks/21-2-2-players.md) `done` |
 | [W-07](reference-v3/specs/03-organizer-web/W-07-cashbox.md) Касса                                    | колонка «Источник» (подтверждение, на зале, вручную, система)                                                    | [21.2.19](../tasks/21-2-19-cashbox-method-categories.md) `done`, [21.2.3](../tasks/21-2-3-cashbox.md) `done`                                                                                                                                                              |
@@ -113,7 +126,7 @@
 | [R-02](reference-v3/specs/04-root-admin/R-02-balance-tariffs.md) Баланс и тарифы                     | адрес макета: 4b → «Баланс и тарифы»                                                                             | [22.2.1](../tasks/22-2-1-balance-tariffs.md) `done`                                                                                                                                                                                                                       |
 | [R-03](reference-v3/specs/04-root-admin/R-03-grant-balance.md) Выдача баланса                        | адрес макета: 4b → «Баланс и тарифы» → «Выдать события»                                                          | [22.2.2](../tasks/22-2-2-grant-balance.md) `done`                                                                                                                                                                                                                         |
 | [R-04](reference-v3/specs/04-root-admin/R-04-subscriptions-payouts.md) Подписки и выплаты            | адрес макета: 4b → «Подписки & выплаты»                                                                          | [22.2.3](../tasks/22-2-3-subscriptions-payouts.md) `done`                                                                                                                                                                                                                 |
-| [R-05](reference-v3/specs/04-root-admin/R-05-platform-settings.md) Настройки платформы               | вкладки настроек по макету; матрица прав Owner · Admin · Support                                                 | [22.3.1](../tasks/22-3-1-platform-settings.md) `done`                                                                                                                                                                                                                     |
+| [R-05](reference-v3/specs/04-root-admin/R-05-platform-settings.md) Настройки платформы               | вкладки настроек по макету; роли команды — R-15                                                                  | [22.3.1](../tasks/22-3-1-platform-settings.md) `done`                                                                                                                                                                                                                     |
 | [R-06](reference-v3/specs/04-root-admin/R-06-group-page-moderation.md) Модерация страниц групп       | переписана: каталог городов, «Скрыть» / «Принудительный noindex» / «Вернуть», жалобы, баннер, права              | [24.1.3](../tasks/24-1-3-group-page-moderation.md) `done`                                                                                                                                                                                                                 |
 | [R-07](reference-v3/specs/04-root-admin/R-07-audit-log.md) Журнал действий                           | журнал по всем разделам Root Admin                                                                               | [22.1.2](../tasks/22-1-2-audit-log.md) `done`, [22.1.6](../tasks/22-1-6-audit-export-header-search.md) `todo`, [22.1.5](../tasks/22-1-5-audit-log-severity-levels.md) `todo`                                                                                              |
 | [R-08](reference-v3/specs/04-root-admin/R-08-rename-credits.md) Переименование credits               | выполнено в макетах; адрес макета                                                                                | [19.1.4](../tasks/19-1-4-rename-credits.md) `done`                                                                                                                                                                                                                        |
@@ -122,6 +135,6 @@
 
 ## Следующие шаги
 
-1. Владелец решает U-1…U-6 — записи D-26 и далее в журнале решений.
-2. Перепланирование: карточки для 32 новых задач (фаза 29 и роли) с `ref_id`, `impl_model`, `review_model`; обновление затронутых карточек.
+1. Владелец решает D-31 (`assistant` → `coach`).
+2. Перепланирование: карточки для 33 новых задач (фаза 29 с R-15, роли и тренер), карточка смены адресов страницы группы (D-26) (фаза 29 и роли) с `ref_id`, `impl_model`, `review_model`; обновление затронутых карточек.
 3. Перевести харнесс [19.0.2](../tasks/19-0-2-visual-reference-harness.md) на `screenshots-2026-11-24/`: новые имена файлов и координаты обрезки в `scripts/qa/visual-reference-map.json` (снимки теперь без рамки устройства), затем удалить `screenshots/`. Отдельная задача: меняется код QA-скрипта и его тест.

@@ -32,7 +32,7 @@
 
 ## Зависимости
 
-**Нужно до начала:** [P-11](../01-platform/P-11-auth-roles.md) Авторизация и роли
+**Нужно до начала:** [P-11](../01-platform/P-11-auth-roles.md) Авторизация и роли, [R-15](../04-root-admin/R-15-platform-team-roles.md) Роли команды платформы
 
 **Ждут эту задачу:** [H-02](../05-help-center/H-02-help-site.md) help.volleytime.by: рендер, поиск, SEO, [H-04](../05-help-center/H-04-article-hints.md) Подсказки статей и «Статья помогла?»
 

@@ -26,7 +26,7 @@
 <script type="text/babel" src="app-nav.jsx?v=surf1"></script>
 <script type="text/babel" src="atoms.jsx?v=join1"></script>
 <script type="text/babel" src="prototype-shell.jsx?v=surf1"></script>
-<script type="text/babel" src="screens-web.jsx?v=rshot2"></script>
+<script type="text/babel" src="screens-web.jsx?v=r2shot2"></script>
 <script type="text/babel" src="screens-team.jsx?v=1"></script>
 <script type="text/babel" src="screens-web-more.jsx?v=1"></script>
 <script type="text/babel" src="screens-event-staff.jsx?v=1"></script>
@@ -71,7 +71,7 @@ const SCREENS = {
   reports:        () => <WebReports/>,
   'reports-export': () => <WebReportsExport/>,
   notifications:  () => <WebNotifications/>,
-  billing:        () => (cabIsOrganizer() ? <WebNoAccess/> : <WebBilling/>),
+  billing:        () => <WebBilling/>,
   settings:       () => <WebSettings/>,
   seo:            () => <WebSeoBuilder/>,
   'seo-preview':  () => <WebSeoPreview/>,
@@ -123,7 +123,7 @@ function App() {
         <TweakColor label="Primary" value={t.accent} options={ACCENTS} onChange={(v) => setTweak('accent', v)} />
         <TweakSection label="Подсказка" />
         <div style={{fontSize:11, color:'rgba(41,38,27,0.6)', lineHeight:1.4, padding:'2px 2px'}}>
-          Полноценный кабинет: создание событий, календарь, касса с формами, сборы, отчёты, все разделы настроек. Сверху выберите, кто вошёл: организатор не видит баланс событий, роли команды и опасную зону.
+          Полноценный кабинет: создание событий, календарь, касса с формами, сборы, отчёты, все разделы настроек. Сверху выберите, кто вошёл: организатор видит баланс событий, но пополняет его владелец; роли команды и опасная зона — только у владельца.
         </div>
       </TweaksPanel>
     </>

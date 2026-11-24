@@ -292,7 +292,7 @@ graph LR
 
 Обращения в поддержку из всех каналов, обработка в Root Admin и сайт help.volleytime.by. Эпики и порядок — в [29-support](29-support/README.md). Эпики 29.1 и 29.4 стартуют параллельно.
 
-Задач: 13 · XL 2 · L 3 · M 7 · S 1
+Задач: 14 · XL 2 · L 4 · M 7 · S 1
 
 **Платформа:** [P-22](01-platform/P-22-support-tickets.md) Обращения: модель, статусы и сроки (XL · Opus · 29.1.1); [P-23](01-platform/P-23-support-delivery.md) Ответы поддержки в бот и на email (M · Sonnet · 29.1.2); [P-24](01-platform/P-24-support-attachments.md) Вложения и контекст обращения (M · Sonnet · 29.1.3); [P-25](01-platform/P-25-bot-support.md) Бот · «Помощь» и /support (S · Haiku · 29.2.2)
 
@@ -300,7 +300,7 @@ graph LR
 
 **Кабинет организатора:** [W-20](03-organizer-web/W-20-support.md) Поддержка в кабинете (M · Sonnet · 29.2.3)
 
-**Root Admin:** [R-12](04-root-admin/R-12-support-queue.md) Очередь обращений (M · Sonnet · 29.3.1); [R-13](04-root-admin/R-13-support-ticket.md) Карточка обращения (L · Sonnet · 29.3.2); [R-14](04-root-admin/R-14-support-settings.md) Настройки поддержки (M · Sonnet · 29.3.3)
+**Root Admin:** [R-15](04-root-admin/R-15-platform-team-roles.md) Роли команды платформы (L · контракт Opus, UI Sonnet · 29.3.1); [R-12](04-root-admin/R-12-support-queue.md) Очередь обращений (M · Sonnet · 29.3.2); [R-13](04-root-admin/R-13-support-ticket.md) Карточка обращения (L · Sonnet · 29.3.3); [R-14](04-root-admin/R-14-support-settings.md) Настройки поддержки (M · Sonnet · 29.3.4)
 
 **База знаний:** [H-01](05-help-center/H-01-articles.md) Статьи и разделы: модель и редактор (L · Sonnet · 29.4.1); [H-02](05-help-center/H-02-help-site.md) help.volleytime.by: рендер, поиск, SEO (XL · Opus · 29.4.2); [H-03](05-help-center/H-03-contact-form.md) Форма обращения на сайте (M · Sonnet · 29.4.3); [H-04](05-help-center/H-04-article-hints.md) Подсказки статей и «Статья помогла?» (M · Sonnet · 29.4.4)
 
@@ -315,6 +315,7 @@ graph LR
 - Ф3: M-29 передача места и напарник, M-30 автозапись, M-31 QR.
 - Ф5: M-32 открытые игры рядом.
 - Гипотезы Ф5–Ф6 (серии, MVP, прогресс, итоги) теперь зависят от P-19.
+- Ф29: R-15 роли команды платформы (Owner, Admin, Finance, Moderator, Support, Analyst) — до очереди поддержки и редактора статей.
 - Ф4: R-06 переписана под макет — каталог городов, «Скрыть» и «Принудительный noindex», жалобы с сайта; M → L, зависит ещё от R-07 и P-09.
 
 ## Критический путь
@@ -335,6 +336,6 @@ P-01 Доменная модель → P-02 Настройки группы → 
 | Sonnet | 62 | P-02, P-07, P-09, P-10, P-12, P-13, P-14, P-16, P-17, P-19, P-21, M-01, M-03, M-05, M-06, M-07, M-08, M-10, M-11, M-12, M-13, M-15b, M-16, M-17, M-18, M-20, M-21, M-22, M-23, M-24, M-25, M-26, M-27, M-28, M-29, M-30, M-31, M-32, W-01, W-03, W-04, W-05, W-06, W-07, W-08, W-09, W-10, W-11, W-12, W-13, W-16, W-17, W-18, W-19, R-01, R-02, R-03, R-05, R-06, R-07, R-09, R-10 |
 | Haiku | 9 | P-15, M-02, M-04, M-09, M-14, M-33, W-02, W-15, R-08 |
 
-Ф29: Opus — P-22, H-02 · Sonnet — P-23, P-24, M-34, W-20, R-12, R-13, R-14, H-01, H-03, H-04 · Haiku — P-25
+Ф29: Opus — P-22, H-02, R-15 (контракт; UI — Sonnet) · Sonnet — P-23, P-24, M-34, W-20, R-12, R-13, R-14, H-01, H-03, H-04 · Haiku — P-25
 
 [← План](README.md) · [Связи](links.md)

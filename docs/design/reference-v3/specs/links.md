@@ -17,7 +17,7 @@
 | [Уведомления](#notify) | P-09, P-16 | M-13, M-17 | W-15 | — |
 | [Игроки и отчёты](#reports) | — | M-24 | W-06, W-10, W-07 | — |
 | [Страница группы](#seo) | P-02, P-17, P-09 | — | W-13, W-14 | R-06, R-07 |
-| [Доступ и аудит](#auth) | P-11 | M-01 | W-16 | R-05, R-07, R-03 |
+| [Доступ и аудит](#auth) | P-11 | M-01 | W-16 | R-05, R-07, R-03, R-15 |
 | [Роли и режимы](#roles) | P-18, P-11, P-19, P-20 | M-25, M-26, M-02, M-04 | W-17, W-06 | R-09 |
 | [Самооценка → прогресс → составы → тренер](#skill-chain) | — | M-17, M-18, M-19, M-15a | — | — |
 | [Разминка в событии](#warmup) | — | M-23, M-16, M-03 | W-04 | — |
@@ -395,12 +395,12 @@ graph LR
 <a id="auth"></a>
 ## Доступ и аудит
 
-Права и журнал для всех интерфейсов.
+Права и журнал для всех интерфейсов. Команда платформы работает в Root Admin по ролям R-15: каждая видит только свои разделы.
 
 - **Платформа:** [P-11](01-platform/P-11-auth-roles.md) Авторизация и роли
 - **Mini App:** [M-01](02-mini-app/M-01-telegram-shell.md) Оболочка Telegram
 - **Кабинет организатора:** [W-16](03-organizer-web/W-16-auth.md) Авторизация
-- **Root Admin:** [R-05](04-root-admin/R-05-platform-settings.md) Настройки платформы, [R-07](04-root-admin/R-07-audit-log.md) Журнал действий, [R-03](04-root-admin/R-03-grant-balance.md) Выдача баланса
+- **Root Admin:** [R-05](04-root-admin/R-05-platform-settings.md) Настройки платформы, [R-07](04-root-admin/R-07-audit-log.md) Журнал действий, [R-03](04-root-admin/R-03-grant-balance.md) Выдача баланса, [R-15](04-root-admin/R-15-platform-team-roles.md) Роли команды платформы
 
 ```mermaid
 graph LR
@@ -410,11 +410,15 @@ graph LR
   R_05["R-05 Настройки платформы"]:::R
   R_07["R-07 Журнал действий"]:::R
   R_03["R-03 Выдача баланса"]:::R
+  R_15["R-15 Роли команды платформы"]:::R
   P_11 --> W_16
   P_11 --> M_01
   P_11 --> R_05
   P_11 --> R_07
   R_07 --> R_03
+  P_11 --> R_15
+  R_05 --> R_15
+  R_07 --> R_15
   classDef P fill:#E8ECFF,stroke:#1F2E96
   classDef M fill:#FFF0E6,stroke:#FF6B1F
   classDef W fill:#E9F7EE,stroke:#2E9E5B

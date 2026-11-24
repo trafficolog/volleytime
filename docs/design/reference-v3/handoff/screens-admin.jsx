@@ -20,6 +20,40 @@ const ImpBanner = ({ nav }) => window.VT_IMP ? (
   </div>
 ) : null;
 
+// Роли команды платформы (R-15). Одна роль на человека; 2FA обязательна для всех.
+// Ячейки матрицы: 'f' — полный доступ, 'v' — только просмотр, 'x' — нет, иначе — текст ограничения.
+const PLATFORM_ROLES = [
+  { k:'owner',     label:'Owner',     ru:'Владелец платформы', desc:'Всё, включая команду, тарифы, безопасность и API', tag:'ink',
+    nav:['overview','orgs','users','support','complaints','pages','credits','payouts','audit','settings'] },
+  { k:'admin',     label:'Admin',     ru:'Администратор',      desc:'Вся операционная работа, без команды, тарифов, безопасности и API', tag:'flame',
+    nav:['overview','orgs','users','support','complaints','pages','credits','payouts','audit','settings'] },
+  { k:'finance',   label:'Finance',   ru:'Финансы',            desc:'Баланс событий, заявки и выдача, подписки и выплаты', tag:'amber',
+    nav:['overview','orgs','credits','payouts','audit'] },
+  { k:'moderator', label:'Moderator', ru:'Модератор',          desc:'Страницы групп, жалобы игроков и на страницы', tag:'orange',
+    nav:['overview','orgs','users','complaints','pages','audit'] },
+  { k:'support',   label:'Support',   ru:'Поддержка',          desc:'Обращения, шаблоны и база знаний; жалобы — разбор и передача модератору', tag:'grass',
+    nav:['overview','orgs','users','support','complaints','pages','audit'] },
+  { k:'analyst',   label:'Analyst',   ru:'Аналитик',           desc:'Только просмотр метрик и денег, без персональных данных', tag:'ink',
+    nav:['overview','orgs','credits','payouts'] },
+];
+const PLATFORM_MATRIX = [
+  ['Обзор платформы',                              'f','f','v','v','v','v'],
+  ['Организации и функции организаций',            'f','f','v','v','v','v'],
+  ['Вход в организацию (30 мин, деньги — чтение)', 'f','f','x','x','x','x'],
+  ['Пользователи и склейка дублей',                'f','f','x','v','v','x'],
+  ['Поддержка: обращения, шаблоны, база знаний',   'f','f','x','x','f','x'],
+  ['Жалобы игроков',                               'f','f','x','f','передать','x'],
+  ['Страницы групп: скрыть, noindex, вернуть',     'f','f','x','f','x','x'],
+  ['Жалобы на страницы',                           'f','f','x','f','отклонить','x'],
+  ['Баланс событий: заявки и выдача',              'f','f','f','x','x','v'],
+  ['Тарифы и пакеты',                              'f','v','v','x','x','v'],
+  ['Подписки и выплаты',                           'f','v','f','x','x','v'],
+  ['Аудит',                                        'f','f','свои разделы','свои разделы','свои разделы','x'],
+  ['Настройки: флаги, лимиты, уведомления',        'f','f','x','x','x','x'],
+  ['Команда, безопасность, API',                   'f','x','x','x','x','x'],
+];
+const rootRole = () => PLATFORM_ROLES.find(r => r.k === window.VT_ROOT_ROLE) || PLATFORM_ROLES[0];
+
 const AdminShell = ({ activeNav, title, sub, topRight, children }) => {
   const nav = typeof useNav === 'function' ? useNav() : null;
   const handleNav = (k) => {
@@ -38,7 +72,8 @@ const AdminShell = ({ activeNav, title, sub, topRight, children }) => {
     ['payouts', 'wallet', 'Подписки & выплаты'],
     ['audit', 'clock', 'Аудит'],
     ['settings', 'settings', 'Настройки'],
-  ];
+  ].filter(([k]) => rootRole().nav.includes(k));
+  const role = rootRole();
   return (
     <div className="vt-web" style={{gridTemplateColumns:'234px 1fr'}}>
       <aside style={{
@@ -54,6 +89,10 @@ const AdminShell = ({ activeNav, title, sub, topRight, children }) => {
             <div style={{fontFamily:'var(--f-display)', fontWeight:700, fontSize:'var(--fs-md)'}}>Volley<span style={{color:'var(--vt-orange)'}}>Time</span></div>
             <div className="vt-mono" style={{fontSize:'var(--fs-2xs)', opacity:0.55, letterSpacing:'0.08em'}}>PLATFORM ROOT</div>
           </div>
+        </div>
+        <div style={{display:'flex', alignItems:'center', gap:8, padding:'4px 8px 0', fontSize:'var(--fs-2xs)'}}>
+          <span className="vt-mono" style={{padding:'2px 8px', borderRadius:'var(--r-pill)', background:'color-mix(in oklab, var(--vt-paper) 16%, transparent)', fontWeight:600}}>{role.label}</span>
+          <span style={{opacity:0.7}}>{role.ru}</span>
         </div>
 
         <div style={{
@@ -894,4 +933,4 @@ const AdminUsers = () => {
   );
 };
 
-Object.assign(window, { AdminShell, AdminOverview, AdminOrgs, AdminOrgDetail, AdminCredits, AdminAudit, AdminUsers, AdminPages });
+Object.assign(window, { PLATFORM_ROLES, PLATFORM_MATRIX, rootRole, AdminShell, AdminOverview, AdminOrgs, AdminOrgDetail, AdminCredits, AdminAudit, AdminUsers, AdminPages });

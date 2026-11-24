@@ -347,7 +347,10 @@ const AdminSettings = () => {
   const [tab, setTab] = React.useState((nav.data && nav.data.tab) || 'Платформа');
   React.useEffect(() => { if (nav.data && nav.data.tab) setTab(nav.data.tab); }, [nav.data && nav.data.tab]);
   const [flags, setFlags] = React.useState({ contributions:true, subscriptions:true, online_payments:false, tournaments:false, crm_pro:false });
-  const tabs = ['Платформа','Команда & роли','Feature flags','Лимиты & квоты','Уведомления','Биллинг','Безопасность','API & вебхуки'];
+  // R-15: команда, безопасность и API — только Owner
+  const ownerOnly = ['Команда & роли','Безопасность','API & вебхуки'];
+  const tabs = ['Платформа','Команда & роли','Feature flags','Лимиты & квоты','Уведомления','Биллинг','Безопасность','API & вебхуки']
+    .filter(t => (window.rootRole ? window.rootRole().k : 'owner') === 'owner' || !ownerOnly.includes(t));
 
   const Toggle = ({ on, onClick, label, sub, phase }) => (
     <button onClick={onClick} style={{display:'flex', alignItems:'center', gap:14, padding:'12px 14px', borderRadius:'var(--r-chip)', background:'var(--vt-ctl-track)', width:'100%', textAlign:'left', cursor:'pointer'}}>
@@ -386,38 +389,56 @@ const AdminSettings = () => {
           </div>
         )}
 
-        {tab === 'Команда & роли' && (
+        {tab === 'Команда & роли' && (() => {
+          const R = window.PLATFORM_ROLES;
+          const team = [['Иван П.','root@volleytime','owner'],['Анна К.','anna@volleytime','admin'],['Марина Л.','finance@volleytime','finance'],['Олег Д.','oleg@volleytime','moderator'],['Катя С.','support@volleytime','support'],['Дмитрий В.','dmitry@volleytime','analyst']];
+          const byK = (k) => R.find(r => r.k === k);
+          const cols = 'minmax(0,3fr) repeat(6, minmax(0,1fr))';
+          const cell = (v) => v === 'f' ? <Icon name="check" size={14} stroke="var(--vt-grass)" sw={2.4}/>
+            : v === 'v' ? <span style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute)'}}>просмотр</span>
+            : v === 'x' ? <span style={{color:'var(--vt-stroke-2)'}}>—</span>
+            : <span style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute)'}}>{v}</span>;
+          return (
           <div className="vt-card" style={{padding:22}}>
             <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}>
-              <h3 style={{fontSize:'var(--fs-md)'}}>Команда платформы</h3>
+              <div>
+                <h3 style={{fontSize:'var(--fs-md)'}}>Команда платформы</h3>
+                <div style={{fontSize:'var(--fs-xs)', color:'var(--vt-mute-2)', marginTop:4}}>Одна роль на человека · 2FA обязательна для всех · каждое действие — в аудит</div>
+              </div>
               <button onClick={() => nav.toast('Приглашение отправлено')} className="vt-btn vt-btn--ghost vt-btn--sm" style={{gap:6}}><Icon name="plus" size={13}/> Пригласить</button>
             </div>
-            <div style={{display:'flex', flexDirection:'column', gap:8, marginTop:14}}>
-              {[['Иван П.','root@volleytime','Owner','ink'],['Анна К.','anna@volleytime','Admin','flame'],['Поддержка','support@volleytime','Support','grass']].map((m,i) => (
-                <div key={i} style={{display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderRadius:'var(--r-chip)'}}>
-                  <Avi name={m[0]} init={m[0].slice(0,2)} tag={m[3]} size="sm"/>
-                  <div style={{flex:1}}><div style={{fontSize:'var(--fs-base)', fontWeight:600}}>{m[0]}</div><div className="vt-mono" style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)'}}>{m[1]}</div></div>
-                  <span className="vt-chip vt-chip--solid" style={{fontSize:'var(--fs-2xs)'}}>{m[2]}</span>
-                  <ActionMore mode="popover" align="right" items={[{icon:'star',label:'Изменить роль',onClick:()=>nav.toast('Роль изменена')},'---',{icon:'logout',tone:'danger',label:'Удалить из команды',onClick:()=>nav.toast('Удалён')}]}/>
-                </div>
-              ))}
+            <div style={{display:'grid', gridTemplateColumns:'repeat(3, minmax(0,1fr))', gap:6, marginTop:14}}>
+              {team.map(([n, mail, k], i) => {
+                const r = byK(k);
+                return (
+                <div key={i} style={{display:'flex', alignItems:'center', gap:12, padding:'10px 12px', borderRadius:'var(--r-chip)', background:'var(--vt-paper)'}}>
+                  <Avi name={n} init={n.slice(0,2)} tag={r.tag} size="sm"/>
+                  <div style={{flex:1, minWidth:0}}><div style={{fontSize:'var(--fs-sm)', fontWeight:600}}>{n}</div><div className="vt-mono" style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)'}}>{mail}</div></div>
+                  <span className="vt-chip vt-chip--solid" style={{fontSize:'var(--fs-2xs)'}}>{r.label}</span>
+                  <ActionMore mode="popover" align="right" items={[{icon:'star',label:'Изменить роль',onClick:()=>nav.sheet({ title:`Роль · ${n}`, sub:'Права меняются сразу, запись в аудит', items: R.filter(x => x.k !== 'owner' || k === 'owner').map(x => ({ icon: x.k === k ? 'check' : 'users', label:`${x.label} · ${x.ru}`, sub:x.desc, onClick:()=>nav.toast(`${n}: ${x.label}`) })) })},'---',{icon:'logout',tone:'danger',label:'Удалить из команды',onClick:()=>nav.toast('Удалён')}]}/>
+                </div>);
+              })}
             </div>
-            <div style={{marginTop:16}}>
-              <div className="vt-cap" style={{color:'var(--vt-mute-2)', marginBottom:10}}>Матрица ролей</div>
+            <div style={{marginTop:14}}>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:8}}>
+                <div className="vt-cap" style={{color:'var(--vt-mute-2)'}}>Матрица ролей</div>
+                <div style={{fontSize:'var(--fs-2xs)', color:'var(--vt-mute-2)'}}>Разделы без доступа скрыты из меню</div>
+              </div>
               <div style={{background:'var(--vt-paper)', borderRadius:'var(--r-tile)', overflow:'hidden'}}>
-                <div style={{display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', padding:'8px 14px', background:'var(--vt-bone-2)'}}>
-                  {['Право','Owner','Admin','Support'].map((h,i)=><div key={i} className="vt-cap" style={{color:'var(--vt-mute-2)'}}>{h}</div>)}
+                <div style={{display:'grid', gridTemplateColumns:cols, padding:'8px 14px', background:'var(--vt-bone-2)', gap:8}}>
+                  {['Право', ...R.map(r => r.label)].map((h,i)=><div key={i} className="vt-cap" style={{color:'var(--vt-mute-2)'}}>{h}</div>)}
                 </div>
-                {[['Организации',1,1,0],['Выдача баланса',1,1,0],['Тарифы',1,0,0],['Поддержка',1,1,1],['Жалобы игроков и на страницы',1,1,1],['Страницы групп: скрыть, noindex, вернуть',1,1,0],['Аудит',1,1,1],['Команда',1,0,0]].map((r,i,a)=>(
-                  <div key={i} style={{display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', padding:'10px 14px', borderTop:'1px solid var(--vt-bone-2)', alignItems:'center', fontSize:'var(--fs-sm)'}}>
+                {window.PLATFORM_MATRIX.map((r,i)=>(
+                  <div key={i} style={{display:'grid', gridTemplateColumns:cols, gap:8, padding:'6px 14px', borderTop:'1px solid var(--vt-bone-2)', alignItems:'center', fontSize:'var(--fs-xs)'}}>
                     <span>{r[0]}</span>
-                    {[r[1],r[2],r[3]].map((v,j)=><span key={j}>{v?<Icon name="check" size={14} stroke="var(--vt-grass)" sw={2.4}/>:<span style={{color:'var(--vt-stroke-2)'}}>—</span>}</span>)}
+                    {r.slice(1).map((v,j)=><span key={j}>{cell(v)}</span>)}
                   </div>
                 ))}
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {tab === 'Feature flags' && (
           <div className="vt-card" style={{padding:22}}>
