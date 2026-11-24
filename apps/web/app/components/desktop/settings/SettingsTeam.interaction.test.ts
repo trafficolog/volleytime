@@ -411,7 +411,7 @@ describe('SettingsTeam: назначить на серию', () => {
         status: 'published',
         seriesId: 6,
         seriesDate: '2026-12-06',
-        coachUserIds: [14, 99],
+        coachUserIds: [14, 16],
       },
       {
         id: 3,
@@ -420,7 +420,7 @@ describe('SettingsTeam: назначить на серию', () => {
         status: 'published',
         seriesId: 6,
         seriesDate: '2026-12-13',
-        coachUserIds: [14, 55],
+        coachUserIds: [14, 12],
       },
     ],
   })
@@ -431,14 +431,14 @@ describe('SettingsTeam: назначить на серию', () => {
     await flushPromises()
   }
 
-  it('adds the coach to the template and to every date, keeping the coaches of single dates', async () => {
+  it('adds the coach to the template and to every date, keeping the coaches of single dates and dropping a stale one', async () => {
     route({
       '/api/organizations/7/events': events,
       '/api/organizations/7/series/6?scope': () => ({ updated: 3, events: [] }),
-      '/api/organizations/7/series/6': () => ({ series: { template: { coachUserIds: [14, 99] } } }),
+      '/api/organizations/7/series/6': () => ({ series: { template: { coachUserIds: [14, 16] } } }),
     })
     const wrapper = await mountTeam()
-    // Ольга (13) → серия «Микст»: 99 вне команды и 55 только на одной дате сохраняются
+    // Ольга (13) → серия «Микст»: 16 ушёл из группы и отбрасывается, 12 только на одной дате сохраняется
     await openSeries(wrapper, 'Ольга')
     const dialog = document.body.querySelector('[role="dialog"]')!
     expect(dialog.textContent).toContain('Назначить на серию: Ольга Романова')
@@ -457,10 +457,10 @@ describe('SettingsTeam: назначить на серию', () => {
       .map(([url, init]) => [url, init.body.coachUserIds])
     expect(patches).toEqual([
       // шаблон: только он, даты не затронуты (дата позже всех дат серии)
-      ['/api/organizations/7/series/6?scope=following&from=9999-12-31', [14, 99, 13]],
+      ['/api/organizations/7/series/6?scope=following&from=9999-12-31', [14, 13]],
       // каждая дата получает добавку к СВОЕМУ списку тренеров
-      ['/api/organizations/7/series/6?scope=single&from=2026-12-06', [14, 99, 13]],
-      ['/api/organizations/7/series/6?scope=single&from=2026-12-13', [14, 55, 13]],
+      ['/api/organizations/7/series/6?scope=single&from=2026-12-06', [14, 13]],
+      ['/api/organizations/7/series/6?scope=single&from=2026-12-13', [14, 12, 13]],
     ])
     expect(
       wrapper.emitted('toast')?.some(([m]) => String(m).includes('назначен на серию «Микст»')),
