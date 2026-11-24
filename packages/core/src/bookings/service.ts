@@ -103,6 +103,30 @@ export interface EventBookingRow {
   user: { id: number; name: string | null; telegramUsername: string | null; image: string | null }
 }
 
+/** Строка состава для тренера без приёма оплаты (30.1.1, P-18): без сумм, способов и статусов оплаты. */
+export interface CoachRosterRow {
+  id: number
+  eventId: number
+  /** `pending_payment` отдаётся как `confirmed`: место занято, статус оплаты тренеру не виден. */
+  status: Exclude<Booking['status'], 'pending_payment'>
+  seats: number
+  waitlistSeats: number
+  bookedAt: Date
+  user: EventBookingRow['user']
+}
+
+export function toCoachRosterRow(row: EventBookingRow): CoachRosterRow {
+  return {
+    id: row.id,
+    eventId: row.eventId,
+    status: row.status === 'pending_payment' ? 'confirmed' : row.status,
+    seats: row.seats,
+    waitlistSeats: row.waitlistSeats,
+    bookedAt: row.bookedAt,
+    user: row.user,
+  }
+}
+
 /** Методы записи на платное событие; online — Phase 12. */
 const PAID_METHODS: string[] = ['subscription', 'cash', 'transfer']
 

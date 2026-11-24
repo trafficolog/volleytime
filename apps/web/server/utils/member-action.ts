@@ -20,7 +20,7 @@ export async function moderateMember(event: H3Event, action: Action) {
     throw createError({ statusCode: 404, statusMessage: 'Member not found' })
   }
   requireCanModerate(event.context.member ?? null, target)
-  // блокировка вышедшего или исключённого (21.2.24): организаторов и помощников — только владелец
+  // блокировка вышедшего или исключённого (21.2.24): организаторов и тренеров — только владелец
   if (action === 'block' && target.status === 'left') {
     requireCanExclude(event.context.member ?? null, target)
   }

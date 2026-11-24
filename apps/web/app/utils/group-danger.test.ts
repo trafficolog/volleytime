@@ -35,12 +35,12 @@ describe('group danger zone helpers (21.2.17)', () => {
         { id: 2, role: 'player', status: 'active', user: user(11, 'Яна') },
         { id: 3, role: 'organizer', status: 'active', user: user(12, 'Борис') },
         { id: 4, role: 'player', status: 'pending', user: user(13, 'Заявка') },
-        { id: 5, role: 'assistant', status: 'active', user: user(14, null, 'nick') },
+        { id: 5, role: 'coach', status: 'active', user: user(14, null, 'nick') },
       ],
       10,
     )
     expect(options).toEqual([
-      { value: '5', label: '@nick', sub: 'Помощник' },
+      { value: '5', label: '@nick', sub: 'Тренер' },
       { value: '3', label: 'Борис', sub: 'Организатор' },
       { value: '2', label: 'Яна', sub: 'Игрок' },
     ])

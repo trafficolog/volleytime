@@ -1,5 +1,5 @@
 export interface OrganizationUiMembership {
-  role: 'owner' | 'organizer' | 'assistant' | 'player'
+  role: 'owner' | 'organizer' | 'coach' | 'player'
   status: string
 }
 

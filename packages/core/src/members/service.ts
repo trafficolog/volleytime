@@ -2,9 +2,13 @@ import {
   and,
   asc,
   auditLog,
+  arrayOverlaps,
   desc,
   eq,
+  events,
+  gte,
   inArray,
+  notInArray,
   organizationMembers,
   users,
   type OrganizationMember,
@@ -12,6 +16,7 @@ import {
 
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
+import { memberRoles, normalizeRole, type Role } from '../permissions/policies'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
 
 import {
@@ -21,6 +26,7 @@ import {
   CannotChangeOwnRoleError,
   MemberInvalidTransitionError,
   MemberLevelNotAssignableError,
+  MemberNotCoachError,
   MemberNotFoundError,
   MemberPositionNotAssignableError,
   OwnerCannotLeaveError,
@@ -31,6 +37,7 @@ import {
   SetMemberLevelInput,
   SetMemberPositionInput,
   type AddMemberInput as AddInput,
+  type MemberRoleFilter,
 } from './schemas'
 
 const snapshot = (m: OrganizationMember) => ({ role: m.role, status: m.status })
@@ -38,11 +45,24 @@ const snapshot = (m: OrganizationMember) => ({ role: m.role, status: m.status })
 /** Уровень можно назначить заявителю, активному участнику и гостю. */
 const LEVEL_ASSIGNABLE_STATUSES: OrganizationMember['status'][] = ['pending', 'active', 'guest']
 
+/** Событие, которое ведёт тренер (30.1.1): для списка команды. */
+export interface CoachedEventRef {
+  id: number
+  title: string
+  startsAt: Date
+  seriesId: number | null
+}
+
 /** Участник с публичными полями пользователя (без email/phone/telegram id). Task 4.9.13. */
 export interface MemberWithUser {
   id: number
   organizationId: number
-  role: OrganizationMember['role']
+  /** Роль членства (30.1.1): устаревшее `assistant` отдаётся как `coach`. */
+  role: Role
+  /** Роли в группе: роль членства и `player` (P-18). */
+  roles: Role[]
+  /** Тренер принимает оплату (P-18); у остальных ролей всегда false. */
+  canAcceptPayment: boolean
   status: OrganizationMember['status']
   /** Уровень игрока в группе (19.2.3); null — не назначен. */
   level: OrganizationMember['level']
@@ -117,11 +137,13 @@ export const memberService = {
   /**
    * Сменить роль. Owner-роль неизменяема и не назначается; свою роль сменить нельзя
    * (защита от эскалации, Task 4.9.1). Проверка «только owner» — в политике на API-слое.
+   * Уход с роли тренера снимает флаг «Принимает оплату» (30.1.1). Каждое изменение пишется в
+   * журнал с автором; повтор той же роли ничего не меняет и в журнал не пишется.
    */
   async changeRole(
     ctx: ServiceContext,
     memberId: number,
-    role: 'organizer' | 'assistant' | 'player',
+    role: 'organizer' | 'coach' | 'player',
   ): Promise<OrganizationMember> {
     const { role: validRole } = ChangeMemberRoleInput.parse({ role })
     return inTransaction(ctx, async (tx) => {
@@ -131,10 +153,13 @@ export const memberService = {
       }
       if (m.role === 'owner') throw new CannotChangeOwnerRoleError()
       if (m.userId === ctx.userId) throw new CannotChangeOwnRoleError()
+      // устаревшее `assistant` при назначении `coach` переписывается
+      if (m.role === validRole) return m
 
+      const canAcceptPayment = validRole === 'coach' ? m.canAcceptPayment : false
       const [updated] = await getDb(tx)
         .update(organizationMembers)
-        .set({ role: validRole, updatedAt: new Date() })
+        .set({ role: validRole, canAcceptPayment, updatedAt: new Date() })
         .where(eq(organizationMembers.id, memberId))
         .returning()
       await auditService.record(tx, {
@@ -142,11 +167,88 @@ export const memberService = {
         action: AUDIT_ACTIONS.MEMBER_ROLE_CHANGED,
         entityType: 'member',
         entityId: m.id,
-        oldValue: { role: m.role },
-        newValue: { role: validRole },
+        oldValue: { role: normalizeRole(m.role), canAcceptPayment: m.canAcceptPayment },
+        newValue: { role: validRole, canAcceptPayment },
       })
       return updated!
     })
+  },
+
+  /**
+   * Выдать или снять флаг «Принимает оплату» (30.1.1, P-18). Флаг бывает только у активного
+   * тренера; права актора (owner или organizer) проверяет API-слой, участник чужой группы —
+   * «не найден». Изменение пишется в журнал ролей с автором; без изменения записи нет.
+   */
+  async setAcceptPayment(
+    ctx: ServiceContext,
+    memberId: number,
+    canAcceptPayment: boolean,
+  ): Promise<OrganizationMember> {
+    return inTransaction(ctx, async (tx) => {
+      const m = await this.lockById(tx, memberId)
+      if (ctx.organization && m.organizationId !== ctx.organization.id) {
+        throw new MemberNotFoundError(memberId)
+      }
+      if (m.status !== 'active' || normalizeRole(m.role) !== 'coach') {
+        throw new MemberNotCoachError()
+      }
+      if (m.canAcceptPayment === canAcceptPayment) return m
+      const [updated] = await getDb(tx)
+        .update(organizationMembers)
+        .set({ canAcceptPayment, updatedAt: new Date() })
+        .where(eq(organizationMembers.id, memberId))
+        .returning()
+      await auditService.record(tx, {
+        organizationId: m.organizationId,
+        action: AUDIT_ACTIONS.MEMBER_ROLE_CHANGED,
+        entityType: 'member',
+        entityId: m.id,
+        oldValue: { role: 'coach', canAcceptPayment: m.canAcceptPayment },
+        newValue: { role: 'coach', canAcceptPayment },
+      })
+      return updated!
+    })
+  },
+
+  /**
+   * Предстоящие события, которые ведут участники (30.1.1, P-18: «у человека в команде видно, что
+   * он ведёт»): не отменённые и не завершённые, по времени начала, до `limit` на человека.
+   */
+  async coachedEvents(
+    ctx: ServiceContext,
+    orgId: number,
+    userIds: number[],
+    limit = 5,
+  ): Promise<Map<number, CoachedEventRef[]>> {
+    const out = new Map<number, CoachedEventRef[]>()
+    if (userIds.length === 0) return out
+    const rows = await getDb(ctx)
+      .select({
+        id: events.id,
+        title: events.title,
+        startsAt: events.startsAt,
+        seriesId: events.seriesId,
+        coachUserIds: events.coachUserIds,
+      })
+      .from(events)
+      .where(
+        and(
+          eq(events.organizationId, orgId),
+          gte(events.startsAt, new Date()),
+          notInArray(events.status, ['cancelled', 'finished']),
+          arrayOverlaps(events.coachUserIds, userIds),
+        ),
+      )
+      .orderBy(asc(events.startsAt), asc(events.id))
+    for (const { coachUserIds, ...ev } of rows) {
+      for (const userId of coachUserIds) {
+        if (!userIds.includes(userId)) continue
+        const list = out.get(userId) ?? []
+        if (list.length < limit) list.push(ev)
+        out.set(userId, list)
+      }
+    }
+    return out
   },
 
   /**
@@ -369,17 +471,27 @@ export const memberService = {
     })
   },
 
-  /** Состав с именами/username/фото. Порядок: owner → organizer → assistant → player, затем по дате. */
+  /**
+   * Состав с именами/username/фото. Порядок: owner → organizer → coach → player, затем по дате.
+   * `role` — фильтр по роли членства (30.1.1); `coach` включает устаревшее `assistant`.
+   */
   async listWithUsers(
     ctx: ServiceContext,
     orgId: number,
     statuses: OrganizationMember['status'][] = ['active'],
+    opts: { role?: MemberRoleFilter } = {},
   ): Promise<MemberWithUser[]> {
+    const roles: OrganizationMember['role'][] | null = !opts.role
+      ? null
+      : opts.role === 'coach'
+        ? ['coach', 'assistant']
+        : [opts.role]
     const rows = await getDb(ctx)
       .select({
         id: organizationMembers.id,
         organizationId: organizationMembers.organizationId,
         role: organizationMembers.role,
+        canAcceptPayment: organizationMembers.canAcceptPayment,
         status: organizationMembers.status,
         level: organizationMembers.level,
         position: organizationMembers.position,
@@ -396,13 +508,20 @@ export const memberService = {
         and(
           eq(organizationMembers.organizationId, orgId),
           inArray(organizationMembers.status, statuses),
+          roles ? inArray(organizationMembers.role, roles) : undefined,
         ),
       )
       .orderBy(asc(organizationMembers.role), asc(organizationMembers.createdAt))
-    return rows.map(({ userId, name, telegramUsername, image, ...m }) => ({
-      ...m,
-      user: { id: userId, name, telegramUsername, image },
-    }))
+    return rows.map(({ userId, name, telegramUsername, image, role, canAcceptPayment, ...m }) => {
+      const normalized = normalizeRole(role)
+      return {
+        ...m,
+        role: normalized,
+        roles: memberRoles({ role }),
+        canAcceptPayment: normalized === 'coach' && canAcceptPayment,
+        user: { id: userId, name, telegramUsername, image },
+      }
+    })
   },
 
   async list(

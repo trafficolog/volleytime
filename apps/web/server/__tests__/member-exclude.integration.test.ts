@@ -54,17 +54,17 @@ describe('member exclude API (HTTP integration)', () => {
     await db.delete(users)
     ownerId = await newUser('owner')
     organizerId = await newUser('organizer')
-    assistantId = await newUser('assistant')
+    assistantId = await newUser('coach')
     playerId = await newUser('player')
     otherPlayerId = await newUser('player2')
     outsiderId = await newUser('outsider')
     otherOwnerId = await newUser('other-owner')
     orgId = (await organizationService.create({ userId: ownerId }, { name: 'Exclude HTTP' })).id
     otherOrgId = (await organizationService.create({ userId: otherOwnerId }, { name: 'Other' })).id
-    const add = (userId: number, role: 'organizer' | 'assistant' | 'player') =>
+    const add = (userId: number, role: 'organizer' | 'coach' | 'player') =>
       memberService.add({ userId: ownerId }, { organizationId: orgId, userId, role })
     organizerMemberId = (await add(organizerId, 'organizer')).id
-    assistantMemberId = (await add(assistantId, 'assistant')).id
+    assistantMemberId = (await add(assistantId, 'coach')).id
     playerMemberId = (await add(playerId, 'player')).id
     otherPlayerMemberId = (await add(otherPlayerId, 'player')).id
     ownerMemberId = (await memberService.list({ userId: ownerId }, orgId)).find(

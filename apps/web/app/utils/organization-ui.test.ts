@@ -11,7 +11,7 @@ describe('organization UI policy', () => {
   it('allows audit only to active owner and organizer', () => {
     expect(canViewOrgAuditUi({ role: 'owner', status: 'active' })).toBe(true)
     expect(canViewOrgAuditUi({ role: 'organizer', status: 'active' })).toBe(true)
-    expect(canViewOrgAuditUi({ role: 'assistant', status: 'active' })).toBe(false)
+    expect(canViewOrgAuditUi({ role: 'coach', status: 'active' })).toBe(false)
     expect(canViewOrgAuditUi({ role: 'player', status: 'active' })).toBe(false)
     expect(canViewOrgAuditUi({ role: 'owner', status: 'pending' })).toBe(false)
   })

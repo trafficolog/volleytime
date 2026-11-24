@@ -52,16 +52,16 @@ describe('group notification settings API (HTTP integration)', () => {
     await db.delete(users)
     ownerId = await newUser('owner')
     organizerId = await newUser('organizer')
-    assistantId = await newUser('assistant')
+    assistantId = await newUser('coach')
     playerId = await newUser('player')
     outsiderId = await newUser('outsider')
     otherOwnerId = await newUser('other-owner')
     orgId = (await organizationService.create({ userId: ownerId }, { name: 'Notif HTTP' })).id
     otherOrgId = (await organizationService.create({ userId: otherOwnerId }, { name: 'Other' })).id
-    const add = (userId: number, role: 'organizer' | 'assistant' | 'player') =>
+    const add = (userId: number, role: 'organizer' | 'coach' | 'player') =>
       memberService.add({ userId: ownerId }, { organizationId: orgId, userId, role })
     await add(organizerId, 'organizer')
-    await add(assistantId, 'assistant')
+    await add(assistantId, 'coach')
     await add(playerId, 'player')
     await memberService.add(
       { userId: otherOwnerId },

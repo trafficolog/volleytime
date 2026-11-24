@@ -89,7 +89,7 @@ describe('payment history HTTP (integration)', () => {
     const filtered = await request('GET', url() + '?status=cancelled', { user: owner })
     expect((filtered.body as typeof body).payments.map((p) => p.status)).toEqual(['cancelled'])
   })
-  it.each(['organizer', 'assistant', 'player'] as const)(
+  it.each(['organizer', 'coach', 'player'] as const)(
     'enforces %s permissions',
     async (role) => {
       const [user] = await db.insert(users).values({ name: role }).returning()

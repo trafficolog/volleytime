@@ -69,3 +69,10 @@ export class MemberInvalidTransitionError extends MemberError {
     super('member.invalid_transition', `Cannot change member status from ${from} to ${to}`)
   }
 }
+
+/** Флаг «Принимает оплату» есть только у активного тренера (30.1.1, P-18). */
+export class MemberNotCoachError extends MemberError {
+  constructor() {
+    super('member.not_coach', 'Payment access can be granted only to an active coach')
+  }
+}

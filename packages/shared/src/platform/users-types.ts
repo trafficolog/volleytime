@@ -7,7 +7,7 @@ export const PLATFORM_USER_STATUS_FILTERS = ['all', 'active', 'blocked'] as cons
 export type PlatformUserStatusFilter = (typeof PLATFORM_USER_STATUS_FILTERS)[number]
 
 /** Старшая роль среди активных членств; `pending` — есть только заявки; `null` — групп нет. */
-export type PlatformUserTopRole = 'owner' | 'organizer' | 'assistant' | 'player' | 'pending'
+export type PlatformUserTopRole = 'owner' | 'organizer' | 'coach' | 'player' | 'pending'
 
 export interface PlatformUserRow {
   id: number
@@ -54,7 +54,7 @@ export interface PlatformUserMembership {
   organizationId: number
   organizationName: string
   organizationSlug: string
-  role: 'owner' | 'organizer' | 'assistant' | 'player'
+  role: 'owner' | 'organizer' | 'coach' | 'player'
   status: 'pending' | 'active' | 'guest' | 'blocked' | 'left' | 'rejected'
 }
 

@@ -83,7 +83,7 @@ const ROLE_TONE: Record<string, 'solid' | 'flame' | 'default'> = {
 function canModerate(m: MemberRow): boolean {
   if (!isManager.value || !me.value || m.role === 'owner' || m.user.id === me.value.userId)
     return false
-  return me.value.role === 'owner' || m.role === 'player' || m.role === 'assistant'
+  return me.value.role === 'owner' || m.role === 'player' || m.role === 'coach'
 }
 
 const busy = ref<number | null>(null)

@@ -60,7 +60,7 @@ describe('excluded players API (HTTP integration)', () => {
     ownerId = await newUser('owner')
     organizerId = await newUser('organizer')
     organizer2Id = await newUser('organizer2')
-    assistantId = await newUser('assistant')
+    assistantId = await newUser('coach')
     playerId = await newUser('player')
     player2Id = await newUser('player2')
     leaverId = await newUser('leaver')
@@ -68,11 +68,11 @@ describe('excluded players API (HTTP integration)', () => {
     otherOwnerId = await newUser('other-owner')
     orgId = (await organizationService.create({ userId: ownerId }, { name: 'Excluded HTTP' })).id
     otherOrgId = (await organizationService.create({ userId: otherOwnerId }, { name: 'Other' })).id
-    const add = async (userId: number, role: 'organizer' | 'assistant' | 'player') =>
+    const add = async (userId: number, role: 'organizer' | 'coach' | 'player') =>
       (await memberService.add({ userId: ownerId }, { organizationId: orgId, userId, role })).id
     organizerMemberId = await add(organizerId, 'organizer')
     organizer2MemberId = await add(organizer2Id, 'organizer')
-    assistantMemberId = await add(assistantId, 'assistant')
+    assistantMemberId = await add(assistantId, 'coach')
     playerMemberId = await add(playerId, 'player')
     player2MemberId = await add(player2Id, 'player')
     leaverMemberId = await add(leaverId, 'player')

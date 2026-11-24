@@ -29,7 +29,7 @@ const formError = ref('')
 const copiedId = ref<number | null>(null)
 const busy = ref(false)
 const form = reactive({
-  roleToAssign: 'player' as 'player' | 'organizer' | 'assistant',
+  roleToAssign: 'player' as 'player' | 'organizer' | 'coach',
   maxUses: '' as string,
   expiresInDays: '7' as string,
   defaultMemberStatus: '' as '' | 'active' | 'pending',
@@ -183,7 +183,7 @@ async function revoke(invite: InviteRow) {
             :disabled="busy"
           >
             <option value="player">Игрок</option>
-            <option value="assistant">Помощник</option>
+            <option value="coach">Тренер</option>
             <option value="organizer">Организатор</option>
           </select>
         </div>

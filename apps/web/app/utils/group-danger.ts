@@ -13,7 +13,7 @@ export function deleteNameMatches(typed: string, name: string): boolean {
 
 const ROLE_LABELS: Record<string, string> = {
   organizer: 'Организатор',
-  assistant: 'Помощник',
+  coach: 'Тренер',
   player: 'Игрок',
 }
 

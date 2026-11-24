@@ -1,6 +1,7 @@
 import { and, asc, auditLog, desc, eq, inArray, organizationMembers, users } from '@volley-time/db'
 
 import { AUDIT_ACTIONS } from '../audit/actions'
+import { memberRoles, normalizeRole } from '../permissions/policies'
 import { getDb, type ServiceContext } from '../shared/context'
 
 import type { MemberWithUser } from './service'
@@ -29,6 +30,7 @@ export async function listExcludedMembers(
       id: organizationMembers.id,
       organizationId: organizationMembers.organizationId,
       role: organizationMembers.role,
+      canAcceptPayment: organizationMembers.canAcceptPayment,
       status: organizationMembers.status,
       level: organizationMembers.level,
       position: organizationMembers.position,
@@ -83,11 +85,14 @@ export async function listExcludedMembers(
   const actorById = new Map(actors.map((a) => [a.id, a]))
 
   return excluded
-    .map(({ userId, name, telegramUsername, image, ...m }) => {
+    .map(({ userId, name, telegramUsername, image, role, canAcceptPayment, ...m }) => {
       const e = latest.get(m.id)!
       const reason = (e.newValue as { reason?: unknown } | null)?.reason
       return {
         ...m,
+        role: normalizeRole(role),
+        roles: memberRoles({ role }),
+        canAcceptPayment: normalizeRole(role) === 'coach' && canAcceptPayment,
         user: { id: userId, name, telegramUsername, image },
         excludedAt: e.createdAt,
         excludedBy: e.actorId === null ? null : (actorById.get(e.actorId) ?? null),

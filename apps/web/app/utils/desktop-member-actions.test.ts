@@ -19,7 +19,7 @@ describe('desktop member actions', () => {
       desktopMemberActions(organizer, { role: 'organizer', status: 'active', userId: 4 }),
     ).toEqual([])
     expect(
-      desktopMemberActions(organizer, { role: 'assistant', status: 'pending', userId: 4 }),
+      desktopMemberActions(organizer, { role: 'coach', status: 'pending', userId: 4 }),
     ).toEqual(['approve', 'reject', 'block'])
     expect(
       desktopMemberActions(organizer, { role: 'player', status: 'blocked', userId: 4 }),
@@ -48,9 +48,9 @@ describe('desktop member actions', () => {
 })
 
 describe('canExcludeMember (21.2.21)', () => {
-  const assistant = { role: 'assistant' as const, status: 'active' as const, userId: 5 }
+  const assistant = { role: 'coach' as const, status: 'active' as const, userId: 5 }
   const target = (
-    role: 'owner' | 'organizer' | 'assistant' | 'player',
+    role: 'owner' | 'organizer' | 'coach' | 'player',
     status: string,
     userId = 4,
   ) => ({ role, status, userId })
@@ -64,9 +64,9 @@ describe('canExcludeMember (21.2.21)', () => {
 
   it('lets only the owner exclude admins; an organizer excludes players', () => {
     expect(canExcludeMember(owner, target('organizer', 'active'))).toBe(true)
-    expect(canExcludeMember(owner, target('assistant', 'active'))).toBe(true)
+    expect(canExcludeMember(owner, target('coach', 'active'))).toBe(true)
     expect(canExcludeMember(organizer, target('organizer', 'active'))).toBe(false)
-    expect(canExcludeMember(organizer, target('assistant', 'active'))).toBe(false)
+    expect(canExcludeMember(organizer, target('coach', 'active'))).toBe(false)
     expect(canExcludeMember(organizer, target('player', 'active'))).toBe(true)
   })
 
@@ -86,7 +86,7 @@ describe('canExcludeMember (21.2.21)', () => {
 
 describe('canBlockExcludedMember (21.2.24)', () => {
   const t = (
-    role: 'owner' | 'organizer' | 'assistant' | 'player',
+    role: 'owner' | 'organizer' | 'coach' | 'player',
     status = 'left',
     userId = 4,
   ) => ({
@@ -96,9 +96,9 @@ describe('canBlockExcludedMember (21.2.24)', () => {
   })
   it('lets the owner block any excluded non-owner; an organizer only players', () => {
     expect(canBlockExcludedMember(owner, t('organizer'))).toBe(true)
-    expect(canBlockExcludedMember(owner, t('assistant'))).toBe(true)
+    expect(canBlockExcludedMember(owner, t('coach'))).toBe(true)
     expect(canBlockExcludedMember(organizer, t('player'))).toBe(true)
-    expect(canBlockExcludedMember(organizer, t('assistant'))).toBe(false)
+    expect(canBlockExcludedMember(organizer, t('coach'))).toBe(false)
     expect(canBlockExcludedMember(organizer, t('organizer'))).toBe(false)
   })
   it('refuses owner, self, non-left targets and non-managers', () => {

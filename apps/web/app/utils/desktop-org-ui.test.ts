@@ -23,7 +23,7 @@ describe('desktop organization entry', () => {
     expect(resolveDesktopOrgAccess(org, owner, 7)).toBe('ready')
     expect(resolveDesktopOrgAccess(org, { role: 'organizer', status: 'active' }, 7)).toBe('ready')
     expect(resolveDesktopOrgAccess(org, { role: 'player', status: 'active' }, 7)).toBe('denied')
-    expect(resolveDesktopOrgAccess(org, { role: 'assistant', status: 'active' }, 7)).toBe('denied')
+    expect(resolveDesktopOrgAccess(org, { role: 'coach', status: 'active' }, 7)).toBe('denied')
     expect(resolveDesktopOrgAccess(org, { role: 'owner', status: 'pending' }, 7)).toBe('denied')
     expect(resolveDesktopOrgAccess(org, owner, 8)).toBe('denied')
   })

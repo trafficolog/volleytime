@@ -3,7 +3,7 @@ import type { PlayerStats, PlayersStatsPeriod } from '@volley-time/shared'
 
 export type OrganizationListItem = Organization & {
   membershipStatus: 'active' | 'pending'
-  membershipRole: 'owner' | 'organizer' | 'assistant' | 'player'
+  membershipRole: 'owner' | 'organizer' | 'coach' | 'player'
 }
 
 /** Удалённая группа владельца (21.2.17): в общий список не входит, восстанавливается в окне. */
@@ -68,7 +68,7 @@ export function useOrganizations() {
 export interface MemberRow {
   id: number
   organizationId: number
-  role: 'owner' | 'organizer' | 'assistant' | 'player'
+  role: 'owner' | 'organizer' | 'coach' | 'player'
   status: 'pending' | 'active' | 'guest' | 'blocked' | 'left' | 'rejected'
   /** Код уровня В1–В4+ (`v1`…`v4_plus`) или null, если не назначен. */
   level: string | null

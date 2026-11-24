@@ -341,7 +341,7 @@ describe('event join mode and invites (20.1.3, PostgreSQL)', () => {
 
     it('owner and organizer book themselves without an invite; assistant and player do not', async () => {
       const ev = await makeEvent({ joinMode: 'invite' })
-      const role = async (r: 'organizer' | 'assistant') => {
+      const role = async (r: 'organizer' | 'coach') => {
         const [u] = await db
           .insert(users)
           .values({ email: `${r}-${Math.random()}@t.by` })
@@ -353,7 +353,7 @@ describe('event join mode and invites (20.1.3, PostgreSQL)', () => {
         return u!.id
       }
       const organizer = await role('organizer')
-      const assistant = await role('assistant')
+      const assistant = await role('coach')
       const own = await bookingService.book({ userId: ownerId }, orgId, ev.id, { method: 'free' })
       expect(own).toMatchObject({ userId: ownerId, inviteId: null, status: 'confirmed' })
       const org = await bookingService.book({ userId: organizer }, orgId, ev.id, { method: 'free' })

@@ -181,7 +181,7 @@ const ROUTES: OrgRouteTable = {
   'POST /api/organizations/:orgId/members/:memberId/block': { access: 'manager', body: () => ({}) },
   'PATCH /api/organizations/:orgId/members/:memberId': {
     access: 'owner',
-    body: () => ({ role: 'assistant' }),
+    body: () => ({ role: 'coach' }),
   },
   'POST /api/organizations/:orgId/members/:memberId/reject': {
     access: 'manager',
@@ -427,7 +427,7 @@ describe('IDOR: org-scoped API contract (19.3.1)', () => {
     const add = (userId: number, extra: Record<string, unknown> = {}) =>
       memberService.add({ userId: owner }, { organizationId: org.id, userId, ...extra })
     await add(organizer, { role: 'organizer' })
-    await add(assistant, { role: 'assistant' })
+    await add(assistant, { role: 'coach' })
     const playerMember = await add(player)
     await add(applicant, { status: 'pending' })
     const venue = await venueService.create(

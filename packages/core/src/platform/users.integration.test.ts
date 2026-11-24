@@ -44,7 +44,7 @@ describe('platformUsersService (integration)', { timeout: 60_000 }, () => {
     )[0]!.id
   const join = (
     userId: number,
-    role: 'owner' | 'organizer' | 'assistant' | 'player',
+    role: 'owner' | 'organizer' | 'coach' | 'player',
     status: 'active' | 'pending' | 'blocked' = 'active',
     org = orgId,
   ) => db.insert(organizationMembers).values({ organizationId: org, userId, role, status })

@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm'
 import {
+  boolean,
   index,
   integer,
   pgTable,
@@ -39,6 +40,8 @@ export const organizationMembers = pgTable(
     level: playerLevelEnum('level').references(() => playerLevels.code, { onDelete: 'restrict' }),
     // амплуа игрока в этой группе (21.2.22), задаёт организатор; NULL — не задано
     position: playerPositionEnum('position'),
+    // тренер принимает оплату (30.1.1, P-18): выдаёт владелец или организатор; действует только у роли coach
+    canAcceptPayment: boolean('can_accept_payment').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

@@ -4,7 +4,7 @@ import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { runMigrations } from './migrate'
-import { rollbackGroupPageModeration } from './migration-test-helpers'
+import { rollbackGroupPageModeration, rollbackMembershipRolesCoach } from './migration-test-helpers'
 import { rollbackLastMigration } from './rollback'
 
 const TAG = '0046_group_page_moderation'
@@ -114,6 +114,7 @@ describe('migration 0046 group page moderation (integration)', { timeout: 90_000
       const id = await org(sql, 'gpm-guard')
       await sql`INSERT INTO group_page_moderation (organization_id, state, reason_code)
         VALUES (${id}, 'noindex', 'spam')`
+      await rollbackMembershipRolesCoach(url) // 30.1.1: новая миграция откатывается первой
       await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0046 refused/)
       await sql`DELETE FROM group_page_moderation`
       await sql`INSERT INTO group_page_complaints (organization_id, reason_code, reporter_hash)

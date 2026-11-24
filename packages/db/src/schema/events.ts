@@ -82,6 +82,12 @@ export const events = pgTable(
     bookingOpensAt: timestamp('booking_opens_at', { withTimezone: true }),
     // за сколько минут до начала планировщик закрывает запись (20.3.1, решение владельца 2026-10-16)
     closeBeforeMinutes: smallint('close_before_minutes').notNull().default(120),
+    // тренеры события (30.1.1, P-18): user id участников группы с ролью coach/organizer/owner;
+    // у дат серии — из шаблона серии. Без FK: состав проверяет сервис событий
+    coachUserIds: integer('coach_user_ids')
+      .array()
+      .notNull()
+      .default(sql`'{}'::integer[]`),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

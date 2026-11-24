@@ -48,7 +48,7 @@ describe('permission policies (pure)', () => {
       expect(canManageContent(member('organizer', 'active'))).toBe(true)
     })
     it('assistant, player, non-active cannot', () => {
-      expect(canManageContent(member('assistant', 'active'))).toBe(false)
+      expect(canManageContent(member('coach', 'active'))).toBe(false)
       expect(canManageContent(member('player', 'active'))).toBe(false)
       expect(canManageContent(member('owner', 'pending'))).toBe(false)
       expect(canManageContent(null)).toBe(false)
@@ -78,7 +78,7 @@ describe('permission policies (pure)', () => {
       expect(canInviteRole(owner, 'organizer')).toBe(true)
       expect(canInviteRole(organizer, 'player')).toBe(true)
       expect(canInviteRole(organizer, 'organizer')).toBe(false)
-      expect(canInviteRole(organizer, 'assistant')).toBe(false)
+      expect(canInviteRole(organizer, 'coach')).toBe(false)
       expect(canInviteRole(player, 'player')).toBe(false)
     })
     it('moderation', () => {
@@ -103,15 +103,15 @@ describe('permission policies (pure)', () => {
       expect(canExclude(asUser('organizer', 1), target('player', 1))).toBe(false)
     })
     it('admins are excluded only by the owner; players by owner and organizer', () => {
-      for (const role of ['organizer', 'assistant']) {
+      for (const role of ['organizer', 'coach']) {
         expect(canExclude(asUser('owner', 1), target(role, 2))).toBe(true)
         expect(canExclude(asUser('organizer', 3), target(role, 2))).toBe(false)
       }
       expect(canExclude(asUser('organizer', 3), target('player', 2))).toBe(true)
-      expect(canExclude(asUser('assistant', 3), target('player', 2))).toBe(false)
+      expect(canExclude(asUser('coach', 3), target('player', 2))).toBe(false)
       expect(canExclude(asUser('player', 3), target('player', 2))).toBe(false)
       expect(canExclude(null, target('player', 2))).toBe(false)
-      expect(() => requireCanExclude(asUser('organizer', 3), target('assistant', 2))).toThrow(
+      expect(() => requireCanExclude(asUser('organizer', 3), target('coach', 2))).toThrow(
         ForbiddenError,
       )
     })

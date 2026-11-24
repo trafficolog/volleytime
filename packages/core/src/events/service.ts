@@ -47,6 +47,7 @@ import {
   EventBookingOpensAfterCloseError,
   EventBookingOpensInPastError,
   EventCapacityBelowTakenError,
+  EventCoachInvalidError,
   EventInviteModeDisabledError,
   EventNotEditableError,
   EventNotFoundError,
@@ -103,6 +104,30 @@ function requireSplitCapability(): void {
   if (!isSplitPricingEnabled(process.env.EVENT_SPLIT_PRICING_ENABLED)) {
     throw new EventError('event.split_pricing_disabled', 'Split pricing is not enabled')
   }
+}
+
+/**
+ * Тренеры события (30.1.1, P-18): каждый — активный участник группы с ролью coach, organizer или
+ * owner (`assistant` — устаревшее имя coach). Иначе `event.invalid_coach`.
+ */
+export async function assertCoachesInOrg(
+  db: ReturnType<typeof getDb>,
+  userIds: number[],
+  orgId: number,
+): Promise<void> {
+  if (userIds.length === 0) return
+  const rows = await db
+    .select({ userId: organizationMembers.userId })
+    .from(organizationMembers)
+    .where(
+      and(
+        eq(organizationMembers.organizationId, orgId),
+        eq(organizationMembers.status, 'active'),
+        inArray(organizationMembers.userId, userIds),
+        inArray(organizationMembers.role, ['owner', 'organizer', 'coach', 'assistant']),
+      ),
+    )
+  if (rows.length !== userIds.length) throw new EventCoachInvalidError()
 }
 
 export async function assertVenueInOrg(
@@ -218,6 +243,7 @@ export async function insertEvent(
   const db = getDb(ctx)
   if (data.startsAt <= new Date()) throw new EventStartsInPastError() // 5.13.11
   if (data.venueId) await assertVenueInOrg(db, data.venueId, orgId)
+  if (data.coachUserIds) await assertCoachesInOrg(db, data.coachUserIds, orgId)
   const { pricing, joinMode } = resolveEventModes(data, org)
   const closeBeforeMinutes = data.closeBeforeMinutes ?? DEFAULT_CLOSE_BEFORE_MINUTES
   assertBookingOpensAt(data.bookingOpensAt, data.startsAt, closeBeforeMinutes)
@@ -259,6 +285,7 @@ export async function insertEvent(
       seriesDate: series?.date ?? null,
       bookingOpensAt: data.bookingOpensAt ?? null,
       closeBeforeMinutes,
+      coachUserIds: data.coachUserIds ?? [],
       // часы приложения, как у правок события: «изменено до момента закрытия» сравнивается с ними
       // (право планировщика закрыть запись, ревью PR #150, I1)
       createdAt: new Date(),
@@ -583,6 +610,9 @@ export const eventService = {
         await assertVenueInOrg(db, data.venueId, existing.organizationId, {
           allowArchived: data.venueId === existing.venueId,
         })
+      }
+      if (data.coachUserIds) {
+        await assertCoachesInOrg(db, data.coachUserIds, existing.organizationId)
       }
       // переключение в invite — под тем же lock события, что и запись (20.1.3)
       if (data.joinMode === 'invite' && existing.joinMode !== 'invite') {

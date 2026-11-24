@@ -52,7 +52,7 @@ const activeInvites = computed(() => invites.value.filter(isActive))
 // форма
 const showForm = ref(false)
 const form = reactive({
-  roleToAssign: 'player' as 'player' | 'organizer' | 'assistant',
+  roleToAssign: 'player' as 'player' | 'organizer' | 'coach',
   maxUses: '' as string,
   expiresInDays: '7' as string,
   defaultMemberStatus: '' as '' | 'active' | 'pending',
@@ -149,7 +149,7 @@ function expiry(i: InviteRow) {
             <label class="vt-label" for="role">Роль</label>
             <select id="role" v-model="form.roleToAssign" class="vt-field">
               <option value="player">Игрок</option>
-              <option value="assistant">Помощник</option>
+              <option value="coach">Тренер</option>
               <option value="organizer">Организатор</option>
             </select>
           </div>

@@ -47,7 +47,7 @@ function choose(value: string) {
     <section class="vt-card vt-settings-card">
       <h2 class="vt-settings-card__title">Люди и роли</h2>
       <p class="vt-settings-hint">
-        Роли организаторов и помощников меняет владелец группы на странице «Игроки»; приглашения
+        Роли организаторов и тренеров меняет владелец группы на странице «Игроки»; приглашения
         создаются на странице «Приглашения».
       </p>
       <div class="vt-settings-actions vt-settings-actions--start">

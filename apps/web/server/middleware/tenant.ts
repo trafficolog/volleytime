@@ -1,4 +1,4 @@
-import { resolveTenant, TenantError } from '@volley-time/core'
+import { playModeMember, resolveTenant, TenantError } from '@volley-time/core'
 
 import { parseOrgIdFromPath } from '../utils/tenant-path'
 
@@ -31,7 +31,9 @@ export default defineEventHandler(async (event) => {
       allowDeletedForOwner: allowDeletedForOwner(event.method, pathname),
     })
     event.context.organization = organization
-    event.context.member = member
+    // режим «Играю» (30.1.1, P-18, M-25): управляющий и тренер получают ответы обычного игрока
+    event.context.member =
+      getRequestHeader(event, 'x-vt-mode') === 'play' ? playModeMember(member) : member
     event.context.userId = user.id
   } catch (e) {
     if (e instanceof TenantError) {

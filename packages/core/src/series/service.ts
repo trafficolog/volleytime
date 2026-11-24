@@ -32,6 +32,7 @@ import { countDailyEventsByDay, lockGroupDays, readDailyLimit } from '../events/
 import { EventNotFoundError, EventStartsInPastError } from '../events/errors'
 import { CreateEventInput, type UpdateEventInput } from '../events/schemas'
 import {
+  assertCoachesInOrg,
   assertVenueInOrg,
   eventService,
   insertEvent,
@@ -242,6 +243,7 @@ async function plan(
   const db = getDb(ctx)
   const venueId = data.template.venueId ?? null
   if (venueId !== null) await assertVenueInOrg(db, venueId, orgId)
+  if (data.template.coachUserIds) await assertCoachesInOrg(db, data.template.coachUserIds, orgId)
   const placeholder = { ...occurrences[0]!, status: 'draft' as const, draftReason: null }
   resolveEventModes(eventInputFor(data.template, placeholder), org)
 
@@ -386,6 +388,7 @@ async function mergeTemplate(
       allowArchived: next.venueId === template.venueId,
     })
   }
+  if (changes.coachUserIds) await assertCoachesInOrg(getDb(ctx), changes.coachUserIds, orgId)
   eventInputFor(next, {
     date: '2000-01-01',
     startsAt: new Date(0),

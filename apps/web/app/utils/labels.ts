@@ -61,7 +61,7 @@ export const PAYMENT_METHOD_LABELS: Record<string, string> = {
 export const ROLE_LABELS: Record<string, string> = {
   owner: 'Владелец',
   organizer: 'Организатор',
-  assistant: 'Помощник',
+  coach: 'Тренер',
   player: 'Игрок',
 }
 

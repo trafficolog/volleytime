@@ -1,5 +1,5 @@
 type Actor = {
-  role: 'owner' | 'organizer' | 'assistant' | 'player'
+  role: 'owner' | 'organizer' | 'coach' | 'player'
   status: string
   userId: number
 }
@@ -17,7 +17,7 @@ export function desktopMemberActions(actor: Actor | null, target: Target): Deskt
   if (!actor || actor.status !== 'active') return []
   if (actor.role !== 'owner' && actor.role !== 'organizer') return []
   if (target.role === 'owner' || target.userId === actor.userId) return []
-  if (actor.role === 'organizer' && target.role !== 'player' && target.role !== 'assistant')
+  if (actor.role === 'organizer' && target.role !== 'player' && target.role !== 'coach')
     return []
 
   const actions: DesktopMemberAction[] = []
@@ -32,7 +32,7 @@ export function desktopMemberActions(actor: Actor | null, target: Target): Deskt
 
 /**
  * UI mirror of the API's canExclude (21.2.21): «Удалить из группы» без блокировки. Владельца и себя
- * исключить нельзя; организатор исключает только игроков, помощников и организаторов — владелец.
+ * исключить нельзя; организатор исключает только игроков, тренеров и организаторов — владелец.
  * Исключается действующий участник (активный или гость); заблокированный остаётся заблокированным.
  */
 export function canExcludeMember(actor: Actor | null, target: Target): boolean {
@@ -45,7 +45,7 @@ export function canExcludeMember(actor: Actor | null, target: Target): boolean {
 
 /**
  * UI mirror of the API's block-from-`left` rule (21.2.24): заблокировать исключённого игрока.
- * Владельца и себя нельзя; организаторов и помощников блокирует только владелец, организатор — игроков.
+ * Владельца и себя нельзя; организаторов и тренеров блокирует только владелец, организатор — игроков.
  */
 export function canBlockExcludedMember(actor: Actor | null, target: Target): boolean {
   if (!actor || actor.status !== 'active') return false

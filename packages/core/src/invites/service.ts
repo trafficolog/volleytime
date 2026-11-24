@@ -19,6 +19,7 @@ import { nanoid } from 'nanoid'
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
 import { AlreadyMemberError, MemberBlockedByOrgError } from '../members/errors'
+import { normalizeRole } from '../permissions/policies'
 import { getDb, inTransaction, type ServiceContext } from '../shared/context'
 
 import {
@@ -150,7 +151,8 @@ export const inviteService = {
         ),
       })
       const status = inv.defaultMemberStatus as 'active' | 'pending'
-      const role = inv.roleToAssign as 'player' | 'organizer' | 'assistant'
+      // приглашение прежнего runtime с `assistant` даёт роль тренера (30.1.1, D-31)
+      const role = normalizeRole(inv.roleToAssign) as 'player' | 'organizer' | 'coach'
 
       if (existing) {
         if (existing.status === 'blocked') throw new MemberBlockedByOrgError()
