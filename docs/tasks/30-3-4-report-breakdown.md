@@ -2,11 +2,11 @@
 id: '30.3.4'
 phase: '30'
 epic: '30.3'
-status: in_progress
+status: done
 release: 'v0.6.0'
 sync_state: synced
-last_reviewed: 2026-11-24
-status_note: 'Перепланирование 19.0.5 (референс 2026-11-24). Релиз v0.6.0 (D-34).'
+last_reviewed: 2026-11-25
+status_note: 'Сделано в #356 (b2c14ebb), CI зелёный на d72519e0, ревью: merge. Разрезы: тренер, зал, серия (по разделу «Объём» и W-19).'
 ref_id: 'W-19'
 complexity: S
 impl_model: claude-sonnet-5-5
@@ -23,7 +23,7 @@ reference:
 tags: [reference-v3]
 ---
 
-# Task 30.3.4: Отчёты в разрезе: тренер, зал, тип события
+# Task 30.3.4: Отчёты в разрезе: тренер, зал, серия
 
 ## Цель
 
