@@ -2,11 +2,11 @@
 id: '24.1.5'
 phase: '24'
 epic: '24.1'
-status: in_progress
+status: done
 release: 'v0.5.0'
 sync_state: synced
 last_reviewed: 2026-10-12
-status_note: 'Проверки до Promote 2026-11-23 на 986e7120: пять gates зелёные (кроме известного шума Windows), визуальная сверка без Critical/Important, Lighthouse SEO /g/<slug> = 100, EVENT_BALANCE_ENFORCED=true в production (read-only). Ждёт main CI и подтверждения владельца на Promote. Evidence: docs/operations/qa/2026-11-23-24-1-5-release-v0.5.0-pre-promote.md.'
+status_note: 'Выложен 2026-11-24: Promote 45344765556 и Deploy 45344785596 success, smoke-passed eb2b712f, health release=eb2b712f, 47 миграций, тег v0.5.0. Принят владельцем 2026-11-24 в чате («Accept v0.5.0»). Evidence: docs/operations/qa/2026-11-23-24-1-5-release-v0.5.0-pre-promote.md.'
 ref_id: ''
 complexity: M
 impl_model: claude-opus-5-5
