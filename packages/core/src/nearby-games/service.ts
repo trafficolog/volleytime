@@ -54,8 +54,7 @@ export interface NearbyGame {
   capacity: number
   /**
    * Цена места: только у события с фиксированной ценой (как на публичной странице события);
-   * у «складчины» цена зависит от числа игроков, поэтому 
-ull.
+   * у «складчины» цена зависит от числа игроков, поэтому null.
    */
   price: { amount: number; currency: string } | null
   /** Занято мест (SUM seats); свободно = capacity − taken. */
