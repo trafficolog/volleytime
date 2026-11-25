@@ -2,10 +2,10 @@
 id: '24.2.1'
 phase: '24'
 epic: '24.2'
-status: todo
+status: in_progress
 release: 'v0.6.0'
 sync_state: synced
-last_reviewed: 2026-11-24
+last_reviewed: 2026-11-25
 status_note: 'Перепланирование 19.0.5 (референс 2026-11-24). Релиз v0.6.0 (D-34).'
 ref_id: ''
 complexity: XL
