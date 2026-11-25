@@ -392,7 +392,9 @@ describe('GroupPageBuilder publishing (24.1.2)', () => {
       body: { publicPageEnabled: true },
     })
     expect(sw(wrapper).attributes('aria-checked')).toBe('true')
-    expect(wrapper.find('[data-gp-public-link] a').attributes('href')).toBe('/minsk/volleytime-minsk')
+    expect(wrapper.find('[data-gp-public-link] a').attributes('href')).toBe(
+      '/minsk/volleytime-minsk',
+    )
     expect(toast).toHaveBeenCalledWith('Страница группы опубликована', 'ok')
   })
 
