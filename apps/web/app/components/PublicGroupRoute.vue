@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { PublicGroupPageView } from '@volley-time/shared'
 
-import { groupPageJsonLd, jsonLdText } from '~/utils/public-group-page'
+import { groupPageJsonLd, jsonLdText, reloadForPreviousAddress } from '~/utils/public-group-page'
 
 /**
  * Публичная страница группы (24.1.2, W-14): серверный рендер, schema.org, canonical, OG.
@@ -20,6 +20,16 @@ const url = useRequestURL()
 
 if (data.value && data.value.path !== props.path)
   await navigateTo(data.value.path, { redirectCode: 301, replace: true })
+
+if (
+  !data.value &&
+  reloadForPreviousAddress({
+    client: import.meta.client,
+    hydrating: useNuxtApp().isHydrating ?? false,
+    status: error.value?.statusCode,
+  })
+)
+  window.location.replace(props.path)
 
 if (import.meta.server) {
   const event = useRequestEvent()

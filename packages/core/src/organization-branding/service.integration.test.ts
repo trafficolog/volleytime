@@ -9,6 +9,7 @@ import {
   users,
 } from '@volley-time/db'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
+import { GROUP_PAGE_CITY_SLUGS } from '@volley-time/shared'
 
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { OrganizationArchivedError, OrganizationNotFoundError } from '../organizations/errors'
@@ -159,6 +160,23 @@ describe('organizationBrandingService (integration)', () => {
       expect((await orgRow()).shortLink).toBeNull()
       // освобождённый адрес можно занять другой группе
       await service.setShortLink(ctx(), otherOrgId, { shortLink: 'vt-brest' })
+    })
+
+    it('rejects a city slug on create and on change, as a reserved word (24.2.1)', async () => {
+      // `/<город>` — каталог города: короткая ссылка с тем же именем перехватила бы его
+      expect(GROUP_PAGE_CITY_SLUGS).toContain('pinsk')
+      for (const shortLink of ['pinsk', 'Minsk']) {
+        await expect(service.setShortLink(ctx(), orgId, { shortLink })).rejects.toBeInstanceOf(
+          ShortLinkReservedError,
+        )
+      }
+      expect((await orgRow()).shortLink).toBeNull()
+      await service.setShortLink(ctx(), orgId, { shortLink: 'vt-pinsk' })
+      await expect(
+        service.setShortLink(ctx(), orgId, { shortLink: 'pinsk' }),
+      ).rejects.toBeInstanceOf(ShortLinkReservedError)
+      expect((await orgRow()).shortLink).toBe('vt-pinsk')
+      expect((await service.checkShortLink(ctx(), orgId, 'pinsk')).status).toBe('reserved')
     })
 
     it('rejects invalid format and reserved words with distinct errors', async () => {

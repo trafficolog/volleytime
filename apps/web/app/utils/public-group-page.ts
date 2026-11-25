@@ -110,3 +110,17 @@ export function catalogJsonLd(view: PublicCatalogView, origin: string): JsonLd {
 
 /** JSON для `<script type="application/ld+json">`: `<` экранируется, тексты группы не закрывают тег. */
 export const jsonLdText = (data: unknown) => JSON.stringify(data).replace(/</g, '\\u003c')
+
+/**
+ * Клиентский переход на прежний адрес группы (24.2.1): API ищет только по действующему slug и
+ * отвечает 404, а историю адресов знает серверный middleware `group-address`. Поэтому клиентский
+ * 404 вне гидратации повторяем полным переходом: сервер ответит 301 на действующий адрес или
+ * отрендерит 404 сам (тогда это гидратация, и повтора нет).
+ */
+export function reloadForPreviousAddress(state: {
+  client: boolean
+  hydrating: boolean
+  status: number | undefined
+}): boolean {
+  return state.client && !state.hydrating && state.status === 404
+}

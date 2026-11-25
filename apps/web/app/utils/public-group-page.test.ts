@@ -1,7 +1,12 @@
 import type { PublicGroupPageView } from '@volley-time/shared'
 import { describe, expect, it } from 'vitest'
 
-import { catalogPath, groupPageJsonLd, jsonLdText } from './public-group-page'
+import {
+  catalogPath,
+  groupPageJsonLd,
+  jsonLdText,
+  reloadForPreviousAddress,
+} from './public-group-page'
 
 const view: PublicGroupPageView = {
   slug: 'friday',
@@ -70,6 +75,19 @@ describe('public group page helpers', () => {
     expect(catalogPath(' марьина  горка ')).toBe('/marina-gorka')
     expect(catalogPath(' Нижний  Новгород ')).toBe(
       `/volleyball/${encodeURIComponent('Нижний Новгород')}`,
+    )
+  })
+})
+
+describe('reloadForPreviousAddress (24.2.1)', () => {
+  // прежний адрес из истории при клиентском переходе: полный переход, редирект 301 делает сервер
+  it('reloads only a client-side 404 outside hydration', () => {
+    expect(reloadForPreviousAddress({ client: true, hydrating: false, status: 404 })).toBe(true)
+    expect(reloadForPreviousAddress({ client: true, hydrating: true, status: 404 })).toBe(false)
+    expect(reloadForPreviousAddress({ client: false, hydrating: false, status: 404 })).toBe(false)
+    expect(reloadForPreviousAddress({ client: true, hydrating: false, status: 429 })).toBe(false)
+    expect(reloadForPreviousAddress({ client: true, hydrating: false, status: undefined })).toBe(
+      false,
     )
   })
 })
