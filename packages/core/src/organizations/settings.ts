@@ -5,6 +5,7 @@ import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
 import { isInviteModeEnabled } from '../events/join-mode-capability'
 import { isSplitPricingEnabled } from '../events/pricing-capability'
+import { recordGroupAddressChange } from '../group-page/address'
 import { GroupPageModerationLockedError } from '../group-page/errors'
 import { readModeration } from '../group-page/moderation'
 import { GroupLevelsInput } from '../levels/schemas'
@@ -14,6 +15,7 @@ import {
   OrganizationArchivedError,
   OrganizationInvalidSettingsError,
   OrganizationNotFoundError,
+  SlugTakenError,
 } from './errors'
 
 /** Срок отмены: тот же верхний предел, что был у события (720 ч = 30 суток). */
@@ -49,6 +51,17 @@ export const UpdateOrganizationSettingsInput = z
     city: optionalText,
     district: optionalText,
     levels: GroupLevelsInput,
+    /**
+     * Slug группы — второй сегмент адреса `/{город}/{группа}` (24.2.1). Алфавит `slugify`, без
+     * `--`; уникален глобально (тогда и в пределах города), занятый — 409 `organization.slug_taken`.
+     * Прежний адрес отвечает 301 (история адресов).
+     */
+    slug: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(/^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/, 'Slug: a-z, 0-9 and hyphens')
+      .refine((v) => !v.includes('--'), 'Slug: no double hyphens'),
   })
   .partial()
   .strict()
@@ -68,6 +81,8 @@ export interface OrganizationSettings {
   district: string | null
   /** Уровни группы (19.2.3) в порядке шкалы В1–В4+; пустой список — не указаны. */
   levels: PlayerLevelCode[]
+  /** Slug группы в адресе страницы `/{город}/{группа}` (24.2.1). */
+  slug: string
 }
 
 const SETTING_KEYS = [
@@ -82,7 +97,16 @@ const SETTING_KEYS = [
   'city',
   'district',
   'levels',
+  'slug',
 ] as const satisfies readonly (keyof OrganizationSettings & keyof Organization)[]
+
+function isSlugUniqueViolation(error: unknown): boolean {
+  for (let e = error as { code?: string; message?: string; cause?: unknown } | undefined; e;) {
+    if (e.code === '23505' && /organizations_slug_unique/.test(e.message ?? '')) return true
+    e = e.cause as typeof e
+  }
+  return false
+}
 
 const sameValue = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 
@@ -99,6 +123,7 @@ export function pickSettings(org: Organization): OrganizationSettings {
     city: org.city,
     district: org.district,
     levels: org.levels,
+    slug: org.slug,
   }
 }
 
@@ -161,11 +186,28 @@ export const organizationSettingsService = {
       }
 
       const patch = Object.fromEntries(changed.map((key) => [key, data[key]]))
-      const [updated] = await getDb(tx)
-        .update(organizations)
-        .set({ ...patch, updatedAt: new Date() })
-        .where(eq(organizations.id, orgId))
-        .returning()
+      if (changed.includes('slug')) {
+        const [taken] = await getDb(tx)
+          .select({ id: organizations.id })
+          .from(organizations)
+          .where(eq(organizations.slug, data.slug!))
+        if (taken) throw new SlugTakenError(data.slug!)
+      }
+      let updated: Organization | undefined
+      try {
+        ;[updated] = await getDb(tx)
+          .update(organizations)
+          .set({ ...patch, updatedAt: new Date() })
+          .where(eq(organizations.id, orgId))
+          .returning()
+      } catch (error) {
+        // гонка двух групп за один slug: побеждает уникальный индекс
+        if (data.slug && isSlugUniqueViolation(error)) throw new SlugTakenError(data.slug)
+        throw error
+      }
+      // смена города или slug (24.2.1): прежний адрес страницы отвечает 301
+      if (changed.includes('city') || changed.includes('slug'))
+        await recordGroupAddressChange(tx, orgId, before, pickSettings(updated!))
       await auditService.record(tx, {
         organizationId: orgId,
         action: AUDIT_ACTIONS.ORG_SETTINGS_UPDATED,

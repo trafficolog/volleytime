@@ -6,7 +6,7 @@ status: in_progress
 release: 'v0.6.0'
 sync_state: synced
 last_reviewed: 2026-11-25
-status_note: 'Перепланирование 19.0.5 (референс 2026-11-24). Релиз v0.6.0 (D-34).'
+status_note: 'Реализация в PR: маршрут /{город}/{группа}, история адресов (0049), 301, sitemap, каталог /{город}. Релиз v0.6.0 (D-34).'
 ref_id: ''
 complexity: XL
 impl_model: claude-opus-5-5

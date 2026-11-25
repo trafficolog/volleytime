@@ -242,7 +242,7 @@ export interface GroupPageView {
   updatedAt: string | null
   /** `organizations.seoIndex`; меняется через `PATCH …/settings { seoIndex }` (владелец). */
   seoIndex: boolean
-  /** `organizations.publicPageEnabled` (24.1.2): страница `/g/<slug>` открыта; меняется через `PATCH …/settings`. */
+  /** `organizations.publicPageEnabled` (24.1.2): страница `/{город}/{группа}` (24.2.1) открыта; меняется через `PATCH …/settings`. */
   publicPageEnabled: boolean
   /**
    * Действующее решение root (24.1.3): причина, заметка и время, без автора. Пока оно есть,

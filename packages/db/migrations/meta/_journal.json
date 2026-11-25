@@ -344,6 +344,13 @@
       "when": 1795549471215,
       "tag": "0048_platform_staff",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1795587142844,
+      "tag": "0049_group_page_addresses",
+      "breakpoints": true
     }
   ]
 }

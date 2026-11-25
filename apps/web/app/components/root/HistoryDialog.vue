@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import type { PlatformGroupPageHistory, PlatformGroupPageRow } from '@volley-time/shared'
+import {
+  groupPagePath,
+  type PlatformGroupPageHistory,
+  type PlatformGroupPageRow,
+} from '@volley-time/shared'
 import { ref, watch } from 'vue'
 
 import ErrorState from '~/components/ErrorState.vue'
@@ -46,7 +50,7 @@ watch(
   <VtDialog
     v-model="open"
     :title="`История · ${page.name}`"
-    :sub="`/g/${page.slug}${page.city ? ` · ${page.city}` : ''}`"
+    :sub="`${groupPagePath(page.slug, page.city)}${page.city ? ` · ${page.city}` : ''}`"
   >
     <SkeletonList v-if="pending" :count="3" />
     <ErrorState v-else-if="failed" message="Не удалось загрузить историю" @retry="load()" />

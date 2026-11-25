@@ -14,6 +14,7 @@ const stubs = {
 function data(over: Partial<PublicGroupPageView> = {}): PublicGroupPageView {
   return {
     slug: 'friday',
+    path: '/minsk/friday',
     indexable: true,
     updatedAt: '2026-11-01T00:00:00.000Z',
     meta: { title: 't', description: 'd' },
@@ -76,9 +77,7 @@ describe('PublicGroupPage', () => {
   it('shows the geo text and links the city catalog only for an indexable page', () => {
     const w = mountPage()
     expect(w.find('[data-testid="geo-text"]').text()).toContain('в городе Минск')
-    expect(w.find('[data-testid="catalog-link"]').attributes('href')).toBe(
-      `/volleyball/${encodeURIComponent('Минск')}`,
-    )
+    expect(w.find('[data-testid="catalog-link"]').attributes('href')).toBe('/minsk')
     expect(
       mountPage(data({ indexable: false }))
         .find('[data-testid="catalog-link"]')

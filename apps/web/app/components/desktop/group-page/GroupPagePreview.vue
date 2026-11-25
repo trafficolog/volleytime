@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   formatEventDate,
+  groupPagePath,
   type GroupPageContent,
   type GroupPageEvent,
   type GroupPageVenue,
@@ -44,7 +45,7 @@ const when = (event: GroupPageEvent) => formatEventDate(event.startsAt, props.gr
 <template>
   <div class="vt-gp-preview" :data-device="device">
     <div class="vt-gp-snippet" data-gp-snippet>
-      <p class="vt-gp-snippet__url">volleytime.by/g/{{ group.slug }}</p>
+      <p class="vt-gp-snippet__url">volleytime.by{{ groupPagePath(group.slug, group.city) }}</p>
       <p class="vt-gp-snippet__title">{{ title }}</p>
       <p class="vt-gp-snippet__text">{{ description }}</p>
     </div>

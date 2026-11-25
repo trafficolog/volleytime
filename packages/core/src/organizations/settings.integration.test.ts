@@ -70,6 +70,7 @@ describe('organizationSettingsService (integration)', () => {
         city: 'Минск',
         district: null,
         levels: [],
+        slug: expect.any(String),
       })
     })
 

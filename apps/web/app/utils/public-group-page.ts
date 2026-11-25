@@ -1,15 +1,16 @@
 import {
+  cityCatalogPath,
   formatEventDate,
   groupGeoSummary,
   type PublicCatalogView,
   type PublicGroupPageView,
 } from '@volley-time/shared'
 
-/** Адрес каталога города: `/volleyball/<город>` (город как есть, URL-кодированный). */
-export const catalogPath = (city: string) =>
-  `/volleyball/${encodeURIComponent(city.trim().replace(/\s+/g, ' '))}`
-
-export const groupPagePath = (slug: string) => `/g/${slug}`
+/**
+ * Адрес каталога города (24.2.1): `/<город>` для города справочника, иначе `/volleyball/<город>`.
+ * Адрес страницы группы — `view.path` из ответа API (`/{город}/{группа}` или `/g/<slug>`).
+ */
+export const catalogPath = cityCatalogPath
 
 /** Заголовок каталога (W-14 «Волейбол в {город}»): без склонения города — «в городе {город}». */
 export const catalogTitle = (city: string) => `Волейбол в городе ${city} — группы и тренировки`
@@ -25,7 +26,7 @@ type JsonLd = Record<string, unknown>
  * ближайшее открытое событие и FAQPage из секции FAQ. Только данные, видимые на странице.
  */
 export function groupPageJsonLd(view: PublicGroupPageView, origin: string): JsonLd[] {
-  const url = `${origin}${groupPagePath(view.slug)}`
+  const url = `${origin}${view.path}`
   const venues = view.sections.find((s) => s.kind === 'venues')
   const venueList = venues?.kind === 'venues' ? venues.venues : []
   const address = (street: string | null) => ({
@@ -101,7 +102,7 @@ export function catalogJsonLd(view: PublicCatalogView, origin: string): JsonLd {
     itemListElement: view.groups.map((g, i) => ({
       '@type': 'ListItem',
       position: i + 1,
-      url: `${origin}${groupPagePath(g.slug)}`,
+      url: `${origin}${g.path}`,
       name: g.name,
     })),
   }

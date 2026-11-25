@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { citySlug, GROUP_PAGE_CITY_REGIONS } from '@volley-time/shared'
 import { computed, reactive, ref, watch } from 'vue'
 
 import SettingsField from './SettingsField.vue'
@@ -24,6 +25,18 @@ const props = defineProps<{
 
 const draft = reactive({ name: '', description: '', city: '', district: '' })
 const errors = ref<SettingsErrors>({})
+
+// город — из справочника районных центров (24.2.1, W-13): он даёт адрес страницы `/{город}/{группа}`
+const cityOptions = GROUP_PAGE_CITY_REGIONS.flatMap(([region, cities]) =>
+  cities.map((name) => ({ name, region })),
+)
+const cityAddress = computed(() => {
+  if (!draft.city.trim()) return null
+  const slug = citySlug(draft.city)
+  return slug
+    ? `Адрес страницы группы: volleytime.by/${slug}/…`
+    : 'Города нет в справочнике районных центров: страница группы останется по адресу volleytime.by/g/…'
+})
 const formError = ref('')
 const saving = ref(false)
 
@@ -110,11 +123,24 @@ async function submit() {
             v-model="draft.city"
             class="vt-field"
             data-settings-field="city"
+            list="settings-city-catalog"
+            autocomplete="off"
             :aria-describedby="describedby"
             :aria-invalid="invalid"
             :readonly="!canEdit"
             :disabled="saving"
           />
+          <datalist id="settings-city-catalog">
+            <option v-for="c in cityOptions" :key="c.name" :value="c.name" :label="c.region" />
+          </datalist>
+          <p
+            v-if="cityAddress"
+            class="mt-1 text-[length:var(--fs-sm)] text-vt-mute-2"
+            data-testid="city-address"
+            aria-live="polite"
+          >
+            {{ cityAddress }}
+          </p>
         </SettingsField>
         <SettingsField
           v-slot="{ id, describedby, invalid }"

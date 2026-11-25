@@ -19,7 +19,7 @@ defineRouteMeta({
   },
 })
 
-/** Публичная страница группы по slug (24.1.2): HTML-страница `/g/<slug>` читает этот ответ. */
+/** Публичная страница группы по slug (24.1.2): HTML-страница `/{город}/{группа}` (24.2.1) читает этот ответ. */
 export default defineApiHandler(async (event) => {
   const view = await readPublicGroupPage(getRouterParam(event, 'slug') ?? '')
   // JSON не индексируется; индексирование HTML решает страница (`indexable`)

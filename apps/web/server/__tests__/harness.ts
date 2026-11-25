@@ -101,7 +101,12 @@ export async function createTestApi() {
   }
 
   const app = h3.createApp()
-  // короткая ссылка группы `/<имя>` → `/g/<slug>` (24.1.2)
+  // адреса страниц групп: 301 со старых адресов (24.2.1)
+  const groupAddress = await import(
+    pathToFileURL(path.join(serverDir, 'middleware/group-address.ts')).href
+  )
+  app.use(groupAddress.default)
+  // короткая ссылка группы `/<имя>` → адрес страницы группы (24.1.2, 24.2.1)
   const shortLink = await import(
     pathToFileURL(path.join(serverDir, 'middleware/short-link.ts')).href
   )
