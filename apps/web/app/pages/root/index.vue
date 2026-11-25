@@ -16,7 +16,7 @@ if (error.value && failure === 'forbidden') {
   throw createError({
     statusCode: 403,
     statusMessage: 'Forbidden',
-    message: 'Раздел доступен только администратору платформы',
+    message: 'Нет доступа к разделу',
     fatal: true,
   })
 }

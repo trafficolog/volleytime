@@ -2,11 +2,11 @@
 id: '30.1.2'
 phase: '30'
 epic: '30.1'
-status: in_progress
+status: done
 release: 'v0.6.0'
 sync_state: synced
-last_reviewed: 2026-11-24
-status_note: 'Перепланирование 19.0.5 (референс 2026-11-24). Релиз v0.6.0 (D-34).'
+last_reviewed: 2026-11-25
+status_note: 'Сделано в #355, CI зелёный на 46323dd9, ревью Opus: merge после 2 раундов. Открыто решение владельца: снимать ли назначения тренера при «Убрать из команды».'
 ref_id: 'W-17'
 complexity: M
 impl_model: claude-sonnet-5-5

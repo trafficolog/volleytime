@@ -1,10 +1,20 @@
-import type { PlatformGateMetric, PlatformOverview } from '@volley-time/shared'
+import {
+  PLATFORM_POLICIES,
+  PLATFORM_ROLES,
+  platformRoleAllows,
+  type PlatformGateMetric,
+  type PlatformOverview,
+  type PlatformPolicy,
+  type PlatformRole,
+  type PlatformStaffMe,
+} from '@volley-time/shared'
 import { describe, expect, it } from 'vitest'
 
 import {
   bookingBars,
   gateMetricView,
   rootNavItems,
+  rootNavItemsFor,
   rootOverviewFailure,
   rootOverviewView,
   weekDeltaLabel,
@@ -145,5 +155,45 @@ describe('rootOverviewView', () => {
       northStar: { ...overview.northStar, registered: 1 },
     })
     expect(one.subtitle).toBe('1 организация')
+  })
+})
+
+const meOf = (role: PlatformRole): PlatformStaffMe => ({
+  userId: 1,
+  role,
+  policies: (Object.keys(PLATFORM_POLICIES) as PlatformPolicy[]).filter((p) =>
+    platformRoleAllows(role, p),
+  ),
+})
+
+describe('rootNavItemsFor (R-15: menu by role)', () => {
+  const keys = (role: PlatformRole) => rootNavItemsFor(meOf(role)).map((i) => i.key)
+
+  it('Owner and Admin see every section', () => {
+    const all = rootNavItems().map((i) => i.key)
+    expect(keys('owner')).toEqual(all)
+    expect(keys('admin')).toEqual(all)
+  })
+
+  it.each([
+    ['finance', ['overview', 'organizations', 'billing', 'payments', 'features', 'audit']],
+    ['moderator', ['overview', 'organizations', 'users', 'pages', 'features', 'audit']],
+    ['support', ['overview', 'organizations', 'users', 'pages', 'features', 'audit']],
+    ['analyst', ['overview', 'organizations', 'billing', 'payments', 'features']],
+  ] as const)('%s sees only the sections of its policies', (role, expected) => {
+    expect(keys(role)).toEqual(expected)
+  })
+
+  it('hides money and settings from moderation and support; everyone keeps the overview', () => {
+    for (const role of ['moderator', 'support'] as const) {
+      expect(keys(role)).not.toContain('billing')
+      expect(keys(role)).not.toContain('payments')
+      expect(keys(role)).not.toContain('settings')
+    }
+    for (const role of PLATFORM_ROLES) expect(keys(role)).toContain('overview')
+  })
+
+  it('without a known role (not loaded or failed) falls back to the full list: the server decides', () => {
+    expect(rootNavItemsFor(null).map((i) => i.key)).toEqual(rootNavItems().map((i) => i.key))
   })
 })
