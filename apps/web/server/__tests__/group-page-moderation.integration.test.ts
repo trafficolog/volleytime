@@ -116,7 +116,7 @@ describe('group page moderation (24.1.3)', () => {
 
   it('hidden: page, API, short link, catalog and sitemap answer like an unpublished page', async () => {
     expect((await page()).status).toBe(200)
-    expect(await sitemap()).toContain(`/g/${slug}`)
+    expect(await sitemap()).toContain(`/minsk/${slug}`)
     expect((await catalog()).status).toBe(200)
 
     const res = await act({ state: 'hidden', reasonCode: 'inactive', note: 'Создайте событие' })
@@ -133,7 +133,7 @@ describe('group page moderation (24.1.3)', () => {
     expect(hidden.text).toBe(unknown.text)
     expect((await request('GET', '/nemiga')).status).toBe(404)
     expect((await catalog()).status).toBe(404)
-    expect(await sitemap()).not.toContain(`/g/${slug}`)
+    expect(await sitemap()).not.toContain(`/minsk/${slug}`)
     const complaint = await complain({ reasonCode: 'price' })
     expect(complaint.status).toBe(404)
     expect(complaint.body).toMatchObject({ data: { code: 'group_page.not_found' } })
@@ -141,7 +141,7 @@ describe('group page moderation (24.1.3)', () => {
     expect((await restore()).status).toBe(200)
     expect((await page()).status).toBe(200)
     expect((await request('GET', '/nemiga')).status).toBe(302)
-    expect(await sitemap()).toContain(`/g/${slug}`)
+    expect(await sitemap()).toContain(`/minsk/${slug}`)
   })
 
   it('noindex: the page opens but is not indexable, and leaves the sitemap and catalog', async () => {
@@ -151,7 +151,7 @@ describe('group page moderation (24.1.3)', () => {
     expect(res.status).toBe(200)
     expect(res.headers.get('x-robots-tag')).toContain('noindex')
     expect((res.body as PublicGroupPageView).indexable).toBe(false)
-    expect(await sitemap()).not.toContain(`/g/${slug}`)
+    expect(await sitemap()).not.toContain(`/minsk/${slug}`)
     expect((await catalog()).status).toBe(404)
     expect((await request('GET', '/nemiga')).status).toBe(302)
   })

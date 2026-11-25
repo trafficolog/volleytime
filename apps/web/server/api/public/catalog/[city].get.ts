@@ -17,7 +17,7 @@ defineRouteMeta({
   },
 })
 
-/** Каталог «Волейбол в городе {город}» (24.1.2): HTML-страница `/volleyball/<город>`. */
+/** Каталог «Волейбол в городе {город}» (24.1.2): HTML-страница `/<город>` (24.2.1) или `/volleyball/<город>`. */
 export default defineApiHandler(async (event) => {
   const view = await readPublicCatalog(getRouterParam(event, 'city', { decode: true }) ?? '')
   setResponseHeader(event, 'x-robots-tag', 'noindex, nofollow')

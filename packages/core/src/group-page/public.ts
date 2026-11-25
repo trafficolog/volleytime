@@ -15,7 +15,11 @@ import {
 } from '@volley-time/db'
 import {
   buildPublicGroupPage,
-  cityKey,
+  cityCatalogPath,
+  cityNameBySlug,
+  citySlug,
+  groupPagePath,
+  moderationCityKey,
   GROUP_PAGE_SCHEDULE_EVENTS,
   type PublicCatalogView,
   type PublicGroupPageView,
@@ -23,7 +27,7 @@ import {
 
 import { getDb, systemContext, type ServiceContext } from '../shared/context'
 
-/** Slug группы в адресе `/g/<slug>`: тот же алфавит, что выдаёт `slugify`; иное — сразу 404. */
+/** Slug группы в адресе `/{город}/{группа}` и `/g/<slug>`: тот же алфавит, что выдаёт `slugify`; иное — сразу 404. */
 export const GROUP_SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/
 
 /**
@@ -134,6 +138,7 @@ export async function readPublicGroupPage(
   const updatedAt = page && page.updatedAt > org.updatedAt ? page.updatedAt : org.updatedAt
   return {
     slug: org.slug,
+    path: groupPagePath(org.slug, org.city),
     // решение root `noindex` перекрывает `seoIndex` владельца (24.1.3)
     indexable: org.seoIndex && !moderated,
     updatedAt: updatedAt.toISOString(),
@@ -163,12 +168,16 @@ const indexableGroup = and(
     WHERE gpx.organization_id = ${organizations.id})`,
 )
 
-/** Каталог «Волейбол в городе {город}»: только индексируемые группы; нет групп — `null`. */
+/**
+ * Каталог «Волейбол в городе {город}»: только индексируемые группы; нет групп — `null`. `city` —
+ * slug города справочника (`/pinsk`, 24.2.1) или название (прежний `/volleyball/<город>`);
+ * регистр, пробелы и «ё» не важны.
+ */
 export async function readPublicCatalog(
   city: string,
   ctx: ServiceContext = systemContext(),
 ): Promise<PublicCatalogView | null> {
-  const key = cityKey(city)
+  const key = moderationCityKey(cityNameBySlug(city) ?? city)
   if (!key || key.length > 100) return null
   const db = getDb(ctx)
   const rows = await db
@@ -185,7 +194,7 @@ export async function readPublicCatalog(
     .where(
       and(
         indexableGroup,
-        sql`lower(regexp_replace(btrim(${organizations.city}), '\\s+', ' ', 'g')) = ${key}`,
+        sql`replace(lower(regexp_replace(btrim(${organizations.city}), '\\s+', ' ', 'g')), 'ё', 'е') = ${key}`,
       ),
     )
     .orderBy(asc(organizations.name), asc(organizations.id))
@@ -194,13 +203,15 @@ export async function readPublicCatalog(
     rows.map(async (r) => ({
       id: r.id,
       slug: r.slug,
+      path: groupPagePath(r.slug, r.city),
       name: r.name,
       district: r.district,
       levels: await levelTitles(db, r.levels),
       logoUpdatedAt: r.logoUpdatedAt?.toISOString() ?? null,
     })),
   )
-  return { city: rows[0]!.city!.trim().replace(/\s+/g, ' '), groups }
+  const name = cityNameBySlug(city) ?? rows[0]!.city!.trim().replace(/\s+/g, ' ')
+  return { city: name, path: cityCatalogPath(name), groups }
 }
 
 export interface SitemapEntry {
@@ -208,7 +219,10 @@ export interface SitemapEntry {
   lastmod: string
 }
 
-/** sitemap.xml: индексируемые страницы групп и каталоги их городов; noindex-групп в нём нет. */
+/**
+ * sitemap.xml: индексируемые страницы групп и каталоги их городов по действующим адресам
+ * (24.2.1: `/{город}/{группа}` и `/{город}`); прежних адресов и noindex-групп в нём нет.
+ */
 export async function listPublicSitemap(
   ctx: ServiceContext = systemContext(),
 ): Promise<SitemapEntry[]> {
@@ -229,30 +243,33 @@ export async function listPublicSitemap(
   for (const r of rows) {
     const lastmod =
       r.pageUpdatedAt && r.pageUpdatedAt > r.orgUpdatedAt ? r.pageUpdatedAt : r.orgUpdatedAt
-    entries.push({ path: `/g/${r.slug}`, lastmod: lastmod.toISOString() })
+    entries.push({ path: groupPagePath(r.slug, r.city), lastmod: lastmod.toISOString() })
     const name = r.city?.trim().replace(/\s+/g, ' ')
     if (!name) continue
-    const key = cityKey(name)
+    const key = citySlug(name) ?? moderationCityKey(name)
     const prev = cities.get(key)
     if (!prev || prev.lastmod < lastmod) cities.set(key, { name: prev?.name ?? name, lastmod })
   }
   for (const { name, lastmod } of cities.values())
     entries.push({
-      path: `/volleyball/${encodeURIComponent(name)}`,
+      path: cityCatalogPath(name),
       lastmod: lastmod.toISOString(),
     })
   return entries
 }
 
-/** Короткая ссылка `volleytime.by/<имя>` (21.2.16) → slug публичной страницы группы; иначе null. */
+/**
+ * Короткая ссылка `volleytime.by/<имя>` (21.2.16) → действующий путь публичной страницы группы
+ * (24.2.1: `/{город}/{группа}`); иначе null.
+ */
 export async function resolvePublicShortLink(
   name: string,
   ctx: ServiceContext = systemContext(),
 ): Promise<string | null> {
   const [row] = await getDb(ctx)
-    .select({ slug: organizations.slug })
+    .select({ slug: organizations.slug, city: organizations.city })
     .from(organizations)
     .where(and(eq(organizations.shortLink, name.toLowerCase()), publicGroup))
     .limit(1)
-  return row?.slug ?? null
+  return row ? groupPagePath(row.slug, row.city) : null
 }

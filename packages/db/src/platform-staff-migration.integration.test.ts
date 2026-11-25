@@ -10,7 +10,7 @@ import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { runMigrations } from './migrate'
-import { rollbackPlatformStaff } from './migration-test-helpers'
+import { rollbackGroupPageAddresses, rollbackPlatformStaff } from './migration-test-helpers'
 import { rollbackLastMigration } from './rollback'
 
 const TAG = '0048_platform_staff'
@@ -89,7 +89,7 @@ describe('migration 0048 platform staff (integration)', { timeout: 90_000 }, () 
       expect(await applied(sql)).toBe(false)
       await runMigrations(url)
       expect(await applied(sql)).toBe(true)
-      expect(await rollbackLastMigration(url)).toBe(TAG)
+      expect(await rollbackPlatformStaff(url)).toBe(TAG)
       expect(await rollbackLastMigration(url)).toBe(PREVIOUS)
     } finally {
       await sql.end()
@@ -138,6 +138,8 @@ describe('migration 0048 platform staff (integration)', { timeout: 90_000 }, () 
       // a — новый owner без флага, b — флаг без роли (снят из команды), c — поддержка
       await sql`INSERT INTO platform_staff (user_id, role) VALUES (${a!.id}, 'owner'),
         (${c!.id}, 'support')`
+      // 24.2.1: следующая миграция откатывается первой
+      await rollbackGroupPageAddresses(url)
       await expect(rollbackLastMigration(url)).rejects.toThrow(/rollback 0048 refused/)
       expect(await applied(sql)).toBe(true)
       await sql`DELETE FROM platform_staff WHERE user_id = ${c!.id}`

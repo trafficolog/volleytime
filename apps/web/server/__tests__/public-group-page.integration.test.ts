@@ -215,17 +215,17 @@ describe('public group page (24.1.2)', () => {
     await setOrg({ publicPageEnabled: false, seoIndex: true, city: 'Гродно' }, draft.id)
 
     let xml = (await request('GET', '/sitemap.xml')).text
-    expect(xml).not.toContain(`/g/${slug}`)
+    expect(xml).not.toContain(`/minsk/${slug}`)
     await setOrg({ seoIndex: true })
     const res = await request('GET', '/sitemap.xml')
     expect(res.headers.get('content-type')).toContain('application/xml')
     xml = res.text
-    expect(xml).toMatch(new RegExp(`<loc>https?://[^<]+/g/${slug}</loc>`))
-    expect(xml).toContain(`/volleyball/${encodeURIComponent('Минск')}</loc>`)
-    expect(xml).not.toContain(`/g/${other.slug}`)
-    expect(xml).not.toContain(`/g/${draft.slug}`)
-    expect(xml).not.toContain(encodeURIComponent('Брест'))
-    expect(xml).not.toContain(encodeURIComponent('Гродно'))
+    expect(xml).toMatch(new RegExp(`<loc>https?://[^<]+/minsk/${slug}</loc>`))
+    expect(xml).toContain(`/minsk</loc>`)
+    expect(xml).not.toContain(other.slug)
+    expect(xml).not.toContain(draft.slug)
+    expect(xml).not.toContain('/brest<')
+    expect(xml).not.toContain('/grodno<')
     expect((await request('GET', '/robots.txt')).text).toMatch(
       /Sitemap: https?:\/\/\S+\/sitemap\.xml/,
     )
@@ -251,7 +251,7 @@ describe('public group page (24.1.2)', () => {
     await setOrg({ shortLink: 'friday-minsk' })
     const res = await request('GET', '/friday-minsk')
     expect(res.status).toBe(302)
-    expect(res.headers.get('location')).toBe(`/g/${slug}`)
+    expect(res.headers.get('location')).toBe(`/minsk/${slug}`)
     await setOrg({ publicPageEnabled: false })
     expect((await request('GET', '/friday-minsk')).status).toBe(404)
   })

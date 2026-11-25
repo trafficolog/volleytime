@@ -4,6 +4,7 @@ import {
   defaultMetaDescription,
   defaultMetaTitle,
   GROUP_PAGE_META_RECOMMENDED,
+  groupPagePath,
   type GroupPageView,
 } from '@volley-time/shared'
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
@@ -196,14 +197,14 @@ async function save() {
   }
 }
 
-// публикация (24.1.2): страница `/g/<slug>` открыта, только когда владелец её включил --------
+// публикация (24.1.2): страница `/{город}/{группа}` (24.2.1) открыта, только когда владелец её включил --------
 const publicPage = ref(current.value.publicPageEnabled)
 watch(
   () => props.view.publicPageEnabled,
   (value) => (publicPage.value = value),
 )
 const publicPending = ref(false)
-const publicPath = computed(() => `/g/${group.value.slug}`)
+const publicPath = computed(() => groupPagePath(group.value.slug, group.value.city))
 async function setPublicPage(value: boolean) {
   if (readOnly.value || publicPending.value) return
   publicPending.value = true

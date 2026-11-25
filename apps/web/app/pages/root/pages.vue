@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import type {
-  PlatformGroupPageCities,
-  PlatformGroupPageRow,
-  PlatformGroupPagesList,
+import {
+  groupPagePath,
+  type PlatformGroupPageCities,
+  type PlatformGroupPageRow,
+  type PlatformGroupPagesList,
 } from '@volley-time/shared'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
@@ -392,7 +393,7 @@ const emptyText = computed(() => {
               >
                 <div class="vt-mod-row__group">
                   <strong>{{ row.name }}</strong>
-                  <span class="vt-code vt-mod-muted">/g/{{ row.slug }}</span>
+                  <span class="vt-code vt-mod-muted">{{ groupPagePath(row.slug, row.city) }}</span>
                   <span v-if="selected === ALL_COUNTRY" class="vt-mod-muted">{{
                     row.city ?? 'без города'
                   }}</span>

@@ -47,6 +47,8 @@ export type PublicGroupPageSection =
 /** Ответ `GET /api/public/groups/{slug}`. */
 export interface PublicGroupPageView {
   slug: string
+  /** Действующий адрес страницы (24.2.1): `/{город}/{группа}` или `/g/<slug>` без города справочника. */
+  path: string
   /** `organizations.seoIndex`: иначе noindex, страницы нет в sitemap и каталоге. */
   indexable: boolean
   /** Последнее изменение содержимого или группы (ISO) — `lastmod` в sitemap. */
@@ -70,6 +72,8 @@ export interface PublicGroupPageView {
 /** Карточка группы в каталоге «Волейбол в городе {город}». */
 export interface PublicCatalogGroup {
   slug: string
+  /** Действующий адрес страницы группы (24.2.1). */
+  path: string
   name: string
   district: string | null
   levels: string[]
@@ -79,6 +83,8 @@ export interface PublicCatalogGroup {
 
 export interface PublicCatalogView {
   city: string
+  /** Адрес каталога (24.2.1): `/<slug>` города справочника или `/volleyball/<город>`. */
+  path: string
   groups: PublicCatalogGroup[]
 }
 

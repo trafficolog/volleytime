@@ -1,10 +1,16 @@
 import type { PublicGroupPageView } from '@volley-time/shared'
 import { describe, expect, it } from 'vitest'
 
-import { catalogPath, groupPageJsonLd, jsonLdText } from './public-group-page'
+import {
+  catalogPath,
+  groupPageJsonLd,
+  jsonLdText,
+  reloadForPreviousAddress,
+} from './public-group-page'
 
 const view: PublicGroupPageView = {
   slug: 'friday',
+  path: '/minsk/friday',
   indexable: true,
   updatedAt: '2026-11-01T00:00:00.000Z',
   meta: { title: 'Пятница — волейбол, Минск', description: 'Описание' },
@@ -43,7 +49,7 @@ describe('public group page helpers', () => {
     const ld = groupPageJsonLd(view, 'https://volleytime.by')
     expect(ld.map((x) => x['@type'])).toEqual(['SportsActivityLocation', 'Event', 'FAQPage'])
     expect(ld[0]).toMatchObject({
-      url: 'https://volleytime.by/g/friday',
+      url: 'https://volleytime.by/minsk/friday',
       address: { streetAddress: 'ул. Мира, 1', addressLocality: 'Минск' },
     })
     expect(ld[1]).toMatchObject({
@@ -64,9 +70,24 @@ describe('public group page helpers', () => {
     expect(JSON.parse(text)[2].mainEntity[0].acceptedAnswer.text).toBe('</script><b>Тут</b>')
   })
 
-  it('catalog path keeps the city readable and encoded', () => {
+  it('catalog path: a catalog city by its slug (24.2.1), another city readable and encoded', () => {
+    expect(catalogPath('Пинск')).toBe('/pinsk')
+    expect(catalogPath(' марьина  горка ')).toBe('/marina-gorka')
     expect(catalogPath(' Нижний  Новгород ')).toBe(
       `/volleyball/${encodeURIComponent('Нижний Новгород')}`,
+    )
+  })
+})
+
+describe('reloadForPreviousAddress (24.2.1)', () => {
+  // прежний адрес из истории при клиентском переходе: полный переход, редирект 301 делает сервер
+  it('reloads only a client-side 404 outside hydration', () => {
+    expect(reloadForPreviousAddress({ client: true, hydrating: false, status: 404 })).toBe(true)
+    expect(reloadForPreviousAddress({ client: true, hydrating: true, status: 404 })).toBe(false)
+    expect(reloadForPreviousAddress({ client: false, hydrating: false, status: 404 })).toBe(false)
+    expect(reloadForPreviousAddress({ client: true, hydrating: false, status: 429 })).toBe(false)
+    expect(reloadForPreviousAddress({ client: true, hydrating: false, status: undefined })).toBe(
+      false,
     )
   })
 })

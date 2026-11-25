@@ -27,7 +27,9 @@ describe('GroupPagePreview', () => {
   it('renders the search snippet from the defaults and the enabled sections in order', () => {
     const wrapper = mountPreview()
     expect(wrapper.find('[data-gp-snippet]').text()).toContain('VolleyTime Минск — волейбол, Минск')
-    expect(wrapper.find('[data-gp-snippet]').text()).toContain('volleytime.by/g/volleytime-minsk')
+    expect(wrapper.find('[data-gp-snippet]').text()).toContain(
+      'volleytime.by/minsk/volleytime-minsk',
+    )
     expect(wrapper.findAll('[data-gp-block]').map((b) => b.attributes('data-gp-block'))).toEqual([
       'cover',
       'about',

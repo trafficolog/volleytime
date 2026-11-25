@@ -20,7 +20,7 @@ const body = computed(() => props.data.sections.filter((s) => s.kind !== 'cover'
 const when = (iso: string) => formatEventDate(iso, g.value.timezone)
 const geo = computed(() => groupGeoText(props.data))
 const address = computed(() =>
-  g.value.shortLink ? `${props.host}/${g.value.shortLink}` : `${props.host}/g/${props.data.slug}`,
+  g.value.shortLink ? `${props.host}/${g.value.shortLink}` : `${props.host}${props.data.path}`,
 )
 </script>
 

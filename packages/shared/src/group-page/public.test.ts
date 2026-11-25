@@ -133,6 +133,7 @@ describe('public group page projection', () => {
   it('geo summary lists city, levels, venues and the next game', () => {
     const view: PublicGroupPageView = {
       slug: 'g',
+      path: '/minsk/g',
       indexable: true,
       updatedAt: '2026-11-01T00:00:00.000Z',
       meta: { title: 't', description: 'd' },

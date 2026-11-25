@@ -1,4 +1,9 @@
 export { groupPageService } from './service'
+export {
+  recordGroupAddressChange,
+  resolveGroupAddress,
+  type GroupAddressResolution,
+} from './address'
 export * from './errors'
 export {
   GROUP_SLUG_RE,

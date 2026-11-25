@@ -37,9 +37,21 @@ defineRouteMeta({
               },
               publicPageEnabled: {
                 type: 'boolean',
-                description: 'публичная страница группы /g/<slug> (24.1.2)',
+                description: 'публичная страница группы /{город}/{группа} (24.1.2, 24.2.1)',
               },
-              city: { type: 'string', nullable: true, description: 'до 100 символов' },
+              slug: {
+                type: 'string',
+                description:
+                  'slug группы в адресе /{город}/{группа} (24.2.1): a-z, 0-9, дефис, без двойных дефисов, ' +
+                  'уникален; прежний адрес отвечает 301. Занятый — 409 organization.slug_taken',
+              },
+              city: {
+                type: 'string',
+                nullable: true,
+                description:
+                  'до 100 символов; город справочника даёт адрес /{город}/{группа} (24.2.1), ' +
+                  'смена — 301 со старого адреса',
+              },
               district: { type: 'string', nullable: true, description: 'до 100 символов' },
               levels: {
                 type: 'array',
@@ -58,7 +70,8 @@ defineRouteMeta({
       404: { description: 'Группа не найдена (organization.not_found)' },
       409: {
         description:
-          'seoIndex меняется, пока действует решение root по странице (group_page.moderation_locked)',
+          'seoIndex меняется, пока действует решение root по странице (group_page.moderation_locked); ' +
+          'slug занят (organization.slug_taken)',
       },
       410: { description: 'Группа в архиве (organization.archived)' },
       422: {

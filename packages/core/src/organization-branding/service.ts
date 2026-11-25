@@ -1,4 +1,5 @@
 import { and, eq, ne, organizationLogos, organizations } from '@volley-time/db'
+import { cityNameBySlug } from '@volley-time/shared'
 
 import { AUDIT_ACTIONS } from '../audit/actions'
 import { auditService } from '../audit/service'
@@ -168,7 +169,7 @@ export const organizationBrandingService = {
       return { status: 'invalid', value: null }
     }
     const value = parsed.data.shortLink
-    if (isReservedShortLink(value)) return { status: 'reserved', value }
+    if (isReservedShortLink(value) || cityNameBySlug(value)) return { status: 'reserved', value }
     const [other] = await getDb(ctx)
       .select({ id: organizations.id })
       .from(organizations)
@@ -192,7 +193,9 @@ export const organizationBrandingService = {
       throw new ShortLinkInvalidError(parsed.error.issues[0]?.message ?? 'Invalid short link')
     }
     const value = parsed.data.shortLink
-    if (value !== null && isReservedShortLink(value)) throw new ShortLinkReservedError(value)
+    // slug города справочника — адрес каталога `/<город>` (24.2.1): короткой ссылкой быть не может
+    if (value !== null && (isReservedShortLink(value) || cityNameBySlug(value)))
+      throw new ShortLinkReservedError(value)
     try {
       return await inTransaction(ctx, async (tx) => {
         const org = await lockActiveOrg(tx, orgId)
