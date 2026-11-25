@@ -1,4 +1,8 @@
-import type { PlatformSettingKey, PlatformSettingsResponse } from '@volley-time/shared'
+import type {
+  PlatformSettingKey,
+  PlatformSettingsResponse,
+  PlatformStaffMe,
+} from '@volley-time/shared'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -9,6 +13,7 @@ import {
   sectionDirty,
   sectionErrors,
   sectionFromQuery,
+  settingsSectionsFor,
 } from './root-settings'
 
 const view = (value: unknown, def: unknown, version = 0) => ({
@@ -130,5 +135,47 @@ describe('root settings form', () => {
       from: 'без лимита',
       to: '3',
     })
+  })
+})
+
+const meOf = (role: PlatformStaffMe['role'], policies: PlatformStaffMe['policies']) => ({
+  userId: 1,
+  role,
+  policies,
+})
+
+describe('settings sections by role (R-15)', () => {
+  const OWNER = meOf('owner', ['self', 'settings', 'team'])
+  const ADMIN = meOf('admin', ['self', 'settings'])
+
+  it('Owner sees the team right after «Общие»; Admin has neither «Команда & роли» nor «Безопасность»', () => {
+    expect(settingsSectionsFor(OWNER).map((s) => s.label)).toEqual([
+      'Общие',
+      'Команда & роли',
+      'Платежи',
+      'Уведомления',
+      'Лимиты',
+      'Безопасность',
+      'Интеграции',
+    ])
+    expect(settingsSectionsFor(ADMIN).map((s) => s.key)).toEqual([
+      'general',
+      'payments',
+      'notifications',
+      'limits',
+      'integrations',
+    ])
+  })
+
+  it('without a known role keeps the sections that existed before R-15 (server decides)', () => {
+    expect(settingsSectionsFor(null).map((s) => s.key)).not.toContain('team')
+  })
+
+  it('a section the role may not open falls back to «Общие»', () => {
+    const adminSections = settingsSectionsFor(ADMIN)
+    expect(sectionFromQuery('team', adminSections)).toBe('general')
+    expect(sectionFromQuery('security', adminSections)).toBe('general')
+    expect(sectionFromQuery('limits', adminSections)).toBe('limits')
+    expect(sectionFromQuery('team', settingsSectionsFor(OWNER))).toBe('team')
   })
 })
