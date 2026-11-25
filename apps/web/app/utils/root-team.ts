@@ -81,13 +81,6 @@ export function staffErrorMessage(e: unknown, fallback: string): string {
   return apiErrorMessage(e, fallback)
 }
 
-/** Две буквы имени для аватара: инициалы слов, у одного слова — его первые две буквы. */
-export function initials(name: string): string {
-  const words = name.split(/\s+/).filter(Boolean)
-  const letters = words.length > 1 ? words.map((word) => word[0]).join('') : (words[0] ?? '')
-  return letters ? letters.slice(0, 2).toUpperCase() : '?'
-}
-
 type RoleSet = PlatformPolicy | readonly PlatformRole[]
 
 export interface PermissionRow {
