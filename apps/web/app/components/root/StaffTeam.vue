@@ -37,10 +37,29 @@ async function load() {
 }
 onMounted(() => void load())
 
-const MENU: VtPopoverItem[] = [
-  { key: 'role', label: 'Изменить роль' },
-  { key: 'remove', label: 'Удалить из команды', tone: 'danger', separator: true },
-]
+const LAST_OWNER_HINT = 'Последнего Owner нельзя понизить или удалить'
+
+/** Единственный Owner: сервер откажет (409), поэтому действия над ним недоступны сразу. */
+const soleOwnerId = computed(() => {
+  const owners = (members.value ?? []).filter((m) => m.role === 'owner')
+  return owners.length === 1 ? owners[0]!.userId : null
+})
+
+function menuFor(member: PlatformStaffMember): VtPopoverItem[] {
+  const locked = member.userId === soleOwnerId.value
+  const hint = locked ? LAST_OWNER_HINT : undefined
+  return [
+    { key: 'role', label: 'Изменить роль', disabled: locked, hint },
+    {
+      key: 'remove',
+      label: 'Удалить из команды',
+      tone: 'danger',
+      separator: true,
+      disabled: locked,
+      hint,
+    },
+  ]
+}
 
 const menuOpenId = ref<number | null>(null)
 const dialogOpen = ref(false)
@@ -156,7 +175,7 @@ const TONES: Record<PlatformRole, 'solid' | 'flame' | 'amber' | 'grass' | 'defau
                   align="right"
                   fixed
                   :label="`Действия: ${m.name}`"
-                  :items="MENU"
+                  :items="menuFor(m)"
                   @update:model-value="(v: boolean) => (menuOpenId = v ? m.userId : null)"
                   @select="(item) => onSelect(m, item)"
                 >

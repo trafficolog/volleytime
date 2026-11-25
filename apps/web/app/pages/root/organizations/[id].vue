@@ -6,6 +6,8 @@ import { orgDetailView } from '~/utils/root-organizations'
 import { rootOverviewFailure } from '~/utils/root-overview'
 
 definePageMeta({ layout: 'root', middleware: ['root'] })
+// «Выдать баланс» — balanceManage (29.3.1, R-15)
+const { can } = usePlatformCan()
 
 const route = useRoute()
 const id = computed(() => String(route.params.id))
@@ -62,7 +64,7 @@ useHead({ title: computed(() => `${view.value?.title ?? 'Организация'
         </div>
         <div class="vt-root-orgs__actions">
           <NuxtLink
-            v-if="!data.deletedAt"
+            v-if="!data.deletedAt && can('balanceManage')"
             :to="{ path: '/root/billing-grant', query: { org: String(data.id) } }"
             class="vt-btn vt-btn--ink vt-btn--sm"
           >

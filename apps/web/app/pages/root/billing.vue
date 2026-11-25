@@ -27,6 +27,8 @@ import {
 } from '~/utils/root-packages'
 
 definePageMeta({ layout: 'root', middleware: ['root'] })
+// изменения тарифов — plansManage, выдача баланса — balanceManage (29.3.1, R-15)
+const { can } = usePlatformCan()
 useHead({ title: 'Баланс и тарифы — Root Admin' })
 
 const API = '/api/platform/event-balance/packages'
@@ -322,14 +324,14 @@ const grantRows = computed(() => grants.value.map((g) => grantRowView(g)))
           <VtIcon name="chevron-l" :size="13" /> К пакетам
         </button>
         <NuxtLink
-          v-if="view === 'packages'"
+          v-if="view === 'packages' && can('balanceManage')"
           to="/root/billing-grant"
           class="vt-btn vt-btn--ink vt-btn--sm"
         >
           <VtIcon name="plus" :size="13" /> Выдать баланс
         </NuxtLink>
         <button
-          v-if="view === 'packages'"
+          v-if="view === 'packages' && can('plansManage')"
           type="button"
           class="vt-btn vt-btn--primary vt-btn--sm"
           @click="openForm('create')"
@@ -539,7 +541,7 @@ const grantRows = computed(() => grants.value.map((g) => grantRowView(g)))
                       {{ row.revenue }}
                     </td>
                     <td>
-                      <div class="vt-root-billing__row-actions">
+                      <div v-if="can('plansManage')" class="vt-root-billing__row-actions">
                         <button
                           v-if="!row.archived"
                           type="button"
@@ -642,7 +644,11 @@ const grantRows = computed(() => grants.value.map((g) => grantRowView(g)))
             Промо, компенсации и исправления. Причина обязательна и попадает в аудит.
           </p>
         </div>
-        <NuxtLink to="/root/billing-grant" class="vt-btn vt-btn--ink vt-btn--sm">
+        <NuxtLink
+          v-if="can('balanceManage')"
+          to="/root/billing-grant"
+          class="vt-btn vt-btn--ink vt-btn--sm"
+        >
           <VtIcon name="plus" :size="13" /> Выдать баланс
         </NuxtLink>
       </div>

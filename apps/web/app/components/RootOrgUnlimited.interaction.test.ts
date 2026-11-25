@@ -6,6 +6,8 @@ import { computed, ref } from 'vue'
 
 import RootOrgUnlimited from './RootOrgUnlimited.vue'
 
+import { stubPlatformStaff } from '~/test-support/platform-staff'
+
 const apiFetch = vi.fn()
 const toastShow = vi.fn()
 let wrapper: VueWrapper | undefined
@@ -13,6 +15,7 @@ let wrapper: VueWrapper | undefined
 beforeEach(() => {
   apiFetch.mockReset().mockResolvedValue({ until: null, active: false })
   toastShow.mockReset()
+  stubPlatformStaff('owner')
   vi.stubGlobal('$fetch', apiFetch)
   vi.stubGlobal('useToast', () => ({ show: toastShow }))
   vi.stubGlobal('computed', computed)
@@ -112,4 +115,23 @@ describe('Root organization «Безлимит событий» (22.3.1)', () =>
     const w = render({ unlimited: { until: '2999-01-01' }, disabled: true })
     for (const b of w.findAll('button')) expect(b.attributes('disabled')).toBeDefined()
   })
+})
+
+describe('Root organization «Безлимит событий»: кнопки по роли (29.3.1, R-15)', () => {
+  it.each(['owner', 'admin', 'finance'] as const)('%s включает и отключает', (role) => {
+    stubPlatformStaff(role)
+    const w = render({ unlimited: { until: '2026-12-31' } })
+    expect(button(w, 'Продлить / изменить дату')).toBeDefined()
+    expect(button(w, 'Отключить')).toBeDefined()
+  })
+
+  it.each(['analyst', 'moderator', 'pending', 'error'] as const)(
+    '%s видит состояние, но не кнопки',
+    (state) => {
+      stubPlatformStaff(state)
+      const w = render({ unlimited: { until: '2026-12-31' } })
+      expect(w.get('[data-testid="unlimited-state"]').text()).toContain('31.12.2026')
+      expect(w.findAll('button')).toHaveLength(0)
+    },
+  )
 })

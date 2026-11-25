@@ -29,6 +29,8 @@ const STATUSES: readonly { key: Status; label: string }[] = [
 ]
 
 const API = '/api/platform/group-page-complaints'
+// кнопки решения — по роли (29.3.1, R-15): Support только отклоняет, меры принимает модерация
+const { can } = usePlatformCan()
 const toast = useToast()
 
 const status = ref<Status>('new')
@@ -189,8 +191,15 @@ function onResolved() {
             <span class="vt-mono vt-mod-muted vt-mod-row__date">{{
               ageText(c.createdAt, now)
             }}</span>
-            <div v-if="c.status === 'new'" class="vt-mod-row__actions">
+            <div
+              v-if="
+                c.status === 'new' &&
+                (can('groupPageComplaintsReject') || can('groupPageComplaintsResolve'))
+              "
+              class="vt-mod-row__actions"
+            >
               <button
+                v-if="can('groupPageComplaintsReject')"
                 type="button"
                 class="vt-btn vt-btn--ghost vt-btn--sm"
                 data-action="reject"
@@ -200,7 +209,7 @@ function onResolved() {
                 Отклонить
               </button>
               <button
-                v-if="c.pageState === 'index'"
+                v-if="can('groupPageComplaintsResolve') && c.pageState === 'index'"
                 type="button"
                 class="vt-btn vt-btn--ghost vt-btn--sm"
                 data-action="noindex"
@@ -210,7 +219,7 @@ function onResolved() {
                 Noindex
               </button>
               <button
-                v-if="c.pageState !== 'hidden'"
+                v-if="can('groupPageComplaintsResolve') && c.pageState !== 'hidden'"
                 type="button"
                 class="vt-btn vt-btn--rose vt-btn--sm"
                 data-action="hide"

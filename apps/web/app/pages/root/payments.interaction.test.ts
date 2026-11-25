@@ -18,6 +18,7 @@ import Payments from './payments.vue'
 import EmptyState from '~/components/EmptyState.vue'
 import ErrorState from '~/components/ErrorState.vue'
 import SkeletonList from '~/components/SkeletonList.vue'
+import { stubPlatformStaff } from '~/test-support/platform-staff'
 
 const route = reactive<{ query: Record<string, string> }>({ query: {} })
 const apiFetch = vi.fn()
@@ -101,6 +102,7 @@ beforeEach(() => {
   })) {
     vi.stubGlobal(name, value)
   }
+  stubPlatformStaff('owner')
   vi.stubGlobal('$fetch', apiFetch)
 })
 
@@ -225,4 +227,28 @@ describe('Root Admin · Подписки и выплаты (R-04, D-07)', () => 
     await w.get('[data-org-row] button').trigger('click')
     expect(w.get('[data-testid="org-filter"]').text()).toContain('VolleyTime Минск')
   })
+})
+
+describe('Root Admin · заявки на баланс: кнопки решения по роли (29.3.1, R-15)', () => {
+  const decisionButtons = (w: VueWrapper) =>
+    w.findAll('[aria-label^="Подтвердить заявку"], [aria-label^="Отклонить заявку"]')
+
+  it.each(['owner', 'admin', 'finance'] as const)(
+    '%s видит подтвердить и отклонить',
+    async (role) => {
+      stubPlatformStaff(role)
+      const w = await render()
+      expect(decisionButtons(w)).toHaveLength(2)
+    },
+  )
+
+  it.each(['analyst', 'pending', 'error'] as const)(
+    '%s видит заявку, но не кнопки решения',
+    async (state) => {
+      stubPlatformStaff(state)
+      const w = await render()
+      expect(w.find('[data-request-row]').exists()).toBe(true)
+      expect(decisionButtons(w)).toHaveLength(0)
+    },
+  )
 })
