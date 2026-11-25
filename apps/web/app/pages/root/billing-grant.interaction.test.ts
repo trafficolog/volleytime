@@ -14,6 +14,7 @@ import {
 } from 'vue'
 
 import Grant from './billing-grant.vue'
+
 import { stubPlatformStaff } from '~/test-support/platform-staff'
 
 const route = reactive<{ query: Record<string, string> }>({ query: {} })

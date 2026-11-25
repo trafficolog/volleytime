@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed, ref } from 'vue'
 
 import RootOrgUnlimited from './RootOrgUnlimited.vue'
+
 import { stubPlatformStaff } from '~/test-support/platform-staff'
 
 const apiFetch = vi.fn()

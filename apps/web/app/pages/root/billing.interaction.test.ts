@@ -396,7 +396,7 @@ describe('root balance and tariffs: кнопки изменений по рол�
     async (state) => {
       stubPlatformStaff(state)
       const w = await render()
-      expect(row(w, 'events_10').exists()).toBe(true)
+      expect(row(w, 'events_10').text()).toContain('10')
       expect(byText(w, 'Новый пакет')).toBeUndefined()
       expect(rowButtons(w)).toEqual([])
       expect(grantLinks(w)).toHaveLength(0)
