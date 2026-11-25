@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest'
 import {
   PERMISSION_ROWS,
   assignableRoles,
-  initials,
   permissionCell,
   roleInfo,
   staffErrorMessage,
@@ -60,14 +59,6 @@ describe('staffErrorMessage', () => {
   })
   it('falls back for unknown failures', () => {
     expect(staffErrorMessage(apiError(500), 'Не удалось. Ещё раз')).toBe('Не удалось. Ещё раз')
-  })
-})
-
-describe('initials', () => {
-  it('takes up to two letters of the name', () => {
-    expect(initials('Иван Петров')).toBe('ИП')
-    expect(initials('anna')).toBe('AN')
-    expect(initials('')).toBe('?')
   })
 })
 

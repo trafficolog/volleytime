@@ -24,6 +24,8 @@ import {
 import { rootOverviewFailure } from '~/utils/root-overview'
 
 definePageMeta({ layout: 'root', middleware: ['root'] })
+// выдача баланса — только ролям с правом balanceManage (29.3.1, R-15)
+const { can } = usePlatformCan()
 useHead({ title: 'Выдать баланс — Root Admin' })
 
 const route = useRoute()
@@ -109,7 +111,7 @@ function pickPreset(value: number) {
 }
 
 async function submit() {
-  if (submitting.value || !org.value || orgUnavailable.value) return
+  if (!can('balanceManage') || submitting.value || !org.value || orgUnavailable.value) return
   failure.value = ''
   errors.value = grantFormErrors(form)
   if (Object.keys(errors.value).length) {
@@ -161,7 +163,7 @@ function another() {
           {{ done ? 'К тарифам' : 'Отмена' }}
         </NuxtLink>
         <button
-          v-if="org && !done"
+          v-if="org && !done && can('balanceManage')"
           type="submit"
           class="vt-btn vt-btn--primary vt-btn--sm"
           :disabled="submitting || orgUnavailable"

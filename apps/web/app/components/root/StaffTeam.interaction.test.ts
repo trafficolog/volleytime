@@ -181,7 +181,8 @@ describe('StaffTeam: «Команда & роли» (29.3.1, R-15)', () => {
   })
 
   it('last Owner: the 409 is explained, the dialog stays open and the row is unchanged', async () => {
-    members = [member(1, 'Иван Петров', 'owner'), member(2, 'Анна Король', 'admin')]
+    // второй Owner есть в списке, но к запросу его уже убрали: сервер всё равно отвечает 409
+    members = [member(1, 'Иван Петров', 'owner'), member(9, 'Пётр Второй', 'owner')]
     apiFetch.mockImplementation(async (url: string, opts?: Opts) => {
       if (url === API) return { members }
       if (opts?.method === 'PATCH') throw apiError(409, 'platform.staff_last_owner')
@@ -196,6 +197,39 @@ describe('StaffTeam: «Команда & роли» (29.3.1, R-15)', () => {
     expect(rowOf(1)!.textContent).toContain('Owner')
     expect(wrapper!.emitted('self-changed')).toBeUndefined()
     expect(toastShow).not.toHaveBeenCalled()
+  })
+
+  describe('last Owner (29.3.1, R-15)', () => {
+    const items = () => [...body().querySelectorAll<HTMLElement>('[role="menuitem"]')]
+    async function openOnly(userId: number) {
+      rowOf(userId)!.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')!.click()
+      await flushPromises()
+    }
+
+    it('blocks «Изменить роль» and «Удалить из команды» for the only Owner', async () => {
+      await render()
+      await openOnly(1)
+      expect(items().map((i) => i.getAttribute('aria-disabled'))).toEqual(['true', 'true'])
+      items()[0]!.click()
+      await flushPromises()
+      expect(dialog()).toBeNull()
+      items()[1]!.click()
+      await flushPromises()
+      expect(dialog()).toBeNull()
+    })
+
+    it('keeps the menu for other people while there is one Owner', async () => {
+      await render()
+      await openOnly(2)
+      expect(items().map((i) => i.getAttribute('aria-disabled'))).toEqual([null, null])
+    })
+
+    it('unblocks the menu of an Owner once there are two', async () => {
+      members = [member(1, 'Иван Петров', 'owner'), member(9, 'Пётр Второй', 'owner')]
+      await render()
+      await openOnly(1)
+      expect(items().map((i) => i.getAttribute('aria-disabled'))).toEqual([null, null])
+    })
   })
 
   it('a person who is no longer in the team: explains it and refreshes the list', async () => {
@@ -237,7 +271,7 @@ describe('StaffTeam: «Команда & роли» (29.3.1, R-15)', () => {
   })
 
   it('removing the last Owner: 409 text in the dialog, the row stays', async () => {
-    members = [member(1, 'Иван Петров', 'owner')]
+    members = [member(1, 'Иван Петров', 'owner'), member(9, 'Пётр Второй', 'owner')]
     apiFetch.mockImplementation(async (url: string, opts?: Opts) => {
       if (url === API) return { members }
       if (opts?.method === 'DELETE') throw apiError(409, 'platform.staff_last_owner')

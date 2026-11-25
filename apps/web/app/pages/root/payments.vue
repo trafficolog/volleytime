@@ -26,6 +26,8 @@ import {
 } from '~/utils/root-payments'
 
 definePageMeta({ layout: 'root', middleware: ['root'] })
+// решения по заявкам — только ролям с правом на баланс (29.3.1, R-15)
+const { can } = usePlatformCan()
 useHead({ title: 'Подписки и выплаты — Root Admin' })
 
 const TZ = PAYMENTS_TIMEZONE
@@ -468,7 +470,10 @@ const periodLabel = computed(() => PAYMENT_PERIODS.find((p) => p.key === period.
                 >
               </td>
               <td>
-                <div v-if="row.pending" class="vt-root-billing__row-actions">
+                <div
+                  v-if="row.pending && can('balanceManage')"
+                  class="vt-root-billing__row-actions"
+                >
                   <button
                     type="button"
                     class="vt-btn vt-btn--primary vt-btn--sm"
