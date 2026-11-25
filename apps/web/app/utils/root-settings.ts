@@ -1,9 +1,11 @@
 import {
   parsePlatformSetting,
   PLATFORM_SETTINGS,
+  type PlatformPolicy,
   type PlatformSettingKey,
   type PlatformSettingsHistoryEntry,
   type PlatformSettingsResponse,
+  type PlatformStaffMe,
 } from '@volley-time/shared'
 
 /**
@@ -12,22 +14,38 @@ import {
  * только для чтения из `readonly` ответа.
  */
 export const ROOT_SETTINGS_SECTIONS = [
-  { key: 'general', label: 'Общие' },
-  { key: 'payments', label: 'Платежи' },
-  { key: 'notifications', label: 'Уведомления' },
-  { key: 'limits', label: 'Лимиты' },
-  { key: 'security', label: 'Безопасность' },
-  { key: 'integrations', label: 'Интеграции' },
-] as const
+  { key: 'general', label: 'Общие', policy: 'settings' },
+  // R-15 (29.3.1): команда и безопасность — только Owner
+  { key: 'team', label: 'Команда & роли', policy: 'team' },
+  { key: 'payments', label: 'Платежи', policy: 'settings' },
+  { key: 'notifications', label: 'Уведомления', policy: 'settings' },
+  { key: 'limits', label: 'Лимиты', policy: 'settings' },
+  { key: 'security', label: 'Безопасность', policy: 'team' },
+  { key: 'integrations', label: 'Интеграции', policy: 'settings' },
+] as const satisfies readonly { key: string; label: string; policy: PlatformPolicy }[]
 export type RootSettingsSectionKey = (typeof ROOT_SETTINGS_SECTIONS)[number]['key']
+export type RootSettingsSection = (typeof ROOT_SETTINGS_SECTIONS)[number]
 
 export const isSettingsSection = (value: unknown): value is RootSettingsSectionKey =>
   ROOT_SETTINGS_SECTIONS.some((s) => s.key === value)
 
-/** Раздел из `?section=`; неизвестное значение — «Общие». */
-export function sectionFromQuery(value: unknown): RootSettingsSectionKey {
+/**
+ * Разделы настроек, доступные роли (R-15). Роль неизвестна — разделы политики `settings` (без
+ * команды и безопасности): доступ всё равно проверяет сервер.
+ */
+export function settingsSectionsFor(me: PlatformStaffMe | null): readonly RootSettingsSection[] {
+  return ROOT_SETTINGS_SECTIONS.filter((s) =>
+    me === null ? s.policy === 'settings' : me.policies.includes(s.policy),
+  )
+}
+
+/** Раздел из `?section=`; неизвестный или недоступный роли — «Общие». */
+export function sectionFromQuery(
+  value: unknown,
+  sections: readonly RootSettingsSection[] = ROOT_SETTINGS_SECTIONS,
+): RootSettingsSectionKey {
   const v = Array.isArray(value) ? value[0] : value
-  return isSettingsSection(v) ? v : 'general'
+  return sections.some((s) => s.key === v) ? (v as RootSettingsSectionKey) : 'general'
 }
 
 /** Ключи редактируемых разделов, в порядке полей формы. */

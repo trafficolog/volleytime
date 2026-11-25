@@ -1691,3 +1691,68 @@
     gap: 0.125rem;
   }
 }
+
+/* Роль вошедшего в сайдбаре (29.3.1, R-15) */
+.vt-root__role {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0;
+  color: var(--vt-on-hero-2);
+  font-size: 0.75rem;
+}
+
+.vt-root__role .vt-chip {
+  background: color-mix(in oklab, var(--vt-on-hero-2) 22%, transparent);
+  color: var(--vt-on-hero);
+}
+
+/* Настройки → Команда & роли (29.3.1, R-15) */
+.vt-root-team__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.vt-root-team__who {
+  display: grid;
+  min-width: 0;
+}
+
+.vt-root-team__matrix {
+  display: grid;
+  gap: 0.5rem;
+  margin-block-start: 0.5rem;
+}
+
+.vt-root-team__matrix-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.vt-root-team__matrix-head h3 {
+  margin: 0;
+}
+
+.vt-root-team__ok {
+  color: var(--vt-grass);
+}
+
+.vt-root-team__form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.vt-root-team__lead {
+  margin: 0;
+  color: var(--vt-mute-2);
+}
+
+.vt-team-matrix {
+  min-width: 720px;
+}

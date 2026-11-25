@@ -5,21 +5,21 @@ import type {
   PlatformSettingsResponse,
 } from '@volley-time/shared'
 
+import StaffTeam from '~/components/root/StaffTeam.vue'
 import { apiErrorCode, apiErrorStatus } from '~/utils/api-error'
 import { rootOverviewFailure } from '~/utils/root-overview'
 import {
   EDITABLE_KEYS,
   FIELD_LABELS,
-  ROOT_SETTINGS_SECTIONS,
   STALE_MESSAGE,
   fieldMessage,
   formFromSettings,
   historyRow,
-  isSettingsSection,
   sectionChanges,
   sectionDirty,
   sectionErrors,
   sectionFromQuery,
+  settingsSectionsFor,
   statusText,
   type EditableSection,
   type SettingsForm,
@@ -31,7 +31,10 @@ const API = '/api/platform/settings'
 const toast = useToast()
 const route = useRoute()
 const router = useRouter()
-const section = computed(() => sectionFromQuery(route.query.section))
+// вкладки по роли (29.3.1, R-15): команда и безопасность — только Owner; сервер проверяет сам
+const { data: me, refresh: refreshMe } = usePlatformStaffMe()
+const sections = computed(() => settingsSectionsFor(me.value ?? null))
+const section = computed(() => sectionFromQuery(route.query.section, sections.value))
 // заголовок страницы; название платформы добавляет шаблон заголовка в layout `root`
 useHead({ title: 'Настройки — Root Admin' })
 
@@ -46,7 +49,7 @@ function reactToStatus(status: number | undefined): boolean {
     throw createError({
       statusCode: 403,
       statusMessage: 'Forbidden',
-      message: 'Раздел доступен только администратору платформы',
+      message: 'Нет доступа к разделу',
       fatal: true,
     })
   }
@@ -88,10 +91,19 @@ onMounted(() => void loadHistory())
 const historyRows = computed(() => history.value.map(historyRow))
 
 function selectSection(next: string) {
-  if (!isSettingsSection(next)) return
+  if (!sections.value.some((s) => s.key === next)) return
   failure.value = ''
   notice.value = ''
   void router.push({ query: next === 'general' ? {} : { section: next } })
+}
+
+/** Owner сменил свою роль или убрал себя: меню читаем заново, из Root Admin выходим. */
+async function onSelfChanged(reason: 'role' | 'removed') {
+  if (reason === 'removed') {
+    await navigateTo('/app')
+    return
+  }
+  await refreshMe()
 }
 
 const editable = computed<EditableSection | null>(() =>
@@ -177,7 +189,7 @@ const FLAG_LABELS: Record<string, string> = {
     <div v-else-if="state" class="vt-root-settings__layout">
       <nav class="vt-root-settings__nav" aria-label="Разделы настроек">
         <button
-          v-for="s in ROOT_SETTINGS_SECTIONS"
+          v-for="s in sections"
           :key="s.key"
           type="button"
           class="vt-root-settings__tab"
@@ -282,6 +294,13 @@ const FLAG_LABELS: Record<string, string> = {
             </button>
           </div>
         </form>
+
+        <!-- Команда & роли (29.3.1, R-15) -->
+        <StaffTeam
+          v-else-if="section === 'team' && me"
+          :self-id="me.userId"
+          @self-changed="onSelfChanged"
+        />
 
         <!-- Платежи -->
         <section

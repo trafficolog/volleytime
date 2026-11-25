@@ -26,6 +26,25 @@ const toastShow = vi.fn()
 const refresh = vi.fn()
 let wrapper: VueWrapper | undefined
 let initial: unknown
+const refreshMe = vi.fn()
+const navigateToMock = vi.fn()
+
+const OWNER = { userId: 1, role: 'owner', policies: ['self', 'settings', 'team'] }
+const ADMIN = { userId: 2, role: 'admin', policies: ['self', 'settings'] }
+const STAFF = {
+  members: [
+    {
+      userId: 1,
+      name: 'Иван Петров',
+      email: 'ivan@volleytime.by',
+      telegramUsername: null,
+      role: 'owner',
+      invitedBy: null,
+      createdAt: '2026-11-20T09:00:00.000Z',
+    },
+  ],
+}
+let me: typeof OWNER = OWNER
 
 const view = (value: unknown, def: unknown, version = 0) => ({
   value,
@@ -84,13 +103,22 @@ const HISTORY = {
 beforeEach(() => {
   route.query = {}
   initial = SETTINGS()
+  me = OWNER
+  refreshMe.mockReset().mockResolvedValue(undefined)
+  navigateToMock.mockReset()
   toastShow.mockReset()
   refresh.mockReset().mockResolvedValue(undefined)
   apiFetch.mockReset().mockImplementation(async (url: string, opts?: { method?: string }) => {
     if (url === `${API}/history`) return HISTORY
+    if (url === '/api/platform/staff') return STAFF
     if (opts?.method === 'PATCH') return SETTINGS()
     throw new Error(`unexpected ${url}`)
   })
+  vi.stubGlobal('usePlatformStaffMe', () => ({
+    data: ref(me),
+    pending: ref(false),
+    refresh: refreshMe,
+  }))
   vi.stubGlobal('definePageMeta', () => undefined)
   vi.stubGlobal('useHead', () => undefined)
   vi.stubGlobal('useRoute', () => route)
@@ -106,7 +134,7 @@ beforeEach(() => {
     error: ref(null),
     refresh,
   }))
-  vi.stubGlobal('navigateTo', vi.fn())
+  vi.stubGlobal('navigateTo', navigateToMock)
   vi.stubGlobal('createError', (e: unknown) => e)
   for (const [name, value] of Object.entries({
     computed,
@@ -146,10 +174,11 @@ async function render() {
 const tab = (w: VueWrapper, key: string) => w.get(`[data-testid="settings-tab-${key}"]`)
 
 describe('root platform settings (R-05, 22.3.1)', () => {
-  it('shows six sections, «Общие» first, with read-only currency and region', async () => {
+  it('shows seven sections for an Owner, «Общие» first, with read-only currency and region', async () => {
     const w = await render()
     expect(w.findAll('.vt-root-settings__tab').map((b) => b.text())).toEqual([
       'Общие',
+      'Команда & роли',
       'Платежи',
       'Уведомления',
       'Лимиты',
@@ -290,5 +319,55 @@ describe('root platform settings (R-05, 22.3.1)', () => {
     const row = w.get('[data-testid="settings-history"] li').text()
     expect(row).toContain('Root')
     expect(row).toContain('Нажатия кнопок бота на пользователя: 8 → 9')
+  })
+
+  it('R-15: Admin has neither «Команда & роли» nor «Безопасность» in the tabs', async () => {
+    me = ADMIN as typeof OWNER
+    const w = await render()
+    expect(w.findAll('.vt-root-settings__tab').map((b) => b.text())).toEqual([
+      'Общие',
+      'Платежи',
+      'Уведомления',
+      'Лимиты',
+      'Интеграции',
+    ])
+  })
+
+  it('R-15: a direct ?section=team for an Admin opens «Общие», not the team', async () => {
+    me = ADMIN as typeof OWNER
+    route.query = { section: 'team' }
+    const w = await render()
+    expect(tab(w, 'general').attributes('aria-current')).toBe('page')
+    expect(w.text()).not.toContain('Команда платформы')
+    expect(apiFetch).not.toHaveBeenCalledWith('/api/platform/staff')
+  })
+
+  it('R-15: «Команда & роли» opens the team list for an Owner', async () => {
+    const w = await render()
+    await tab(w, 'team').trigger('click')
+    await flushPromises()
+    expect(apiFetch).toHaveBeenCalledWith('/api/platform/staff')
+    expect(w.text()).toContain('Команда платформы')
+    expect(w.text()).toContain('ivan@volleytime.by')
+    // история изменений общих настроек на этой вкладке не показывается
+    expect(w.find('[data-testid="settings-history"]').exists()).toBe(false)
+  })
+
+  it('R-15: after the Owner changes their own role the page re-reads the menu', async () => {
+    const w = await render()
+    await tab(w, 'team').trigger('click')
+    await flushPromises()
+    w.findComponent({ name: 'StaffTeam' }).vm.$emit('self-changed', 'role')
+    await flushPromises()
+    expect(refreshMe).toHaveBeenCalled()
+  })
+
+  it('R-15: after the Owner removes themselves the page leaves Root Admin', async () => {
+    const w = await render()
+    await tab(w, 'team').trigger('click')
+    await flushPromises()
+    w.findComponent({ name: 'StaffTeam' }).vm.$emit('self-changed', 'removed')
+    await flushPromises()
+    expect(navigateToMock).toHaveBeenCalledWith('/app')
   })
 })

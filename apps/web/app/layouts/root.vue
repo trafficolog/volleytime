@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import type { PlatformSettingsResponse } from '@volley-time/shared'
 
-import { rootNavItems, type RootNavItem } from '~/utils/root-overview'
+import { rootNavItems, rootNavItemsFor, type RootNavItem } from '~/utils/root-overview'
+import { roleInfo } from '~/utils/root-team'
 
 const route = useRoute()
 const { user } = useAuth()
-const items = rootNavItems()
+// меню по роли (29.3.1, R-15): пока роль грузится — пусто (скрытый раздел не мигает); не пришла
+// (ошибка) — полный список: сервер всё равно ответит 403
+const { data: me, pending: mePending } = usePlatformStaffMe()
+const items = computed(() =>
+  me.value ? rootNavItemsFor(me.value) : mePending.value ? [] : rootNavItems(),
+)
 
 const account = computed(() => user.value?.email ?? user.value?.name ?? 'root')
 
@@ -45,6 +51,11 @@ useHead({
           <small class="vt-mono">PLATFORM ROOT</small>
         </span>
       </NuxtLink>
+
+      <p v-if="me" class="vt-root__role" data-testid="root-role">
+        <span class="vt-chip vt-chip--solid">{{ roleInfo(me.role).label }}</span>
+        {{ roleInfo(me.role).ru }}
+      </p>
 
       <div class="vt-root__warning" role="note">
         <p class="vt-cap">Внимание</p>
