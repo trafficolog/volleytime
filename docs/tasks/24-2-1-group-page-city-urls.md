@@ -2,11 +2,11 @@
 id: '24.2.1'
 phase: '24'
 epic: '24.2'
-status: in_progress
+status: done
 release: 'v0.6.0'
 sync_state: synced
 last_reviewed: 2026-11-25
-status_note: 'Реализация в PR: маршрут /{город}/{группа}, история адресов (0049), 301, sitemap, каталог /{город}. Релиз v0.6.0 (D-34).'
+status_note: 'Сделано в #361 (21781813), CI зелёный на c934d0c0, ревью Opus: merge после 1 раунда. Решения владельца 2026-11-25 — в «Решениях реализации».'
 ref_id: ''
 complexity: XL
 impl_model: claude-opus-5-5
