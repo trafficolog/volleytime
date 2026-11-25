@@ -75,17 +75,16 @@ const STAFF_ERRORS: Record<string, string> = {
 
 /** Сообщение об ошибке действий над командой: код домена, иначе общий текст. */
 export function staffErrorMessage(e: unknown, fallback: string): string {
-  const code = apiErrorCode(e)
-  if (code && STAFF_ERRORS[code]) return STAFF_ERRORS[code]
-  if (apiErrorStatus(e) === 422) return STAFF_ERRORS.validation_failed
+  const known = STAFF_ERRORS[apiErrorCode(e) ?? '']
+  if (known) return known
+  if (apiErrorStatus(e) === 422) return STAFF_ERRORS.validation_failed ?? fallback
   return apiErrorMessage(e, fallback)
 }
 
 /** Две буквы имени для аватара: инициалы слов, у одного слова — его первые две буквы. */
 export function initials(name: string): string {
   const words = name.split(/\s+/).filter(Boolean)
-  const letters =
-    words.length > 1 ? words.map((word) => word[0]).join('') : (words[0] ?? '')
+  const letters = words.length > 1 ? words.map((word) => word[0]).join('') : (words[0] ?? '')
   return letters ? letters.slice(0, 2).toUpperCase() : '?'
 }
 

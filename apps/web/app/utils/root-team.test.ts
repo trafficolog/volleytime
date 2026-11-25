@@ -30,7 +30,13 @@ describe('roleInfo', () => {
 
 describe('assignableRoles', () => {
   it('does not offer Owner when promoting someone else (reference: only an Owner keeps Owner)', () => {
-    expect(assignableRoles('support')).toEqual(['admin', 'finance', 'moderator', 'support', 'analyst'])
+    expect(assignableRoles('support')).toEqual([
+      'admin',
+      'finance',
+      'moderator',
+      'support',
+      'analyst',
+    ])
   })
   it('offers Owner to a current Owner, and for invitations offers no Owner', () => {
     expect(assignableRoles('owner')).toEqual([...PLATFORM_ROLES])
@@ -94,7 +100,10 @@ describe('permission matrix (R-15)', () => {
   it('derives every cell of the card matrix from PLATFORM_POLICIES', () => {
     for (const row of PERMISSION_ROWS) {
       const actual = PLATFORM_ROLES.map((role: PlatformRole) => permissionCell(row, role))
-      expect({ row: row.label, cells: actual }).toEqual({ row: row.label, cells: MATRIX[row.label] })
+      expect({ row: row.label, cells: actual }).toEqual({
+        row: row.label,
+        cells: MATRIX[row.label],
+      })
     }
   })
 })

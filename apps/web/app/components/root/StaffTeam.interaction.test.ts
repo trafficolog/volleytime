@@ -355,8 +355,16 @@ describe('StaffTeam: «Команда & роли» (29.3.1, R-15)', () => {
     expect(table.findAll('tbody tr')).toHaveLength(14)
     const row = (label: string) =>
       table.findAll('tbody tr').find((r) => r.text().startsWith(label))!
-    expect(row('Жалобы на страницы').findAll('td').map((c) => c.text())).toContain('отклонить')
-    expect(row('Тарифы и пакеты').findAll('td').map((c) => c.text())).toContain('просмотр')
+    expect(
+      row('Жалобы на страницы')
+        .findAll('td')
+        .map((c) => c.text()),
+    ).toContain('отклонить')
+    expect(
+      row('Тарифы и пакеты')
+        .findAll('td')
+        .map((c) => c.text()),
+    ).toContain('просмотр')
     // полный доступ читается и без цвета: «есть» в тексте для скринридера
     expect(row('Команда, безопасность, API').text()).toContain('есть')
     expect(w.text()).toContain('Разделы без доступа скрыты из меню')

@@ -1,9 +1,5 @@
 <script setup lang="ts">
-import type {
-  PlatformRole,
-  PlatformStaffList,
-  PlatformStaffMember,
-} from '@volley-time/shared'
+import type { PlatformRole, PlatformStaffList, PlatformStaffMember } from '@volley-time/shared'
 import { PLATFORM_ROLES } from '@volley-time/shared'
 import { computed, onMounted, ref } from 'vue'
 
@@ -209,7 +205,9 @@ const TONES: Record<PlatformRole, 'solid' | 'flame' | 'amber' | 'grass' | 'defau
                     <span v-else-if="cell === 'none'" class="vt-team-muted">
                       —<span class="sr-only">нет</span>
                     </span>
-                    <span v-else class="vt-team-muted">{{ cell === 'view' ? 'просмотр' : cell }}</span>
+                    <span v-else class="vt-team-muted">{{
+                      cell === 'view' ? 'просмотр' : cell
+                    }}</span>
                   </template>
                 </td>
               </tr>

@@ -14,7 +14,17 @@ const ROLES: Record<string, { userId: number; role: string; policies: string[] }
   owner: {
     userId: 1,
     role: 'owner',
-    policies: policiesOf('overview', 'organizations', 'users', 'balance', 'subscriptions', 'groupPages', 'audit', 'settings', 'team'),
+    policies: policiesOf(
+      'overview',
+      'organizations',
+      'users',
+      'balance',
+      'subscriptions',
+      'groupPages',
+      'audit',
+      'settings',
+      'team',
+    ),
   },
   support: {
     userId: 3,

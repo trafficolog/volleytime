@@ -35,7 +35,7 @@ function reactToStatus(status: number | undefined): boolean {
     throw createError({
       statusCode: 403,
       statusMessage: 'Forbidden',
-      message: 'Раздел доступен только администратору платформы',
+      message: 'Нет доступа к разделу',
       fatal: true,
     })
   }

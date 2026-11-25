@@ -5,19 +5,25 @@ const props = defineProps<{ error: { statusCode?: number; statusMessage?: string
 const isNotFound = computed(() => props.error?.statusCode === 404)
 // 429 — лимит запросов (публичная страница события, 20.6.1)
 const isTooMany = computed(() => props.error?.statusCode === 429)
+// 403 — раздел Root Admin, который роль команды платформы не открывает (29.3.1, R-15)
+const isForbidden = computed(() => props.error?.statusCode === 403)
 const title = computed(() =>
   isTooMany.value
     ? 'Слишком много запросов'
-    : isNotFound.value
-      ? 'Страница не найдена'
-      : 'Что-то пошло не так',
+    : isForbidden.value
+      ? 'Нет доступа к разделу'
+      : isNotFound.value
+        ? 'Страница не найдена'
+        : 'Что-то пошло не так',
 )
 const description = computed(() =>
   isTooMany.value
     ? 'Подождите минуту и обновите страницу.'
-    : isNotFound.value
-      ? 'Возможно, ссылка устарела или экран переехал.'
-      : 'Попробуйте обновить экран. Если не помогает — откройте приложение заново из чата с ботом.',
+    : isForbidden.value
+      ? 'Раздел недоступен вашей роли. Если он нужен для работы, напишите владельцу платформы.'
+      : isNotFound.value
+        ? 'Возможно, ссылка устарела или экран переехал.'
+        : 'Попробуйте обновить экран. Если не помогает — откройте приложение заново из чата с ботом.',
 )
 </script>
 

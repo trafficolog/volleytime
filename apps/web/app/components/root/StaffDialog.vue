@@ -117,12 +117,7 @@ async function submit() {
       </div>
       <fieldset v-if="kind !== 'remove'" class="vt-mod-fieldset">
         <legend class="vt-label">Роль</legend>
-        <label
-          v-for="r in roles"
-          :key="r"
-          class="vt-mod-reason"
-          :data-selected="role === r"
-        >
+        <label v-for="r in roles" :key="r" class="vt-mod-reason" :data-selected="role === r">
           <input v-model="role" type="radio" :name="`${uid}-role`" :value="r" />
           <span>
             <span class="vt-mod-reason__title">{{ roleInfo(r).label }} · {{ roleInfo(r).ru }}</span>

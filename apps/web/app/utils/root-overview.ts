@@ -37,10 +37,28 @@ export interface RootNavItem {
 export function rootNavItems(): RootNavItem[] {
   return [
     { key: 'overview', label: 'Обзор платформы', icon: 'chart', to: '/root', policy: 'overview' },
-    { key: 'organizations', label: 'Организации', icon: 'home', to: '/root/organizations', policy: 'organizations' },
+    {
+      key: 'organizations',
+      label: 'Организации',
+      icon: 'home',
+      to: '/root/organizations',
+      policy: 'organizations',
+    },
     { key: 'users', label: 'Пользователи', icon: 'users', to: '/root/users', policy: 'users' },
-    { key: 'billing', label: 'Баланс и тарифы', icon: 'card', to: '/root/billing', policy: 'balance' },
-    { key: 'payments', label: 'Подписки и выплаты', icon: 'card', to: '/root/payments', policy: 'subscriptions' },
+    {
+      key: 'billing',
+      label: 'Баланс и тарифы',
+      icon: 'card',
+      to: '/root/billing',
+      policy: 'balance',
+    },
+    {
+      key: 'payments',
+      label: 'Подписки и выплаты',
+      icon: 'card',
+      to: '/root/payments',
+      policy: 'subscriptions',
+    },
     {
       key: 'pages',
       label: 'Страницы групп',
@@ -49,9 +67,21 @@ export function rootNavItems(): RootNavItem[] {
       alsoCurrent: ['/root/page-complaints'],
       policy: 'groupPages',
     },
-    { key: 'features', label: 'Аналитика функций', icon: 'chart', to: '/root/features', policy: 'overview' },
+    {
+      key: 'features',
+      label: 'Аналитика функций',
+      icon: 'chart',
+      to: '/root/features',
+      policy: 'overview',
+    },
     { key: 'audit', label: 'Аудит', icon: 'clock', to: '/root/audit', policy: 'audit' },
-    { key: 'settings', label: 'Настройки', icon: 'settings', to: '/root/settings', policy: 'settings' },
+    {
+      key: 'settings',
+      label: 'Настройки',
+      icon: 'settings',
+      to: '/root/settings',
+      policy: 'settings',
+    },
   ]
 }
 
