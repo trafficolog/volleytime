@@ -27,6 +27,8 @@ definePageMeta({ layout: 'root', middleware: ['root'] })
 useHead({ title: 'Страницы групп — Root Admin' })
 
 const API = '/api/platform/group-pages'
+// кнопки изменений — по роли (29.3.1, R-15): Support видит страницы и историю, но не модерирует
+const { can } = usePlatformCan()
 const toast = useToast()
 
 const catalog = ref<PlatformGroupPageCities | null>(null)
@@ -424,7 +426,7 @@ const emptyText = computed(() => {
                     <VtIcon name="clock" :size="14" />
                   </button>
                   <button
-                    v-if="rowActions(row).restore"
+                    v-if="can('groupPagesModerate') && rowActions(row).restore"
                     type="button"
                     class="vt-btn vt-btn--ink vt-btn--sm"
                     data-action="restore"
@@ -433,7 +435,7 @@ const emptyText = computed(() => {
                     {{ rowActions(row).restoreLabel }}
                   </button>
                   <button
-                    v-if="rowActions(row).noindex"
+                    v-if="can('groupPagesModerate') && rowActions(row).noindex"
                     type="button"
                     class="vt-btn vt-btn--ghost vt-btn--sm"
                     :aria-label="`Принудительный noindex · ${row.name}`"
@@ -449,7 +451,7 @@ const emptyText = computed(() => {
                     Noindex
                   </button>
                   <button
-                    v-if="rowActions(row).hide"
+                    v-if="can('groupPagesModerate') && rowActions(row).hide"
                     type="button"
                     class="vt-btn vt-btn--ghost vt-btn--sm vt-mod-danger"
                     :aria-label="`Скрыть · ${row.name}`"

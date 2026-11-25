@@ -36,6 +36,8 @@ const errors = ref<{ until?: string; reason?: string }>({})
 const today = computed(() => minskToday())
 const max = computed(() => addIsoDays(today.value, UNLIMITED_MAX_DAYS_AHEAD))
 const toast = useToast()
+// включить и отключить безлимит — только ролям с правом balanceManage (29.3.1, R-15)
+const { can } = usePlatformCan()
 
 function open(next: Exclude<Mode, null>) {
   mode.value = next
@@ -106,7 +108,7 @@ async function submit() {
       Не включён: публикация списывает по одному событию.
     </p>
 
-    <div v-if="!mode" class="vt-root-orgs__actions">
+    <div v-if="!mode && can('balanceManage')" class="vt-root-orgs__actions">
       <button
         type="button"
         class="vt-btn vt-btn--ink vt-btn--sm"
@@ -126,7 +128,7 @@ async function submit() {
       </button>
     </div>
 
-    <form v-else class="vt-root-unlimited__form" novalidate @submit.prevent="submit">
+    <form v-else-if="mode" class="vt-root-unlimited__form" novalidate @submit.prevent="submit">
       <p v-if="failure" class="vt-root-billing__error" role="alert">{{ failure }}</p>
       <label v-if="mode === 'set'" class="vt-root-billing__field">
         <span class="vt-label">Последний день безлимита (по Минску)</span>

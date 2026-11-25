@@ -18,6 +18,8 @@ import {
 import { rootOverviewFailure } from '~/utils/root-overview'
 
 definePageMeta({ layout: 'root', middleware: ['root'] })
+// создание вручную — organizationsManage (29.3.1, R-15)
+const { can } = usePlatformCan()
 useHead({ title: 'Организации — Root Admin' })
 
 const SEARCH_DELAY_MS = 300
@@ -96,7 +98,11 @@ function reset() {
         </h1>
         <p v-if="data" class="text-vt-mute-2">{{ orgSubtitle(data.counts) }}</p>
       </div>
-      <NuxtLink to="/root/organizations/new" class="vt-btn vt-btn--primary vt-btn--sm">
+      <NuxtLink
+        v-if="can('organizationsManage')"
+        to="/root/organizations/new"
+        class="vt-btn vt-btn--primary vt-btn--sm"
+      >
         <VtIcon name="plus" :size="14" /> Создать вручную
       </NuxtLink>
     </header>

@@ -6,6 +6,8 @@ import { rootOverviewFailure } from '~/utils/root-overview'
 import { blockErrorMessage, userDetailView, userRowView } from '~/utils/root-users'
 
 definePageMeta({ layout: 'root', middleware: ['root'] })
+// блокировка — usersManage (29.3.1, R-15)
+const { can } = usePlatformCan()
 
 const route = useRoute()
 const id = computed(() => String(route.params.id))
@@ -36,6 +38,7 @@ const actionError = ref('')
 const cancelButton = ref<HTMLButtonElement | null>(null)
 
 async function askBlock() {
+  if (!can('usersManage')) return
   actionError.value = ''
   confirming.value = true
   await nextTick()
@@ -43,7 +46,7 @@ async function askBlock() {
 }
 
 async function run(action: 'block' | 'unblock') {
-  if (submitting.value) return
+  if (!can('usersManage') || submitting.value) return
   submitting.value = true
   actionError.value = ''
   try {
@@ -105,7 +108,7 @@ async function run(action: 'block' | 'unblock') {
         </div>
         <div class="vt-root-orgs__actions">
           <button
-            v-if="view.canBlock"
+            v-if="can('usersManage') && view.canBlock"
             type="button"
             class="vt-btn vt-btn--ghost vt-btn--sm"
             :disabled="submitting || confirming"
@@ -114,7 +117,7 @@ async function run(action: 'block' | 'unblock') {
             Заблокировать
           </button>
           <button
-            v-else-if="view.canUnblock"
+            v-else-if="can('usersManage') && view.canUnblock"
             type="button"
             class="vt-btn vt-btn--ink vt-btn--sm"
             :disabled="submitting"

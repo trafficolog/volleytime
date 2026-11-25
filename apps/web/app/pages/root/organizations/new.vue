@@ -10,6 +10,8 @@ import {
 } from '~/utils/root-organizations'
 
 definePageMeta({ layout: 'root', middleware: ['root'] })
+// создание — organizationsManage (29.3.1, R-15)
+const { can } = usePlatformCan()
 useHead({ title: 'Новая организация — Root Admin' })
 
 const form = reactive<OrgCreateForm>({ name: '', slug: '', city: '', owner: '' })
@@ -18,7 +20,7 @@ const failure = ref('')
 const submitting = ref(false)
 
 async function submit() {
-  if (submitting.value) return
+  if (!can('organizationsManage') || submitting.value) return
   failure.value = ''
   errors.value = orgCreateErrors(form)
   if (Object.keys(errors.value).length) return
@@ -64,7 +66,12 @@ async function submit() {
         <NuxtLink to="/root/organizations" class="vt-btn vt-btn--ghost vt-btn--sm">
           Отмена
         </NuxtLink>
-        <button type="submit" class="vt-btn vt-btn--primary vt-btn--sm" :disabled="submitting">
+        <button
+          v-if="can('organizationsManage')"
+          type="submit"
+          class="vt-btn vt-btn--primary vt-btn--sm"
+          :disabled="submitting"
+        >
           <VtIcon name="check" :size="14" /> {{ submitting ? 'Создаём…' : 'Создать' }}
         </button>
       </div>
