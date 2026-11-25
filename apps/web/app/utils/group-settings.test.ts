@@ -6,6 +6,7 @@ import {
   cancellationHint,
   deadlineOptions,
   deadlineToValue,
+  isSettingsOwner,
   parseSection,
   seatsHint,
   settingsErrorMessage,
@@ -44,6 +45,24 @@ describe('group settings sections', () => {
     expect(visibleSections(false).map((s) => s.key)).toContain('schedule')
     expect(parseSection('schedule', false)).toBe('schedule')
     expect(parseSection(undefined, true)).toBe('profile')
+  })
+
+  it('shows the team section to the owner only (30.1.2, W-17)', () => {
+    expect(visibleSections(true).map((s) => s.key)).toContain('team')
+    expect(visibleSections(false).map((s) => s.key)).not.toContain('team')
+    expect(parseSection('team', true)).toBe('team')
+    expect(parseSection('team', false)).toBe('profile')
+  })
+
+  it('opens the team section for the owner and for no other role or state', () => {
+    const sectionFor = (member: { role: string; status: string } | null) =>
+      parseSection('team', isSettingsOwner(member))
+    expect(sectionFor({ role: 'owner', status: 'active' })).toBe('team')
+    for (const role of ['organizer', 'coach', 'assistant', 'player']) {
+      expect(sectionFor({ role, status: 'active' })).toBe('profile')
+    }
+    expect(sectionFor({ role: 'owner', status: 'pending' })).toBe('profile')
+    expect(sectionFor(null)).toBe('profile')
   })
 
   it('has an impact hint for every editable setting', () => {
