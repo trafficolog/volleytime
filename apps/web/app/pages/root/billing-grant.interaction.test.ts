@@ -14,6 +14,7 @@ import {
 } from 'vue'
 
 import Grant from './billing-grant.vue'
+import { stubPlatformStaff } from '~/test-support/platform-staff'
 
 const route = reactive<{ query: Record<string, string> }>({ query: {} })
 const apiFetch = vi.fn()
@@ -74,6 +75,7 @@ beforeEach(() => {
   })) {
     vi.stubGlobal(name, value)
   }
+  stubPlatformStaff('owner')
   vi.stubGlobal('$fetch', apiFetch)
 })
 
@@ -202,4 +204,28 @@ describe('root grant balance (R-03, 22.2.2)', () => {
       expect(apiFetch).not.toHaveBeenCalled()
     })
   })
+})
+
+describe('root grant balance: кнопка выдачи по роли (29.3.1, R-15)', () => {
+  beforeEach(() => {
+    route.query = { org: '3' }
+  })
+  const submit = (w: VueWrapper) => w.find('form button[type="submit"]')
+
+  it.each(['owner', 'admin', 'finance'] as const)('%s видит «Выдать»', async (role) => {
+    stubPlatformStaff(role)
+    expect(submit(await render()).exists()).toBe(true)
+  })
+
+  it.each(['analyst', 'support', 'pending', 'error'] as const)(
+    '%s не видит «Выдать» и не отправляет форму',
+    async (state) => {
+      stubPlatformStaff(state)
+      const w = await render()
+      expect(submit(w).exists()).toBe(false)
+      await w.get('form').trigger('submit')
+      await flushPromises()
+      expect(apiFetch).not.toHaveBeenCalled()
+    },
+  )
 })

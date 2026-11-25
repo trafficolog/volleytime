@@ -19,6 +19,7 @@ import EmptyState from '~/components/EmptyState.vue'
 import ErrorState from '~/components/ErrorState.vue'
 import SkeletonList from '~/components/SkeletonList.vue'
 import VtToggle from '~/components/vt/Toggle.vue'
+import { stubPlatformStaff } from '~/test-support/platform-staff'
 
 const API = '/api/platform/event-balance/packages'
 const route = reactive<{ query: Record<string, string> }>({ query: {} })
@@ -149,6 +150,7 @@ beforeEach(() => {
   })) {
     vi.stubGlobal(name, value)
   }
+  stubPlatformStaff('owner')
   vi.stubGlobal('$fetch', apiFetch)
 })
 
@@ -165,7 +167,11 @@ async function render() {
       attachTo: document.body,
       global: {
         components: { ErrorState, SkeletonList, EmptyState, VtToggle },
-        stubs: { VtIcon: true, VtToast: true },
+        stubs: {
+          VtIcon: true,
+          VtToast: true,
+          NuxtLink: { props: ['to'], template: '<a><slot /></a>' },
+        },
       },
     },
   )
@@ -356,4 +362,44 @@ describe('root balance and tariffs (R-02, 22.2.1)', () => {
     })
     expect(w.text()).not.toMatch(/credit/i)
   })
+})
+
+describe('root balance and tariffs: кнопки изменений по роли (29.3.1, R-15)', () => {
+  const rowButtons = (w: VueWrapper) =>
+    row(w, 'events_10')
+      .findAll('button')
+      .map((b) => b.text())
+  const grantLinks = (w: VueWrapper) =>
+    w.findAll('a, button').filter((el) => el.text().includes('Выдать баланс'))
+
+  it('Owner изменяет тарифы и выдаёт баланс', async () => {
+    stubPlatformStaff('owner')
+    const w = await render()
+    expect(byText(w, 'Новый пакет')).toBeDefined()
+    expect(rowButtons(w)).toEqual(['Изменить', 'Дублировать', 'Скрыть', 'Удалить'])
+    expect(grantLinks(w).length).toBeGreaterThan(0)
+  })
+
+  it.each(['admin', 'finance'] as const)(
+    '%s видит тарифы без изменений, но выдаёт баланс',
+    async (role) => {
+      stubPlatformStaff(role)
+      const w = await render()
+      expect(byText(w, 'Новый пакет')).toBeUndefined()
+      expect(rowButtons(w)).toEqual([])
+      expect(grantLinks(w).length).toBeGreaterThan(0)
+    },
+  )
+
+  it.each(['analyst', 'pending', 'error'] as const)(
+    '%s: ни тарифы изменить, ни баланс выдать',
+    async (state) => {
+      stubPlatformStaff(state)
+      const w = await render()
+      expect(row(w, 'events_10').exists()).toBe(true)
+      expect(byText(w, 'Новый пакет')).toBeUndefined()
+      expect(rowButtons(w)).toEqual([])
+      expect(grantLinks(w)).toHaveLength(0)
+    },
+  )
 })

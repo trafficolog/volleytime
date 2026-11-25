@@ -13,6 +13,7 @@ import ModerationDialog from '~/components/root/ModerationDialog.vue'
 import ModerationKpis from '~/components/root/ModerationKpis.vue'
 import ModerationTabs from '~/components/root/ModerationTabs.vue'
 import RestoreDialog from '~/components/root/RestoreDialog.vue'
+import { stubPlatformStaff } from '~/test-support/platform-staff'
 
 const apiFetch = vi.fn()
 const navigateTo = vi.fn()
@@ -112,6 +113,7 @@ beforeEach(() => {
   vi.stubGlobal('useToast', () => ({ show: toastShow }))
   vi.stubGlobal('navigateTo', navigateTo)
   vi.stubGlobal('createError', (e: unknown) => Object.assign(new Error('createError'), e))
+  stubPlatformStaff('owner')
   vi.stubGlobal('$fetch', apiFetch)
   // Icon.vue опирается на автоимпорт `computed`
   vi.stubGlobal('computed', computed)
@@ -443,4 +445,32 @@ describe('root «Страницы групп» (24.1.3, R-06)', () => {
     expect(text).toContain('посетитель')
     expect(text).not.toContain('Ответить')
   })
+})
+
+describe('root «Страницы групп»: кнопки изменений по роли (29.3.1, R-15)', () => {
+  const actions = (w: VueWrapper, id: number) =>
+    rowOf(w, id)
+      .findAll('button')
+      .map((b) => b.attributes('data-action'))
+
+  it.each(['owner', 'admin', 'moderator'] as const)(
+    '%s видит noindex, скрыть и вернуть',
+    async (role) => {
+      stubPlatformStaff(role)
+      const w = await render()
+      expect(actions(w, 1)).toEqual(['history', 'noindex', 'hide'])
+      expect(actions(w, 3)).toEqual(['history', 'restore', 'hide'])
+      expect(actions(w, 4)).toEqual(['history', 'restore'])
+    },
+  )
+
+  it.each(['support', 'pending', 'error'] as const)(
+    '%s: страницы и история видны, кнопок изменений нет',
+    async (state) => {
+      stubPlatformStaff(state)
+      const w = await render()
+      expect(w.findAll('[data-org]')).toHaveLength(4)
+      for (const id of [1, 2, 3, 4]) expect(actions(w, id)).toEqual(['history'])
+    },
+  )
 })

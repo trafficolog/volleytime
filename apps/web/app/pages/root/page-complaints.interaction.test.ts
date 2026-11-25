@@ -10,6 +10,7 @@ import SkeletonList from '~/components/SkeletonList.vue'
 import ModerationDialog from '~/components/root/ModerationDialog.vue'
 import ModerationKpis from '~/components/root/ModerationKpis.vue'
 import ModerationTabs from '~/components/root/ModerationTabs.vue'
+import { stubPlatformStaff } from '~/test-support/platform-staff'
 
 const API = '/api/platform/group-page-complaints'
 const NOW = Date.parse('2026-11-23T12:00:00.000Z')
@@ -96,6 +97,7 @@ beforeEach(() => {
   vi.stubGlobal('useToast', () => ({ show: toastShow }))
   vi.stubGlobal('navigateTo', navigateTo)
   vi.stubGlobal('createError', (e: unknown) => Object.assign(new Error('createError'), e))
+  stubPlatformStaff('owner')
   vi.stubGlobal('$fetch', apiFetch)
   vi.stubGlobal('computed', computed)
 })
@@ -283,5 +285,35 @@ describe('root «Жалобы на страницы» (24.1.3, R-06)', () => {
     }
     await render()
     expect(navigateTo).toHaveBeenCalledWith('/auth/login')
+  })
+})
+
+describe('root «Жалобы на страницы»: кнопки по роли (29.3.1, R-15)', () => {
+  const actions = (w: VueWrapper, id: number) =>
+    card(w, id)
+      .findAll('button')
+      .map((b) => b.attributes('data-action'))
+
+  it.each(['owner', 'admin', 'moderator'] as const)(
+    '%s видит отклонить, noindex и скрыть',
+    async (role) => {
+      stubPlatformStaff(role)
+      const w = await render()
+      expect(actions(w, 31)).toEqual(['reject', 'noindex', 'hide'])
+    },
+  )
+
+  it('Support может только отклонить жалобу', async () => {
+    stubPlatformStaff('support')
+    const w = await render()
+    expect(actions(w, 31)).toEqual(['reject'])
+    expect(actions(w, 28)).toEqual(['reject'])
+  })
+
+  it.each(['pending', 'error'] as const)('%s: кнопок решения нет', async (state) => {
+    stubPlatformStaff(state)
+    const w = await render()
+    expect(w.findAll('[data-complaint]')).toHaveLength(4)
+    expect(w.findAll('[data-action]')).toHaveLength(0)
   })
 })
