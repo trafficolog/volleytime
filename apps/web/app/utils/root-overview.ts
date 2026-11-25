@@ -2,6 +2,8 @@ import type {
   PlatformGateKey,
   PlatformGateMetric,
   PlatformOverview,
+  PlatformPolicy,
+  PlatformStaffMe,
   PlatformWeekCounter,
 } from '@volley-time/shared'
 
@@ -27,27 +29,41 @@ export interface RootNavItem {
   to: string | null
   /** Другие пути, на которых пункт остаётся текущим (например, соседняя вкладка раздела). */
   alsoCurrent?: string[]
+  /** Политика R-15, которая открывает раздел (29.3.1): без неё пункт скрыт из меню. */
+  policy: PlatformPolicy
 }
 
 /** Разделы Root Admin по референсу 4b; ссылку получает пункт, когда его экран появился. */
 export function rootNavItems(): RootNavItem[] {
   return [
-    { key: 'overview', label: 'Обзор платформы', icon: 'chart', to: '/root' },
-    { key: 'organizations', label: 'Организации', icon: 'home', to: '/root/organizations' },
-    { key: 'users', label: 'Пользователи', icon: 'users', to: '/root/users' },
-    { key: 'billing', label: 'Баланс и тарифы', icon: 'card', to: '/root/billing' },
-    { key: 'payments', label: 'Подписки и выплаты', icon: 'card', to: '/root/payments' },
+    { key: 'overview', label: 'Обзор платформы', icon: 'chart', to: '/root', policy: 'overview' },
+    { key: 'organizations', label: 'Организации', icon: 'home', to: '/root/organizations', policy: 'organizations' },
+    { key: 'users', label: 'Пользователи', icon: 'users', to: '/root/users', policy: 'users' },
+    { key: 'billing', label: 'Баланс и тарифы', icon: 'card', to: '/root/billing', policy: 'balance' },
+    { key: 'payments', label: 'Подписки и выплаты', icon: 'card', to: '/root/payments', policy: 'subscriptions' },
     {
       key: 'pages',
       label: 'Страницы групп',
       icon: 'globe',
       to: '/root/pages',
       alsoCurrent: ['/root/page-complaints'],
+      policy: 'groupPages',
     },
-    { key: 'features', label: 'Аналитика функций', icon: 'chart', to: '/root/features' },
-    { key: 'audit', label: 'Аудит', icon: 'clock', to: '/root/audit' },
-    { key: 'settings', label: 'Настройки', icon: 'settings', to: '/root/settings' },
+    { key: 'features', label: 'Аналитика функций', icon: 'chart', to: '/root/features', policy: 'overview' },
+    { key: 'audit', label: 'Аудит', icon: 'clock', to: '/root/audit', policy: 'audit' },
+    { key: 'settings', label: 'Настройки', icon: 'settings', to: '/root/settings', policy: 'settings' },
   ]
+}
+
+/**
+ * Меню Root Admin по роли (R-15): пункты, чью политику роль проходит (`policies` из
+ * `GET /api/platform/staff/me`). Скрытие — только UX, доступ проверяет сервер. Роль неизвестна
+ * (ответ не получен или ошибка) — полный список: сервер всё равно ответит 403.
+ */
+export function rootNavItemsFor(me: PlatformStaffMe | null): RootNavItem[] {
+  const items = rootNavItems()
+  if (me === null) return items
+  return items.filter((item) => me.policies.includes(item.policy))
 }
 
 export function weekDeltaLabel(counter: PlatformWeekCounter): {

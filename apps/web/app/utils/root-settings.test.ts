@@ -167,7 +167,7 @@ describe('settings sections by role (R-15)', () => {
     ])
   })
 
-  it('without a known role keeps the sections that existed before R-15 (server decides)', () => {
+  it('without a known role shows only the settings-policy sections (no team, no security)', () => {
     expect(settingsSectionsFor(null).map((s) => s.key)).not.toContain('team')
   })
 
