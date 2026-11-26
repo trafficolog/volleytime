@@ -14,13 +14,13 @@
     "db:event-balance": "tsx src/event-balance-operator.ts"
   },
   "dependencies": {
-    "drizzle-orm": "^0.45.2",
+    "drizzle-orm": "^0.45.4",
     "postgres": "^3.4.9"
   },
   "devDependencies": {
-    "@types/node": "^26.5.1",
-    "drizzle-kit": "^0.31.10",
-    "tsx": "^4.20.6"
+    "@types/node": "^26.6.6",
+    "drizzle-kit": "^0.31.11",
+    "tsx": "^4.23.15"
   },
   "type": "module",
   "main": "./src/index.ts",

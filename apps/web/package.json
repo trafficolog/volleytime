@@ -18,13 +18,13 @@
     "@volley-time/core": "workspace:*",
     "@volley-time/db": "workspace:*",
     "@volley-time/shared": "workspace:*",
-    "nuxt": "^4.2.2",
-    "vue": "^3.5.24",
-    "zod": "^4.6.4"
+    "nuxt": "^4.6.4",
+    "vue": "^3.5.46",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@nuxtjs/tailwindcss": "^6.14.0",
     "h3": "1.15.11",
-    "vue-tsc": "^3.3.11"
+    "vue-tsc": "^3.3.14"
   }
 }
